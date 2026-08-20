@@ -1,0 +1,15 @@
+export { default as CartIcon } from './CartIcon';
+export { default as CloseIcon } from './CloseIcon';
+export { default as WhatsAppIcon } from './WhatsAppIcon';
+export { default as TrashIcon } from './TrashIcon';
+export { default as CalendarIcon } from './CalendarIcon';
+export { default as LocationIcon } from './LocationIcon';
+export { default as UtensilsIcon } from './UtensilsIcon';
+export { default as ClockIcon } from './ClockIcon';
+export { default as TruckIcon } from './TruckIcon';
+export { default as CheckIcon } from './CheckIcon';
+export { default as PlusIcon } from './PlusIcon';
+export { default as MinusIcon } from './MinusIcon';
+export { default as DiscountIcon } from './DiscountIcon';
+export { default as StarIcon } from './StarIcon';
+export { default as RightArrow } from './RightArrow';

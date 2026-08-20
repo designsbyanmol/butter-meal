@@ -1,0 +1,70 @@
+*{
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0.4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Remove handlebar start */
+/* width */
+::-webkit-scrollbar {
+    width: 0px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #fafafa;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: #fdfdfd;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #dcdcdc;
+}
+
+/* Remove handlebar ends */
+
+.container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 15px 20px;
+
+  &.hasFloatingCart{
+    padding-bottom: 120px;
+  }
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 20px;
+
+  p {
+    color: #6d5c52;
+    font-size: 1.1rem;
+  }
+}
+
+.loader {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f0ebe6;
+  border-top: 4px solid #25D366;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

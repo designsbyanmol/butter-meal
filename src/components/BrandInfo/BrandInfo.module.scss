@@ -1,0 +1,33 @@
+.brandWrap {
+    margin: 20px 0 24px;
+    position: relative;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e1e1e;
+    letter-spacing: 1px;
+    line-height: 1.25;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.subhead {
+    color: #4d4d4d;
+    font-size: 14px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+  svg {
+    flex-shrink: 0;
+  }
+}

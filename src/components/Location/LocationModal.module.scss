@@ -1,0 +1,83 @@
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: flex-end;
+    z-index: 9999999;
+}
+
+.modalBox {
+   background: white;
+  border-radius: 8px 8px 0 0;
+  padding: 24px;
+  max-width: 800px;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25);
+  animation: fadeInUp 0.3s ease;
+  text-align: center;
+
+  p {
+    color: #4d4d4d;
+    line-height: 1.35;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+
+
+  h2 {
+    font-size: 16px;
+    color: #1e1e1e;
+    margin-bottom: 8px;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btnOk {
+  background: #3caa46;
+  border: none;
+  color: white;
+  font-weight: 400;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+  flex: 1;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.iconWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+  
+  svg {
+    display: block;
+  }
+}
