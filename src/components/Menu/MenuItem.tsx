@@ -1,6 +1,6 @@
 import React from 'react';
 import { MenuItem } from '../../types';
-import { PlusIcon, MinusIcon, StarIcon } from '../../assets/svgs';
+import { StarIcon } from '../../assets/svgs';
 import styles from './Menu.module.scss';
 
 interface MenuItemProps {
@@ -14,7 +14,6 @@ interface MenuItemProps {
 const MenuItemComponent: React.FC<MenuItemProps> = ({ 
   item, 
   quantity, 
-  onRemove,
   onItemClick 
 }) => {
   const isAdded = quantity > 0;
@@ -27,11 +26,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     e.stopPropagation();
     // Open detail popup instead of directly adding
     onItemClick(item);
-  };
-
-  const handleQtyRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onRemove(item.id);
   };
 
   return (
@@ -87,15 +81,12 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           <div className={styles.actions}>
             {isAdded ? (
               // Show quantity controls when item is already in cart
-              <div className={styles.qtyControls}>
-                <button onClick={handleQtyRemove}>
-                  <MinusIcon width={14} height={14} fill="#1e1e1e" />
-                </button>
-                <span className={styles.qtyNum}>{quantity}</span>
-                <button onClick={handleAddClick}>
-                  <PlusIcon width={14} height={14} fill="#1e1e1e" />
-                </button>
-              </div>
+                <button 
+                className={styles.btnCustomize}
+                onClick={handleAddClick}
+              >
+                {quantity} Added
+              </button>
             ) : (
               // Show "Customize" button when item is not in cart
               <button 

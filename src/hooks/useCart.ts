@@ -100,7 +100,6 @@ export const useCart = () => {
     setCart(prevCart => {
       // Calculate addon price
       const addonPrice = customizations ? getCustomizationPrice(customizations) : 0;
-      const totalPrice = item.price + addonPrice;
       
       // Check if item with same customizations exists
       const existingIndex = prevCart.findIndex(c => {
@@ -196,17 +195,23 @@ export const useCart = () => {
   const getTotalWithDelivery = useCallback(() => {
     const subtotal = getSubtotal();
     const baseTotal = subtotal + DELIVERY_FEE;
+    const discount = getDiscountAmount();
     if (paymentMode === 'Online') {
-      return Math.round(baseTotal * 0.9);
+      return Math.round(baseTotal - discount);
     }
     return Math.round(baseTotal);
   }, [getSubtotal, paymentMode]);
 
+  const getDiscountPercent = useCallback(() => {
+    return 20;
+  },[]);
+
   const getDiscountAmount = useCallback(() => {
     const subtotal = getSubtotal();
+    const discountPercent = getDiscountPercent();
     const baseTotal = subtotal + DELIVERY_FEE;
     if (paymentMode === 'Online') {
-      return Math.round(baseTotal * 0.1);
+      return Math.round(baseTotal * (discountPercent/100));
     }
     return 0;
   }, [getSubtotal, paymentMode]);
@@ -251,6 +256,7 @@ export const useCart = () => {
     getTotalItems,
     getSubtotal,
     getTotalWithDelivery,
+    getDiscountPercent,
     getDiscountAmount,
     getDeliveryTime,
     generateOrderNumber,

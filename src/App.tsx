@@ -22,8 +22,7 @@ const App: React.FC = () => {
     setScheduleData,
     addItem,
     removeItem,
-    removeItemCompletely,
-    clearCart,
+    getDiscountPercent,
     getTotalItems,
     getSubtotal,
     getTotalWithDelivery,
@@ -64,14 +63,21 @@ const App: React.FC = () => {
   };
 
 const handleDeliveryChange = (type: 'now' | 'schedule') => {
-  setDeliveryType(type);
-  if (type === 'schedule' && cart.length > 0) {
+  if (type === 'schedule') {
+    if (cart.length === 0) {
+      // If cart is empty, don't allow scheduling
+      setDeliveryType('now');
+      return;
+    }
+    
     if (!scheduleData) {
-      setPreviousDeliveryType('now'); // Store current type before opening
       setIsScheduleOpen(true);
     }
-  } else if (type === 'now') {
+    setDeliveryType('schedule');
+  } else {
+    setDeliveryType('now');
     setScheduleData(null);
+    setIsScheduleOpen(false);
   }
 };
 
@@ -107,19 +113,19 @@ const handleScheduleClose = () => {
 
     const totalItems = getTotalItems();
     const subtotal = getSubtotal();
-    const baseTotal = subtotal + DELIVERY_FEE;
     const discount = getDiscountAmount();
+    const discountPercent = getDiscountPercent();
     const finalTotal = getTotalWithDelivery();
     const orderNo = generateOrderNumber();
     const deliveryTime = getDeliveryTime();
 
     let message = `*New Order Placed*\n`;
     message += `-----------------\n`;
-    message += `Order No. - ${orderNo}\n`;
+    message += `Order ID. - ${orderNo}\n`;
     message += `Total Items - ${totalItems}\n`;
     message += `Payment - ${paymentMode}`;
-    if (paymentMode === 'Online' && discount > 0) {
-      message += ` (20% OFF)`;
+    if (paymentMode === 'Online' && discountPercent > 0) {
+      message += ` (${discountPercent}% OFF)`;
     }
     message += `\n`;
     message += `Exp. Delivery - ${deliveryTime}\n`;
@@ -132,7 +138,7 @@ const handleScheduleClose = () => {
       schedHours = schedHours % 12;
       schedHours = schedHours ? schedHours : 12;
       message += `Scheduled Delivery - ${scheduleData.date} at ${schedHours}:${schedMins} ${schedAmpm}\n`;
-      message += `*Note:* Prepaid · Non-refundable · Reminder sent 1hr before\n`;
+      message += `*Note:* Prepaid · Send Reminder before 1hr\n`;
     }
 
     message += `-----------------\n`;
@@ -141,7 +147,7 @@ const handleScheduleClose = () => {
       const pricePerItem = (item.basePrice || item.price) + (item.addonPrice || 0);
       const itemTotal = pricePerItem * item.quantity;
       let itemLine = `${item.name} x ${item.quantity}`;
-      
+      message += `- - - - - - -\n`;
       // Add customizations if any
       if (item.customizations && Object.keys(item.customizations).length > 0) {
         const customStr = Object.entries(item.customizations)
@@ -162,19 +168,20 @@ const handleScheduleClose = () => {
     message += `Subtotal - Rs ${Math.round(subtotal)}\n`;
     message += `Delivery - Rs ${DELIVERY_FEE}\n`;
     
-    if (paymentMode === 'Online' && discount > 0) {
-      message += `Discount (20%) - Rs ${discount}\n`;
+    if (paymentMode === 'Online' && discountPercent > 0) {
+      message += `Discount (${discountPercent}%) - Rs ${discount}\n`;
       message += `-----------------\n`;
-      message += `Total Amount - *Rs ${finalTotal}*\n`;
-      message += `(20% discount applied on total)\n`;
+      message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
+      message += `(${discountPercent}% discount applied on total)\n`;
     } else {
-      message += `-----------------\n`;
-      message += `Total Amount - *Rs ${finalTotal}*\n`;
+    message += `-----------------\n`;
+      message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
       message += `(+Rs ${DELIVERY_FEE} Inc. for delivery)\n`;
     }
     
     message += `\n-----------------\n`;
-    message += `_Delicious meal is on the way_\n`;
+    message += `_We take orders on trust. Once a faulty will be a lifetime faulty_\n`;
+    message += `_Editing this order before payment = Order Cancelled_\n`;
     message += `_-Butter Meal_`;
 
     const encoded = encodeURIComponent(message);
@@ -228,6 +235,7 @@ const handleScheduleClose = () => {
         subtotal={getSubtotal()}
         total={getTotalWithDelivery()}
         discount={getDiscountAmount()}
+        discountPercent={getDiscountPercent()}
         deliveryFee={DELIVERY_FEE}
         totalItems={getTotalItems()}
       />

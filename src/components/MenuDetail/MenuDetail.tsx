@@ -74,10 +74,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({ isOpen, item, onClose, onAddToC
       .map(([key, value]) => `${key}: ${value}`);
     return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
-  const badgeClass = `${styles.badge} ${styles.popular}`;
-console.log('Badge classes:', badgeClass);
-console.log('styles.badge:', styles.badge);
-console.log('styles.popular:', styles.popular);
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>

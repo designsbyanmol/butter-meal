@@ -28,6 +28,7 @@ interface CartModalProps {
   subtotal: number;
   total: number;
   discount: number;
+  discountPercent: number;
   deliveryFee: number;
   totalItems: number;
 }
@@ -47,6 +48,7 @@ const CartModal: React.FC<CartModalProps> = ({
   subtotal,
   total,
   discount,
+  discountPercent,
   deliveryFee,
   totalItems
 }) => {
@@ -113,7 +115,7 @@ const CartModal: React.FC<CartModalProps> = ({
                 </div>
                 {discount > 0 && (
                   <div className={`${styles.summaryRow} ${styles.discountRow}`}>
-                    <span>Discount (20% off)</span>
+                    <span>Discount ({discountPercent}% off)</span>
                     <span className={styles.value}>-Rs{discount}</span>
                   </div>
                 )}
@@ -141,10 +143,12 @@ const CartModal: React.FC<CartModalProps> = ({
                         checked={paymentMode === 'Online'}
                         onChange={() => onPaymentChange('Online')}
                       /> Online
+                      {discountPercent > 0 &&(
                       <span className={styles.discountBadge}>
                         <DiscountIcon width={14} height={14} fill="#fff" />
-                        20% off
+                        {discountPercent}% off
                       </span>
+                      )}
                     </label>
                   </div>
                 </div>
@@ -193,18 +197,18 @@ const CartModal: React.FC<CartModalProps> = ({
           <div className={styles.modalTotal}>
             <span>Total Amount</span>
             <span className={styles.totalValue}>
-              {paymentMode === 'Online' && hasItems && (
+              {paymentMode === 'Online' && hasItems && discountPercent > 0 &&(
                 <del className={styles.originalPrice}>Rs{subtotal + deliveryFee}</del>
               )} {hasItems ? `Rs${total}` : 0}
             </span>
           </div>
           <div className={styles.appliedOffer}>
             {hasItems ? (
-              discount > 0 ? (
+              discountPercent > 0 ? (
                 <>
                   <span className={styles.discountText}>
                     <DiscountIcon width={12} height={12} fill="#1e1e1e" />
-                    (20% off applied)
+                    ({discountPercent}% off applied)
                   </span>
                 </>
               ) : (
