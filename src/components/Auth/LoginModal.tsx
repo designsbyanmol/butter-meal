@@ -47,7 +47,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <button className={styles.closeBtn} onClick={onClose}>✕</button>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>📱</span>
+          <span className={styles.logoIcon}><img src="https://cdn.jsdelivr.net/gh/designsbyanmol/butter-meal@main/src/assets/images/teckut-favicon.png" alt="teckut logo for management of restaurants" /></span>
         </div>
         <h2>Welcome Back</h2>
         <p className={styles.subtitle}>Sign in to your account</p>
