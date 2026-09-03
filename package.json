@@ -1,6 +1,7 @@
 {
   "name": "butter-meal",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "start": "vite",
@@ -10,19 +11,30 @@
     "build:dev": "vite build --mode development && node scripts/inline.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.113.0",
+    "axios": "^1.19.0",
     "html2canvas": "^1.4.1",
+    "localforage": "^1.10.0",
+    "match-sorter": "^8.3.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.2",
+    "sort-by": "^0.0.2"
   },
   "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@babel/plugin-transform-modules-commonjs": "^8.0.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.1",
     "cheerio": "^1.0.0",
+    "esbuild": "^0.28.2",
     "fs-extra": "^11.2.0",
     "sass": "^1.81.0",
     "typescript": "^5.7.2",
-    "vite": "^5.4.11"
+    "vite": "^8.2.2",
+    "vite-plugin-singlefile": "^2.3.3"
   }
 }

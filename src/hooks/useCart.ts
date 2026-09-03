@@ -1,8 +1,9 @@
+// hooks/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 import { CartItem, MenuItem, ScheduleData, PaymentMode, DeliveryType } from '../types';
 
 const DELIVERY_FEE = 20;
-const RESTAURANT_PHONE = '7271807079';
+const RESTAURANT_PHONE = '8068422458';
 
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -98,10 +99,8 @@ export const useCart = () => {
 
   const addItem = useCallback((item: MenuItem, customizations?: Record<string, string>) => {
     setCart(prevCart => {
-      // Calculate addon price
       const addonPrice = customizations ? getCustomizationPrice(customizations) : 0;
       
-      // Check if item with same customizations exists
       const existingIndex = prevCart.findIndex(c => {
         if (c.id !== item.id) return false;
         if (!customizations && !c.customizations) return true;
@@ -112,7 +111,6 @@ export const useCart = () => {
       });
 
       if (existingIndex !== -1) {
-        // Update existing item
         const updatedCart = [...prevCart];
         updatedCart[existingIndex] = {
           ...updatedCart[existingIndex],
@@ -121,7 +119,6 @@ export const useCart = () => {
         return updatedCart;
       }
 
-      // Add new item with customizations
       return [
         ...prevCart,
         { 

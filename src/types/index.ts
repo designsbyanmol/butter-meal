@@ -1,3 +1,15 @@
+// types/index.ts
+export interface User {
+  id: string;
+  phone: string; // Changed from email to phone
+  name: string;
+  password: string; // In production, use proper hashing
+  role: 'admin' | 'user';
+  isActive: boolean; // Admin can activate/deactivate users
+  createdAt: string;
+  lastLogin?: string;
+}
+
 export interface MenuItem {
   id: number;
   inStock: boolean;
@@ -48,3 +60,9 @@ export interface ScheduleData {
 
 export type PaymentMode = 'COD' | 'Online';
 export type DeliveryType = 'now' | 'schedule';
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}

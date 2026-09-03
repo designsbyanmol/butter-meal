@@ -1,5 +1,5 @@
 import React from 'react';
-import { LocationIcon, WhatsAppIcon } from '../../assets/svgs';
+import { LocationIcon } from '../../assets/svgs';
 import styles from './LocationModal.module.scss';
 
 interface LocationModalProps {
