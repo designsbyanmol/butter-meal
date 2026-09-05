@@ -19,11 +19,11 @@ export const DEFAULT_ADMIN: AdminCredentials = {
 // Additional seed users (optional)
 export const SEED_USERS: AdminCredentials[] = [
   // Add more users here if needed
-  // {
-  //   phone: '9876543211',
-  //   name: 'Staff User',
-  //   password: 'staff123',
-  //   role: 'user',
-  //   isActive: true,
-  // },
+  {
+    phone: '123456',
+    name: 'Staff User',
+    password: '123456',
+    role: 'user',
+    isActive: true,
+  },
 ];

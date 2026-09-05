@@ -69,3 +69,129 @@
   100% { transform: rotate(360deg); }
 }
 
+// App.module.scss
+
+// Database Status Notice - Clean badge style
+.dbStatusNotice {
+     padding: 4px 20px;
+    display: flex;
+    position: fixed;
+    top: 50px;
+    right: 15px;
+    border-radius: 4px;
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 50px rgba(255,255,255,0.2);
+  
+  &.connected {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    color: #2e7d32;
+  }
+  
+  &.disconnected {
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    color: #e65100;
+    animation: pulseBg 1.5s ease-in-out infinite;
+  }
+  
+  &.checking {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    color: #0d47a1;
+    border-bottom: 2px solid #2196f3;
+    
+    .statusDot {
+      background: #2196f3;
+      animation: pulse 1s ease-in-out infinite;
+    }
+  }
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  
+  .connected & {
+    background: #4caf50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+  }
+  
+  .disconnected & {
+    background: #ff9800;
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
+    animation: blink 1s ease-in-out infinite;
+  }
+  
+  .checking & {
+    background: #2196f3;
+    animation: pulse 1s ease-in-out infinite;
+  }
+}
+
+.statusText {
+  font-size: 12px;
+}
+
+.reconnectingText {
+  font-weight: 400;
+  opacity: 0.8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseBg {
+  0%, 100% {
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+  }
+  50% {
+    background: linear-gradient(135deg, #ffe0b2, #ffcc80);
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// Loading State
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  
+  .loader {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2196F3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+  }
+  
+  p {
+    color: #666;
+    font-size: 16px;
+  }
+}

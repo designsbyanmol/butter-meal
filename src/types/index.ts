@@ -49,6 +49,7 @@ export interface MenuItem {
 export interface CartItem extends MenuItem {
   quantity: number;
   customizations?: Record<string, string>;
+  customMessage?: string;
   addonPrice?: number;
   basePrice?: number;
 }

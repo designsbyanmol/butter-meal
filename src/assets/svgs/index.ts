@@ -13,3 +13,6 @@ export { default as MinusIcon } from './MinusIcon';
 export { default as DiscountIcon } from './DiscountIcon';
 export { default as StarIcon } from './StarIcon';
 export { default as RightArrow } from './RightArrow';
+export { default as MenuIcon } from './MenuIcon';
+export { default as UsersIcon } from './UsersIcon';
+export { default as Copyright } from './Copyright';

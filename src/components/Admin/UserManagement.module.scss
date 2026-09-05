@@ -16,10 +16,10 @@
 
 .panel {
   background: white;
-  border-radius: 16px;
+  border-radius: 8px;
   width: 100%;
-  max-width: 1000px;
-  max-height: 90vh;
+  max-width: 700px;
+  max-height: 90%;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
@@ -41,14 +41,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 8px;
   border-bottom: 1px solid #e0e0e0;
+  position: relative;
 
   h2 {
     margin: 0;
-    font-size: 22px;
+    font-size: 14px;
     font-weight: 600;
     color: #1a1a1a;
+  }
+}
+
+.closeBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:hover path {
+    fill: #333;
   }
 }
 
@@ -68,6 +82,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  margin: 8px;
 
   &:hover {
     background: #064a16;
@@ -75,48 +90,33 @@
   }
 }
 
-.closeBtn {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: #666;
-  padding: 0 8px;
-  line-height: 1;
-  transition: color 0.2s;
-
-  &:hover {
-    color: #333;
-  }
-}
-
-.errorMessage {
-  margin: 12px 24px;
-  padding: 12px 16px;
-  background: #fde8ea;
-  color: #dc3545;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.successMessage {
-  margin: 12px 24px;
-  padding: 12px 16px;
-  background: #e8f5e9;
-  color: #085b1b;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
 .createForm {
-  margin: 16px 24px;
   padding: 20px;
   background: #f8f9fa;
-  border-radius: 12px;
   border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  .createForm_in {
+    flex: 1;
+  }
+
+  .formRow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
   h3 {
-    margin: 0 0 16px 0;
+    margin: 0 0 12px 0;
+    font-weight: 600;
     font-size: 18px;
     color: #1a1a1a;
   }
@@ -126,12 +126,45 @@
     flex-direction: column;
     gap: 16px;
   }
-}
 
-.formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  .submitBtn_wrap {
+    display: flex;
+    gap: 16px;
+    button {
+      flex: 1;
+      margin: 0;
+      padding: 10px 20px;
+      background: #085b1b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .submitBtn {
+      padding: 10px 20px;
+      background: #19782f;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #24963f;
+      }
+    }
+
+    .cancelBtn {
+      background: #b13c34;
+      color: #fff;
+    }
+  }
 }
 
 .formGroup {
@@ -140,16 +173,17 @@
   gap: 4px;
 
   label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
     color: #333;
   }
 
-  input, select {
-    padding: 10px 12px;
+  input,
+  select {
+    padding: 6px 12px;
     border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 4px;
+    font-size: 12px;
     transition: border-color 0.2s;
 
     &:focus {
@@ -157,28 +191,15 @@
       border-color: #085b1b;
     }
   }
-}
-
-.submitBtn {
-  padding: 10px 20px;
-  background: #085b1b;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #064a16;
+  select {
+    max-width: max-content;
   }
 }
 
 .userList {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px;
+  padding: 12px 10px;
 }
 
 .loading {
@@ -188,52 +209,102 @@
 }
 
 .table {
-  width: 100%;
-  border-collapse: collapse;
+      display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr;
 
-  th {
-    text-align: left;
-    padding: 12px 16px;
-    font-weight: 600;
-    color: #666;
-    border-bottom: 2px solid #e0e0e0;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  .user_item {
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #e2e2e2;
+    border-radius: 6px;
+    display: flex;
+    gap: 6px;
+    flex-direction: column;
+
+    &.currentUser {
+      background: rgb(243, 249, 238);
+      border-color: rgb(64, 119, 18);
+
+      .head {
+        border-bottom: 1px solid rgba(64, 119, 18, 0.2);
+      }
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+
+      span {
+        font-size: 12px;
+      }
+
+      label {
+        font-weight: 600;
+        font-size: 12px;
+      }
+    }
+    .head {
+      border-bottom: 1px solid #dcdcdc;
+      padding: 0 0 5px;
+      margin: 0 0 5px;
+      span {
+        font-weight: 800;
+      }
+
+      .adminBadge,
+      .userBadge {
+        padding: 6px 12px;
+        background: rgb(64, 119, 18);
+        color: #fff;
+        border-radius: 4px;
+        font-size: 8px;
+        font-weight: 500;
+        text-transform: uppercase;
+        margin: 0 0 0 5px;
+        vertical-align: middle;
+        letter-spacing: 1px;
+      }
+
+      .userBadge {
+        background: #510c68;
+        color: #fff;
+      }
+    }
+
+    .actionButtons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      flex: 1;
+      margin: 10px 0 0;
+      flex-direction: row-reverse;
+    }
+
+    .resetBtn,
+    .toggleBtn,
+    .deleteBtn {
+      text-decoration: underline;
+      color: #1e1e2e;
+      font-size: 12px;
+    }
+
+    .deleteBtn {
+      color: #f00;
+    }
+
+    .toggleBtn {
+      padding: 6px 10px;
+      border-radius: 4px;
+      text-decoration: none;
+      background: #bb9303;
+      color: #fff;
+    }
   }
-
-  td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
-    color: #333;
-  }
-
-  tr:hover td {
-    background: #f8f9fa;
-  }
-
-  .currentUser td {
-    background: #e8f5e9;
-  }
-}
-
-.adminBadge {
-  padding: 4px 12px;
-  background: #fff3cd;
-  color: #856404;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.userBadge {
-  padding: 4px 12px;
-  background: #d1ecf1;
-  color: #0c5460;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .active {
@@ -246,56 +317,42 @@
   font-weight: 500;
 }
 
-.actionButtons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.toggleBtn, .resetBtn, .deleteBtn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s;
-  background: transparent;
-
-  &:hover {
-    transform: scale(1.1);
-  }
-}
-
-.toggleBtn {
-  &:hover {
-    background: #f0f0f0;
-  }
-}
-
-.resetBtn {
-  &:hover {
-    background: #fff3cd;
-  }
-}
-
-.deleteBtn {
-  &:hover {
-    background: #fde8ea;
-  }
-}
-
 .resetPasswordForm {
   display: flex;
-  gap: 4px;
+  gap: 16px;
   align-items: center;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  p {
+    text-align: center;
+    color: #4d4d4d;
+    max-width: 400px;
+    margin: 0 auto;
+  }
 
   .resetInput {
     padding: 6px 10px;
+    background: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 13px;
-    width: 120px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 300px;
 
     &:focus {
       outline: none;
@@ -303,7 +360,15 @@
     }
   }
 
-  .resetConfirmBtn, .resetCancelBtn {
+  .button_wrap {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .resetConfirmBtn,
+  .resetCancelBtn {
     padding: 6px 10px;
     border: none;
     border-radius: 4px;
@@ -324,6 +389,10 @@
   .resetCancelBtn {
     background: #dc3545;
     color: white;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       background: #c82333;
@@ -333,33 +402,228 @@
 
 @media (max-width: 768px) {
   .panel {
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
-  .formRow {
-    grid-template-columns: 1fr;
+    padding: 0;
   }
 
   .table {
-    font-size: 13px;
+    grid-template-columns: 1fr;
+  }
+}
 
-    th, td {
-      padding: 8px 12px;
-    }
+// components/Admin/UserManagement.module.scss
 
-    .actionButtons {
-      flex-direction: column;
-      gap: 4px;
+// ✅ Confirmation Dialog Styles
+.confirmOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.confirmDialog {
+  background: white;
+  border-radius: 8px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.confirmHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid #f0f0f0;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+}
+
+.confirmCloseBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #f0f0f0;
+  }
+}
+
+.confirmBody {
+  padding: 24px;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+    line-height: 1.6;
+    text-align: center;
+  }
+}
+
+.confirmFooter {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.confirmCancelBtn {
+  padding: 10px 24px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e0e0e0;
+  }
+}
+
+.confirmActionBtn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.warningBtn {
+    background: #ffc107;
+    color: #1a1a1a;
+
+    &:hover {
+      background: #e6a800;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
     }
   }
 
-  .resetPasswordForm {
-    flex-direction: column;
-    width: 100%;
+  &.dangerBtn {
+    background: #dc3545;
+    color: white;
 
-    .resetInput {
-      width: 100%;
+    &:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
     }
+  }
+
+  &.infoBtn {
+    background: #17a2b8;
+    color: white;
+
+    &:hover {
+      background: #138496;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+    }
+  }
+}
+
+// Mobile responsive
+@media (max-width: 640px) {
+  .confirmDialog {
+    margin: 16px;
+    max-width: 100%;
+  }
+
+  .confirmFooter {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+// components/Admin/UserManagement.module.scss
+
+// ✅ Message close button
+.messageCloseBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.errorMessage,
+.successMessage {
+  padding: 12px 16px;
+  background: #fde8ea;
+  color: #dc3545;
+  border-radius: 8px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  animation: slideDown 0.3s ease-out;
+  position: fixed;
+  top: 20px;
+  right: 10px;
+  z-index: 99999;
+}
+
+.successMessage {
+  background: #e8f5e9;
+  color: #085b1b;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

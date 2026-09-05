@@ -22,9 +22,6 @@ export const useAuth = () => {
   };
 
   const updateProfile = async (updates: Partial<User>) => {
-    if (!state.user) {
-      return { success: false, error: 'Not authenticated' };
-    }
     return await authService.updateUserProfile(updates);
   };
 
@@ -62,7 +59,7 @@ export const useAuth = () => {
     toggleUserStatus,
     resetUserPassword,
     deleteUser,
-    isAdmin, // This is a boolean
+    isAdmin,
     getCurrentUser: authService.getCurrentUser,
   };
 };

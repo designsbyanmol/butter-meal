@@ -14,17 +14,19 @@ interface MenuDetailProps {
   isOpen: boolean;
   item: MenuItem | null;
   onClose: () => void;
-  onAddToCart: (item: MenuItem, customizations?: Record<string, string>) => void;
+  onAddToCart: (item: MenuItem, customizations?: Record<string, string>, customMessage?: string) => void;
 }
 
 const MenuDetail: React.FC<MenuDetailProps> = ({ isOpen, item, onClose, onAddToCart }) => {
   const [selectedCustomizations, setSelectedCustomizations] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
+  const [customMessage, setCustomMessage] = useState('');
 
   // Reset state when item changes
   useEffect(() => {
     if (item) {
       setQuantity(1);
+      setCustomMessage('');
       // Initialize with default values
       const defaults: Record<string, string> = {};
       item.customizationOptions?.forEach(option => {
@@ -46,8 +48,8 @@ const MenuDetail: React.FC<MenuDetailProps> = ({ isOpen, item, onClose, onAddToC
   };
 
   const handleAddToCart = () => {
-    // Pass customizations to the cart
-    onAddToCart(item, selectedCustomizations);
+    // Pass customizations and custom message to the cart
+    onAddToCart(item, selectedCustomizations, customMessage);
     onClose();
   };
 
@@ -232,6 +234,26 @@ const MenuDetail: React.FC<MenuDetailProps> = ({ isOpen, item, onClose, onAddToC
               )}
             </div>
           )}
+
+          {/* Custom Message Section - NEW */}
+          <div className={styles.section}>
+            <h4>Special Instructions</h4>
+            <div className={styles.customMessageWrapper}>
+              <textarea
+                className={styles.customMessageInput}
+                placeholder="Add any special instructions for the restaurant (e.g., extra sauce, less spice, etc.)"
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+              {customMessage && (
+                <div className={styles.messageCharCount}>
+                  {customMessage.length}/500
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Footer - Price & Add to Cart */}
           <div className={styles.footer}>

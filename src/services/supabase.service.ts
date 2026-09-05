@@ -22,13 +22,22 @@ class SupabaseService {
     return true;
   }
 
+  // Get the supabase client (with proper null check)
+  private getClient() {
+    if (!this.checkSupabaseInitialized() || !supabase) {
+      return null;
+    }
+    return supabase;
+  }
+
   // ============ USER METHODS ============
   
   async getUsers(): Promise<User[]> {
     try {
-      if (!this.checkSupabaseInitialized()) return [];
+      const client = this.getClient();
+      if (!client) return [];
       
-      const { data: users, error } = await supabase!
+      const { data: users, error } = await client
         .from('users')
         .select('*')
         .order('created_at', { ascending: true });
@@ -43,9 +52,10 @@ class SupabaseService {
 
   async getUserByPhone(phone: string): Promise<User | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .select('*')
         .eq('phone', phone)
@@ -61,9 +71,10 @@ class SupabaseService {
 
   async getUserById(id: string): Promise<User | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .select('*')
         .eq('id', id)
@@ -79,11 +90,12 @@ class SupabaseService {
 
   async createUser(userData: Omit<User, 'id' | 'createdAt'>): Promise<User> {
     try {
-      if (!this.checkSupabaseInitialized()) {
+      const client = this.getClient();
+      if (!client) {
         throw new Error('Supabase not configured');
       }
       
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .insert({
           phone: userData.phone,
@@ -105,7 +117,8 @@ class SupabaseService {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
       const supabaseUpdates: any = {};
       if (updates.name) supabaseUpdates.name = updates.name;
@@ -114,7 +127,7 @@ class SupabaseService {
       if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
       if (updates.role) supabaseUpdates.role = updates.role;
 
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .update(supabaseUpdates)
         .eq('id', id)
@@ -131,9 +144,10 @@ class SupabaseService {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      if (!this.checkSupabaseInitialized()) return false;
+      const client = this.getClient();
+      if (!client) return false;
       
-      const { error } = await supabase!
+      const { error } = await client
         .from('users')
         .delete()
         .eq('id', id);
@@ -148,9 +162,10 @@ class SupabaseService {
 
   async toggleUserStatus(id: string): Promise<User | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
-      const { data: currentUser, error: getError } = await supabase!
+      const { data: currentUser, error: getError } = await client
         .from('users')
         .select('is_active')
         .eq('id', id)
@@ -158,7 +173,7 @@ class SupabaseService {
 
       if (getError) throw getError;
 
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .update({ is_active: !currentUser.is_active })
         .eq('id', id)
@@ -175,11 +190,15 @@ class SupabaseService {
 
   async changeUserPassword(id: string, newPassword: string): Promise<boolean> {
     try {
-      if (!this.checkSupabaseInitialized()) return false;
+      const client = this.getClient();
+      if (!client) return false;
       
-      const { error } = await supabase!
+      const { error } = await client
         .from('users')
-        .update({ password_hash: newPassword })
+        .update({ 
+          password_hash: newPassword,
+          is_active: true
+        })
         .eq('id', id);
 
       if (error) throw error;
@@ -194,11 +213,12 @@ class SupabaseService {
   
   async signIn(phone: string, password: string): Promise<{ user: User | null; error?: string }> {
     try {
-      if (!this.checkSupabaseInitialized()) {
+      const client = this.getClient();
+      if (!client) {
         return { user: null, error: 'Supabase not configured' };
       }
       
-      const { data: user, error } = await supabase!
+      const { data: user, error } = await client
         .from('users')
         .select('*')
         .eq('phone', phone)
@@ -213,7 +233,7 @@ class SupabaseService {
         return { user: null, error: 'Account is deactivated. Please contact admin.' };
       }
 
-      await supabase!
+      await client
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', user.id);
@@ -231,11 +251,73 @@ class SupabaseService {
 
   // ============ MENU ITEMS METHODS ============
 
+  // ✅ Add menu item
+  async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
+    try {
+      const client = this.getClient();
+      if (!client) return null;
+
+      // Convert MenuItem to Supabase schema
+      const supabaseItem = {
+        in_stock: item.inStock,
+        name: item.name,
+        description: item.desc,
+        cost_price: item.costPrice || null,
+        price: item.price,
+        image_url: item.img,
+        category: item.category || null,
+        is_veg: item.isVeg || false,
+        is_spicy: item.isSpicy || false,
+        is_gluten_free: item.isGlutenFree || false,
+        preparation_time: item.preparationTime || null,
+        calories: item.calories || null,
+        rating: item.rating || null,
+        review_count: item.reviewCount || 0,
+        ingredients: item.ingredients || null,
+        nutritional_info: item.nutritionalInfo || null,
+        attributes: item.attributes || null,
+        customization_options: item.customizationOptions || null,
+      };
+
+      const { data, error } = await client
+        .from('menu_items')
+        .insert([supabaseItem])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data ? this.mapSupabaseMenuItem(data) : null;
+    } catch (error) {
+      console.error('Error adding menu item:', error);
+      return null;
+    }
+  }
+
+  // ✅ Delete menu item
+  async deleteMenuItem(id: number): Promise<boolean> {
+    try {
+      const client = this.getClient();
+      if (!client) return false;
+      
+      const { error } = await client
+        .from('menu_items')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      return false;
+    }
+  }
+
   async getMenuItems(): Promise<MenuItem[]> {
     try {
-      if (!this.checkSupabaseInitialized()) return [];
+      const client = this.getClient();
+      if (!client) return [];
       
-      const { data: items, error } = await supabase!
+      const { data: items, error } = await client
         .from('menu_items')
         .select('*')
         .order('id');
@@ -250,9 +332,10 @@ class SupabaseService {
 
   async getVisibleMenuItems(): Promise<MenuItem[]> {
     try {
-      if (!this.checkSupabaseInitialized()) return [];
+      const client = this.getClient();
+      if (!client) return [];
       
-      const { data: items, error } = await supabase!
+      const { data: items, error } = await client
         .from('menu_items')
         .select('*')
         .eq('in_stock', true)
@@ -268,7 +351,8 @@ class SupabaseService {
 
   async updateMenuItem(id: number, updates: Partial<MenuItem>): Promise<MenuItem | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
       const supabaseUpdates: any = {};
       if (updates.inStock !== undefined) supabaseUpdates.in_stock = updates.inStock;
@@ -290,7 +374,7 @@ class SupabaseService {
       if (updates.customizationOptions) supabaseUpdates.customization_options = updates.customizationOptions;
       supabaseUpdates.updated_at = new Date().toISOString();
 
-      const { data: item, error } = await supabase!
+      const { data: item, error } = await client
         .from('menu_items')
         .update(supabaseUpdates)
         .eq('id', id)
@@ -307,9 +391,10 @@ class SupabaseService {
 
   async toggleMenuItemStock(id: number): Promise<MenuItem | null> {
     try {
-      if (!this.checkSupabaseInitialized()) return null;
+      const client = this.getClient();
+      if (!client) return null;
       
-      const { data: currentItem, error: getError } = await supabase!
+      const { data: currentItem, error: getError } = await client
         .from('menu_items')
         .select('in_stock')
         .eq('id', id)
@@ -317,7 +402,7 @@ class SupabaseService {
 
       if (getError) throw getError;
 
-      const { data: item, error } = await supabase!
+      const { data: item, error } = await client
         .from('menu_items')
         .update({ 
           in_stock: !currentItem.in_stock,
@@ -337,7 +422,8 @@ class SupabaseService {
 
   async bulkUpdateMenuItems(updates: { id: number; inStock: boolean }[]): Promise<MenuItem[]> {
     try {
-      if (!this.checkSupabaseInitialized()) return [];
+      const client = this.getClient();
+      if (!client) return [];
       
       const updatedItems: MenuItem[] = [];
       
@@ -357,13 +443,14 @@ class SupabaseService {
 
   async initializeMenuItems(defaultItems: MenuItem[]): Promise<void> {
     try {
-      if (!this.checkSupabaseInitialized()) {
+      const client = this.getClient();
+      if (!client) {
         console.warn('Supabase not configured, skipping initialization');
         return;
       }
       
       // Check if menu items already exist
-      const { count, error: countError } = await supabase!
+      const { count, error: countError } = await client
         .from('menu_items')
         .select('*', { count: 'exact', head: true });
 
@@ -398,7 +485,7 @@ class SupabaseService {
         const batchSize = 10;
         for (let i = 0; i < itemsToInsert.length; i += batchSize) {
           const batch = itemsToInsert.slice(i, i + batchSize);
-          const { error: insertError } = await supabase!
+          const { error: insertError } = await client
             .from('menu_items')
             .insert(batch);
 
@@ -423,9 +510,10 @@ class SupabaseService {
 
   async getCartItems(userId: string): Promise<CartItem[]> {
     try {
-      if (!this.checkSupabaseInitialized()) return [];
+      const client = this.getClient();
+      if (!client) return [];
       
-      const { data: items, error } = await supabase!
+      const { data: items, error } = await client
         .from('cart_items')
         .select('*, menu_items(*)')
         .eq('user_id', userId);
@@ -447,9 +535,10 @@ class SupabaseService {
 
   async addToCart(userId: string, menuItemId: number, quantity: number, customizations?: any): Promise<void> {
     try {
-      if (!this.checkSupabaseInitialized()) return;
+      const client = this.getClient();
+      if (!client) return;
       
-      const { data: existing, error: checkError } = await supabase!
+      const { data: existing, error: checkError } = await client
         .from('cart_items')
         .select('id, quantity')
         .eq('user_id', userId)
@@ -461,7 +550,7 @@ class SupabaseService {
       }
 
       if (existing) {
-        const { error: updateError } = await supabase!
+        const { error: updateError } = await client
           .from('cart_items')
           .update({ 
             quantity: existing.quantity + quantity,
@@ -471,7 +560,7 @@ class SupabaseService {
 
         if (updateError) throw updateError;
       } else {
-        const { data: menuItem, error: menuError } = await supabase!
+        const { data: menuItem, error: menuError } = await client
           .from('menu_items')
           .select('price')
           .eq('id', menuItemId)
@@ -479,7 +568,7 @@ class SupabaseService {
 
         if (menuError) throw menuError;
 
-        const { error: insertError } = await supabase!
+        const { error: insertError } = await client
           .from('cart_items')
           .insert({
             user_id: userId,
@@ -498,9 +587,10 @@ class SupabaseService {
 
   async removeFromCart(userId: string, menuItemId: number): Promise<void> {
     try {
-      if (!this.checkSupabaseInitialized()) return;
+      const client = this.getClient();
+      if (!client) return;
       
-      const { error } = await supabase!
+      const { error } = await client
         .from('cart_items')
         .delete()
         .eq('user_id', userId)
@@ -514,14 +604,15 @@ class SupabaseService {
 
   async updateCartItemQuantity(userId: string, menuItemId: number, quantity: number): Promise<void> {
     try {
-      if (!this.checkSupabaseInitialized()) return;
+      const client = this.getClient();
+      if (!client) return;
       
       if (quantity <= 0) {
         await this.removeFromCart(userId, menuItemId);
         return;
       }
 
-      const { error } = await supabase!
+      const { error } = await client
         .from('cart_items')
         .update({ 
           quantity,
@@ -538,9 +629,10 @@ class SupabaseService {
 
   async clearCart(userId: string): Promise<void> {
     try {
-      if (!this.checkSupabaseInitialized()) return;
+      const client = this.getClient();
+      if (!client) return;
       
-      const { error } = await supabase!
+      const { error } = await client
         .from('cart_items')
         .delete()
         .eq('user_id', userId);
@@ -555,11 +647,12 @@ class SupabaseService {
 
   async createOrder(orderData: any): Promise<{ success: boolean; orderId?: string; error?: string }> {
     try {
-      if (!this.checkSupabaseInitialized()) {
+      const client = this.getClient();
+      if (!client) {
         return { success: false, error: 'Supabase not configured' };
       }
       
-      const { data: order, error } = await supabase!
+      const { data: order, error } = await client
         .from('orders')
         .insert(orderData)
         .select('id')

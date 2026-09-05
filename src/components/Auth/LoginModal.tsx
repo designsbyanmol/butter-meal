@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import styles from './Auth.module.scss';
+import { CloseIcon } from '../../assets/svgs';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -45,12 +46,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        <button className={styles.closeBtn} onClick={onClose}><CloseIcon width={18} height={18} fill="#4d4d4d"/></button>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}><img src="https://cdn.jsdelivr.net/gh/designsbyanmol/butter-meal@main/src/assets/images/teckut-favicon.png" alt="teckut logo for management of restaurants" /></span>
+          <span className={styles.logoIcon}><img src="https://cdn.jsdelivr.net/gh/designsbyanmol/butter-meal@main/src/assets/images/teckut-logo.webp" alt="teckut logo for management of restaurants" width="36"/></span>
         </div>
-        <h2>Welcome Back</h2>
-        <p className={styles.subtitle}>Sign in to your account</p>
+        <h2>Welcome!</h2>
+        <p className={styles.subtitle}>Sign in to your restaurant account</p>
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
             <label>Phone Number</label>
@@ -83,7 +84,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
           <div className={styles.helpText}>
-            <p>Contact admin for account creation</p>
             <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
               Only administrators can create new accounts
             </p>

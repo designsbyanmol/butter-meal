@@ -3,61 +3,58 @@ import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import LoginModal from '../Auth/LoginModal';
 import UserManagement from '../Admin/UserManagement';
+import AdminPanel from '../Admin/AdminPanel';
 import styles from './Header.module.scss';
-
+import { MenuIcon, UsersIcon } from '../../assets/svgs';
 interface HeaderProps {
   companyName: string;
   year: number;
-  onAdminOpen?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ companyName, year, onAdminOpen }) => {
+const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
   const { user, isAuthenticated, logout, isAdmin } = useAuth();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [isMenuPanelOpen, setIsMenuPanelOpen] = useState(false);
 
   const handleLogin = () => setIsLoginOpen(true);
-  const handleLogout = () => logout();
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+    }
+  }
 
   return (
     <>
       <div className={styles.bm_header}>
         <div className={styles.container}>
           <div className={styles.brand}>
-            <span className={styles.companyName}>{companyName} | {year}</span>
-            <span className={styles.tagline}>Menu Management</span>
+            <span className={styles.companyName}>{companyName} {year}</span>
+            <span className={styles.tagline}>
+            {isAuthenticated && `| ${user?.name} `}</span>
           </div>
           <div className={styles.actions}>
             {isAuthenticated ? (
               <>
-                <div className={styles.userInfo}>
-                  <span className={styles.userAvatar}>
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </span>
-                  <span className={styles.userName}>{user?.name}</span>
-                  <span className={styles.userPhone}>{user?.phone}</span>
-                  {isAdmin && (
-                    <span className={styles.adminBadge}>Admin</span>
-                  )}
-                </div>
+                
+                {/* ✅ Menu button - Visible to ALL authenticated users */}
+                <button 
+                  className={styles.adminBtn}
+                  onClick={() => setIsMenuPanelOpen(true)}
+                >
+                  <MenuIcon width={16} height={16} color="#1e1e1e"/>
+                </button>
+                
+                {/* ✅ Users button - Only visible to Admins */}
                 {isAdmin && (
-                  <>
-                    <button 
-                      className={styles.adminBtn}
-                      onClick={() => setIsUserManagementOpen(true)}
-                    >
-                      Users
-                    </button>
-                    {onAdminOpen && (
-                      <button 
-                        className={styles.adminBtn}
-                        onClick={onAdminOpen}
-                      >
-                        Menu
-                      </button>
-                    )}
-                  </>
+                  <button 
+                    className={styles.adminBtn}
+                    onClick={() => setIsUserManagementOpen(true)}
+                  >
+                    <UsersIcon width={16} height={16} color="#1e1e1e"/>
+                  </button>
                 )}
+                
                 <button 
                   className={styles.logoutBtn}
                   onClick={handleLogout}
@@ -85,6 +82,13 @@ const Header: React.FC<HeaderProps> = ({ companyName, year, onAdminOpen }) => {
       {isUserManagementOpen && (
         <UserManagement
           onClose={() => setIsUserManagementOpen(false)}
+        />
+      )}
+
+      {/* ✅ Menu Panel - Visible to ALL authenticated users */}
+      {isMenuPanelOpen && (
+        <AdminPanel
+          onClose={() => setIsMenuPanelOpen(false)}
         />
       )}
     </>

@@ -117,6 +117,18 @@
   border-radius: 8px;
   max-width: 900px;
   box-shadow: 0 0 24px rgba(0, 0, 0, 0.1);
+  .cartItemWrapper {
+    padding: 10px;
+    border-radius: 4px;
+    &:nth-of-type(even) {
+      background: #f9f9f9;
+    }
+    .messageText {
+      font-style: italic;
+      font-size: 10px;
+      color: #797979;
+    }
+  }
 }
 
 .emptyCart {
@@ -130,7 +142,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 0 10px;
+  padding: 0;
 
   &:last-of-type {
     padding: 0;
@@ -223,7 +235,7 @@
 
   label {
     font-weight: 600;
-    color: #808080;
+    color: #333333;
     letter-spacing: 0.5px;
     text-transform: uppercase;
   }
@@ -300,7 +312,8 @@
 
 .appliedOffer {
   padding: 2px 6px;
-  margin: 10px 0 0;
+  max-width: 900px;
+  margin: 10px auto 0;
   text-align: right;
   border-right: 3px solid #3caa46;
   color: #1e1e1e;

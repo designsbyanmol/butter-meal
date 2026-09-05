@@ -447,3 +447,53 @@
   color: #1e1e1e;
   margin-top: 2px;
 }
+
+// Add to MenuDetail.module.scss
+
+.customMessageWrapper {
+  margin-top: 8px;
+  position: relative;
+}
+
+.customMessageInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+  background: #fafafa;
+  color: #1e1e1e;
+
+  &:focus {
+    outline: none;
+    border-color: #3caa46;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(60, 170, 70, 0.1);
+  }
+
+  &::placeholder {
+    color: #999;
+    font-size: 13px;
+  }
+}
+
+.messageCharCount {
+  text-align: right;
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  padding-right: 4px;
+}
+
+// Make sure the textarea is responsive on mobile
+@media (max-width: 768px) {
+  .customMessageInput {
+    font-size: 16px; // Prevents zoom on iOS
+    padding: 10px;
+    min-height: 60px;
+  }
+}

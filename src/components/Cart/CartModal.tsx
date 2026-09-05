@@ -52,12 +52,12 @@ const CartModal: React.FC<CartModalProps> = ({
   deliveryFee,
   totalItems
 }) => {
-    // Add this useEffect
   React.useEffect(() => {
     if (deliveryType === 'schedule' && paymentMode !== 'Online') {
       onPaymentChange('Online');
     }
   }, [deliveryType, paymentMode, onPaymentChange]);
+  
   if (!isOpen) return null;
 
   const isSchedule = deliveryType === 'schedule';
@@ -66,7 +66,8 @@ const CartModal: React.FC<CartModalProps> = ({
   // Helper to generate unique key for cart items with customizations
   const getItemKey = (item: CartItem): string => {
     const customStr = item.customizations ? JSON.stringify(item.customizations) : 'none';
-    return `${item.id}-${customStr}`;
+    const messageStr = item.customMessage || 'none';
+    return `${item.id}-${customStr}-${messageStr}`;
   };
 
   return (
@@ -92,12 +93,21 @@ const CartModal: React.FC<CartModalProps> = ({
               </div>
             ) : (
               cart.map(item => (
-                <CartItemComponent
-                  key={getItemKey(item)}
-                  item={item}
-                  onIncrement={onIncrement}
-                  onDecrement={onDecrement}
-                />
+                <div key={getItemKey(item)} className={styles.cartItemWrapper}>
+                  <CartItemComponent
+                    item={item}
+                    onIncrement={onIncrement}
+                    onDecrement={onDecrement}
+                  />
+                  {/* Display custom message if it exists */}
+                  {item.customMessage && item.customMessage.trim() && (
+                    <div className={styles.customMessageDisplay}>
+                      <span className={styles.messageText}>
+                        "{item.customMessage.trim()}"
+                      </span>
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>

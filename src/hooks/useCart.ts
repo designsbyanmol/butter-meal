@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CartItem, MenuItem, ScheduleData, PaymentMode, DeliveryType } from '../types';
 
 const DELIVERY_FEE = 20;
-const RESTAURANT_PHONE = '8068422458';
+const RESTAURANT_PHONE = '9599196391';
 
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -97,40 +97,43 @@ export const useCart = () => {
     return total;
   };
 
-  const addItem = useCallback((item: MenuItem, customizations?: Record<string, string>) => {
-    setCart(prevCart => {
-      const addonPrice = customizations ? getCustomizationPrice(customizations) : 0;
-      
-      const existingIndex = prevCart.findIndex(c => {
-        if (c.id !== item.id) return false;
-        if (!customizations && !c.customizations) return true;
-        if (customizations && c.customizations) {
-          return JSON.stringify(customizations) === JSON.stringify(c.customizations);
-        }
-        return false;
-      });
-
-      if (existingIndex !== -1) {
-        const updatedCart = [...prevCart];
-        updatedCart[existingIndex] = {
-          ...updatedCart[existingIndex],
-          quantity: updatedCart[existingIndex].quantity + 1,
-        };
-        return updatedCart;
+  const addItem = useCallback((item: MenuItem, customizations?: Record<string, string>, customMessage?: string) => {
+  setCart(prevCart => {
+    const addonPrice = customizations ? getCustomizationPrice(customizations) : 0;
+    
+    const existingIndex = prevCart.findIndex(c => {
+      if (c.id !== item.id) return false;
+      if (!customizations && !c.customizations) return true;
+      if (customizations && c.customizations) {
+        return JSON.stringify(customizations) === JSON.stringify(c.customizations);
       }
-
-      return [
-        ...prevCart,
-        { 
-          ...item, 
-          quantity: 1,
-          customizations: customizations || {},
-          addonPrice,
-          basePrice: item.price
-        }
-      ];
+      return false;
     });
-  }, []);
+
+    if (existingIndex !== -1) {
+      const updatedCart = [...prevCart];
+      updatedCart[existingIndex] = {
+        ...updatedCart[existingIndex],
+        quantity: updatedCart[existingIndex].quantity + 1,
+        // Keep existing customMessage or update with new one if provided
+        customMessage: customMessage || updatedCart[existingIndex].customMessage,
+      };
+      return updatedCart;
+    }
+
+    return [
+      ...prevCart,
+      { 
+        ...item, 
+        quantity: 1,
+        customizations: customizations || {},
+        customMessage: customMessage || '', // NEW
+        addonPrice,
+        basePrice: item.price
+      }
+    ];
+  });
+}, []);
 
   const removeItem = useCallback((id: number, customizations?: Record<string, string>) => {
     setCart(prevCart => {

@@ -11,13 +11,15 @@ export const useMenu = () => {
   useEffect(() => {
     const unsubscribe = menuService.subscribe((newItems) => {
       setItems(newItems);
-      setVisibleItems(newItems.filter(item => item.inStock === true));
+      // ✅ Show ALL items, including out-of-stock
+      setVisibleItems(newItems); // Changed from filtering to show all
       setLoading(false);
     });
 
     menuService.getAllItems().then(allItems => {
       setItems(allItems);
-      setVisibleItems(allItems.filter(item => item.inStock === true));
+      // ✅ Show ALL items, including out-of-stock
+      setVisibleItems(allItems); // Changed from filtering to show all
       setLoading(false);
     });
 
@@ -28,9 +30,35 @@ export const useMenu = () => {
     return await menuService.toggleItemStock(itemId);
   };
 
-  // ✅ Update item function
   const updateItem = async (itemId: number, updates: Partial<MenuItem>) => {
     return await menuService.updateItem(itemId, updates);
+  };
+
+  const addItem = async (newItem: Omit<MenuItem, 'id'>) => {
+    try {
+      const addedItem = await menuService.addItem(newItem);
+      const allItems = await menuService.getAllItems();
+      setItems(allItems);
+      // ✅ Show ALL items
+      setVisibleItems(allItems);
+      return addedItem;
+    } catch (error) {
+      console.error('Error adding item:', error);
+      throw error;
+    }
+  };
+
+  const deleteItem = async (itemId: number) => {
+    try {
+      await menuService.deleteItem(itemId);
+      const allItems = await menuService.getAllItems();
+      setItems(allItems);
+      // ✅ Show ALL items
+      setVisibleItems(allItems);
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      throw error;
+    }
   };
 
   const bulkUpdateStock = async (items: { id: number; inStock: boolean }[]) => {
@@ -46,7 +74,9 @@ export const useMenu = () => {
     visibleItems,
     loading,
     toggleStock,
-    updateItem, // ✅ Expose updateItem
+    updateItem,
+    addItem,
+    deleteItem,
     bulkUpdateStock,
     getItemById,
   };
