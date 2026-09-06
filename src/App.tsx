@@ -7,6 +7,7 @@ import { useMenu } from './hooks/useMenu';
 import { menuService } from './services/menu.service';
 import { db } from './services/database.service';
 import { isSupabaseConfigured } from './config/env';
+import { StoreProvider, useStore } from './contexts/StoreContext';
 import Menu from './components/Menu/Menu';
 import BrandInfo from './components/BrandInfo/BrandInfo';
 import Promotion from './components/Promotion/Promotion';
@@ -17,6 +18,7 @@ import LocationModal from './components/Location/LocationModal';
 import MenuDetail from './components/MenuDetail/MenuDetail';
 import Header from './components/Header/Header';
 import AdminPanel from './components/Admin/AdminPanel';
+import StoreBanner from './components/Store/StoreBanner';
 import styles from './App.module.scss';
 
 // Database Status Notice Component
@@ -46,6 +48,7 @@ const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean
 const AppContent: React.FC = () => {
   // Auth hooks - will load from localStorage
   const { isAuthenticated, user, isLoading: authLoading, isAdmin } = useAuth();
+  const { storeSettings, isStoreOpen, isLoading: storeLoading } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
   const [isAdminOpen, setIsAdminOpen] = React.useState(false);
   
@@ -94,9 +97,7 @@ const AppContent: React.FC = () => {
     // Force a connection check on load
     const checkConnection = async () => {
       setIsChecking(true);
-      console.log('🔄 Starting connection check...');
       const connected = await db.forceConnectionCheck();
-      console.log('🔍 Connection check result:', connected ? 'CONNECTED ✅' : 'DISCONNECTED ❌');
       setIsConnected(connected);
       setIsChecking(false);
     };
@@ -107,7 +108,6 @@ const AppContent: React.FC = () => {
     if (typeof db.subscribeToMaintenance === 'function') {
       const unsubscribe = db.subscribeToMaintenance((isActive) => {
         const connected = !isActive;
-        console.log('🔔 Connection status changed:', connected ? 'CONNECTED ✅' : 'DISCONNECTED ❌');
         setIsConnected(connected);
         setIsChecking(false);
       });
@@ -131,12 +131,9 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Initializing app...');
         await db.initializeDefaultUsers();
         await menuService.initializeItems(defaultMenuItems);
-        console.log('✅ App initialization complete!');
       } catch (error) {
-        console.error('❌ Error initializing app:', error);
       } finally {
         setIsInitializing(false);
       }
@@ -146,7 +143,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   // Show loading state
-  if (isInitializing || authLoading || menuLoading || !cartLoaded) {
+  if (isInitializing || authLoading || menuLoading || !cartLoaded || storeLoading) {
     return (
       <div className={styles.container}>
         <div className={styles.loadingState}>
@@ -158,13 +155,21 @@ const AppContent: React.FC = () => {
   }
 
   const handleItemClick = (item: typeof defaultMenuItems[0]) => {
+    // Only allow clicking if store is open - applies to ALL users
+    if (!isStoreOpen) {
+      return;
+    }
     setSelectedItem(item);
     setIsDetailOpen(true);
   };
 
   const handleAddToCartFromDetail = (item: typeof defaultMenuItems[0], customizations?: Record<string, string>, customMessage?: string) => {
-  addItem(item, customizations, customMessage);
-};
+    // Only allow adding if store is open - applies to ALL users
+    if (!isStoreOpen) {
+      return;
+    }
+    addItem(item, customizations, customMessage);
+  };
 
   const handleDeliveryChange = (type: 'now' | 'schedule') => {
     if (type === 'schedule') {
@@ -196,6 +201,11 @@ const AppContent: React.FC = () => {
   };
 
   const handlePlaceOrder = () => {
+    // Only allow placing order if store is open - applies to ALL users
+    if (!isStoreOpen) {
+      alert('Store is currently closed. Please try again later.');
+      return;
+    }
     if (deliveryType === 'schedule' && !scheduleData) {
       setIsScheduleOpen(true);
       return;
@@ -210,132 +220,139 @@ const AppContent: React.FC = () => {
   };
 
   const sendWhatsAppMessage = () => {
-  if (cart.length === 0) return;
+    if (cart.length === 0) return;
 
-  const totalItems = getTotalItems();
-  const subtotal = getSubtotal();
-  const discount = getDiscountAmount();
-  const discountPercent = getDiscountPercent();
-  const finalTotal = getTotalWithDelivery();
-  const orderNo = generateOrderNumber();
-  const deliveryTime = getDeliveryTime();
+    const totalItems = getTotalItems();
+    const subtotal = getSubtotal();
+    const discount = getDiscountAmount();
+    const discountPercent = getDiscountPercent();
+    const finalTotal = getTotalWithDelivery();
+    const orderNo = generateOrderNumber();
+    const deliveryTime = getDeliveryTime();
 
-  let message = `*New Order Placed*\n`;
-  message += `-----------------\n`;
-  message += `Order ID. - ${orderNo}\n`;
-  message += `Total Items - ${totalItems}\n`;
-  message += `Payment - ${paymentMode}`;
-  if (paymentMode === 'Online' && discountPercent > 0) {
-    message += ` (${discountPercent}% OFF)`;
-  }
-  message += `\n`;
-  message += `Exp. Delivery - ${deliveryTime}\n`;
-
-  if (deliveryType === 'schedule' && scheduleData) {
-    const scheduledDateTime = new Date(`${scheduleData.date}T${scheduleData.time}`);
-    let schedHours = scheduledDateTime.getHours();
-    const schedMins = String(scheduledDateTime.getMinutes()).padStart(2, '0');
-    const schedAmpm = schedHours >= 12 ? 'PM' : 'AM';
-    schedHours = schedHours % 12;
-    schedHours = schedHours ? schedHours : 12;
-    message += `Scheduled Delivery - ${scheduleData.date} at ${schedHours}:${schedMins} ${schedAmpm}\n`;
-    message += `*Note:* Prepaid · Send Reminder before 1hr\n`;
-  }
-
-  message += `-----------------\n`;
-  message += `*Item List*\n`;
-  
-  // Track if we have any custom messages to show
-  let hasCustomMessages = false;
-  
-  cart.forEach(item => {
-    const pricePerItem = (item.basePrice || item.price) + (item.addonPrice || 0);
-    const itemTotal = pricePerItem * item.quantity;
-    let itemLine = `${item.name} x ${item.quantity}`;
-    message += `- - - - - - -\n`;
-    if (item.customizations && Object.keys(item.customizations).length > 0) {
-      const customStr = Object.entries(item.customizations)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
-      itemLine += ` (${customStr})`;
+    let message = `*New Order Placed*\n`;
+    message += `-----------------\n`;
+    message += `Order ID. - ${orderNo}\n`;
+    message += `Total Items - ${totalItems}\n`;
+    message += `Payment - ${paymentMode}`;
+    if (paymentMode === 'Online' && discountPercent > 0) {
+      message += ` (${discountPercent}% OFF)`;
     }
-    if (item.addonPrice && item.addonPrice > 0) {
-      itemLine += ` [+Rs${item.addonPrice} add-ons]`;
+    message += `\n`;
+    message += `Exp. Delivery - ${deliveryTime}\n`;
+
+    if (deliveryType === 'schedule' && scheduleData) {
+      const scheduledDateTime = new Date(`${scheduleData.date}T${scheduleData.time}`);
+      let schedHours = scheduledDateTime.getHours();
+      const schedMins = String(scheduledDateTime.getMinutes()).padStart(2, '0');
+      const schedAmpm = schedHours >= 12 ? 'PM' : 'AM';
+      schedHours = schedHours % 12;
+      schedHours = schedHours ? schedHours : 12;
+      message += `Scheduled Delivery - ${scheduleData.date} at ${schedHours}:${schedMins} ${schedAmpm}\n`;
+      message += `*Note:* Prepaid · Send Reminder before 1hr\n`;
     }
-    itemLine += ` - Rs ${itemTotal}`;
-    message += `${itemLine}\n`;
+
+    message += `-----------------\n`;
+    message += `*Item List*\n`;
     
-    // Check if this item has a custom message
-    if (item.customMessage && item.customMessage.trim()) {
-      hasCustomMessages = true;
-    }
-  });
-  
-  message += `-----------------\n`;
-  message += `Subtotal - Rs ${Math.round(subtotal)}\n`;
-  message += `Delivery - Rs ${DELIVERY_FEE}\n`;
-
-  if (paymentMode === 'Online' && discountPercent > 0) {
-    message += `Discount (${discountPercent}%) - Rs ${discount}\n`;
-    message += `-----------------\n`;
-    message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
-    message += `(${discountPercent}% discount applied on total)\n`;
-  } else {
-    message += `-----------------\n`;
-    message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
-    message += `(+Rs ${DELIVERY_FEE} Inc. for delivery)\n`;
-  }
-
-  // Add custom messages section if any exist
-  if (hasCustomMessages) {
-    message += `\n-----------------\n`;
-    message += `*Special Instructions:*\n`;
+    let hasCustomMessages = false;
+    
     cart.forEach(item => {
+      const pricePerItem = (item.basePrice || item.price) + (item.addonPrice || 0);
+      const itemTotal = pricePerItem * item.quantity;
+      let itemLine = `${item.name} x ${item.quantity}`;
+      message += `- - - - - - -\n`;
+      if (item.customizations && Object.keys(item.customizations).length > 0) {
+        const customStr = Object.entries(item.customizations)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+        itemLine += ` (${customStr})`;
+      }
+      if (item.addonPrice && item.addonPrice > 0) {
+        itemLine += ` [+Rs${item.addonPrice} add-ons]`;
+      }
+      itemLine += ` - Rs ${itemTotal}`;
+      message += `${itemLine}\n`;
+      
       if (item.customMessage && item.customMessage.trim()) {
-        message += `- ${item.name}: ${item.customMessage.trim()}\n`;
+        hasCustomMessages = true;
       }
     });
-  }
+    
+    message += `-----------------\n`;
+    message += `Subtotal - Rs ${Math.round(subtotal)}\n`;
+    message += `Delivery - Rs ${DELIVERY_FEE}\n`;
 
-  message += `\n-----------------\n`;
-  message += `_We take orders on trust. Once a faulty will be a lifetime faulty_\n`;
-  message += `_Editing this order before payment = Order Cancelled_\n`;
-  message += `_-Butter Meal_`;
+    if (paymentMode === 'Online' && discountPercent > 0) {
+      message += `Discount (${discountPercent}%) - Rs ${discount}\n`;
+      message += `-----------------\n`;
+      message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
+      message += `(${discountPercent}% discount applied on total)\n`;
+    } else {
+      message += `-----------------\n`;
+      message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
+      message += `(+Rs ${DELIVERY_FEE} Inc. for delivery)\n`;
+    }
 
-  const encoded = encodeURIComponent(message);
-  const url = `https://wa.me/${RESTAURANT_PHONE}?text=${encoded}`;
-  window.open(url, '_blank');
-};
+    if (hasCustomMessages) {
+      message += `\n-----------------\n`;
+      message += `*Special Instructions:*\n`;
+      cart.forEach(item => {
+        if (item.customMessage && item.customMessage.trim()) {
+          message += `- ${item.name}: ${item.customMessage.trim()}\n`;
+        }
+      });
+    }
+
+    message += `\n-----------------\n`;
+    message += `_We take orders on trust. Once a faulty will be a lifetime faulty_\n`;
+    message += `_Editing this order before payment = Order Cancelled_\n`;
+    message += `_-Butter Meal_`;
+
+    const encoded = encodeURIComponent(message);
+    const url = `https://wa.me/${RESTAURANT_PHONE}?text=${encoded}`;
+    window.open(url, '_blank');
+  };
 
   return (
     <>
       {isAuthenticated && (
         <DatabaseStatusNotice isConnected={isConnected} isChecking={isChecking} />
-        )}
+      )}
       <Header 
         companyName='Teckut' 
         year={2026}
       />
-      <div className={`${styles.container} ${getTotalItems() > 0 ? styles.hasFloatingCart : ''}`}>
+      <div className={`${styles.container} ${getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ''}`}>
         <BrandInfo brandName='Restaurant Menu Display' brandDesc='Taste that reminds you home'/>
-        <Promotion
-          messages={[
-            "Welcome!",
-            "Pay Online and get 20% Off",
-            "Launch Time Offer!"
-          ]}
-          typingSpeed={110}
-          delayBeforeErase={1500}
-        />
-        <Menu
-          items={visibleItems}
-          cart={cart}
-          onAddItem={addItem}
-          onRemoveItem={removeItem}
-          onItemClick={handleItemClick}
-        />
 
-        {getTotalItems() > 0 && (
+        {/* ✅ Store Banner - Shows for ALL users when store is closed */}
+        {!isStoreOpen && <StoreBanner />}
+
+        {/* ✅ Menu - Only visible when store is open for ALL users */}
+        {isStoreOpen && (
+          <>
+            <Promotion
+            messages={[
+              "Welcome!",
+              "Pay Online and get 20% Off",
+              "Launch Time Offer!"
+            ]}
+            typingSpeed={110}
+            delayBeforeErase={1500}
+          />
+            <Menu
+              items={visibleItems}
+              cart={cart}
+              onAddItem={addItem}
+              onRemoveItem={removeItem}
+              onItemClick={handleItemClick}
+            />
+          </>
+        )}
+
+        {/* ✅ Floating Cart - Only shows when store is open AND there are items in cart */}
+        {getTotalItems() > 0 && isStoreOpen && (
           <FloatingCart
             itemCount={getTotalItems()}
             onClick={() => setIsCartOpen(true)}
@@ -351,7 +368,7 @@ const AppContent: React.FC = () => {
           onClose={() => setIsCartOpen(false)}
           onIncrement={(id, customizations) => {
             const item = allItems.find(item => item.id === id);
-            if (item) addItem(item, customizations);
+            if (item && isStoreOpen) addItem(item, customizations);
           }}
           onDecrement={removeItem}
           onPlaceOrder={handlePlaceOrder}
@@ -399,7 +416,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  return <AppContent />;
+  return (
+    <StoreProvider>
+      <AppContent />
+    </StoreProvider>
+  );
 };
 
 export default App;

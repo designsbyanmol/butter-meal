@@ -22,7 +22,6 @@ export const useCart = () => {
           setCart(parsed.filter((item: any) => item && typeof item === 'object' && item.id && item.quantity));
         }
       } catch (e) {
-        console.error('Failed to parse cart from localStorage:', e);
         setCart([]);
       }
     }
@@ -46,7 +45,6 @@ export const useCart = () => {
           setScheduleData(parsed);
         }
       } catch (e) {
-        console.error('Failed to parse schedule data:', e);
         setScheduleData(null);
       }
     }
@@ -97,7 +95,8 @@ export const useCart = () => {
     return total;
   };
 
-  const addItem = useCallback((item: MenuItem, customizations?: Record<string, string>, customMessage?: string) => {
+  // hooks/useCart.ts - Update the addItem function signature
+const addItem = useCallback((item: MenuItem, customizations?: Record<string, string>, customMessage?: string) => {
   setCart(prevCart => {
     const addonPrice = customizations ? getCustomizationPrice(customizations) : 0;
     
@@ -115,7 +114,6 @@ export const useCart = () => {
       updatedCart[existingIndex] = {
         ...updatedCart[existingIndex],
         quantity: updatedCart[existingIndex].quantity + 1,
-        // Keep existing customMessage or update with new one if provided
         customMessage: customMessage || updatedCart[existingIndex].customMessage,
       };
       return updatedCart;
@@ -127,7 +125,7 @@ export const useCart = () => {
         ...item, 
         quantity: 1,
         customizations: customizations || {},
-        customMessage: customMessage || '', // NEW
+        customMessage: customMessage || '',
         addonPrice,
         basePrice: item.price
       }

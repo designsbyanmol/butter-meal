@@ -1,6 +1,7 @@
 // services/supabase.service.ts
 import { supabase, isSupabaseConfigured } from './supabase.client';
-import { User, MenuItem, CartItem } from '../types';
+import { User, MenuItem, CartItem, StoreSettings } from '../types';
+import { TABLES } from '../config/tables';
 
 class SupabaseService {
   private static instance: SupabaseService;
@@ -22,7 +23,6 @@ class SupabaseService {
     return true;
   }
 
-  // Get the supabase client (with proper null check)
   private getClient() {
     if (!this.checkSupabaseInitialized() || !supabase) {
       return null;
@@ -38,7 +38,7 @@ class SupabaseService {
       if (!client) return [];
       
       const { data: users, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .select('*')
         .order('created_at', { ascending: true });
 
@@ -56,7 +56,7 @@ class SupabaseService {
       if (!client) return null;
       
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .select('*')
         .eq('phone', phone)
         .single();
@@ -75,7 +75,7 @@ class SupabaseService {
       if (!client) return null;
       
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .select('*')
         .eq('id', id)
         .single();
@@ -96,7 +96,7 @@ class SupabaseService {
       }
       
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .insert({
           phone: userData.phone,
           name: userData.name,
@@ -128,7 +128,7 @@ class SupabaseService {
       if (updates.role) supabaseUpdates.role = updates.role;
 
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .update(supabaseUpdates)
         .eq('id', id)
         .select()
@@ -148,7 +148,7 @@ class SupabaseService {
       if (!client) return false;
       
       const { error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .delete()
         .eq('id', id);
 
@@ -166,7 +166,7 @@ class SupabaseService {
       if (!client) return null;
       
       const { data: currentUser, error: getError } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .select('is_active')
         .eq('id', id)
         .single();
@@ -174,7 +174,7 @@ class SupabaseService {
       if (getError) throw getError;
 
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .update({ is_active: !currentUser.is_active })
         .eq('id', id)
         .select()
@@ -194,7 +194,7 @@ class SupabaseService {
       if (!client) return false;
       
       const { error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .update({ 
           password_hash: newPassword,
           is_active: true
@@ -219,7 +219,7 @@ class SupabaseService {
       }
       
       const { data: user, error } = await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .select('*')
         .eq('phone', phone)
         .eq('password_hash', password)
@@ -234,7 +234,7 @@ class SupabaseService {
       }
 
       await client
-        .from('users')
+        .from(TABLES.USERS)  // ✅ Using env variable
         .update({ last_login: new Date().toISOString() })
         .eq('id', user.id);
 
@@ -251,13 +251,11 @@ class SupabaseService {
 
   // ============ MENU ITEMS METHODS ============
 
-  // ✅ Add menu item
   async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
     try {
       const client = this.getClient();
       if (!client) return null;
 
-      // Convert MenuItem to Supabase schema
       const supabaseItem = {
         in_stock: item.inStock,
         name: item.name,
@@ -280,7 +278,7 @@ class SupabaseService {
       };
 
       const { data, error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .insert([supabaseItem])
         .select()
         .single();
@@ -293,14 +291,13 @@ class SupabaseService {
     }
   }
 
-  // ✅ Delete menu item
   async deleteMenuItem(id: number): Promise<boolean> {
     try {
       const client = this.getClient();
       if (!client) return false;
       
       const { error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .delete()
         .eq('id', id);
       
@@ -318,7 +315,7 @@ class SupabaseService {
       if (!client) return [];
       
       const { data: items, error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .select('*')
         .order('id');
 
@@ -336,7 +333,7 @@ class SupabaseService {
       if (!client) return [];
       
       const { data: items, error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .select('*')
         .eq('in_stock', true)
         .order('id');
@@ -375,7 +372,7 @@ class SupabaseService {
       supabaseUpdates.updated_at = new Date().toISOString();
 
       const { data: item, error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .update(supabaseUpdates)
         .eq('id', id)
         .select()
@@ -395,7 +392,7 @@ class SupabaseService {
       if (!client) return null;
       
       const { data: currentItem, error: getError } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .select('in_stock')
         .eq('id', id)
         .single();
@@ -403,7 +400,7 @@ class SupabaseService {
       if (getError) throw getError;
 
       const { data: item, error } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .update({ 
           in_stock: !currentItem.in_stock,
           updated_at: new Date().toISOString()
@@ -449,15 +446,13 @@ class SupabaseService {
         return;
       }
       
-      // Check if menu items already exist
       const { count, error: countError } = await client
-        .from('menu_items')
+        .from(TABLES.MENU)  // ✅ Using env variable
         .select('*', { count: 'exact', head: true });
 
       if (countError) throw countError;
 
       if (count === 0) {
-        // Remove the id field from items to insert (let Supabase auto-generate)
         const itemsToInsert = defaultItems.map(item => ({
           in_stock: item.inStock,
           name: item.name,
@@ -481,12 +476,11 @@ class SupabaseService {
 
         console.log('📦 Inserting menu items:', itemsToInsert.length);
 
-        // Insert in batches of 10 to avoid issues
         const batchSize = 10;
         for (let i = 0; i < itemsToInsert.length; i += batchSize) {
           const batch = itemsToInsert.slice(i, i + batchSize);
           const { error: insertError } = await client
-            .from('menu_items')
+            .from(TABLES.MENU)  // ✅ Using env variable
             .insert(batch);
 
           if (insertError) {
@@ -506,6 +500,91 @@ class SupabaseService {
     }
   }
 
+  // ============ STORE SETTINGS ============
+
+  async getStoreSettings(): Promise<StoreSettings | null> {
+    try {
+      const client = this.getClient();
+      if (!client) {
+        console.warn('⚠️ Supabase client not available');
+        return null;
+      }
+      
+      console.log('📡 Fetching store settings from Supabase...');
+      
+      const { data, error } = await client
+        .from(TABLES.STORE_SETTINGS)  // ✅ Using env variable
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Error fetching store settings:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.warn('⚠️ No store settings found in database');
+        return null;
+      }
+      
+      console.log('✅ Store settings fetched from Supabase:', data);
+      
+      return {
+        isOpen: data.is_open ?? true,
+        closedMessage: data.closed_message || '',
+        expectedOpenDate: data.expected_open_date || '',
+        expectedOpenTime: data.expected_open_time || '',
+        lastUpdated: data.last_updated || new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ Get store settings error:', error);
+      return null;
+    }
+  }
+
+  async updateStoreSettings(settings: StoreSettings): Promise<boolean> {
+    try {
+      const client = this.getClient();
+      if (!client) {
+        console.warn('⚠️ Supabase client not available');
+        return false;
+      }
+      
+      console.log('📡 Updating store settings in Supabase...');
+      
+      const updateData = {
+        is_open: settings.isOpen,
+        closed_message: settings.closedMessage || '',
+        expected_open_date: settings.expectedOpenDate || null,
+        expected_open_time: settings.expectedOpenTime || null,
+        last_updated: new Date().toISOString(),
+      };
+      
+      console.log('📤 Sending update data:', updateData);
+      
+      const { error } = await client
+        .from(TABLES.STORE_SETTINGS)  // ✅ Using env variable
+        .upsert({
+          id: 1,
+          ...updateData
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('❌ Update error:', error);
+        return false;
+      }
+      
+      console.log('✅ Store settings updated successfully in Supabase');
+      return true;
+    } catch (error) {
+      console.error('❌ Update store settings error:', error);
+      return false;
+    }
+  }
+
   // ============ CART METHODS ============
 
   async getCartItems(userId: string): Promise<CartItem[]> {
@@ -514,7 +593,7 @@ class SupabaseService {
       if (!client) return [];
       
       const { data: items, error } = await client
-        .from('cart_items')
+        .from(TABLES.CART)  // ✅ Using env variable
         .select('*, menu_items(*)')
         .eq('user_id', userId);
 
@@ -539,7 +618,7 @@ class SupabaseService {
       if (!client) return;
       
       const { data: existing, error: checkError } = await client
-        .from('cart_items')
+        .from(TABLES.CART)  // ✅ Using env variable
         .select('id, quantity')
         .eq('user_id', userId)
         .eq('menu_item_id', menuItemId)
@@ -551,7 +630,7 @@ class SupabaseService {
 
       if (existing) {
         const { error: updateError } = await client
-          .from('cart_items')
+          .from(TABLES.CART)  // ✅ Using env variable
           .update({ 
             quantity: existing.quantity + quantity,
             updated_at: new Date().toISOString()
@@ -561,7 +640,7 @@ class SupabaseService {
         if (updateError) throw updateError;
       } else {
         const { data: menuItem, error: menuError } = await client
-          .from('menu_items')
+          .from(TABLES.MENU)  // ✅ Using env variable
           .select('price')
           .eq('id', menuItemId)
           .single();
@@ -569,7 +648,7 @@ class SupabaseService {
         if (menuError) throw menuError;
 
         const { error: insertError } = await client
-          .from('cart_items')
+          .from(TABLES.CART)  // ✅ Using env variable
           .insert({
             user_id: userId,
             menu_item_id: menuItemId,
@@ -591,7 +670,7 @@ class SupabaseService {
       if (!client) return;
       
       const { error } = await client
-        .from('cart_items')
+        .from(TABLES.CART)  // ✅ Using env variable
         .delete()
         .eq('user_id', userId)
         .eq('menu_item_id', menuItemId);
@@ -613,7 +692,7 @@ class SupabaseService {
       }
 
       const { error } = await client
-        .from('cart_items')
+        .from(TABLES.CART)  // ✅ Using env variable
         .update({ 
           quantity,
           updated_at: new Date().toISOString()
@@ -633,7 +712,7 @@ class SupabaseService {
       if (!client) return;
       
       const { error } = await client
-        .from('cart_items')
+        .from(TABLES.CART)  // ✅ Using env variable
         .delete()
         .eq('user_id', userId);
 
@@ -653,7 +732,7 @@ class SupabaseService {
       }
       
       const { data: order, error } = await client
-        .from('orders')
+        .from(TABLES.ORDERS)  // ✅ Using env variable
         .insert(orderData)
         .select('id')
         .single();

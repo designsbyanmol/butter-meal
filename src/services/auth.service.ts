@@ -13,7 +13,6 @@ class AuthService {
   private listeners: ((state: AuthState) => void)[] = [];
 
   constructor() {
-    // Load session from localStorage immediately
     this.loadSessionFromCache();
   }
 
@@ -28,16 +27,13 @@ class AuthService {
             isAuthenticated: true,
             isLoading: false,
           };
-          console.log('✅ Session loaded from localStorage:', user.name);
         } catch (e) {
-          console.error('Failed to parse session:', e);
           this.clearSession();
         }
       } else {
         this.authState.isLoading = false;
       }
     } catch (error) {
-      console.error('Error loading session:', error);
       this.authState.isLoading = false;
     }
     this.notifyListeners();
@@ -46,18 +42,16 @@ class AuthService {
   private saveSession(user: User): void {
     try {
       localStorage.setItem('auth_session', JSON.stringify(user));
-      console.log('💾 Session saved to localStorage');
     } catch (error) {
-      console.error('Error saving session:', error);
+      // Silently handle error
     }
   }
 
   private clearSession(): void {
     try {
       localStorage.removeItem('auth_session');
-      console.log('🗑️ Session cleared from localStorage');
     } catch (error) {
-      console.error('Error clearing session:', error);
+      // Silently handle error
     }
     this.authState = {
       user: null,
@@ -91,13 +85,11 @@ class AuthService {
         return { success: false, error: 'Phone number and password are required' };
       }
 
-      // Try Supabase first if configured
       if (isSupabaseConfigured) {
         try {
           const { supabaseService } = await import('./supabase.service');
           const result = await supabaseService.signIn(phone, password);
           if (result.user) {
-            // Save to localStorage immediately
             this.authState = {
               user: result.user,
               isAuthenticated: true,
@@ -109,12 +101,10 @@ class AuthService {
           }
           return { success: false, error: result.error };
         } catch (supabaseError) {
-          console.warn('⚠️ Supabase login failed, falling back to local:', supabaseError);
           // Fall through to local login
         }
       }
 
-      // Fallback to localStorage
       try {
         const user = await db.getUserByPhone(phone);
         if (!user) {
@@ -129,14 +119,12 @@ class AuthService {
           return { success: false, error: 'Invalid password' };
         }
 
-        // Update last login (try but don't fail if it doesn't work)
         try {
           await db.updateUser(user.id, { lastLogin: new Date().toISOString() });
         } catch (updateError) {
-          console.warn('⚠️ Could not update last login:', updateError);
+          // Silently handle update error
         }
 
-        // Save to localStorage
         this.authState = {
           user,
           isAuthenticated: true,
@@ -147,16 +135,13 @@ class AuthService {
 
         return { success: true };
       } catch (dbError) {
-        console.error('Database error during login:', dbError);
         return { success: false, error: 'Service temporarily unavailable. Please try again.' };
       }
     } catch (error) {
-      console.error('Login error:', error);
       return { success: false, error: 'An error occurred during login' };
     }
   }
 
-  // ONLY clear session on explicit logout
   logout(): void {
     this.clearSession();
   }
@@ -169,13 +154,11 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // Always update localStorage first
       const updatedUser = { ...this.authState.user, ...updates };
       this.authState.user = updatedUser;
       this.saveSession(updatedUser);
       this.notifyListeners();
 
-      // Try to update in database (if available)
       try {
         const updated = await db.updateUser(this.authState.user.id, updates);
         if (updated) {
@@ -185,13 +168,11 @@ class AuthService {
           return { success: true };
         }
       } catch (dbError) {
-        console.warn('⚠️ Database update failed, user updated locally only:', dbError);
         return { success: true, error: 'Updated locally but may not be synced with server' };
       }
 
       return { success: true };
     } catch (error) {
-      console.error('Update error:', error);
       return { success: false, error: 'An error occurred during update' };
     }
   }
@@ -234,11 +215,9 @@ class AuthService {
 
         return { success: true };
       } catch (dbError) {
-        console.error('Database error creating user:', dbError);
         return { success: false, error: 'Service temporarily unavailable' };
       }
     } catch (error) {
-      console.error('Create user error:', error);
       return { success: false, error: 'An error occurred during user creation' };
     }
   }
@@ -250,8 +229,6 @@ class AuthService {
     try {
       return await db.getUsers();
     } catch (error) {
-      console.error('Error getting users:', error);
-      // Return cached users if available
       const cachedUsers = localStorage.getItem('restaurant_users_data');
       if (cachedUsers) {
         try {
@@ -276,7 +253,6 @@ class AuthService {
           return { success: false, error: 'User not found' };
         }
 
-        // If toggling current user, update session
         if (this.authState.user && this.authState.user.id === userId) {
           this.authState.user = updated;
           if (updated.isActive) {
@@ -289,11 +265,9 @@ class AuthService {
 
         return { success: true };
       } catch (dbError) {
-        console.error('Database error toggling user:', dbError);
         return { success: false, error: 'Service temporarily unavailable' };
       }
     } catch (error) {
-      console.error('Toggle user status error:', error);
       return { success: false, error: 'An error occurred' };
     }
   }
@@ -315,11 +289,9 @@ class AuthService {
         }
         return { success: true };
       } catch (dbError) {
-        console.error('Database error resetting password:', dbError);
         return { success: false, error: 'Service temporarily unavailable' };
       }
     } catch (error) {
-      console.error('Reset password error:', error);
       return { success: false, error: 'An error occurred' };
     }
   }
@@ -341,11 +313,9 @@ class AuthService {
         }
         return { success: true };
       } catch (dbError) {
-        console.error('Database error deleting user:', dbError);
         return { success: false, error: 'Service temporarily unavailable' };
       }
     } catch (error) {
-      console.error('Delete user error:', error);
       return { success: false, error: 'An error occurred' };
     }
   }

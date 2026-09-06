@@ -1,13 +1,21 @@
 // types/index.ts
 export interface User {
   id: string;
-  phone: string; // Changed from email to phone
+  phone: string;
   name: string;
-  password: string; // In production, use proper hashing
+  password: string;
   role: 'admin' | 'user';
-  isActive: boolean; // Admin can activate/deactivate users
+  isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+}
+
+export interface StoreSettings {
+  isOpen: boolean;
+  closedMessage: string; // NEW: Message shown when store is closed
+  expectedOpenDate: string; // NEW: Expected date when store will open
+  expectedOpenTime: string; // NEW: Expected time when store will open
+  lastUpdated: string;
 }
 
 export interface MenuItem {

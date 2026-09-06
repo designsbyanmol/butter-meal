@@ -74,7 +74,7 @@
 
 .createBtn {
   padding: 8px 20px;
-  background: #085b1b;
+  background: #3caa46;
   color: white;
   border: none;
   border-radius: 6px;
@@ -85,8 +85,7 @@
   margin: 8px;
 
   &:hover {
-    background: #064a16;
-    transform: translateY(-1px);
+    background: #25822c;
   }
 }
 
@@ -106,6 +105,7 @@
 
   .createForm_in {
     flex: 1;
+    max-width: 460px;
   }
 
   .formRow {
@@ -134,7 +134,7 @@
       flex: 1;
       margin: 0;
       padding: 10px 20px;
-      background: #085b1b;
+      background: #3caa46;
       color: white;
       border: none;
       border-radius: 6px;
@@ -146,7 +146,7 @@
 
     .submitBtn {
       padding: 10px 20px;
-      background: #19782f;
+      background: #3caa46;
       color: white;
       border: none;
       border-radius: 6px;
@@ -161,8 +161,12 @@
     }
 
     .cancelBtn {
-      background: #b13c34;
-      color: #fff;
+  background: #f0f0f0;
+  color: #333;
+
+  &:hover {
+    background: #e0e0e0;
+  }
     }
   }
 }
@@ -188,7 +192,7 @@
 
     &:focus {
       outline: none;
-      border-color: #085b1b;
+      border-color: #3caa46;
     }
   }
   select {
@@ -308,7 +312,7 @@
 }
 
 .active {
-  color: #085b1b;
+  color: #3caa46;
   font-weight: 500;
 }
 
@@ -356,7 +360,7 @@
 
     &:focus {
       outline: none;
-      border-color: #085b1b;
+      border-color: #3caa46;
     }
   }
 
@@ -378,11 +382,11 @@
   }
 
   .resetConfirmBtn {
-    background: #085b1b;
+    background: #3caa46;
     color: white;
 
     &:hover {
-      background: #064a16;
+      background: #25822c;
     }
   }
 
@@ -614,7 +618,7 @@
 
 .successMessage {
   background: #e8f5e9;
-  color: #085b1b;
+  color: #3caa46;
 }
 
 @keyframes slideDown {

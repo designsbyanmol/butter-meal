@@ -1,6 +1,6 @@
 .brandWrap {
-    margin: 20px 0 24px;
     position: relative;
+    padding: 40px 15px 32px;
 }
 
 h1 {
@@ -11,8 +11,10 @@ h1 {
     line-height: 1.25;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: 12px;
-    margin: 0;
+    margin: 0 0 10px;
 
   svg {
     flex-shrink: 0;
@@ -25,6 +27,8 @@ h1 {
     font-weight: 400;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: 6px;
 
   svg {

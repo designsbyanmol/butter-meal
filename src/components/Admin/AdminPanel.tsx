@@ -4,6 +4,7 @@ import { MenuItem } from '../../types';
 import { useMenu } from '../../hooks/useMenu';
 import styles from './AdminPanel.module.scss';
 import { CloseIcon } from '../../assets/svgs';
+import ImageUpload from './ImageUpload';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -186,10 +187,8 @@ const [ingredientsInput, setIngredientsInput] = useState('');
       setEditingItem(null);
       setEditForm({});
       setCustomizationOptions([]);
-      alert('✅ Menu item updated successfully!');
     } catch (error) {
       alert('❌ Failed to update menu item');
-      console.error(error);
     }
   };
 
@@ -206,7 +205,6 @@ const [ingredientsInput, setIngredientsInput] = useState('');
         alert('✅ Menu item deleted successfully!');
       } catch (error) {
         alert('❌ Failed to delete menu item');
-        console.error(error);
       }
     }
   };
@@ -283,7 +281,6 @@ const [ingredientsInput, setIngredientsInput] = useState('');
       alert('✅ New menu item added successfully!');
     } catch (error) {
       alert('❌ Failed to add menu item');
-      console.error(error);
     }
   };
 
@@ -462,17 +459,16 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                   </div>
                 </div>
 
+                <div className={styles.formGroup}>
+                  <label>Image *</label>
+                  <ImageUpload
+                    onImageUploaded={(url) => {
+                      setNewItemForm({ ...newItemForm, img: url });
+                    }}
+                    label="Upload Item Image"
+                  />
+                </div>
                 <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Image URL *</label>
-                    <input
-                      type="text"
-                      value={newItemForm.img || ''}
-                      onChange={(e) => setNewItemForm({ ...newItemForm, img: e.target.value })}
-                      placeholder="https://example.com/image.jpg"
-                      required
-                    />
-                  </div>
                   <div className={styles.formGroup}>
                     <label>Preparation Time</label>
                     <input
@@ -482,6 +478,40 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                       placeholder="e.g., 15-20 mins"
                     />
                   </div>
+                  <div className={styles.checkboxRow}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={newItemForm.isVeg || false}
+                      onChange={(e) => setNewItemForm({ ...newItemForm, isVeg: e.target.checked })}
+                    />
+                    Vegetarian
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={newItemForm.isSpicy || false}
+                      onChange={(e) => setNewItemForm({ ...newItemForm, isSpicy: e.target.checked })}
+                    />
+                    Spicy
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={newItemForm.isGlutenFree || false}
+                      onChange={(e) => setNewItemForm({ ...newItemForm, isGlutenFree: e.target.checked })}
+                    />
+                    Gluten Free
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={newItemForm.inStock !== undefined ? newItemForm.inStock : true}
+                      onChange={(e) => setNewItemForm({ ...newItemForm, inStock: e.target.checked })}
+                    />
+                    In Stock
+                  </label>
+                </div>
                 </div>
 
                 <div className={styles.formRow}>
@@ -521,57 +551,22 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                     />
                   </div>
                   <div className={styles.formGroup}>
-  <label>Ingredients (comma separated)</label>
-  <input
-    type="text"
-    value={newIngredientsInput}
-    onChange={(e) => {
-      const value = e.target.value;
-      setNewIngredientsInput(value);
-      const ingredientsArray = value ? value.split(',').map(s => s.trim()).filter(s => s !== '') : [];
-      setNewItemForm({ 
-        ...newItemForm, 
-        ingredients: ingredientsArray
-      });
-    }}
-    placeholder="Chicken, Cream, Spices"
-  />
-</div>
-                </div>
-
-                <div className={styles.checkboxRow}>
-                  <label className={styles.checkboxLabel}>
+                    <label>Ingredients (comma separated)</label>
                     <input
-                      type="checkbox"
-                      checked={newItemForm.isVeg || false}
-                      onChange={(e) => setNewItemForm({ ...newItemForm, isVeg: e.target.checked })}
+                      type="text"
+                      value={newIngredientsInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setNewIngredientsInput(value);
+                        const ingredientsArray = value ? value.split(',').map(s => s.trim()).filter(s => s !== '') : [];
+                        setNewItemForm({ 
+                          ...newItemForm, 
+                          ingredients: ingredientsArray
+                        });
+                      }}
+                      placeholder="Chicken, Cream, Spices"
                     />
-                    Vegetarian
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={newItemForm.isSpicy || false}
-                      onChange={(e) => setNewItemForm({ ...newItemForm, isSpicy: e.target.checked })}
-                    />
-                    Spicy
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={newItemForm.isGlutenFree || false}
-                      onChange={(e) => setNewItemForm({ ...newItemForm, isGlutenFree: e.target.checked })}
-                    />
-                    Gluten Free
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={newItemForm.inStock !== undefined ? newItemForm.inStock : true}
-                      onChange={(e) => setNewItemForm({ ...newItemForm, inStock: e.target.checked })}
-                    />
-                    In Stock
-                  </label>
+                  </div>
                 </div>
 
                 {/* ✅ CUSTOMIZATION OPTIONS SECTION FOR NEW ITEM */}
@@ -720,17 +715,17 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                   </div>
                 </div>
 
+                <div className={styles.formGroup}>
+                  <label>Image *</label>
+                  <ImageUpload
+                    currentImage={editForm.img || ''}
+                    onImageUploaded={(url) => {
+                      setEditForm({ ...editForm, img: url });
+                    }}
+                    label="Upload Item Image"
+                  />
+                </div>
                 <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Image URL *</label>
-                    <input
-                      type="text"
-                      value={editForm.img || ''}
-                      onChange={(e) => setEditForm({ ...editForm, img: e.target.value })}
-                      placeholder="https://example.com/image.jpg"
-                      required
-                    />
-                  </div>
                   <div className={styles.formGroup}>
                     <label>Preparation Time</label>
                     <input
@@ -740,6 +735,32 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                       placeholder="e.g., 15-20 mins"
                     />
                   </div>
+                  <div className={styles.checkboxRow}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.isVeg || false}
+                      onChange={(e) => setEditForm({ ...editForm, isVeg: e.target.checked })}
+                    />
+                    Vegetarian
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.isSpicy || false}
+                      onChange={(e) => setEditForm({ ...editForm, isSpicy: e.target.checked })}
+                    />
+                    Spicy
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.isGlutenFree || false}
+                      onChange={(e) => setEditForm({ ...editForm, isGlutenFree: e.target.checked })}
+                    />
+                    Gluten Free
+                  </label>
+                </div>
                 </div>
 
                 <div className={styles.formRow}>
@@ -779,50 +800,23 @@ const [ingredientsInput, setIngredientsInput] = useState('');
                     />
                   </div>
                   <div className={styles.formGroup}>
-  <label>Ingredients (comma separated)</label>
-  <input
-    type="text"
-    value={ingredientsInput}
-    onChange={(e) => {
-      const value = e.target.value;
-      setIngredientsInput(value);
-      // Convert to array only when needed
-      const ingredientsArray = value ? value.split(',').map(s => s.trim()).filter(s => s !== '') : [];
-      setEditForm({ 
-        ...editForm, 
-        ingredients: ingredientsArray
-      });
-    }}
-    placeholder="Chicken, Cream, Spices"
-  />
-</div>
-                </div>
-
-                <div className={styles.checkboxRow}>
-                  <label className={styles.checkboxLabel}>
+                    <label>Ingredients (comma separated)</label>
                     <input
-                      type="checkbox"
-                      checked={editForm.isVeg || false}
-                      onChange={(e) => setEditForm({ ...editForm, isVeg: e.target.checked })}
+                      type="text"
+                      value={ingredientsInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setIngredientsInput(value);
+                        // Convert to array only when needed
+                        const ingredientsArray = value ? value.split(',').map(s => s.trim()).filter(s => s !== '') : [];
+                        setEditForm({ 
+                          ...editForm, 
+                          ingredients: ingredientsArray
+                        });
+                      }}
+                      placeholder="Chicken, Cream, Spices"
                     />
-                    Vegetarian
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={editForm.isSpicy || false}
-                      onChange={(e) => setEditForm({ ...editForm, isSpicy: e.target.checked })}
-                    />
-                    Spicy
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={editForm.isGlutenFree || false}
-                      onChange={(e) => setEditForm({ ...editForm, isGlutenFree: e.target.checked })}
-                    />
-                    Gluten Free
-                  </label>
+                  </div>
                 </div>
 
                 {/* ✅ CUSTOMIZATION OPTIONS SECTION FOR EDIT */}

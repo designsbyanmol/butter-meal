@@ -1,3 +1,4 @@
+// menu.tsx files
 import React from 'react';
 import { MenuItem as MenuItemType, CartItem } from '../../types';
 import MenuItemComponent from './MenuItem';

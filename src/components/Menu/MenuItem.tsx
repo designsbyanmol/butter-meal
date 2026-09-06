@@ -1,3 +1,4 @@
+// menuItem.tsx files
 import React from 'react';
 import { MenuItem } from '../../types';
 import { StarIcon } from '../../assets/svgs';

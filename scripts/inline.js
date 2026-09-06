@@ -59,5 +59,3 @@ files.forEach(file => {
     fs.unlinkSync(path.join(distPath, file));
   }
 });
-
-console.log('✅ All files inlined into index.html');

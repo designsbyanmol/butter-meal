@@ -1,3 +1,4 @@
+// menuDetail.tsx files
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../types';
 import {

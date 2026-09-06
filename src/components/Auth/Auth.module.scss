@@ -24,6 +24,7 @@
   position: relative;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease-out;
+  overflow: auto;
 
   h2 {
     margin: 0 0 8px 0;

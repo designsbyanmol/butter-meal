@@ -1,4 +1,19 @@
 // types/supabase.ts
+export type TableName = 
+  | 'menu_items'
+  | 'users'
+  | 'cart_items'
+  | 'orders'
+  | 'store_settings';
+
+export interface TableConfig {
+  MENU: TableName;
+  USERS: TableName;
+  CART: TableName;
+  ORDERS: TableName;
+  STORE_SETTINGS: TableName;
+}
+
 export type Json =
   | string
   | number
@@ -110,6 +125,35 @@ export interface Database {
           updated_at?: string
         }
       }
+store_settings: {
+  Row: {
+    id: number
+    is_open: boolean
+    closed_message: string
+    expected_open_date: string | null
+    expected_open_time: string | null
+    last_updated: string
+    created_at: string
+  }
+  Insert: {
+    id?: number
+    is_open?: boolean
+    closed_message?: string
+    expected_open_date?: string | null
+    expected_open_time?: string | null
+    last_updated?: string
+    created_at?: string
+  }
+  Update: {
+    id?: number
+    is_open?: boolean
+    closed_message?: string
+    expected_open_date?: string | null
+    expected_open_time?: string | null
+    last_updated?: string
+    created_at?: string
+  }
+}
       cart_items: {
         Row: {
           id: string

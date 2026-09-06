@@ -43,7 +43,6 @@ export const useMenu = () => {
       setVisibleItems(allItems);
       return addedItem;
     } catch (error) {
-      console.error('Error adding item:', error);
       throw error;
     }
   };
@@ -56,7 +55,6 @@ export const useMenu = () => {
       // ✅ Show ALL items
       setVisibleItems(allItems);
     } catch (error) {
-      console.error('Error deleting item:', error);
       throw error;
     }
   };

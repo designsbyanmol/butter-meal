@@ -50,6 +50,10 @@
     color: #1e1e1e;
     text-transform: capitalize;
     font-weight: 200;
+        text-align: center;
+    display: flex;
+    justify-content: center;
+    width: 100%;
 
       @media screen and (max-width: 520px) {
         font-weight: 400;

@@ -4,8 +4,10 @@ import { useAuth } from '../../hooks/useAuth';
 import LoginModal from '../Auth/LoginModal';
 import UserManagement from '../Admin/UserManagement';
 import AdminPanel from '../Admin/AdminPanel';
+import StoreModal from '../Store/StoreModal';
 import styles from './Header.module.scss';
-import { MenuIcon, UsersIcon } from '../../assets/svgs';
+import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
+
 interface HeaderProps {
   companyName: string;
   year: number;
@@ -16,13 +18,14 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isMenuPanelOpen, setIsMenuPanelOpen] = useState(false);
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
 
   const handleLogin = () => setIsLoginOpen(true);
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       logout();
     }
-  }
+  };
 
   return (
     <>
@@ -36,13 +39,22 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
           <div className={styles.actions}>
             {isAuthenticated ? (
               <>
+                {/* ✅ Store button - Visible to ALL authenticated users */}
+                <button 
+                  className={styles.adminBtn}
+                  onClick={() => setIsStoreModalOpen(true)}
+                  title="Store Settings"
+                >
+                  <StoreIcon width={20} height={20} fill="#1e1e1e"/>
+                </button>
                 
                 {/* ✅ Menu button - Visible to ALL authenticated users */}
                 <button 
                   className={styles.adminBtn}
                   onClick={() => setIsMenuPanelOpen(true)}
+                  title="Manage Menu"
                 >
-                  <MenuIcon width={16} height={16} color="#1e1e1e"/>
+                  <MenuIcon width={20} height={20} color="#1e1e1e"/>
                 </button>
                 
                 {/* ✅ Users button - Only visible to Admins */}
@@ -50,8 +62,9 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                   <button 
                     className={styles.adminBtn}
                     onClick={() => setIsUserManagementOpen(true)}
+                    title="User Management"
                   >
-                    <UsersIcon width={16} height={16} color="#1e1e1e"/>
+                    <UsersIcon width={20} height={20} color="#1e1e1e"/>
                   </button>
                 )}
                 
@@ -85,12 +98,17 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
         />
       )}
 
-      {/* ✅ Menu Panel - Visible to ALL authenticated users */}
       {isMenuPanelOpen && (
         <AdminPanel
           onClose={() => setIsMenuPanelOpen(false)}
         />
       )}
+
+      {/* ✅ Store Modal - Visible to ALL authenticated users */}
+      <StoreModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+      />
     </>
   );
 };
