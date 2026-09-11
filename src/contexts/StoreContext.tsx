@@ -1,7 +1,16 @@
 // contexts/StoreContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useRef,
+} from 'react';
 import { StoreSettings } from '../types';
 import { db } from '../services/database.service';
+import { TABLES } from '../config/tables';
+import { isSupabaseConfigured } from '../config/env';
 
 interface StoreContextType {
   storeSettings: StoreSettings;
@@ -19,15 +28,13 @@ const defaultStoreSettings: StoreSettings = {
   lastUpdated: new Date().toISOString(),
 };
 
-const STORE_SETTINGS_KEY = 'store_settings';
+const STORE_SETTINGS_KEY = TABLES.STORE_SETTINGS;
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const useStore = () => {
   const context = useContext(StoreContext);
-  if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
-  }
+  if (!context) throw new Error('useStore must be used within a StoreProvider');
   return context;
 };
 
@@ -36,225 +43,201 @@ interface StoreProviderProps {
 }
 
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
-  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
+  const [storeSettings, setStoreSettings] =
+    useState<StoreSettings>(defaultStoreSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [pollingPaused, setPollingPaused] = useState(false);
-  
+
   const lastUpdateTimeRef = useRef<string>('');
-  const initialLoadDoneRef = useRef(false);
-  // Track if we're currently fetching to prevent duplicate requests
   const isFetchingRef = useRef(false);
 
-  // OPTIMIZED: Fetch with debouncing and request deduplication
-  const fetchLatestSettings = async (force = false) => {
-    // Prevent concurrent fetches
-    if (isFetchingRef.current && !force) {
-      return null;
-    }
-
-    if (pollingPaused && !force) {
-      return null;
-    }
+  // ---------------------------------------------------------
+  // Fetch — always trust Supabase when connected
+  // ---------------------------------------------------------
+  const fetchLatestSettings = async (
+    force = false,
+  ): Promise<StoreSettings | null> => {
+    if (isFetchingRef.current && !force) return null;
+    if (pollingPaused && !force) return null;
 
     try {
       isFetchingRef.current = true;
-      
-      // Check localStorage first before hitting the database
-      const localData = localStorage.getItem(STORE_SETTINGS_KEY);
-      if (localData && !force) {
-        const parsed = JSON.parse(localData);
-        const now = new Date().getTime();
-        const lastUpdate = new Date(parsed.lastUpdated).getTime();
-        const timeDiff = now - lastUpdate;
-        
-        // If we fetched within the last 30 seconds, use cached data (reduces DB hits by 83%)
-        if (timeDiff < 30000) {
-          isFetchingRef.current = false;
-          return parsed;
-        }
-      }
 
-      // Only hit the database if cache is stale or force refresh
       const dbSettings = await db.getStoreSettings();
       if (dbSettings) {
-        const latestSettings = {
+        const latest: StoreSettings = {
           isOpen: dbSettings.isOpen ?? true,
           closedMessage: dbSettings.closedMessage || '',
           expectedOpenDate: dbSettings.expectedOpenDate || '',
           expectedOpenTime: dbSettings.expectedOpenTime || '',
           lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
         };
-        
-        const currentLastUpdated = storeSettings.lastUpdated;
-        const dbLastUpdated = latestSettings.lastUpdated;
-        
-        if (dbLastUpdated > currentLastUpdated) {
-          setStoreSettings(latestSettings);
-          localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(latestSettings));
-          lastUpdateTimeRef.current = latestSettings.lastUpdated;
+
+        // Only setState if something actually changed (avoids re-renders)
+        if (latest.lastUpdated !== lastUpdateTimeRef.current) {
+          setStoreSettings(latest);
+          localStorage.setItem(
+            STORE_SETTINGS_KEY,
+            JSON.stringify(latest),
+          );
+          lastUpdateTimeRef.current = latest.lastUpdated;
         }
-        
+
         isFetchingRef.current = false;
-        return latestSettings;
+        return latest;
       }
-      
+
       isFetchingRef.current = false;
       return null;
     } catch (error) {
+      console.error('fetchLatestSettings failed:', error);
       isFetchingRef.current = false;
       return null;
     }
   };
 
-  // OPTIMIZED: Load with cache-first strategy
+  // ---------------------------------------------------------
+  // Initial load — read local for instant first paint,
+  // then always fetch from DB to get the truth.
+  // ---------------------------------------------------------
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        let loadedSettings: StoreSettings | null = null;
-        
-        // Step 1: Try localStorage first (fastest, no DB hit)
+        // Step 1: Quick local paint so UI doesn't flash
         try {
           const saved = localStorage.getItem(STORE_SETTINGS_KEY);
           if (saved) {
             const parsed = JSON.parse(saved);
-            loadedSettings = {
+            const localSettings: StoreSettings = {
               isOpen: parsed.isOpen ?? true,
               closedMessage: parsed.closedMessage || '',
               expectedOpenDate: parsed.expectedOpenDate || '',
               expectedOpenTime: parsed.expectedOpenTime || '',
               lastUpdated: parsed.lastUpdated || new Date().toISOString(),
             };
-            
-            setStoreSettings(loadedSettings);
-            lastUpdateTimeRef.current = loadedSettings.lastUpdated;
+            setStoreSettings(localSettings);
+            lastUpdateTimeRef.current = localSettings.lastUpdated;
           }
-        } catch (e) {
-          // Silently handle error
+        } catch {
+          // ignore local parse errors
         }
 
-        // Step 2: Check if localStorage is stale (> 1 minute old)
-        const shouldRefresh = loadedSettings?.lastUpdated 
-          ? (new Date().getTime() - new Date(loadedSettings.lastUpdated).getTime() > 60000)
-          : true;
-
-        // Step 3: Fetch from database if needed (but only once)
-        if (shouldRefresh) {
+        // Step 2: Always hit Supabase when configured — no staleness gate.
+        if (isSupabaseConfigured) {
           try {
-            const dbSettings = await db.getStoreSettings();
-            if (dbSettings) {
-              const freshSettings = {
-                isOpen: dbSettings.isOpen ?? true,
-                closedMessage: dbSettings.closedMessage || '',
-                expectedOpenDate: dbSettings.expectedOpenDate || '',
-                expectedOpenTime: dbSettings.expectedOpenTime || '',
-                lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
-              };
-              
-              // Only update if database has newer data
-              if (!loadedSettings || freshSettings.lastUpdated > loadedSettings.lastUpdated) {
-                loadedSettings = freshSettings;
-                setStoreSettings(freshSettings);
-                localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(freshSettings));
-                lastUpdateTimeRef.current = freshSettings.lastUpdated;
-              }
+            const fresh = await fetchLatestSettings(true);
+            if (fresh) {
+              setStoreSettings(fresh);
             }
           } catch (e) {
-            // Silently handle error - keep using localStorage
+            console.error('Initial DB fetch failed:', e);
           }
         }
-
-        // Step 4: If still no settings, use defaults
-        if (!loadedSettings) {
-          loadedSettings = defaultStoreSettings;
-          setStoreSettings(defaultStoreSettings);
-          localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(defaultStoreSettings));
-          lastUpdateTimeRef.current = defaultStoreSettings.lastUpdated;
-          db.updateStoreSettings(defaultStoreSettings).catch(() => {});
-        }
-
-        initialLoadDoneRef.current = true;
-        setSettingsLoaded(true);
-        setIsLoading(false);
-        
-      } catch (e) {
-        setStoreSettings(defaultStoreSettings);
+      } finally {
         setSettingsLoaded(true);
         setIsLoading(false);
       }
     };
 
     loadSettings();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // OPTIMIZED: Poll every 30 seconds instead of 5 (reduces DB hits by 83%)
+  // ---------------------------------------------------------
+  // Polling — 10s, and re-fetch on tab focus
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!settingsLoaded) return;
+
     const pollInterval = setInterval(() => {
-      if (settingsLoaded && !pollingPaused) {
-        fetchLatestSettings(false); // false = use cache
+      if (!pollingPaused) {
+        fetchLatestSettings(false);
       }
-    }, 30000); // 30 seconds
+    }, 10_000); // 10s — cheap, one row
 
+    const onFocus = () => {
+      if (!pollingPaused) fetchLatestSettings(false);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !pollingPaused) {
+        fetchLatestSettings(false);
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [settingsLoaded, pollingPaused]);
+
+  // ---------------------------------------------------------
+  // Cross-tab sync via storage events
+  // ---------------------------------------------------------
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORE_SETTINGS_KEY && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          
-          if (parsed.lastUpdated > lastUpdateTimeRef.current) {
+          if (parsed.lastUpdated !== lastUpdateTimeRef.current) {
             setStoreSettings(parsed);
             lastUpdateTimeRef.current = parsed.lastUpdated;
           }
-        } catch (e) {
-          // Silently handle error
+        } catch {
+          // ignore
         }
       }
     };
-
     window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(pollInterval);
-    };
-  }, [settingsLoaded, pollingPaused]);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
+  // ---------------------------------------------------------
+  // Update — local state + DB write
+  // ---------------------------------------------------------
   const updateStoreSettings = (settings: Partial<StoreSettings>) => {
-    const updated = {
+    const updated: StoreSettings = {
       ...storeSettings,
       ...settings,
       lastUpdated: new Date().toISOString(),
     };
-    
+
     if (settings.isOpen === true) {
       updated.closedMessage = '';
       updated.expectedOpenDate = '';
       updated.expectedOpenTime = '';
     }
-    
-    // Update state and cache immediately
+
+    // Update local immediately (admin tab feels instant)
     setStoreSettings(updated);
     lastUpdateTimeRef.current = updated.lastUpdated;
     localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(updated));
-    
-    // Save to database asynchronously (don't wait for response)
-    db.updateStoreSettings(updated).catch(() => {});
+
+    // Persist to DB
+    db.updateStoreSettings(updated).catch((err) => {
+      console.error('updateStoreSettings failed:', err);
+    });
   };
 
   const getIsStoreOpen = (): boolean => {
-    if (isLoading || !settingsLoaded) {
-      return false;
-    }
+    if (isLoading || !settingsLoaded) return false;
     return storeSettings.isOpen;
   };
 
-  const open = getIsStoreOpen();
-
   return (
-    <StoreContext.Provider value={{
-      storeSettings,
-      updateStoreSettings,
-      isStoreOpen: open,
-      isLoading: isLoading || !settingsLoaded,
-      setPollingPaused,
-    }}>
+    <StoreContext.Provider
+      value={{
+        storeSettings,
+        updateStoreSettings,
+        isStoreOpen: getIsStoreOpen(),
+        isLoading: isLoading || !settingsLoaded,
+        setPollingPaused,
+      }}
+    >
       {children}
     </StoreContext.Provider>
   );

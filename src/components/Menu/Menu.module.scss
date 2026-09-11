@@ -9,6 +9,14 @@
   }
 }
 
+.emptyState {
+  grid-column: 1 / -1;
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+}
+
 .itemCard {
   background: white;
   border-radius: 8px;
@@ -42,6 +50,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+
+  &:after {
+    position: absolute;
+    content: '';
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 25%;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
+  }
 
   img {
     width: 100%;
@@ -50,31 +69,29 @@
   }
 }
 
+.badgeGroup {
+      display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    right: 8px;
+}
+
 .badge {
-  position: absolute;
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 600;
   color: #1e1e1e;
   background: #ffffffe3;
-  top: 8px;
-  z-index: 2;
-
-  &.popular {
-    left: 8px;
-  }
-
-  &.new {
-    left: 8px;
-  }
-
-  &.chefSpecial {
-    left: 8px;
-  }
 
   &.veg {
+    position: absolute;
     background: #0ca74d;
+    top: 8px;
     right: 8px;
     text-transform: uppercase;
     border: 1.5px solid #0ca74d;
@@ -362,5 +379,77 @@
     padding: 0;
     border: none;
     font-weight: 400;
+  }
+}
+
+// =========================================================
+// Menu skeleton (loading placeholder)
+// =========================================================
+
+.skeletonCard {
+  // Let the real card's structure define layout — just disable
+  // pointer interactions and any entrance animation
+  pointer-events: none;
+  cursor: default;
+}
+
+// Shared shimmer background
+.skeletonImg,
+.skeletonLine,
+.skeletonBtn {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0%,
+    #e4e4e4 50%,
+    #f0f0f0 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+// Image placeholder — matches the real .itemImg dimensions
+.skeletonImg {
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  border-radius: 8px;
+}
+
+// Title line — 60% width, height similar to a single-line item name
+.skeletonName {
+  width: 60%;
+  height: 14px;
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+// Price line — short pill
+.skeletonPrice {
+  width: 48px;
+  height: 14px;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+// "Add" button placeholder — matches button footprint
+.skeletonBtn {
+  display: inline-block;
+  width: 64px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// Respect users who prefer reduced motion
+@media (prefers-reduced-motion: reduce) {
+  .skeletonImg,
+  .skeletonLine,
+  .skeletonBtn {
+    animation: none;
   }
 }

@@ -1,9 +1,10 @@
 // hooks/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 import { CartItem, MenuItem, ScheduleData, PaymentMode, DeliveryType } from '../types';
+import { WhatsAppMessage } from '../config/credentials';
 
-const DELIVERY_FEE = 20;
-const RESTAURANT_PHONE = '9599196391';
+const DELIVERY_FEE = WhatsAppMessage.Discount_percentage;
+const RESTAURANT_PHONE = WhatsAppMessage.Restaurant_message;
 
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);

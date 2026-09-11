@@ -1,6 +1,7 @@
 // components/Admin/ImageUpload.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styles from './AdminPanel.module.scss';
+import { CloseIcon } from '../../assets/svgs';
 
 interface ImageUploadProps {
   onImageUploaded: (imageUrl: string) => void;
@@ -8,10 +9,10 @@ interface ImageUploadProps {
   label?: string;
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ 
-  onImageUploaded, 
-  currentImage = '', 
-  label = 'Upload Image' 
+const ImageUpload: React.FC<ImageUploadProps> = ({
+  onImageUploaded,
+  currentImage = '',
+  label = 'Upload Image',
 }) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
@@ -21,10 +22,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ✅ Sync preview + imageUrl when currentImage changes externally
+  // (e.g., when the edit modal opens for a different item)
+  useEffect(() => {
+    setPreview(currentImage || null);
+    setImageUrl(currentImage || '');
+  }, [currentImage]);
+
   // IMG API Key
   const IMG_API_KEY = import.meta.env.VITE_IMG_API_KEY || '62ab93456c2cb8232f6f216a1475426d';
 
-  // Image processing function: compress, convert to WebP, resize to max 480x480
+  // Image processing function: compress, convert to WebP, resize to max 1024x1024
   const processImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -36,7 +44,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         
         img.onload = () => {
           try {
-            // Calculate new dimensions (max 480x480, maintain aspect ratio)
+            // Calculate new dimensions (max 1024x1024, maintain aspect ratio)
             let width = img.width;
             let height = img.height;
             const maxSize = 1024;
@@ -198,27 +206,37 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const uploadToIMG = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('image', file);
+  const formData = new FormData();
+  formData.append('image', file);
 
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMG_API_KEY}`, {
-      method: 'POST',
-      body: formData,
-    });
+  const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMG_API_KEY}`, {
+    method: 'POST',
+    body: formData,
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Upload failed');
-    }
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || 'Upload failed');
+  }
 
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error?.message || 'Upload failed');
-    }
+  const data = await response.json();
 
-    return data.data.url;
-  };
+  if (!data.success) {
+    throw new Error(data.error?.message || 'Upload failed');
+  }
+
+  const fullUrl: string = data.data.url;
+
+  // ✅ Append a width hint so the browser downloads a smaller variant
+  // Menu cards render at ~320 CSS px; 640 covers retina 2x.
+  const optimizedUrl = `${fullUrl}?w=640`;
+
+  // Optional: log the size difference for sanity
+  console.log('imgbb original:', data.data.image?.url);
+  console.log('Stored URL:', optimizedUrl);
+
+  return optimizedUrl;
+};
 
   const handleUrlSubmit = () => {
     if (!imageUrl.trim()) {
@@ -277,7 +295,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               onClick={handleRemoveImage}
               title="Remove image"
             >
-              ×
+              <CloseIcon width={18} height={18} fill='#fff'/>
             </button>
           </div>
         ) : (
@@ -314,7 +332,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               </div>
             ) : (
               <div className={styles.uploadPlaceholder}>
-                <div className={styles.uploadIcon}>📷</div>
                 <div className={styles.uploadOptions}>
                   <button
                     type="button"

@@ -26,7 +26,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ Fix: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,7 +43,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     newPassword: string;
   } | null>(null);
 
-  // ✅ State for confirmation dialogs
+  // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -55,9 +54,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     type: "warning" | "danger" | "info";
   } | null>(null);
 
-  // ✅ Auto-hide error and success messages after 3 seconds
+  // ✅ Post-reset handoff dialog (shows the new password once)
+  const [handoffDialog, setHandoffDialog] = useState<{
+    userName: string;
+    userPhone: string;
+    password: string;
+  } | null>(null);
+
+  // Auto-hide error and success messages after 3 seconds
   useEffect(() => {
-    // Clear previous timeouts
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
       errorTimeoutRef.current = null;
@@ -67,32 +72,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
       successTimeoutRef.current = null;
     }
 
-    // Auto-hide error after 3 seconds
     if (error) {
-      errorTimeoutRef.current = setTimeout(() => {
-        setError("");
-      }, 3000);
+      errorTimeoutRef.current = setTimeout(() => setError(""), 3000);
     }
-
-    // Auto-hide success after 3 seconds
     if (success) {
-      successTimeoutRef.current = setTimeout(() => {
-        setSuccess("");
-      }, 3000);
+      successTimeoutRef.current = setTimeout(() => setSuccess(""), 3000);
     }
 
-    // Cleanup timeouts on unmount
     return () => {
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-      if (successTimeoutRef.current) {
-        clearTimeout(successTimeoutRef.current);
-      }
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     };
   }, [error, success]);
 
-  // ✅ Clear messages manually
   const clearMessages = () => {
     setError("");
     setSuccess("");
@@ -108,6 +100,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
 
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUsers = async () => {
@@ -142,7 +135,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     }
   };
 
-  // ✅ Updated handleToggleStatus with confirmation
   const handleToggleStatus = async (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
@@ -171,7 +163,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     });
   };
 
-  // ✅ Updated handleResetPassword with confirmation
+  // ✅ Updated: after reset, show the new password in a handoff dialog
   const handleResetPassword = async (userId: string) => {
     if (!resetPassword || resetPassword.userId !== userId) {
       setResetPassword({ userId, newPassword: "" });
@@ -186,24 +178,30 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
 
+    const newPw = resetPassword.newPassword;
+    const targetUser = { name: user.name, phone: user.phone, id: user.id };
+
     setConfirmDialog({
       isOpen: true,
       title: "Reset Password",
-      message: `Are you sure you want to reset password for user "${user.name}"?`,
+      message: `Reset password for "${user.name}"? Their current password will stop working immediately.`,
       confirmText: "Yes, Reset Password",
       cancelText: "Cancel",
       type: "warning",
       action: async () => {
         setConfirmDialog(null);
         clearMessages();
-        const result = await resetUserPassword(
-          userId,
-          resetPassword.newPassword,
-        );
+        const result = await resetUserPassword(userId, newPw);
         if (result.success) {
           setSuccess("Password reset successfully");
           setResetPassword(null);
           loadUsers();
+          // ✅ Show the new password once for handoff
+          setHandoffDialog({
+            userName: targetUser.name,
+            userPhone: targetUser.phone,
+            password: newPw,
+          });
         } else {
           setError(result.error || "Failed to reset password");
         }
@@ -211,7 +209,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     });
   };
 
-  // ✅ Updated handleDeleteUser with confirmation
   const handleDeleteUser = async (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
@@ -237,12 +234,52 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     });
   };
 
-  // ✅ Close confirmation dialog
-  const closeConfirmDialog = () => {
-    setConfirmDialog(null);
+  const closeConfirmDialog = () => setConfirmDialog(null);
+
+  // ✅ Generate a random 8-char password (skips ambiguous chars like 0/O, 1/l)
+  const generateRandomPassword = (): string => {
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    let pw = "";
+    for (let i = 0; i < 8; i++) {
+      pw += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pw;
   };
 
-  // Check if user is admin
+  // ✅ Copy helper for handoff dialog
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setSuccess("Password copied to clipboard");
+    } catch {
+      // Fallback for browsers without clipboard API
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setSuccess("Password copied to clipboard");
+    }
+  };
+
+  // ✅ Build a ready-to-send WhatsApp message for handoff
+  const buildHandoffMessage = (name: string, phone: string, pw: string): string => {
+    return `Hi ${name}, your login details for the restaurant app:
+
+Phone: ${phone}
+Password: ${pw}
+
+Please change your password after first login.`;
+  };
+
+  const openWhatsAppHandoff = (name: string, phone: string, pw: string) => {
+    const msg = encodeURIComponent(buildHandoffMessage(name, phone, pw));
+    // Assumes Indian numbers; adjust country code as needed
+    const url = `https://wa.me/91${phone}?text=${msg}`;
+    window.open(url, "_blank");
+  };
+
   if (!isAdmin) {
     return (
       <div className={styles.overlay} onClick={onClose}>
@@ -274,13 +311,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* ✅ Error and Success with auto-hide and manual close */}
           {error && (
             <div className={styles.errorMessage}>
               <span>{error}</span>
               <button
                 className={styles.messageCloseBtn}
                 onClick={() => setError("")}
+                aria-label="Dismiss error"
               >
                 <CloseIcon width={14} height={14} fill="#dc3545" />
               </button>
@@ -292,6 +329,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
               <button
                 className={styles.messageCloseBtn}
                 onClick={() => setSuccess("")}
+                aria-label="Dismiss success"
               >
                 <CloseIcon width={14} height={14} fill="#085b1b" />
               </button>
@@ -346,6 +384,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                         placeholder="Enter password (min 6 chars)"
                         minLength={6}
                       />
+                      <button
+                        type="button"
+                        className={styles.generateBtn}
+                        onClick={() =>
+                          setNewUser({
+                            ...newUser,
+                            password: generateRandomPassword(),
+                          })
+                        }
+                      >
+                        Generate random
+                      </button>
                     </div>
                     <div className={styles.formGroup}>
                       <label>Role</label>
@@ -364,14 +414,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                     </div>
                   </div>
                   <div className={styles.submitBtn_wrap}>
-                    {showCreateForm && (
-                      <button
-                        className={styles.cancelBtn}
-                        onClick={() => setShowCreateForm(false)}
-                      >
-                        Cancel
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      onClick={() => setShowCreateForm(false)}
+                    >
+                      Cancel
+                    </button>
                     <button type="submit" className={styles.submitBtn}>
                       Create User
                     </button>
@@ -419,7 +468,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                     </div>
                     <div className={styles.row}>
                       <label htmlFor="pass">Password</label>
-                      <span>{user.password}</span>
+                      {/* ✅ Masked display — passwords are hashed and cannot be viewed */}
+                      <span className={styles.passwordHint}>
+                        #protected
+                        <span className={styles.passwordHintText}>
+                          (reset to change)
+                        </span>
+                      </span>
                     </div>
                     <div className={styles.row}>
                       <div className={styles.actionButtons}>
@@ -436,12 +491,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                           <div className={styles.resetPasswordForm}>
                             <h2>Reset {user.name}'s Password</h2>
                             <p>
-                              Make sure that this is your final decision and
-                              this should be done when you are very sure.
+                              Choose a new password. You'll see it once so you can
+                              share it with {user.name}.
                             </p>
                             <input
                               type="password"
-                              placeholder="New password"
+                              placeholder="New password (min 6 chars)"
                               value={resetPassword.newPassword}
                               onChange={(e) =>
                                 setResetPassword({
@@ -450,11 +505,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                                 })
                               }
                               className={styles.resetInput}
+                              autoFocus
                             />
+                            <button
+                              type="button"
+                              className={styles.generateBtn}
+                              onClick={() =>
+                                setResetPassword({
+                                  ...resetPassword,
+                                  newPassword: generateRandomPassword(),
+                                })
+                              }
+                            >
+                              Generate random
+                            </button>
                             <div className={styles.button_wrap}>
                               <button
                                 className={styles.resetConfirmBtn}
                                 onClick={() => handleResetPassword(user.id)}
+                                aria-label="Confirm password reset"
                               >
                                 <CheckIcon width={18} height={18} fill="#fff" />
                               </button>
@@ -505,7 +574,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* ✅ Confirmation Dialog Modal */}
+      {/* Confirmation Dialog Modal */}
       {confirmDialog && (
         <div className={styles.confirmOverlay} onClick={closeConfirmDialog}>
           <div
@@ -517,6 +586,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
               <button
                 className={styles.confirmCloseBtn}
                 onClick={closeConfirmDialog}
+                aria-label="Close"
               >
                 <CloseIcon width={18} height={18} fill="#666" />
               </button>
@@ -536,6 +606,70 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
                 onClick={confirmDialog.action}
               >
                 {confirmDialog.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Post-reset handoff dialog — shows the new password once */}
+      {handoffDialog && (
+        <div
+          className={styles.confirmOverlay}
+          onClick={() => setHandoffDialog(null)}
+        >
+          <div
+            className={`${styles.confirmDialog} ${styles.info}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.confirmHeader}>
+              <h3>Password Reset Complete</h3>
+              <button
+                className={styles.confirmCloseBtn}
+                onClick={() => setHandoffDialog(null)}
+                aria-label="Close"
+              >
+                <CloseIcon width={18} height={18} fill="#666" />
+              </button>
+            </div>
+            <div className={styles.confirmBody}>
+              <p>
+                New password for <strong>{handoffDialog.userName}</strong>:
+              </p>
+              <div className={styles.passwordHandoff}>
+                <code>{handoffDialog.password}</code>
+                <button
+                  className={styles.copyBtn}
+                  onClick={() => copyToClipboard(handoffDialog.password)}
+                  aria-label="Copy password"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className={styles.handoffNote}>
+                ⚠️ This password will not be shown again. Share it with{" "}
+                {handoffDialog.userName} now and ask them to change it after
+                first login.
+              </p>
+            </div>
+            <div className={styles.confirmFooter}>
+              <button
+                className={styles.confirmCancelBtn}
+                onClick={() => setHandoffDialog(null)}
+              >
+                Close
+              </button>
+              <button
+                className={`${styles.confirmActionBtn} ${styles.infoBtn}`}
+                onClick={() =>
+                  openWhatsAppHandoff(
+                    handoffDialog.userName,
+                    handoffDialog.userPhone,
+                    handoffDialog.password,
+                  )
+                }
+              >
+                Send via WhatsApp
               </button>
             </div>
           </div>

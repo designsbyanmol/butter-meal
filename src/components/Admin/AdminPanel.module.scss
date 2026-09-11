@@ -1,10 +1,11 @@
 // components/Admin/AdminPanel.module.scss
+
+// =========================================================
+// Overlay + panel shell
+// =========================================================
 .overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.6);
   z-index: 1000;
   display: flex;
@@ -37,6 +38,31 @@
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// =========================================================
+// Header
+// =========================================================
 .header {
   display: flex;
   justify-content: space-between;
@@ -66,6 +92,25 @@
   }
 }
 
+.addNewBtn {
+  margin: 0 32px 0 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #e8e8e8;
+  color: #4d4d4d;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #dcdcdc;
+  }
+}
+
+// =========================================================
+// Stats
+// =========================================================
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -104,6 +149,9 @@
   }
 }
 
+// =========================================================
+// Controls (search + filter)
+// =========================================================
 .controls {
   padding: 8px;
   display: flex;
@@ -142,6 +190,23 @@
   }
 }
 
+// =========================================================
+// Reorder hint banner
+// =========================================================
+.reorderHint {
+  padding: 8px 12px;
+  margin: 8px 24px 0;
+  background: #fff8e1;
+  color: #856404;
+  font-size: 12px;
+  border-radius: 6px;
+  text-align: center;
+  border-left: 3px solid #ffc107;
+}
+
+// =========================================================
+// Item list
+// =========================================================
 .itemList {
   overflow-y: auto;
   flex: 1;
@@ -154,6 +219,13 @@
     padding: 12px 0;
     border-bottom: 1px solid #f5f5f5;
     gap: 16px;
+    position: relative;
+    transition: background-color 0.15s, opacity 0.15s, transform 0.15s;
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
 
     &:last-child {
       border-bottom: none;
@@ -179,23 +251,6 @@
     color: #1a1a1a;
     font-size: 15px;
   }
-
-  .itemDetails {
-    display: flex;
-    gap: 12px;
-    margin-top: 4px;
-  }
-
-  .itemCategory {
-    font-size: 13px;
-    color: #666;
-  }
-
-  .itemPrice {
-    font-size: 13px;
-    font-weight: 500;
-    color: #3caa46;
-  }
 }
 
 .itemStatus {
@@ -203,6 +258,11 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+
+  .stock_wrap {
+    display: inline-flex;
+    align-items: center;
+  }
 
   .inStockBadge {
     color: #1d7e25;
@@ -249,13 +309,6 @@
   }
 }
 
-.emptyState {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
-  font-size: 15px;
-}
-
 .editBtn {
   padding: 6px 14px;
   border: none;
@@ -273,123 +326,97 @@
   }
 }
 
-.itemCostPrice {
-  font-size: 12px;
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 15px;
+}
+
+// =========================================================
+// Drag & drop
+// =========================================================
+.dragging {
+  opacity: 0.4;
+  background-color: rgba(0, 0, 0, 0.02);
+  cursor: grabbing;
+}
+
+.dropTarget {
+  border-top: 2px solid #085b1b;
+  transform: translateY(1px);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 40px;
+  margin-right: 8px;
+  cursor: grab;
   color: #999;
-  text-decoration: line-through;
-  margin-left: 4px;
-}
+  user-select: none;
 
-@media (max-width: 640px) {
-  .panel {
-    padding: 0;
+  &:active {
+    cursor: grabbing;
   }
 
-  .controls {
-    padding: 8px;
-    display: flex;
-    gap: 12px;
-    border-bottom: 1px solid #f0f0f0;
-    flex-wrap: wrap;
-
-    .searchInput {
-      flex: 1 0 50%;
-      min-width: 100px;
-      border-width: 1px;
-      padding: 8px;
-      font-size: 12px;
-      border-radius: 4px;
-    }
-
-    .filterSelect {
-      padding: 8px;
-      border-width: 1px;
-      border-radius: 4px;
-      color: #4d4d4d;
-      font-size: 12px;
-    }
-  }
-
-  .itemList {
-    padding: 12px 15px;
-
-    .itemRow {
-      padding: 10px 0;
-      border-bottom: 1px solid #f5f5f5;
-      gap: 12px;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .editBtn {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    .itemCostPrice {
-      font-size: 12px;
-    }
-  }
-
-  .itemInfo {
-
-    .itemImage {
-      width: 32px;
-      height: 32px;
-      border-radius: 4px;
-    }
-
-    .itemName {
-      font-size: 12px;
-    }
-
-    .itemCategory {
-      font-size: 12px;
-    }
-
-    .itemPrice {
-      font-size: 12px;
-    }
-  }
-
-  .itemStatus {
-            gap: 10px;
-        flex: 1;
-        justify-content: space-between;
-        width: 100%;
-
-    .stock_wrap {
-      flex: 1;
-    }
-
-    .inStockBadge {
-      border-radius: 4px;
-      font-size: 12px;
-      padding: 4px 8px;
-    }
-
-    .outOfStockBadge {
-      border-radius: 4px;
-      font-size: 12px;
-      padding: 4px 8px;
-    }
-  }
-
-  .toggleBtn {
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 12px;
+  &:hover .dragDots,
+  &:hover .dragDots::before,
+  &:hover .dragDots::after {
+    background-color: #333;
   }
 }
 
-// Edit Modal Styles
+.dragDots {
+  position: relative;
+  width: 14px;
+  height: 2px;
+  background-color: #bbb;
+  border-radius: 1px;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 14px;
+    height: 2px;
+    background-color: #bbb;
+    border-radius: 1px;
+  }
+
+  &::before {
+    top: -5px;
+  }
+
+  &::after {
+    top: 5px;
+  }
+}
+
+.reorderingBanner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: #085b1b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  border-radius: 6px;
+}
+
+// =========================================================
+// Edit / Add modal
+// =========================================================
 .editModal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.7);
   z-index: 2000;
   display: flex;
@@ -398,17 +425,6 @@
   padding: 20px;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 .editModalContent {
@@ -446,6 +462,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scroll-behavior: smooth;
 }
 
 .formRow {
@@ -501,7 +518,7 @@
   color: #333;
   cursor: pointer;
 
-  input[type="checkbox"] {
+  input[type='checkbox'] {
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -509,96 +526,19 @@
   }
 }
 
-.formActions {
+// =========================================================
+// Badge selector
+// =========================================================
+.badgeSelector {
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 0;
 }
 
-.cancelBtn {
-  padding: 8px 18px;
-  background: #f0f0f0;
-  color: #333;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #e0e0e0;
-  }
-}
-
-.saveBtn{
-  padding: 8px 18px;
-  background: #3caa46;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #064a16;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(8, 91, 27, 0.3);
-  }
-}
-
-.deleteBtn {
-  color: #c82333;
-  text-decoration: underline;
-}
-
-.addNewBtn {
-      margin: 0 32px 0 0;
-    padding: 4px 8px;
-    font-size: 12px;
-    background: #e8e8e8;
-    color: #4d4d4d;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-// Mobile responsive
-@media (max-width: 640px) {
-  .formRow {
-    grid-template-columns: 1fr;
-  }
-
-  .editModalContent {
-    padding: 0;
-  }
-
-  .editForm {
-    padding: 16px;
-  }
-
-  .checkboxRow {
-    gap: 12px;
-  }
-}
-
-// Add to AdminPanel.module.scss
-
-.customizationBadge {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-  background: #f0f0f0;
-  padding: 2px 10px;
-  border-radius: 12px;
-  display: inline-block;
-}
-
-// Customization Section
+// =========================================================
+// Customization editor
+// =========================================================
 .customizationSection {
   margin-top: 16px;
   padding: 16px;
@@ -622,14 +562,14 @@
 }
 
 .addCustomizationBtn {
-      padding: 4px 16px;
-    background: #606060;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
+  padding: 4px 16px;
+  background: #606060;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
 
   &:hover {
     background: #064a16;
@@ -698,15 +638,224 @@
   }
 }
 
-// Responsive adjustments
-@media (max-width: 640px) {
-  .customizationItem {
-    padding: 12px;
+.choicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.choiceRow {
+  display: grid;
+  grid-template-columns: 1fr 100px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.choiceNameInput {
+  width: 100%;
+}
+
+.choicePriceInput {
+  width: 100%;
+  text-align: right;
+}
+
+.removeChoiceBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #dc3545;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #fdecea;
+    border-color: #dc3545;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
 
-// AdminPanel.module.scss - Add these styles
+.addChoiceBtn {
+  background: #f5f5f5;
+  border: 1px dashed #bbb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  width: 100%;
 
+  &:hover {
+    background: #ebebeb;
+    border-color: #888;
+  }
+}
+
+.defaultSelect {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #3caa46;
+  }
+}
+
+// =========================================================
+// Form actions
+// =========================================================
+.formActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 8px;
+}
+
+.cancelBtn {
+  padding: 8px 18px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #e0e0e0;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.saveBtn {
+  padding: 8px 18px;
+  background: #3caa46;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #064a16;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(8, 91, 27, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.deleteBtn {
+  padding: 8px 18px;
+  background: transparent;
+  color: #c82333;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover:not(:disabled) {
+    color: #a01c28;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// =========================================================
+// Inline form banners
+// =========================================================
+.formError {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fdecea;
+  color: #b71c1c;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  border-left: 4px solid #dc3545;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+  animation: slideDown 0.2s ease-out;
+}
+
+.formSuccess {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #e8f5e9;
+  color: #1b5e20;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  border-left: 4px solid #2e7d32;
+  box-shadow: 0 2px 4px rgba(46, 125, 50, 0.1);
+  animation: slideDown 0.2s ease-out;
+}
+
+// =========================================================
+// Invalid-field highlighting
+// =========================================================
+.inputError {
+  border-color: #dc3545 !important;
+  background-color: #fff8f8 !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12) !important;
+
+  &:focus {
+    outline: none;
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
+  }
+}
+
+.imageUploadError {
+  border: 1px dashed #dc3545;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff8f8;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+}
+
+// =========================================================
+// ImageUpload (used by child component — keep)
+// =========================================================
 .imageUploadContainer {
   margin-bottom: 12px;
 }
@@ -905,38 +1054,12 @@
   }
 }
 
-.uploadStatus {
-  display: block;
-  margin-top: 8px;
-  font-size: 13px;
-  color: #3caa46;
-  text-align: center;
-}
-
 .errorText {
   display: block;
   margin-top: 4px;
   font-size: 12px;
   color: #e74c3c;
 }
-
-// Mobile responsive
-@media (max-width: 768px) {
-  .uploadOptions {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .uploadBtn, .urlBtn {
-    width: 100%;
-  }
-
-  .imagePreviewWrapper {
-    max-width: 150px;
-  }
-}
-
-// Add these styles to AdminPanel.module.scss
 
 .progressContainer {
   margin-top: 10px;
@@ -967,67 +1090,80 @@
   color: #666;
 }
 
-.uploadStatus {
-  display: block;
-  margin-top: 8px;
-  font-size: 13px;
-  color: #3caa46;
-  text-align: center;
-}
-
-.imageUploadContainer {
-  margin-bottom: 12px;
-}
-
-.imageUploadLabel {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 6px;
-}
-
-.imageUploadArea {
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 120px;
+// =========================================================
+// Confirm toggle-stock dialog
+// =========================================================
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 3000;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s ease;
-  background: #fafafa;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
 
-  &:hover {
-    border-color: #3caa46;
+.confirmDialog {
+  background: white;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: slideIn 0.25s ease-out;
+}
+
+.confirmHeader {
+  padding: 14px 18px;
+  border-bottom: 1px solid #eee;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
   }
 }
 
-.hiddenFileInput {
-  display: none;
+.confirmBody {
+  padding: 16px 18px;
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.5;
+  }
 }
 
-.uploadPlaceholder {
+.confirmFooter {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 16px;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px 16px;
 }
 
-.uploadIcon {
-  font-size: 32px;
+.confirmCancelBtn {
+  padding: 8px 16px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #e0e0e0;
+  }
 }
 
-.uploadOptions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.uploadBtn {
-  padding: 8px 20px;
+.confirmActionBtn {
+  padding: 8px 16px;
   background: #3caa46;
   color: white;
   border: none;
@@ -1035,159 +1171,25 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s, box-shadow 0.2s;
 
   &:hover {
-    background: #2d8a36;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    background: #064a16;
+    box-shadow: 0 2px 8px rgba(8, 91, 27, 0.3);
   }
 }
 
-.uploadDivider {
-  color: #888;
-  font-size: 13px;
-}
-
-.urlBtn {
-  padding: 8px 20px;
-  background: #f0f0f0;
-  color: #555;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #e0e0e0;
-  }
-}
-
-.uploadHint {
-  font-size: 12px;
-  color: #999;
-}
-
-.imagePreviewWrapper {
-  position: relative;
-  width: 100%;
-  max-width: 200px;
-  margin: 0 auto;
-}
-
-.imagePreview {
-  width: 100%;
-  height: auto;
-  max-height: 150px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 2px solid #3caa46;
-}
-
-.removeImageBtn {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 28px;
-  height: 28px;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: #c0392b;
-    transform: scale(1.1);
-  }
-}
-
-.urlInputContainer {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.urlInput {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3caa46;
-    box-shadow: 0 0 0 3px rgba(60, 170, 70, 0.1);
-  }
-}
-
-.urlActions {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.urlSubmitBtn {
-  padding: 8px 24px;
-  background: #3caa46;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #2d8a36;
-  }
-}
-
-.urlCancelBtn {
-  padding: 8px 24px;
-  background: #f0f0f0;
-  color: #555;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #e0e0e0;
-  }
-}
-
-.errorText {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #e74c3c;
-}
-
+// =========================================================
 // Mobile responsive
+// =========================================================
 @media (max-width: 768px) {
   .uploadOptions {
     flex-direction: column;
     gap: 8px;
   }
 
-  .uploadBtn, .urlBtn {
+  .uploadBtn,
+  .urlBtn {
     width: 100%;
   }
 
@@ -1197,5 +1199,106 @@
 
   .progressBar {
     max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 0;
+  }
+
+  .controls {
+    padding: 8px;
+    gap: 12px;
+
+    .searchInput {
+      flex: 1 0 50%;
+      min-width: 100px;
+      border-width: 1px;
+      padding: 8px;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+
+    .filterSelect {
+      padding: 8px;
+      border-width: 1px;
+      border-radius: 4px;
+      color: #4d4d4d;
+      font-size: 12px;
+    }
+  }
+
+  .itemList {
+    padding: 12px 15px;
+
+    .itemRow {
+      padding: 10px 0;
+      gap: 12px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  .itemInfo {
+    .itemImage {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+    }
+
+    .itemName {
+      font-size: 12px;
+    }
+  }
+
+  .itemStatus {
+    gap: 10px;
+    flex: 1;
+    justify-content: space-between;
+    width: 100%;
+
+    .stock_wrap {
+      flex: 1;
+    }
+
+    .inStockBadge,
+    .outOfStockBadge {
+      border-radius: 4px;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+  }
+
+  .toggleBtn {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .editBtn {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .editModalContent {
+    padding: 0;
+  }
+
+  .editForm {
+    padding: 16px;
+  }
+
+  .checkboxRow {
+    gap: 12px;
+  }
+
+  .customizationItem {
+    padding: 12px;
   }
 }

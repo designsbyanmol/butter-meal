@@ -1,13 +1,14 @@
 // config/env.ts
-// ✅ No import.meta - Use this for single HTML file
 export const config = {
-  supabaseUrl: 'https://bhnuktahneeuujtxqolb.supabase.co',
-  supabaseAnonKey: 'sb_publishable_rVK6WY1hvZoH-k8wectyAA_NbIsr-TA',
+  // Hardcoded because Blogger doesn't support import.meta.env
+  supabaseUrl: 'https://uanfdjcqiurpjihlmrvz.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhbmZkamNxaXVycGppaGxtcnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMTQxNDYsImV4cCI6MjEwNDU5MDE0Nn0.KzQZ28VsMIKrZnsYvl5O-ezERU5Iak-cPYou9Wt2OlU',
 };
 
-export const isSupabaseConfigured = true;
+export const isSupabaseConfigured = Boolean(
+  config.supabaseUrl && config.supabaseAnonKey
+);
 
-// ✅ Export for backward compatibility
 export const env = {
   VITE_SUPABASE_URL: config.supabaseUrl,
   VITE_SUPABASE_ANON_KEY: config.supabaseAnonKey,

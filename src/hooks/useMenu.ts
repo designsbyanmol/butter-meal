@@ -9,63 +9,49 @@ export const useMenu = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Subscribe — will fire with fresh DB data once the initial fetch resolves
     const unsubscribe = menuService.subscribe((newItems) => {
+      if (!mounted) return;
       setItems(newItems);
-      // ✅ Show ALL items, including out-of-stock
-      setVisibleItems(newItems); // Changed from filtering to show all
+      setVisibleItems(newItems);
       setLoading(false);
     });
 
-    menuService.getAllItems().then(allItems => {
-      setItems(allItems);
-      // ✅ Show ALL items, including out-of-stock
-      setVisibleItems(allItems); // Changed from filtering to show all
-      setLoading(false);
-    });
+    // Belt-and-braces: fetch once on mount in case the subscription
+    // missed the initial-fetch window (rare, but safe).
+    menuService
+      .getAllItems()
+      .then((allItems) => {
+        if (!mounted) return;
+        setItems(allItems);
+        setVisibleItems(allItems);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
 
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  const toggleStock = async (itemId: number) => {
-    return await menuService.toggleItemStock(itemId);
-  };
-
-  const updateItem = async (itemId: number, updates: Partial<MenuItem>) => {
-    return await menuService.updateItem(itemId, updates);
-  };
-
-  const addItem = async (newItem: Omit<MenuItem, 'id'>) => {
-    try {
-      const addedItem = await menuService.addItem(newItem);
-      const allItems = await menuService.getAllItems();
-      setItems(allItems);
-      // ✅ Show ALL items
-      setVisibleItems(allItems);
-      return addedItem;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const deleteItem = async (itemId: number) => {
-    try {
-      await menuService.deleteItem(itemId);
-      const allItems = await menuService.getAllItems();
-      setItems(allItems);
-      // ✅ Show ALL items
-      setVisibleItems(allItems);
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const bulkUpdateStock = async (items: { id: number; inStock: boolean }[]) => {
-    return await menuService.bulkUpdateStock(items);
-  };
-
-  const getItemById = (id: number) => {
-    return menuService.getItemById(id);
-  };
+  // Write methods — delegate to menuService (which reloads after each write)
+  const toggleStock = (itemId: number) => menuService.toggleItemStock(itemId);
+  const updateItem = (itemId: number, updates: Partial<MenuItem>) =>
+    menuService.updateItem(itemId, updates);
+  const addItem = (newItem: Omit<MenuItem, 'id'>) =>
+    menuService.addItem(newItem);
+  const deleteItem = (itemId: number) => menuService.deleteItem(itemId);
+  const bulkUpdateStock = (updates: { id: number; inStock: boolean }[]) =>
+    menuService.bulkUpdateStock(updates);
+  const reorderItems = (orderedIds: number[]) =>
+    menuService.reorderItems(orderedIds);
+  const getItemById = (id: number) => menuService.getItemById(id);
 
   return {
     items,
@@ -76,6 +62,7 @@ export const useMenu = () => {
     addItem,
     deleteItem,
     bulkUpdateStock,
+    reorderItems,
     getItemById,
   };
 };

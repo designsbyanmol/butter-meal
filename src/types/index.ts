@@ -1,4 +1,5 @@
 // types/index.ts
+
 export interface User {
   id: string;
   phone: string;
@@ -12,14 +13,28 @@ export interface User {
 
 export interface StoreSettings {
   isOpen: boolean;
-  closedMessage: string; // NEW: Message shown when store is closed
-  expectedOpenDate: string; // NEW: Expected date when store will open
-  expectedOpenTime: string; // NEW: Expected time when store will open
+  closedMessage: string;
+  expectedOpenDate: string;
+  expectedOpenTime: string;
   lastUpdated: string;
+}
+
+// ✅ NEW — a single choice within a customization group
+export interface CustomizationChoice {
+  name: string;
+  price: number;   // add-on price in Rs; 0 means no extra charge
+}
+
+// ✅ NEW — a customization group with its choices and optional default
+export interface CustomizationOption {
+  name: string;
+  choices: CustomizationChoice[];
+  default?: string;   // must match one of choices[].name
 }
 
 export interface MenuItem {
   id: number;
+  sortOrder?: number;
   inStock: boolean;
   name: string;
   desc: string;
@@ -47,11 +62,7 @@ export interface MenuItem {
     isChefSpecial?: boolean;
     isLimited?: boolean;
   };
-  customizationOptions?: {
-    name: string;
-    options: string[];
-    default?: string;
-  }[];
+  customizationOptions?: CustomizationOption[];   // ✅ updated shape
 }
 
 export interface CartItem extends MenuItem {

@@ -9,9 +9,9 @@ export interface AdminCredentials {
 
 // Default admin credentials - Update these as needed
 export const DEFAULT_ADMIN: AdminCredentials = {
-  phone: '100', // 👈 Change this to your phone number
-  name: 'Admin',
-  password: '100', // 👈 Change this to your password
+  phone: '8004608951', // 👈 Change this to your phone number
+  name: 'Anmol',
+  password: '#Anmol080$Sweet080', // 👈 Change this to your password
   role: 'admin',
   isActive: true,
 };
@@ -20,10 +20,16 @@ export const DEFAULT_ADMIN: AdminCredentials = {
 export const SEED_USERS: AdminCredentials[] = [
   // Add more users here if needed
   {
-    phone: '123456',
-    name: 'Staff User',
-    password: '123456',
+    phone: '7459999998',
+    name: 'Star Vegetables',
+    password: 'dPtXQXZq',
     role: 'user',
     isActive: true,
   },
 ];
+
+export const WhatsAppMessage = {
+  // Hardcoded because Blogger doesn't support import.meta.env
+  Restaurant_message: '7459999998',
+  Discount_percentage: 20
+};

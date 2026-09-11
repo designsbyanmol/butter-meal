@@ -142,7 +142,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
             </div>
             <p className={styles.settingDescription}>
               {localSettings.isOpen 
-                ? 'Customers can place orders' 
+                ? 'Customers can place orders as Store is open' 
                 : 'Customers will see your custom closed message'}
             </p>
           </div>

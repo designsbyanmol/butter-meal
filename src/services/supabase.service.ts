@@ -1,7 +1,121 @@
 // services/supabase.service.ts
 import { supabase, isSupabaseConfigured } from './supabase.client';
-import { User, MenuItem, CartItem, StoreSettings } from '../types';
+import { User, MenuItem, StoreSettings } from '../types';
 import { TABLES } from '../config/tables';
+
+// =========================================================
+// Module-level helpers — do not depend on `this`
+// =========================================================
+
+/**
+ * Normalizes a raw `customization_options` value from Supabase into
+ * the canonical `CustomizationOption[]` shape. Handles both:
+ *   - New:    [{ name, choices: [{ name, price }], default? }]
+ *   - Legacy: [{ name, options: ["Spicy +Rs10", "Mild"], default? }]
+ * Returns `undefined` when nothing valid is present.
+ */
+function normalizeCustomizationOptions(
+  raw: any,
+): MenuItem['customizationOptions'] {
+  if (!Array.isArray(raw)) return undefined;
+
+  const result = raw
+    .map((opt: any) => {
+      if (!opt || typeof opt !== 'object') return null;
+
+      const groupName = String(opt.name ?? '').trim();
+      if (!groupName) return null;
+
+      // New shape
+      if (Array.isArray(opt.choices)) {
+        const choices = opt.choices
+          .map((c: any) => {
+            if (!c || typeof c !== 'object') return null;
+            const name = String(c.name ?? '').trim();
+            if (!name) return null;
+            const price = Number(c.price);
+            return {
+              name,
+              price: Number.isFinite(price) && price > 0 ? price : 0,
+            };
+          })
+          .filter(Boolean) as { name: string; price: number }[];
+
+        if (choices.length === 0) return null;
+
+        const defaultName =
+          typeof opt.default === 'string' &&
+          choices.some((c) => c.name === opt.default)
+            ? opt.default
+            : undefined;
+
+        return { name: groupName, choices, default: defaultName };
+      }
+
+      // Legacy shape
+      if (Array.isArray(opt.options)) {
+        const choices = (opt.options as string[])
+          .map((o) => {
+            if (typeof o !== 'string') return null;
+            const match = o.match(/\+Rs(\d+)/i);
+            const price = match ? parseInt(match[1], 10) : 0;
+            const name = o.replace(/\s*\+Rs\d+\s*$/i, '').trim();
+            if (!name) return null;
+            return { name, price };
+          })
+          .filter(Boolean) as { name: string; price: number }[];
+
+        if (choices.length === 0) return null;
+
+        const legacyDefault =
+          typeof opt.default === 'string'
+            ? opt.default.replace(/\s*\+Rs\d+\s*$/i, '').trim()
+            : undefined;
+
+        const defaultName =
+          legacyDefault && choices.some((c) => c.name === legacyDefault)
+            ? legacyDefault
+            : undefined;
+
+        return { name: groupName, choices, default: defaultName };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  return result.length > 0
+    ? (result as MenuItem['customizationOptions'])
+    : undefined;
+}
+
+/** Convert "empty / null / non-finite" to undefined; keep real positives. */
+function positiveNum(v: any): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/** Same as above but allows 0 as a valid value. */
+function nonNegativeNum(v: any): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function safeArray<T = any>(v: any): T[] | undefined {
+  return Array.isArray(v) ? (v as T[]) : undefined;
+}
+
+function safeObject<T = any>(v: any): T | undefined {
+  return v && typeof v === 'object' && !Array.isArray(v)
+    ? (v as T)
+    : undefined;
+}
+
+// =========================================================
+// Service
+// =========================================================
 
 class SupabaseService {
   private static instance: SupabaseService;
@@ -15,772 +129,431 @@ class SupabaseService {
     return SupabaseService.instance;
   }
 
-  private checkSupabaseInitialized() {
-    if (!isSupabaseConfigured || !supabase) {
-      console.warn('Supabase is not configured. Falling back to localStorage.');
+  private getClient() {
+    if (!isSupabaseConfigured || !supabase) return null;
+    return supabase;
+  }
+
+  // ============ USERS ============
+
+  async getUsers(): Promise<User[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data, error } = await client.rpc('list_users');
+    if (error) {
+      console.error('list_users error:', error);
+      return [];
+    }
+    return (data || []).map((row:any) => this.mapUser(row));
+  }
+
+  async getUserByPhone(phone: string): Promise<User | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc('get_user_by_phone', {
+      phone_in: phone,
+    });
+    if (error) {
+      console.error('get_user_by_phone error:', error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapUser(row) : null;
+  }
+
+  async getUserById(id: string): Promise<User | null> {
+    const users = await this.getUsers();
+    return users.find((u) => u.id === id) || null;
+  }
+
+  async createUser(
+    userData: Omit<User, 'id' | 'createdAt'>,
+  ): Promise<User> {
+    const client = this.getClient();
+    if (!client) throw new Error('Supabase not configured');
+
+    const { error } = await client.rpc('create_user', {
+      phone_in: userData.phone,
+      name_in: userData.name,
+      pw_in: userData.password,
+      role_in: userData.role || 'user',
+    });
+    if (error) throw error;
+
+    const user = await this.getUserByPhone(userData.phone);
+    if (!user) throw new Error('User created but not found');
+    return user;
+  }
+
+  async updateUser(
+    id: string,
+    updates: Partial<User>,
+  ): Promise<User | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    if (updates.password) {
+      await client.rpc('change_user_password', {
+        user_id: id,
+        new_pw: updates.password,
+      });
+    }
+    if (updates.isActive !== undefined) {
+      const current = await this.getUserById(id);
+      if (current && current.isActive !== updates.isActive) {
+        await client.rpc('toggle_user_active', { user_id: id });
+      }
+    }
+    return await this.getUserById(id);
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc('delete_user', { user_id: id });
+    return !error;
+  }
+
+  async toggleUserStatus(id: string): Promise<User | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { error } = await client.rpc('toggle_user_active', { user_id: id });
+    if (error) return null;
+    return await this.getUserById(id);
+  }
+
+  async changeUserPassword(
+    id: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc('change_user_password', {
+      user_id: id,
+      new_pw: newPassword,
+    });
+    return !error;
+  }
+
+  // ============ AUTH ============
+
+  async signIn(
+    phone: string,
+    password: string,
+  ): Promise<{ user: User | null; error?: string }> {
+    const client = this.getClient();
+    if (!client) return { user: null, error: 'Supabase not configured' };
+
+    const { data, error } = await client.rpc('verify_password', {
+      phone_in: phone,
+      pw: password,
+    });
+    if (error) {
+      console.error('verify_password error:', error);
+      return { user: null, error: 'Invalid phone number or password' };
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { user: null, error: 'Invalid phone number or password' };
+    if (!row.is_active) {
+      return { user: null, error: 'Account is deactivated.' };
+    }
+
+    await client.rpc('touch_last_login', { user_id: row.id });
+    return { user: this.mapUser(row) };
+  }
+
+  async signOut(): Promise<void> {
+    // no-op
+  }
+
+  // ============ MENU — READ ============
+
+  async getMenuItems(): Promise<MenuItem[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client
+      .from(TABLES.MENU)
+      .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: false });
+    if (error) {
+      console.error('getMenuItems error:', error);
+      return null;
+    }
+    return (data || []).map((row:any) => this.mapMenuItem(row));
+  }
+
+  async getVisibleMenuItems(): Promise<MenuItem[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client
+      .from(TABLES.MENU)
+      .select('*')
+      .eq('in_stock', true)
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: false });
+    if (error) {
+      console.error('getVisibleMenuItems error:', error);
+      return null;
+    }
+    return (data || []).map((row:any) => this.mapMenuItem(row));
+  }
+
+  // ============ MENU — WRITE ============
+
+  async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    const payload = {
+      sort_order: 0,
+      in_stock: item.inStock,
+      name: item.name,
+      description: item.desc,
+      cost_price: item.costPrice ?? null,
+      price: item.price,
+      image_url: item.img,
+      category: item.category ?? null,
+      is_veg: item.isVeg ?? false,
+      is_spicy: item.isSpicy ?? false,
+      is_gluten_free: item.isGlutenFree ?? false,
+      preparation_time: item.preparationTime ?? null,
+      calories: item.calories ?? null,
+      rating: item.rating ?? null,
+      review_count: item.reviewCount ?? 0,
+      ingredients: item.ingredients ?? null,
+      nutritional_info: item.nutritionalInfo ?? null,
+      attributes: item.attributes ?? null,
+      customization_options: item.customizationOptions ?? null,
+    };
+
+    const { data, error } = await client.rpc('add_menu_item', { payload });
+    if (error) {
+      console.error('add_menu_item error:', error);
+      return null;
+    }
+    return data ? this.mapMenuItem(data) : null;
+  }
+
+  async deleteMenuItem(id: number): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc('delete_menu_item', { item_id: id });
+    if (error) {
+      console.error('delete_menu_item error:', error);
       return false;
     }
     return true;
   }
 
-  private getClient() {
-    if (!this.checkSupabaseInitialized() || !supabase) {
-      return null;
-    }
-    return supabase;
+  async updateMenuItem(
+  id: number,
+  updates: Partial<MenuItem>,
+): Promise<MenuItem | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  const payload: Record<string, unknown> = {};
+
+  // Use `in` check (key present) instead of `!== undefined` so that explicit
+  // nulls pass through and clear the column.
+  if ('inStock' in updates) payload.in_stock = updates.inStock;
+  if ('name' in updates) payload.name = updates.name;
+  if ('desc' in updates) payload.description = updates.desc;
+  if ('costPrice' in updates) payload.cost_price = updates.costPrice ?? null;
+  if ('price' in updates) payload.price = updates.price;
+  if ('img' in updates) payload.image_url = updates.img ?? null;
+  if ('category' in updates) payload.category = updates.category ?? null;
+  if ('isVeg' in updates) payload.is_veg = updates.isVeg;
+  if ('isSpicy' in updates) payload.is_spicy = updates.isSpicy;
+  if ('isGlutenFree' in updates) payload.is_gluten_free = updates.isGlutenFree;
+  if ('preparationTime' in updates)
+    payload.preparation_time = updates.preparationTime ?? null;
+  if ('calories' in updates) payload.calories = updates.calories ?? null;
+  if ('rating' in updates) payload.rating = updates.rating ?? null;
+  if ('reviewCount' in updates) payload.review_count = updates.reviewCount ?? null;
+  if ('ingredients' in updates) payload.ingredients = updates.ingredients ?? null;
+  if ('nutritionalInfo' in updates)
+    payload.nutritional_info = updates.nutritionalInfo ?? null;
+  if ('attributes' in updates) payload.attributes = updates.attributes ?? null;
+  if ('customizationOptions' in updates)
+    payload.customization_options = updates.customizationOptions ?? null;
+
+  const { data, error } = await client.rpc('update_menu_item', {
+    item_id: id,
+    payload,
+  });
+  if (error) {
+    console.error('update_menu_item error:', error);
+    return null;
   }
-
-  // ============ USER METHODS ============
-  
-  async getUsers(): Promise<User[]> {
-    try {
-      const client = this.getClient();
-      if (!client) return [];
-      
-      const { data: users, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return users.map(this.mapSupabaseUser);
-    } catch (error) {
-      console.error('Get users error:', error);
-      return [];
-    }
-  }
-
-  async getUserByPhone(phone: string): Promise<User | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .select('*')
-        .eq('phone', phone)
-        .single();
-
-      if (error) throw error;
-      return user ? this.mapSupabaseUser(user) : null;
-    } catch (error) {
-      console.error('Get user by phone error:', error);
-      return null;
-    }
-  }
-
-  async getUserById(id: string): Promise<User | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return user ? this.mapSupabaseUser(user) : null;
-    } catch (error) {
-      console.error('Get user by id error:', error);
-      return null;
-    }
-  }
-
-  async createUser(userData: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        throw new Error('Supabase not configured');
-      }
-      
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .insert({
-          phone: userData.phone,
-          name: userData.name,
-          password_hash: userData.password,
-          role: userData.role || 'user',
-          is_active: userData.isActive !== undefined ? userData.isActive : true,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return this.mapSupabaseUser(user);
-    } catch (error) {
-      console.error('Create user error:', error);
-      throw error;
-    }
-  }
-
-  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const supabaseUpdates: any = {};
-      if (updates.name) supabaseUpdates.name = updates.name;
-      if (updates.phone) supabaseUpdates.phone = updates.phone;
-      if (updates.password) supabaseUpdates.password_hash = updates.password;
-      if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
-      if (updates.role) supabaseUpdates.role = updates.role;
-
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .update(supabaseUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return user ? this.mapSupabaseUser(user) : null;
-    } catch (error) {
-      console.error('Update user error:', error);
-      return null;
-    }
-  }
-
-  async deleteUser(id: string): Promise<boolean> {
-    try {
-      const client = this.getClient();
-      if (!client) return false;
-      
-      const { error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Delete user error:', error);
-      return false;
-    }
-  }
-
-  async toggleUserStatus(id: string): Promise<User | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const { data: currentUser, error: getError } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .select('is_active')
-        .eq('id', id)
-        .single();
-
-      if (getError) throw getError;
-
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .update({ is_active: !currentUser.is_active })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return user ? this.mapSupabaseUser(user) : null;
-    } catch (error) {
-      console.error('Toggle user status error:', error);
-      return null;
-    }
-  }
-
-  async changeUserPassword(id: string, newPassword: string): Promise<boolean> {
-    try {
-      const client = this.getClient();
-      if (!client) return false;
-      
-      const { error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .update({ 
-          password_hash: newPassword,
-          is_active: true
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Change user password error:', error);
-      return false;
-    }
-  }
-
-  // ============ AUTH METHODS ============
-  
-  async signIn(phone: string, password: string): Promise<{ user: User | null; error?: string }> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        return { user: null, error: 'Supabase not configured' };
-      }
-      
-      const { data: user, error } = await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .select('*')
-        .eq('phone', phone)
-        .eq('password_hash', password)
-        .single();
-
-      if (error || !user) {
-        return { user: null, error: 'Invalid phone number or password' };
-      }
-
-      if (!user.is_active) {
-        return { user: null, error: 'Account is deactivated. Please contact admin.' };
-      }
-
-      await client
-        .from(TABLES.USERS)  // ✅ Using env variable
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', user.id);
-
-      return { user: this.mapSupabaseUser(user) };
-    } catch (error) {
-      console.error('Signin error:', error);
-      return { user: null, error: 'An error occurred during signin' };
-    }
-  }
-
-  async signOut(): Promise<void> {
-    // Nothing to do with Supabase for now
-  }
-
-  // ============ MENU ITEMS METHODS ============
-
-  async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-
-      const supabaseItem = {
-        in_stock: item.inStock,
-        name: item.name,
-        description: item.desc,
-        cost_price: item.costPrice || null,
-        price: item.price,
-        image_url: item.img,
-        category: item.category || null,
-        is_veg: item.isVeg || false,
-        is_spicy: item.isSpicy || false,
-        is_gluten_free: item.isGlutenFree || false,
-        preparation_time: item.preparationTime || null,
-        calories: item.calories || null,
-        rating: item.rating || null,
-        review_count: item.reviewCount || 0,
-        ingredients: item.ingredients || null,
-        nutritional_info: item.nutritionalInfo || null,
-        attributes: item.attributes || null,
-        customization_options: item.customizationOptions || null,
-      };
-
-      const { data, error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .insert([supabaseItem])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data ? this.mapSupabaseMenuItem(data) : null;
-    } catch (error) {
-      console.error('Error adding menu item:', error);
-      return null;
-    }
-  }
-
-  async deleteMenuItem(id: number): Promise<boolean> {
-    try {
-      const client = this.getClient();
-      if (!client) return false;
-      
-      const { error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error deleting menu item:', error);
-      return false;
-    }
-  }
-
-  async getMenuItems(): Promise<MenuItem[]> {
-    try {
-      const client = this.getClient();
-      if (!client) return [];
-      
-      const { data: items, error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .select('*')
-        .order('id');
-
-      if (error) throw error;
-      return items.map(this.mapSupabaseMenuItem);
-    } catch (error) {
-      console.error('Get menu items error:', error);
-      return [];
-    }
-  }
-
-  async getVisibleMenuItems(): Promise<MenuItem[]> {
-    try {
-      const client = this.getClient();
-      if (!client) return [];
-      
-      const { data: items, error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .select('*')
-        .eq('in_stock', true)
-        .order('id');
-
-      if (error) throw error;
-      return items.map(this.mapSupabaseMenuItem);
-    } catch (error) {
-      console.error('Get visible menu items error:', error);
-      return [];
-    }
-  }
-
-  async updateMenuItem(id: number, updates: Partial<MenuItem>): Promise<MenuItem | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const supabaseUpdates: any = {};
-      if (updates.inStock !== undefined) supabaseUpdates.in_stock = updates.inStock;
-      if (updates.name) supabaseUpdates.name = updates.name;
-      if (updates.desc) supabaseUpdates.description = updates.desc;
-      if (updates.price) supabaseUpdates.price = updates.price;
-      if (updates.img) supabaseUpdates.image_url = updates.img;
-      if (updates.category) supabaseUpdates.category = updates.category;
-      if (updates.isVeg !== undefined) supabaseUpdates.is_veg = updates.isVeg;
-      if (updates.isSpicy !== undefined) supabaseUpdates.is_spicy = updates.isSpicy;
-      if (updates.isGlutenFree !== undefined) supabaseUpdates.is_gluten_free = updates.isGlutenFree;
-      if (updates.preparationTime) supabaseUpdates.preparation_time = updates.preparationTime;
-      if (updates.calories) supabaseUpdates.calories = updates.calories;
-      if (updates.rating) supabaseUpdates.rating = updates.rating;
-      if (updates.reviewCount) supabaseUpdates.review_count = updates.reviewCount;
-      if (updates.ingredients) supabaseUpdates.ingredients = updates.ingredients;
-      if (updates.nutritionalInfo) supabaseUpdates.nutritional_info = updates.nutritionalInfo;
-      if (updates.attributes) supabaseUpdates.attributes = updates.attributes;
-      if (updates.customizationOptions) supabaseUpdates.customization_options = updates.customizationOptions;
-      supabaseUpdates.updated_at = new Date().toISOString();
-
-      const { data: item, error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .update(supabaseUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return item ? this.mapSupabaseMenuItem(item) : null;
-    } catch (error) {
-      console.error('Update menu item error:', error);
-      return null;
-    }
-  }
+  return data ? this.mapMenuItem(data) : null;
+}
 
   async toggleMenuItemStock(id: number): Promise<MenuItem | null> {
-    try {
-      const client = this.getClient();
-      if (!client) return null;
-      
-      const { data: currentItem, error: getError } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .select('in_stock')
-        .eq('id', id)
-        .single();
-
-      if (getError) throw getError;
-
-      const { data: item, error } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .update({ 
-          in_stock: !currentItem.in_stock,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return item ? this.mapSupabaseMenuItem(item) : null;
-    } catch (error) {
-      console.error('Toggle menu item stock error:', error);
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc('toggle_menu_item_stock', {
+      item_id: id,
+    });
+    if (error) {
+      console.error('toggle_menu_item_stock error:', error);
       return null;
     }
+    return data ? this.mapMenuItem(data) : null;
   }
 
-  async bulkUpdateMenuItems(updates: { id: number; inStock: boolean }[]): Promise<MenuItem[]> {
-    try {
-      const client = this.getClient();
-      if (!client) return [];
-      
-      const updatedItems: MenuItem[] = [];
-      
-      for (const update of updates) {
-        const result = await this.updateMenuItem(update.id, { inStock: update.inStock });
-        if (result) {
-          updatedItems.push(result);
-        }
-      }
-
-      return updatedItems;
-    } catch (error) {
-      console.error('Bulk update menu items error:', error);
-      return [];
+  async bulkUpdateMenuItems(
+    updates: { id: number; inStock: boolean }[],
+  ): Promise<MenuItem[]> {
+    const results: MenuItem[] = [];
+    const errors: string[] = [];
+    for (const update of updates) {
+      const r = await this.updateMenuItem(update.id, {
+        inStock: update.inStock,
+      });
+      if (r) results.push(r);
+      else errors.push(`id=${update.id}`);
     }
+    if (errors.length) {
+      console.error('bulkUpdateMenuItems failed for:', errors.join(', '));
+    }
+    return results;
+  }
+
+  async reorderMenuItems(
+    orderedIds: number[],
+  ): Promise<MenuItem[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc('reorder_menu_items', {
+      ordered_ids: orderedIds,
+    });
+    if (error) {
+      console.error('reorder_menu_items error:', error);
+      return null;
+    }
+    return (data || []).map((row:any) => this.mapMenuItem(row));
   }
 
   async initializeMenuItems(defaultItems: MenuItem[]): Promise<void> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        console.warn('Supabase not configured, skipping initialization');
-        return;
+    const client = this.getClient();
+    if (!client) return;
+
+    const { count, error } = await client
+      .from(TABLES.MENU)
+      .select('*', { count: 'exact', head: true });
+    if (error) throw error;
+    if ((count ?? 0) > 0) return;
+
+    console.log(`Seeding ${defaultItems.length} items...`);
+    let inserted = 0;
+    let failed = 0;
+
+    for (const item of defaultItems) {
+      const result = await this.addMenuItem(item);
+      if (result) inserted++;
+      else {
+        failed++;
+        console.error(`Failed to insert: ${item.name}`);
       }
-      
-      const { count, error: countError } = await client
-        .from(TABLES.MENU)  // ✅ Using env variable
-        .select('*', { count: 'exact', head: true });
+    }
+    console.log(`Seed done: ${inserted} inserted, ${failed} failed`);
 
-      if (countError) throw countError;
-
-      if (count === 0) {
-        const itemsToInsert = defaultItems.map(item => ({
-          in_stock: item.inStock,
-          name: item.name,
-          description: item.desc,
-          cost_price: item.costPrice || null,
-          price: item.price,
-          image_url: item.img,
-          category: item.category || null,
-          is_veg: item.isVeg || false,
-          is_spicy: item.isSpicy || false,
-          is_gluten_free: item.isGlutenFree || false,
-          preparation_time: item.preparationTime || null,
-          calories: item.calories || null,
-          rating: item.rating || null,
-          review_count: item.reviewCount || 0,
-          ingredients: item.ingredients || null,
-          nutritional_info: item.nutritionalInfo || null,
-          attributes: item.attributes || null,
-          customization_options: item.customizationOptions || null,
-        }));
-
-        console.log('📦 Inserting menu items:', itemsToInsert.length);
-
-        const batchSize = 10;
-        for (let i = 0; i < itemsToInsert.length; i += batchSize) {
-          const batch = itemsToInsert.slice(i, i + batchSize);
-          const { error: insertError } = await client
-            .from(TABLES.MENU)  // ✅ Using env variable
-            .insert(batch);
-
-          if (insertError) {
-            console.error(`❌ Insert error at batch ${i / batchSize + 1}:`, insertError);
-            throw insertError;
-          }
-          console.log(`✅ Batch ${i / batchSize + 1} inserted successfully`);
-        }
-        
-        console.log('✅ All menu items initialized successfully!');
-      } else {
-        console.log('📋 Menu items already exist, skipping initialization');
-      }
-    } catch (error) {
-      console.error('Initialize menu items error:', error);
-      throw error;
+    if (inserted === 0 && defaultItems.length > 0) {
+      throw new Error(
+        'Seeding failed entirely — check add_menu_item RPC + grants.',
+      );
     }
   }
 
   // ============ STORE SETTINGS ============
 
   async getStoreSettings(): Promise<StoreSettings | null> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        console.warn('⚠️ Supabase client not available');
-        return null;
-      }
-      
-      console.log('📡 Fetching store settings from Supabase...');
-      
-      const { data, error } = await client
-        .from(TABLES.STORE_SETTINGS)  // ✅ Using env variable
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client
+      .from(TABLES.STORE_SETTINGS)
+      .select('*')
+      .limit(1)
+      .maybeSingle();
 
-      if (error) {
-        console.error('❌ Error fetching store settings:', error);
-        return null;
-      }
-      
-      if (!data) {
-        console.warn('⚠️ No store settings found in database');
-        return null;
-      }
-      
-      console.log('✅ Store settings fetched from Supabase:', data);
-      
-      return {
-        isOpen: data.is_open ?? true,
-        closedMessage: data.closed_message || '',
-        expectedOpenDate: data.expected_open_date || '',
-        expectedOpenTime: data.expected_open_time || '',
-        lastUpdated: data.last_updated || new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error('❌ Get store settings error:', error);
+    if (error) {
+      console.error('getStoreSettings error:', error);
       return null;
     }
-  }
+    if (!data) return null;
 
-  async updateStoreSettings(settings: StoreSettings): Promise<boolean> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        console.warn('⚠️ Supabase client not available');
-        return false;
-      }
-      
-      console.log('📡 Updating store settings in Supabase...');
-      
-      const updateData = {
-        is_open: settings.isOpen,
-        closed_message: settings.closedMessage || '',
-        expected_open_date: settings.expectedOpenDate || null,
-        expected_open_time: settings.expectedOpenTime || null,
-        last_updated: new Date().toISOString(),
-      };
-      
-      console.log('📤 Sending update data:', updateData);
-      
-      const { error } = await client
-        .from(TABLES.STORE_SETTINGS)  // ✅ Using env variable
-        .upsert({
-          id: 1,
-          ...updateData
-        }, {
-          onConflict: 'id'
-        });
-
-      if (error) {
-        console.error('❌ Update error:', error);
-        return false;
-      }
-      
-      console.log('✅ Store settings updated successfully in Supabase');
-      return true;
-    } catch (error) {
-      console.error('❌ Update store settings error:', error);
-      return false;
-    }
-  }
-
-  // ============ CART METHODS ============
-
-  async getCartItems(userId: string): Promise<CartItem[]> {
-    try {
-      const client = this.getClient();
-      if (!client) return [];
-      
-      const { data: items, error } = await client
-        .from(TABLES.CART)  // ✅ Using env variable
-        .select('*, menu_items(*)')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      return items.map(item => ({
-        ...this.mapSupabaseMenuItem(item.menu_items),
-        quantity: item.quantity,
-        customizations: item.customizations,
-        addonPrice: item.addon_price,
-        basePrice: item.base_price,
-      }));
-    } catch (error) {
-      console.error('Get cart items error:', error);
-      return [];
-    }
-  }
-
-  async addToCart(userId: string, menuItemId: number, quantity: number, customizations?: any): Promise<void> {
-    try {
-      const client = this.getClient();
-      if (!client) return;
-      
-      const { data: existing, error: checkError } = await client
-        .from(TABLES.CART)  // ✅ Using env variable
-        .select('id, quantity')
-        .eq('user_id', userId)
-        .eq('menu_item_id', menuItemId)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existing) {
-        const { error: updateError } = await client
-          .from(TABLES.CART)  // ✅ Using env variable
-          .update({ 
-            quantity: existing.quantity + quantity,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
-
-        if (updateError) throw updateError;
-      } else {
-        const { data: menuItem, error: menuError } = await client
-          .from(TABLES.MENU)  // ✅ Using env variable
-          .select('price')
-          .eq('id', menuItemId)
-          .single();
-
-        if (menuError) throw menuError;
-
-        const { error: insertError } = await client
-          .from(TABLES.CART)  // ✅ Using env variable
-          .insert({
-            user_id: userId,
-            menu_item_id: menuItemId,
-            quantity,
-            customizations,
-            base_price: menuItem.price,
-          });
-
-        if (insertError) throw insertError;
-      }
-    } catch (error) {
-      console.error('Add to cart error:', error);
-    }
-  }
-
-  async removeFromCart(userId: string, menuItemId: number): Promise<void> {
-    try {
-      const client = this.getClient();
-      if (!client) return;
-      
-      const { error } = await client
-        .from(TABLES.CART)  // ✅ Using env variable
-        .delete()
-        .eq('user_id', userId)
-        .eq('menu_item_id', menuItemId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Remove from cart error:', error);
-    }
-  }
-
-  async updateCartItemQuantity(userId: string, menuItemId: number, quantity: number): Promise<void> {
-    try {
-      const client = this.getClient();
-      if (!client) return;
-      
-      if (quantity <= 0) {
-        await this.removeFromCart(userId, menuItemId);
-        return;
-      }
-
-      const { error } = await client
-        .from(TABLES.CART)  // ✅ Using env variable
-        .update({ 
-          quantity,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .eq('menu_item_id', menuItemId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Update cart item quantity error:', error);
-    }
-  }
-
-  async clearCart(userId: string): Promise<void> {
-    try {
-      const client = this.getClient();
-      if (!client) return;
-      
-      const { error } = await client
-        .from(TABLES.CART)  // ✅ Using env variable
-        .delete()
-        .eq('user_id', userId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Clear cart error:', error);
-    }
-  }
-
-  // ============ ORDER METHODS ============
-
-  async createOrder(orderData: any): Promise<{ success: boolean; orderId?: string; error?: string }> {
-    try {
-      const client = this.getClient();
-      if (!client) {
-        return { success: false, error: 'Supabase not configured' };
-      }
-      
-      const { data: order, error } = await client
-        .from(TABLES.ORDERS)  // ✅ Using env variable
-        .insert(orderData)
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      return { success: true, orderId: order.id };
-    } catch (error) {
-      console.error('Create order error:', error);
-      return { success: false, error: 'Failed to create order' };
-    }
-  }
-
-  // ============ HELPER METHODS ============
-
-  private mapSupabaseUser(user: any): User {
     return {
-      id: user.id,
-      phone: user.phone,
-      name: user.name,
-      password: user.password_hash,
-      role: user.role,
-      isActive: user.is_active,
-      createdAt: user.created_at,
-      lastLogin: user.last_login,
+      isOpen: data.is_open ?? true,
+      closedMessage: data.closed_message || '',
+      expectedOpenDate: data.expected_open_date || '',
+      expectedOpenTime: data.expected_open_time || '',
+      lastUpdated: data.last_updated || new Date().toISOString(),
     };
   }
 
-  private mapSupabaseMenuItem(item: any): MenuItem {
+  async updateStoreSettings(settings: StoreSettings): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc('upsert_store_settings', {
+      is_open_in: settings.isOpen,
+      closed_message_in: settings.closedMessage || '',
+      expected_open_date_in: settings.expectedOpenDate || null,
+      expected_open_time_in: settings.expectedOpenTime || null,
+    });
+    if (error) {
+      console.error('upsert_store_settings error:', error);
+      return false;
+    }
+    return true;
+  }
+
+  // ============ MAPPERS ============
+
+  private mapUser(row: any): User {
+    return {
+      id: row.id,
+      phone: row.phone,
+      name: row.name,
+      password: '',
+      role: row.role,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      lastLogin: row.last_login,
+    };
+  }
+
+  private mapMenuItem(item: any): MenuItem {
     return {
       id: item.id,
+      sortOrder: item.sort_order ?? undefined,
       inStock: item.in_stock,
       name: item.name,
-      desc: item.description,
-      costPrice: item.cost_price,
+      desc: item.description ?? '',
+      costPrice: positiveNum(item.cost_price),
       price: item.price,
       img: item.image_url,
-      category: item.category,
-      isVeg: item.is_veg,
-      isSpicy: item.is_spicy,
-      isGlutenFree: item.is_gluten_free,
-      preparationTime: item.preparation_time,
-      calories: item.calories,
-      rating: item.rating,
-      reviewCount: item.review_count,
-      ingredients: item.ingredients,
-      nutritionalInfo: item.nutritional_info,
-      attributes: item.attributes,
-      customizationOptions: item.customization_options,
+      category: item.category || undefined,
+      isVeg: item.is_veg ?? false,
+      isSpicy: item.is_spicy ?? false,
+      isGlutenFree: item.is_gluten_free ?? false,
+      preparationTime: item.preparation_time || undefined,
+      calories: positiveNum(item.calories),
+      rating: positiveNum(item.rating),
+      reviewCount: positiveNum(item.review_count),
+      ingredients:
+        safeArray<string>(item.ingredients)?.filter(
+          (s) => typeof s === 'string' && s.trim() !== '',
+        ) ?? undefined,
+      nutritionalInfo: safeObject<MenuItem['nutritionalInfo']>(
+        item.nutritional_info,
+      ),
+      attributes: safeObject<MenuItem['attributes']>(item.attributes),
+      customizationOptions: normalizeCustomizationOptions(
+        item.customization_options,
+      ),
     };
   }
 }

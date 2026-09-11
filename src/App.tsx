@@ -20,6 +20,7 @@ import Header from './components/Header/Header';
 import AdminPanel from './components/Admin/AdminPanel';
 import StoreBanner from './components/Store/StoreBanner';
 import styles from './App.module.scss';
+import MenuSkeleton from './components/Menu/MenuSkeleton';
 
 // Database Status Notice Component
 const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean }> = ({ isConnected, isChecking }) => {
@@ -47,8 +48,8 @@ const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean
 
 const AppContent: React.FC = () => {
   // Auth hooks - will load from localStorage
-  const { isAuthenticated, user, isLoading: authLoading, isAdmin } = useAuth();
-  const { storeSettings, isStoreOpen, isLoading: storeLoading } = useStore();
+  const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
+  const {  isStoreOpen, isLoading: storeLoading } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
   const [isAdminOpen, setIsAdminOpen] = React.useState(false);
   
@@ -127,32 +128,34 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Initialize app data
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        await db.initializeDefaultUsers();
-        await menuService.initializeItems(defaultMenuItems);
-      } catch (error) {
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    
-    initializeApp();
-  }, []);
+  let stop: (() => void) | undefined;
+  const init = async () => {
+    try {
+      await db.initializeDefaultUsers();
+      await menuService.initializeItems(defaultMenuItems);
+      stop = menuService.startSync({ pollMs: 60_000 });
+    } catch (error) {
+      console.error('App initialization failed:', error);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+  init();
+  return () => { if (stop) stop(); };
+}, []);
 
   // Show loading state
-  if (isInitializing || authLoading || menuLoading || !cartLoaded || storeLoading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loadingState}>
-          <div className={styles.loader}></div>
-          <p>Loading...</p>
-        </div>
+if (isInitializing || authLoading || !cartLoaded || storeLoading) {
+  return (
+    <div className={styles.container}>
+      <div className={styles.loadingState}>
+        <div className={styles.loader}></div>
+        <p>Loading...</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   const handleItemClick = (item: typeof defaultMenuItems[0]) => {
     // Only allow clicking if store is open - applies to ALL users
@@ -324,7 +327,7 @@ const AppContent: React.FC = () => {
         year={2026}
       />
       <div className={`${styles.container} ${getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ''}`}>
-        <BrandInfo brandName='Restaurant Menu Display' brandDesc='Taste that reminds you home'/>
+        <BrandInfo brandName='Star Vegetables Online' brandDesc='Green . Fresh . Healthy'/>
 
         {/* ✅ Store Banner - Shows for ALL users when store is closed */}
         {!isStoreOpen && <StoreBanner />}
@@ -332,7 +335,7 @@ const AppContent: React.FC = () => {
         {/* ✅ Menu - Only visible when store is open for ALL users */}
         {isStoreOpen && (
           <>
-            <Promotion
+            {/* <Promotion
             messages={[
               "Welcome!",
               "Pay Online and get 20% Off",
@@ -340,14 +343,18 @@ const AppContent: React.FC = () => {
             ]}
             typingSpeed={110}
             delayBeforeErase={1500}
-          />
-            <Menu
-              items={visibleItems}
-              cart={cart}
-              onAddItem={addItem}
-              onRemoveItem={removeItem}
-              onItemClick={handleItemClick}
-            />
+          /> */}
+            {menuLoading ? (
+              <MenuSkeleton count={6} />
+            ) : (
+              <Menu
+                items={visibleItems}
+                cart={cart}
+                onAddItem={addItem}
+                onRemoveItem={removeItem}
+                onItemClick={handleItemClick}
+              />
+            )}
           </>
         )}
 

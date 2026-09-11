@@ -12,7 +12,7 @@ CREATE TABLE users (
 );
 
 -- Menu items table
-CREATE TABLE menu_items (
+CREATE TABLE star_veg_menu_items (
   id SERIAL PRIMARY KEY,
   in_stock BOOLEAN DEFAULT TRUE,
   name VARCHAR(255) NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE menu_items (
 CREATE TABLE cart_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  menu_item_id INTEGER REFERENCES menu_items(id) ON DELETE CASCADE,
+  menu_item_id INTEGER REFERENCES star_veg_menu_items(id) ON DELETE CASCADE,
   quantity INTEGER NOT NULL DEFAULT 1,
   customizations JSONB,
   addon_price DECIMAL(10, 2),
@@ -68,8 +68,8 @@ CREATE TABLE orders (
 
 -- Indexes for performance
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_menu_items_category ON menu_items(category);
-CREATE INDEX idx_menu_items_in_stock ON menu_items(in_stock);
+CREATE INDEX idx_star_veg_menu_items_category ON star_veg_menu_items(category);
+CREATE INDEX idx_star_veg_menu_items_in_stock ON star_veg_menu_items(in_stock);
 CREATE INDEX idx_cart_items_user_id ON cart_items(user_id);
 CREATE INDEX idx_orders_user_id ON orders(user_id);
 CREATE INDEX idx_orders_order_number ON orders(order_number);
@@ -84,7 +84,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items
+CREATE TRIGGER update_star_veg_menu_items_updated_at BEFORE UPDATE ON star_veg_menu_items
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_cart_items_updated_at BEFORE UPDATE ON cart_items

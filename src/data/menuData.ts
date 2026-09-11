@@ -4,10 +4,10 @@ export const menuItems: MenuItem[] = [
   {
     id: 1,
     inStock: true,
-    name: "Soft Vegetable Idli (4 mini idli) Combo With Peanut Chutney & Sambar",
+    name: "Anmol Vegetable Idli (4 mini idli) Combo With Peanut Chutney & Sambar",
     desc: "Freshly steamed soft vegetable idlis served with creamy roasted peanut chutney and flavorful South Indian sambar. A light, healthy, and satisfying meal packed with authentic taste, aromatic spices, and wholesome ingredients. Perfect for breakfast, lunch, or evening cravings with a delicious homemade touch.",
     costPrice: 80,
-    price: 60,
+    price: 50,
     img: "https://cdn.jsdelivr.net/gh/designsbyanmol/butter-meal@main/src/assets/images/idliSambhar.webp",
     category: "South Indian",
     isVeg: true,
@@ -69,7 +69,7 @@ export const menuItems: MenuItem[] = [
   {
     id: 2,
     inStock: true,
-    name: "Dahi Vada",
+    name: "Anmol Dahi Vada",
     desc: "Soft lentil dumplings soaked in creamy chilled yogurt, topped with fresh dhaniya chutney and sweet-tangy imli chutney. Garnished with roasted cumin, chili powder, and a hint of chaat masala for an authentic Indian street-style flavor. A refreshing, rich, and perfectly balanced snack loved across India.",
     costPrice: 65,
     price: 50,

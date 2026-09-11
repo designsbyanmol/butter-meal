@@ -18,12 +18,16 @@
   background: white;
   border-radius: 8px;
   width: 100%;
-  max-width: 700px;
+  max-width: 400px;
   max-height: 80%;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease-out;
+
+  &:has(.user_item:nth-child(2)) {
+    max-width: 700px;
+  }
 }
 
 @keyframes slideIn {
@@ -215,7 +219,11 @@
 .table {
       display: grid;
     gap: 10px;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+
+    &:has(.user_item:nth-child(2)) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
   .user_item {
     padding: 10px;
@@ -295,6 +303,7 @@
       text-decoration: underline;
       color: #1e1e2e;
       font-size: 12px;
+      cursor: pointer;
     }
 
     .deleteBtn {
@@ -629,5 +638,125 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Masked password row */
+.passwordHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 2px;
+  color: #999;
+}
+
+.passwordHintText {
+  letter-spacing: normal;
+  font-size: 12px;
+  color: #bbb;
+  font-style: italic;
+}
+
+/* Generate random button (used in both create + reset forms) */
+.generateBtn {
+  margin-top: 6px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: #ebebeb;
+    border-color: #ccc;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Handoff dialog */
+.passwordHandoff {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  background: #f5f7f5;
+  border: 1px solid #d5e0d5;
+  border-radius: 6px;
+
+  code {
+    flex: 1;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: #111;
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    user-select: all;
+  }
+}
+
+.copyBtn {
+  background: #085b1b;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.handoffNote {
+  font-size: 13px;
+  color: #856404;
+  background: #fff8e1;
+  border-left: 3px solid #ffc107;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+/* The `info` variant of the confirm dialog (for handoff) */
+.info {
+  .confirmHeader {
+    border-bottom-color: #b8daff;
+  }
+
+  .infoBtn {
+    background: #0066cc;
+    color: #fff;
+    border: none;
+
+    &:hover {
+      background: #0052a3;
+    }
+  }
+}
+
+.infoBtn {
+  background: #0066cc;
+  color: #fff;
+  border: none;
+
+  &:hover {
+    background: #0052a3;
   }
 }

@@ -1,0 +1,13 @@
+Open Supabase > Login > Go to Project > Select your project > Go to project Settings > Go to API Keys > Copy Publisher Key and Paste in your code's .env file as (VITE_SUPABASE_ANON_KEY) > Now Copy the
+
+Run in this exact order in Supabase SQL Editor:
+01_star_veg_users.sql
+02_star_veg_menu_items.sql
+03_star_veg_store_settings.sql
+04_validation_and_triggers.sql
+05_seed_admin.sql
+06_Delete_duplicate.sql - if duplicate items seen in menu list
+07_Verify Duplicate Removed - if duplicate
+08_rewrite update - optional if edits are not visible
+09_check_store_open_close - optional
+10_schedule store close.sql

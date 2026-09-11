@@ -1,4 +1,4 @@
-// menuItem.tsx files
+// components/Menu/MenuItem.tsx
 import React from 'react';
 import { MenuItem } from '../../types';
 import { StarIcon } from '../../assets/svgs';
@@ -12,31 +12,37 @@ interface MenuItemProps {
   onItemClick: (item: MenuItem) => void;
 }
 
-const MenuItemComponent: React.FC<MenuItemProps> = ({ 
-  item, 
-  quantity, 
-  onItemClick 
+const MenuItemComponent: React.FC<MenuItemProps> = ({
+  item,
+  quantity,
+  onItemClick,
 }) => {
   const isAdded = quantity > 0;
   const isOutOfStock = !item.inStock;
 
   const handleClick = () => {
-    // Don't allow click if out of stock
     if (isOutOfStock) return;
     onItemClick(item);
   };
 
   const handleAddClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Don't allow add if out of stock
     if (isOutOfStock) return;
-    // Open detail popup instead of directly adding
     onItemClick(item);
   };
 
+  const hasRating =
+    typeof item.rating === 'number' && item.rating > 0;
+  const hasReviewCount =
+    typeof item.reviewCount === 'number' && item.reviewCount > 0;
+
   return (
-    <div className={`${styles.itemCard} ${isOutOfStock ? styles.outOfStock : ''}`}>
-      <div 
+    <div
+      className={`${styles.itemCard} ${
+        isOutOfStock ? styles.outOfStock : ''
+      }`}
+    >
+      <div
         className={styles.imageWrapper}
         onClick={handleClick}
         role="button"
@@ -45,8 +51,14 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
         <div className={styles.itemImg}>
-          <img src={item.img} alt={item.name} loading="lazy" />
-          {/* Out of Stock Overlay */}
+          <img
+            src={item.img}
+            alt={item.name}
+            loading="lazy"
+            decoding="async"
+            width={320}
+            height={240}
+          />
           {isOutOfStock && (
             <div className={styles.outOfStockOverlay}>
               <span className={styles.outOfStockBadge}>Out of Stock</span>
@@ -54,30 +66,43 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           )}
         </div>
 
-        {!isOutOfStock && !!item.rating && item.rating > 0 && (
+        {!isOutOfStock && hasRating && (
           <span className={styles.rating}>
-            <StarIcon width={12} height={12} fill="#085b1b"/> {item.rating}
-            {item.reviewCount && (
-                <span className={styles.reviewCount}>({item.reviewCount})</span>
-              )}
+            <StarIcon width={12} height={12} fill="#085b1b" /> {item.rating}
+            {hasReviewCount && (
+              <span className={styles.reviewCount}>
+                ({item.reviewCount})
+              </span>
+            )}
           </span>
         )}
+        
 
-        {!isOutOfStock && item.attributes?.isPopular && (
-          <span className={`${styles.badge} ${styles.popular}`}>Popular</span>
-        )}
-        {!isOutOfStock && item.attributes?.isNew && (
-          <span className={`${styles.badge} ${styles.new}`}>New</span>
-        )}
-        {!isOutOfStock && item.attributes?.isChefSpecial && (
-          <span className={`${styles.badge} ${styles.chefSpecial}`}>Special</span>
-        )}
-        {!isOutOfStock && item.isVeg && (
-          <span className={`${styles.badge} ${styles.veg}`}></span>
-        )}
+        {!isOutOfStock &&
+          (item.attributes?.isPopular ||
+            item.attributes?.isNew ||
+            item.attributes?.isChefSpecial ||
+            item.isVeg) && (
+            <div className={styles.badgeGroup}>
+              {item.attributes?.isPopular && (
+                <span className={`${styles.badge} ${styles.popular}`}>Popular</span>
+              )}
+              {item.attributes?.isNew && (
+                <span className={`${styles.badge} ${styles.new}`}>New</span>
+              )}
+              {item.attributes?.isChefSpecial && (
+                <span className={`${styles.badge} ${styles.chefSpecial}`}>
+                  Special
+                </span>
+              )}
+              {item.isVeg && (
+                <span className={`${styles.badge} ${styles.veg}`} />
+              )}
+            </div>
+          )}
       </div>
-      
-      <div 
+
+      <div
         className={styles.itemInfo}
         onClick={handleClick}
         role="button"
@@ -87,32 +112,28 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
       >
         <div className={styles.itemName}>{item.name}</div>
       </div>
-      
+
       <div className={styles.itemFooter}>
         <span className={styles.price}>
-          {!!item.costPrice && item.costPrice > 0 && (<del>Rs{item.costPrice}</del>)}
+          {!!item.costPrice && item.costPrice > 0 && (
+            <del>Rs{item.costPrice}</del>
+          )}
           Rs{item.price}
         </span>
         <div className={styles.actions}>
           {isOutOfStock ? (
-            <button 
+            <button
               className={`${styles.btnCustomize} ${styles.btnOutOfStock}`}
               disabled
             >
               Out of Stock
             </button>
           ) : isAdded ? (
-            <button 
-              className={styles.btnCustomize}
-              onClick={handleAddClick}
-            >
+            <button className={styles.btnCustomize} onClick={handleAddClick}>
               {quantity} Added
             </button>
           ) : (
-            <button 
-              className={styles.btnCustomize}
-              onClick={handleAddClick}
-            >
+            <button className={styles.btnCustomize} onClick={handleAddClick}>
               Add
             </button>
           )}
@@ -122,4 +143,22 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   );
 };
 
-export default MenuItemComponent;
+// ✅ Memoized so identical poll results don't re-render — saves image revalidation
+export default React.memo(MenuItemComponent, (prev, next) => {
+  return (
+    prev.item.id === next.item.id &&
+    prev.item.img === next.item.img &&
+    prev.item.name === next.item.name &&
+    prev.item.price === next.item.price &&
+    prev.item.costPrice === next.item.costPrice &&
+    prev.item.inStock === next.item.inStock &&
+    prev.item.rating === next.item.rating &&
+    prev.item.reviewCount === next.item.reviewCount &&
+    prev.item.isVeg === next.item.isVeg &&
+    prev.item.attributes?.isPopular === next.item.attributes?.isPopular &&
+    prev.item.attributes?.isNew === next.item.attributes?.isNew &&
+    prev.item.attributes?.isChefSpecial ===
+      next.item.attributes?.isChefSpecial &&
+    prev.quantity === next.quantity
+  );
+});
