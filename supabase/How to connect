@@ -11,3 +11,4 @@ Run in this exact order in Supabase SQL Editor:
 08_rewrite update - optional if edits are not visible
 09_check_store_open_close - optional
 10_schedule store close.sql
+11_check admin - option

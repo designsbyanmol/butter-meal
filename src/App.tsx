@@ -21,6 +21,7 @@ import AdminPanel from './components/Admin/AdminPanel';
 import StoreBanner from './components/Store/StoreBanner';
 import styles from './App.module.scss';
 import MenuSkeleton from './components/Menu/MenuSkeleton';
+import { ShopInfo } from './config/credentials';
 
 // Database Status Notice Component
 const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean }> = ({ isConnected, isChecking }) => {
@@ -37,7 +38,7 @@ const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean
     <div className={`${styles.dbStatusNotice} ${isConnected ? styles.connected : styles.disconnected}`}>
       <span className={styles.statusDot}></span>
       <span className={styles.statusText}>
-        {isConnected ? 'Working!' : 'Oops'}
+        {isConnected ? 'Working!' : 'Wait'}
       </span>
       {!isConnected && (
         <span className={styles.reconnectingText}> - Reconnecting...</span>
@@ -327,7 +328,7 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
         year={2026}
       />
       <div className={`${styles.container} ${getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ''}`}>
-        <BrandInfo brandName='Star Vegetables Online' brandDesc='Green . Fresh . Healthy'/>
+        <BrandInfo brandName={ShopInfo.Shop_name} brandDesc={ShopInfo.Shop_tagline}/>
 
         {/* ✅ Store Banner - Shows for ALL users when store is closed */}
         {!isStoreOpen && <StoreBanner />}

@@ -17,3 +17,4 @@ export { default as MenuIcon } from './MenuIcon';
 export { default as UsersIcon } from './UsersIcon';
 export { default as Copyright } from './Copyright';
 export { default as StoreIcon } from './StoreIcon';
+export { default as Special } from './SpecialIcon';

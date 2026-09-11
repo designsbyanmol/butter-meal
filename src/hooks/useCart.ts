@@ -1,10 +1,11 @@
 // hooks/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 import { CartItem, MenuItem, ScheduleData, PaymentMode, DeliveryType } from '../types';
-import { WhatsAppMessage } from '../config/credentials';
+import { ShopInfo } from '../config/credentials';
 
-const DELIVERY_FEE = WhatsAppMessage.Discount_percentage;
-const RESTAURANT_PHONE = WhatsAppMessage.Restaurant_message;
+const DELIVERY_FEE = ShopInfo.Delivery_fee;
+const RESTAURANT_PHONE = ShopInfo.Restaurant_message;
+const DISCOUNT_PERCENTAGE = ShopInfo.Discount_percentage;
 
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -202,7 +203,7 @@ const addItem = useCallback((item: MenuItem, customizations?: Record<string, str
   }, [getSubtotal, paymentMode]);
 
   const getDiscountPercent = useCallback(() => {
-    return 20;
+    return DISCOUNT_PERCENTAGE;
   },[]);
 
   const getDiscountAmount = useCallback(() => {

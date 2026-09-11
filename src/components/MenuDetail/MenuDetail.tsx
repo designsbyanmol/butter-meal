@@ -8,8 +8,12 @@ import {
   UtensilsIcon,
   StarIcon,
   PlusIcon,
+  Special,
 } from '../../assets/svgs';
 import styles from './MenuDetail.module.scss';
+import PopularIcon from '../../assets/svgs/PopularIcon';
+import NewIcon from '../../assets/svgs/NewIcon';
+import LimitedIcon from '../../assets/svgs/LimitedIcon';
 
 interface MenuDetailProps {
   isOpen: boolean;
@@ -149,23 +153,19 @@ useEffect(() => {
             item.attributes?.isNew ||
             item.attributes?.isChefSpecial ||
             item.attributes?.isLimited ||
-            item.isVeg) && (
+            item?.isVeg) && (
             <div className={styles.badgesWrapper}>
               {item.attributes?.isPopular && (
-                <span className={`${styles.badge} ${styles.popular}`}>
-                  Popular
-                </span>
+                <PopularIcon width={32} height={32}/>
               )}
               {item.attributes?.isNew && (
-                <span className={`${styles.badge} ${styles.new}`}>New</span>
+                <NewIcon width={32} height={32}/>
               )}
               {item.attributes?.isChefSpecial && (
-                <span className={`${styles.badge} ${styles.chefSpecial}`}>
-                  Chef's Special
-                </span>
+                <Special width={32} height={32}/>
               )}
               {item.attributes?.isLimited && (
-                <span className={`${styles.badge} ${styles.limited}`}>Limited</span>
+                <LimitedIcon width={32} height={32}/>
               )}
               {item.isVeg && (
                 <span className={`${styles.badge} ${styles.veg}`}>Veg</span>

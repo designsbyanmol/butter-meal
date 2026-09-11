@@ -28,8 +28,11 @@ export const SEED_USERS: AdminCredentials[] = [
   },
 ];
 
-export const WhatsAppMessage = {
+export const ShopInfo = {
   // Hardcoded because Blogger doesn't support import.meta.env
   Restaurant_message: '7459999998',
-  Discount_percentage: 20
+  Shop_name: 'Star Vegetables Online',
+  Shop_tagline: 'Green . Fresh . Healthy',
+  Delivery_fee: 20,
+  Discount_percentage: 100
 };

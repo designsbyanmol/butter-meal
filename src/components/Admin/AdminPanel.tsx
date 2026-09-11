@@ -136,13 +136,13 @@ const CustomizationEditor: React.FC<{
   return (
     <div className={styles.customizationSection}>
       <div className={styles.sectionHeader}>
-        <h4>Customization Options</h4>
+        <h4>Customization</h4>
         <button
           type="button"
           className={styles.addCustomizationBtn}
           onClick={addOption}
         >
-          + Add Group
+          + Add
         </button>
       </div>
 
@@ -155,21 +155,18 @@ const CustomizationEditor: React.FC<{
           {options.map((option, optIdx) => (
             <div key={optIdx} className={styles.customizationItem}>
               <div className={styles.customizationHeader}>
-                <span className={styles.customizationIndex}>
-                  Group #{optIdx + 1}
-                </span>
                 <button
                   type="button"
                   className={styles.removeCustomizationBtn}
                   onClick={() => removeOption(optIdx)}
-                  aria-label="Remove group"
+                  aria-label="Remove option"
                 >
                   <CloseIcon width={18} height={18} fill="#4d4d4d" />
                 </button>
               </div>
 
               <div className={styles.formGroup}>
-                <label>Group Name</label>
+                <label>Option #{optIdx + 1} Name</label>
                 <input
                   type="text"
                   value={option.name}
@@ -220,7 +217,7 @@ const CustomizationEditor: React.FC<{
                         disabled={option.choices.length <= 1}
                         aria-label="Remove choice"
                       >
-                        ×
+                        <CloseIcon width={18} height={18} fill="#a62d2d" />
                       </button>
                     </div>
                   ))}
@@ -862,7 +859,7 @@ const handleSaveNewItem = async () => {
 
         <div className={styles.itemList}>
           {isReordering && (
-            <div className={styles.reorderingBanner}>Saving order…</div>
+            <div className={styles.reorderingBanner}>Saving order...</div>
           )}
 
           {filteredItems.map((item) => {
@@ -1255,7 +1252,7 @@ const handleSaveNewItem = async () => {
   onClick={handleSaveNewItem}
   disabled={isSaving}
 >
-  {isSaving ? 'Saving…' : 'Add Item'}
+  {isSaving ? 'Saving...' : 'Add Item'}
 </button>
                 </div>
               </div>
@@ -1545,7 +1542,7 @@ const handleSaveNewItem = async () => {
   onClick={handleSaveEdit}
   disabled={isSaving}
 >
-  {isSaving ? 'Saving…' : 'Save Changes'}
+  {isSaving ? 'Saving...' : 'Save Changes'}
 </button>
                 </div>
               </div>

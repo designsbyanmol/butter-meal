@@ -1,8 +1,11 @@
 // components/Menu/MenuItem.tsx
 import React from 'react';
 import { MenuItem } from '../../types';
-import { StarIcon } from '../../assets/svgs';
+import { Special, StarIcon } from '../../assets/svgs';
 import styles from './Menu.module.scss';
+import NewIcon from '../../assets/svgs/NewIcon';
+import PopularIcon from '../../assets/svgs/PopularIcon';
+import LimitedIcon from '../../assets/svgs/LimitedIcon';
 
 interface MenuItemProps {
   item: MenuItem;
@@ -82,18 +85,20 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           (item.attributes?.isPopular ||
             item.attributes?.isNew ||
             item.attributes?.isChefSpecial ||
-            item.isVeg) && (
+            item.attributes?.isLimited ||
+            item?.isVeg) && (
             <div className={styles.badgeGroup}>
               {item.attributes?.isPopular && (
-                <span className={`${styles.badge} ${styles.popular}`}>Popular</span>
+                <PopularIcon width={32} height={32}/>
               )}
               {item.attributes?.isNew && (
-                <span className={`${styles.badge} ${styles.new}`}>New</span>
+                <NewIcon width={32} height={32}/>
               )}
               {item.attributes?.isChefSpecial && (
-                <span className={`${styles.badge} ${styles.chefSpecial}`}>
-                  Special
-                </span>
+                <Special width={32} height={32}/>
+              )}
+              {item.attributes?.isLimited && (
+                <LimitedIcon width={32} height={32}/>
               )}
               {item.isVeg && (
                 <span className={`${styles.badge} ${styles.veg}`} />
