@@ -1,32 +1,9 @@
 -- ============================================
--- FILE: 03_validation_and_triggers.sql
+-- FILE: 04_validation_and_triggers.sql
 -- PURPOSE: Triggers, functions, permissions and validation
 -- IDEMPOTENT: Safe to run multiple times
+-- ⚠️  NO automated DROP-everything. Do that manually if needed.
 -- ============================================
-
--- ============================================
--- 0. CLEANUP: DROP UNWANTED TABLES
--- ============================================
--- Keeps only: star_veg_menu_items, star_veg_users, star_veg_store_settings
-DO $$
-DECLARE
-    r RECORD;
-    keep_tables TEXT[] := ARRAY[
-        'star_veg_menu_items',
-        'star_veg_users',
-        'star_veg_store_settings'
-    ];
-BEGIN
-    FOR r IN
-        SELECT tablename
-        FROM pg_tables
-        WHERE schemaname = 'public'
-          AND tablename <> ALL(keep_tables)
-    LOOP
-        EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.tablename);
-        RAISE NOTICE 'Dropped table: %', r.tablename;
-    END LOOP;
-END $$;
 
 -- ============================================
 -- 1. UPDATED_AT FUNCTION
@@ -37,30 +14,28 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE 'plpgsql';
 
 -- ============================================
--- 2. DROP EXISTING TRIGGERS
+-- 2. DROP + RE-CREATE TRIGGERS
 -- ============================================
 DROP TRIGGER IF EXISTS update_star_veg_menu_items_updated_at ON star_veg_menu_items;
 
--- ============================================
--- 3. CREATE TRIGGERS
--- ============================================
 CREATE TRIGGER update_star_veg_menu_items_updated_at
 BEFORE UPDATE ON star_veg_menu_items
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 4-6. DROP + RE-ADD CONSTRAINTS (idempotent)
+-- 3. DROP + RE-ADD CONSTRAINTS (idempotent)
 -- ============================================
 ALTER TABLE star_veg_menu_items DROP CONSTRAINT IF EXISTS check_price_positive;
 ALTER TABLE star_veg_menu_items DROP CONSTRAINT IF EXISTS check_cost_price_positive;
 ALTER TABLE star_veg_menu_items DROP CONSTRAINT IF EXISTS check_rating_range;
 ALTER TABLE star_veg_menu_items DROP CONSTRAINT IF EXISTS check_review_count_positive;
 
+-- Relax price to allow free items (>= 0)
 ALTER TABLE star_veg_menu_items
-    ADD CONSTRAINT check_price_positive CHECK (price > 0);
+    ADD CONSTRAINT check_price_positive CHECK (price >= 0);
 
 ALTER TABLE star_veg_menu_items
     ADD CONSTRAINT check_cost_price_positive CHECK (cost_price IS NULL OR cost_price >= 0);
@@ -72,13 +47,7 @@ ALTER TABLE star_veg_menu_items
     ADD CONSTRAINT check_review_count_positive CHECK (review_count >= 0);
 
 -- ============================================
--- 7. GRANT PERMISSIONS
--- ============================================
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
-
--- ============================================
--- 8. VERIFICATION
+-- 4. VERIFICATION
 -- ============================================
 SELECT
   tgname AS trigger_name,
@@ -106,12 +75,21 @@ FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY tablename;
 
-SELECT 'star_veg_users' AS table_name, COUNT(*) AS row_count FROM star_veg_users
-UNION ALL
-SELECT 'star_veg_menu_items', COUNT(*) FROM star_veg_menu_items
-UNION ALL
-SELECT 'star_veg_store_settings', COUNT(*) FROM star_veg_store_settings;
-
--- ============================================
--- END OF VALIDATION AND TRIGGERS
--- ============================================
+-- Cross-table counts (guarded for fresh installs)
+DO $$
+DECLARE
+  users_cnt INT := 0;
+  menu_cnt  INT := 0;
+  set_cnt   INT := 0;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='star_veg_users') THEN
+    EXECUTE 'SELECT COUNT(*) FROM star_veg_users' INTO users_cnt;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='star_veg_menu_items') THEN
+    EXECUTE 'SELECT COUNT(*) FROM star_veg_menu_items' INTO menu_cnt;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='star_veg_store_settings') THEN
+    EXECUTE 'SELECT COUNT(*) FROM star_veg_store_settings' INTO set_cnt;
+  END IF;
+  RAISE NOTICE 'users=%, menu=%, settings=%', users_cnt, menu_cnt, set_cnt;
+END $$;
