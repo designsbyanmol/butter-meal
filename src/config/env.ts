@@ -1,12 +1,21 @@
 // config/env.ts
 export const config = {
-  // Hardcoded because Blogger doesn't support import.meta.env
-  supabaseUrl: 'https://uanfdjcqiurpjihlmrvz.supabase.co',
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhbmZkamNxaXVycGppaGxtcnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMTQxNDYsImV4cCI6MjEwNDU5MDE0Nn0.KzQZ28VsMIKrZnsYvl5O-ezERU5Iak-cPYou9Wt2OlU',
+  supabaseUrl: 'https://bhnuktahneeuujtxqolb.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJobnVrdGFobmVldXVqdHhxb2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDI3ODcsImV4cCI6MjEwMzkxODc4N30.onOTbSo_GbBEH_E1_O1iLQnL59UF0JnfRhhuIF6I38M',
+
+  // Table names — kept here for consistency with Supabase creds
+  tables: {
+    menu: 'star_veg_menu_items',
+    users: 'star_veg_users',
+    storeSettings: 'star_veg_store_settings',
+  },
+
+  // Third-party API keys
+  imgApiKey: '62ab93456c2cb8232f6f216a1475426d',
 };
 
 export const isSupabaseConfigured = Boolean(
-  config.supabaseUrl && config.supabaseAnonKey
+  config.supabaseUrl && config.supabaseAnonKey,
 );
 
 export const env = {

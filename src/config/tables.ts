@@ -1,9 +1,10 @@
-// src/config/tables.ts
+// config/tables.ts
+import { config } from './env';
 
 export const TABLES = {
-  MENU: import.meta.env.VITE_MENU_TABLE || 'star_veg_menu_items',
-  USERS: import.meta.env.VITE_USERS_TABLE || 'star_veg_users',
-  STORE_SETTINGS: import.meta.env.VITE_STORE_SETTINGS_TABLE || 'star_veg_store_settings',
+  MENU: config.tables.menu,
+  USERS: config.tables.users,
+  STORE_SETTINGS: config.tables.storeSettings,
 } as const;
 
 export type TableName = keyof typeof TABLES;

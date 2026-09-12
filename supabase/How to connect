@@ -6,9 +6,11 @@ Run in this exact order in Supabase SQL Editor:
 03_star_veg_store_settings.sql
 04_validation_and_triggers.sql
 05_seed_admin.sql
+05a_Add sort.sql
 06_Delete_duplicate.sql - if duplicate items seen in menu list
 07_Verify Duplicate Removed - if duplicate
 08_rewrite update - optional if edits are not visible
 09_check_store_open_close - optional
 10_schedule store close.sql
 11_check admin - option
+12_Delete extra tables - optional

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './AdminPanel.module.scss';
 import { CloseIcon } from '../../assets/svgs';
-
+import { config } from '../../config/env';
 interface ImageUploadProps {
   onImageUploaded: (imageUrl: string) => void;
   currentImage?: string;
@@ -30,7 +30,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   }, [currentImage]);
 
   // IMG API Key
-  const IMG_API_KEY = import.meta.env.VITE_IMG_API_KEY || '62ab93456c2cb8232f6f216a1475426d';
+  const IMG_API_KEY = config.imgApiKey;
 
   // Image processing function: compress, convert to WebP, resize to max 1024x1024
   const processImage = (file: File): Promise<File> => {

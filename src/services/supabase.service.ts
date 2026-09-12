@@ -303,38 +303,75 @@ class SupabaseService {
   // ============ MENU — WRITE ============
 
   async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
-    const client = this.getClient();
-    if (!client) return null;
+  const client = this.getClient();
+  if (!client) return null;
 
-    const payload = {
-      sort_order: 0,
-      in_stock: item.inStock,
-      name: item.name,
-      description: item.desc,
-      cost_price: item.costPrice ?? null,
-      price: item.price,
-      image_url: item.img,
-      category: item.category ?? null,
-      is_veg: item.isVeg ?? false,
-      is_spicy: item.isSpicy ?? false,
-      is_gluten_free: item.isGlutenFree ?? false,
-      preparation_time: item.preparationTime ?? null,
-      calories: item.calories ?? null,
-      rating: item.rating ?? null,
-      review_count: item.reviewCount ?? 0,
-      ingredients: item.ingredients ?? null,
-      nutritional_info: item.nutritionalInfo ?? null,
-      attributes: item.attributes ?? null,
-      customization_options: item.customizationOptions ?? null,
-    };
+  // Always-present scalars. Use ?? null only for genuinely nullable columns.
+  const payload: Record<string, unknown> = {
+    sort_order: 0,
+    in_stock: item.inStock ?? true,
+    name: item.name,
+    description: item.desc ?? '',
+    price: item.price,
+    image_url: item.img,
+    is_veg: item.isVeg ?? false,
+    is_spicy: item.isSpicy ?? false,
+    is_gluten_free: item.isGlutenFree ?? false,
+    review_count: item.reviewCount ?? 0,
+  };
 
-    const { data, error } = await client.rpc('add_menu_item', { payload });
-    if (error) {
-      console.error('add_menu_item error:', error);
-      return null;
-    }
-    return data ? this.mapMenuItem(data) : null;
+  // Numeric fields — send only when we have a real number
+  if (typeof item.costPrice === 'number' && item.costPrice > 0) {
+    payload.cost_price = item.costPrice;
   }
+  if (typeof item.calories === 'number' && item.calories > 0) {
+    payload.calories = item.calories;
+  }
+  if (typeof item.rating === 'number' && item.rating > 0) {
+    payload.rating = item.rating;
+  }
+
+  // Optional strings — send only when non-empty
+  if (item.category && item.category.trim() !== '') {
+    payload.category = item.category;
+  }
+  if (item.preparationTime && item.preparationTime.trim() !== '') {
+    payload.preparation_time = item.preparationTime;
+  }
+
+  // JSONB / array fields — send only when they have content.
+  // This is the fix for the 22023 error: no `null` values for these keys.
+  if (Array.isArray(item.ingredients) && item.ingredients.length > 0) {
+    payload.ingredients = item.ingredients;
+  }
+  if (
+    item.nutritionalInfo &&
+    typeof item.nutritionalInfo === 'object' &&
+    Object.keys(item.nutritionalInfo).length > 0
+  ) {
+    payload.nutritional_info = item.nutritionalInfo;
+  }
+  if (
+    item.attributes &&
+    typeof item.attributes === 'object' &&
+    Object.values(item.attributes).some(Boolean)
+  ) {
+    payload.attributes = item.attributes;
+  }
+  if (
+    Array.isArray(item.customizationOptions) &&
+    item.customizationOptions.length > 0
+  ) {
+    payload.customization_options = item.customizationOptions;
+  }
+
+  const { data, error } = await client.rpc('add_menu_item', { payload });
+  if (error) {
+    console.error('add_menu_item error:', error);
+    return null;
+  }
+  return data ? this.mapMenuItem(data) : null;
+}
 
   async deleteMenuItem(id: number): Promise<boolean> {
     const client = this.getClient();
@@ -373,12 +410,46 @@ class SupabaseService {
   if ('calories' in updates) payload.calories = updates.calories ?? null;
   if ('rating' in updates) payload.rating = updates.rating ?? null;
   if ('reviewCount' in updates) payload.review_count = updates.reviewCount ?? null;
-  if ('ingredients' in updates) payload.ingredients = updates.ingredients ?? null;
-  if ('nutritionalInfo' in updates)
-    payload.nutritional_info = updates.nutritionalInfo ?? null;
-  if ('attributes' in updates) payload.attributes = updates.attributes ?? null;
-  if ('customizationOptions' in updates)
-    payload.customization_options = updates.customizationOptions ?? null;
+  if ('ingredients' in updates) {
+  if (Array.isArray(updates.ingredients) && updates.ingredients.length > 0) {
+    payload.ingredients = updates.ingredients;
+  } else if (updates.ingredients === null) {
+    payload.ingredients = null;   // explicit clear
+  }
+  // if undefined, omit the key entirely → RPC keeps the existing value
+}
+if ('nutritionalInfo' in updates) {
+  if (
+    updates.nutritionalInfo &&
+    typeof updates.nutritionalInfo === 'object' &&
+    Object.keys(updates.nutritionalInfo).length > 0
+  ) {
+    payload.nutritional_info = updates.nutritionalInfo;
+  } else if (updates.nutritionalInfo === null) {
+    payload.nutritional_info = null;
+  }
+}
+if ('attributes' in updates) {
+  if (
+    updates.attributes &&
+    typeof updates.attributes === 'object' &&
+    Object.values(updates.attributes).some(Boolean)
+  ) {
+    payload.attributes = updates.attributes;
+  } else if (updates.attributes === null) {
+    payload.attributes = null;
+  }
+}
+if ('customizationOptions' in updates) {
+  if (
+    Array.isArray(updates.customizationOptions) &&
+    updates.customizationOptions.length > 0
+  ) {
+    payload.customization_options = updates.customizationOptions;
+  } else if (updates.customizationOptions === null) {
+    payload.customization_options = null;
+  }
+}
 
   const { data, error } = await client.rpc('update_menu_item', {
     item_id: id,
