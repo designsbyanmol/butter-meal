@@ -1,17 +1,29 @@
 // hooks/useMenu.ts
 import { useState, useEffect } from 'react';
 import { menuService } from '../services/menu.service';
+import { useTenant } from '../contexts/TenantContext';
 import { MenuItem } from '../types';
 
 export const useMenu = () => {
+  const { tenant } = useTenant();
   const [items, setItems] = useState<MenuItem[]>([]);
   const [visibleItems, setVisibleItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // No tenant → no menu (admin host fallback)
+    if (!tenant) {
+      setItems([]);
+      setVisibleItems([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    menuService.setTenant(tenant.slug);
+
     let mounted = true;
 
-    // Subscribe — will fire with fresh DB data once the initial fetch resolves
     const unsubscribe = menuService.subscribe((newItems) => {
       if (!mounted) return;
       setItems(newItems);
@@ -19,8 +31,6 @@ export const useMenu = () => {
       setLoading(false);
     });
 
-    // Belt-and-braces: fetch once on mount in case the subscription
-    // missed the initial-fetch window (rare, but safe).
     menuService
       .getAllItems()
       .then((allItems) => {
@@ -38,10 +48,10 @@ export const useMenu = () => {
       mounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [tenant?.slug]);
 
-  // Write methods — delegate to menuService (which reloads after each write)
-  const toggleStock = (itemId: number) => menuService.toggleItemStock(itemId);
+  const toggleStock = (itemId: number) =>
+    menuService.toggleItemStock(itemId);
   const updateItem = (itemId: number, updates: Partial<MenuItem>) =>
     menuService.updateItem(itemId, updates);
   const addItem = (newItem: Omit<MenuItem, 'id'>) =>

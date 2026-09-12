@@ -1,49 +1,43 @@
 // components/Admin/UserManagement.tsx
-import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../hooks/useAuth";
-import { User } from "../../types";
-import styles from "./UserManagement.module.scss";
-import { CloseIcon, CheckIcon } from "../../assets/svgs";
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { User } from '../../types';
+import { supabaseService } from '../../services/supabase.service';
+import styles from './UserManagement.module.scss';
+import { CloseIcon, CheckIcon } from '../../assets/svgs';
 
 interface UserManagementProps {
   onClose: () => void;
+  tenantSlug: string;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
-  const {
-    getAllUsers,
-    createUser,
-    toggleUserStatus,
-    resetUserPassword,
-    deleteUser,
-    isAdmin,
-    user: currentUser,
-  } = useAuth();
+const UserManagement: React.FC<UserManagementProps> = ({
+  onClose,
+  tenantSlug,
+}) => {
+  const { user: currentUser } = useAuth();
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Create user form state
   const [newUser, setNewUser] = useState({
-    phone: "",
-    name: "",
-    password: "",
-    role: "user" as "admin" | "user",
+    phone: '',
+    name: '',
+    password: '',
+    role: 'user' as 'admin' | 'user',
   });
 
-  // Reset password state
   const [resetPassword, setResetPassword] = useState<{
     userId: string;
     newPassword: string;
   } | null>(null);
 
-  // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -51,17 +45,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     confirmText: string;
     cancelText: string;
     action: () => void;
-    type: "warning" | "danger" | "info";
+    type: 'warning' | 'danger' | 'info';
   } | null>(null);
 
-  // ✅ Post-reset handoff dialog (shows the new password once)
-  const [handoffDialog, setHandoffDialog] = useState<{
-    userName: string;
-    userPhone: string;
-    password: string;
-  } | null>(null);
-
-  // Auto-hide error and success messages after 3 seconds
   useEffect(() => {
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
@@ -73,10 +59,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     }
 
     if (error) {
-      errorTimeoutRef.current = setTimeout(() => setError(""), 3000);
+      errorTimeoutRef.current = setTimeout(() => setError(''), 3000);
     }
     if (success) {
-      successTimeoutRef.current = setTimeout(() => setSuccess(""), 3000);
+      successTimeoutRef.current = setTimeout(() => setSuccess(''), 3000);
     }
 
     return () => {
@@ -86,30 +72,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
   }, [error, success]);
 
   const clearMessages = () => {
-    setError("");
-    setSuccess("");
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
+    setError('');
+    setSuccess('');
   };
 
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tenantSlug]);
 
   const loadUsers = async () => {
-    if (!isAdmin) {
-      setError("Access denied. Admin only.");
-      return;
-    }
     setLoading(true);
-    const usersList = await getAllUsers();
+    const usersList = await supabaseService.getUsers(tenantSlug);
     setUsers(usersList);
     setLoading(false);
   };
@@ -118,117 +92,109 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
     e.preventDefault();
     clearMessages();
 
-    const result = await createUser(
-      newUser.phone,
-      newUser.password,
-      newUser.name,
-      newUser.role,
-    );
-
-    if (result.success) {
-      setSuccess("User created successfully!");
-      setNewUser({ phone: "", name: "", password: "", role: "user" });
+    try {
+      await supabaseService.createUser(tenantSlug, {
+        phone: newUser.phone,
+        name: newUser.name,
+        password: newUser.password,
+        role: newUser.role,
+        isActive: true,
+      });
+      setSuccess('User created successfully!');
+      setNewUser({ phone: '', name: '', password: '', role: 'user' });
       setShowCreateForm(false);
       loadUsers();
-    } else {
-      setError(result.error || "Failed to create user");
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create user');
     }
   };
 
-  const handleToggleStatus = async (userId: string) => {
+  const handleToggleStatus = (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
-
-    const action = user.isActive ? "deactivate" : "activate";
-    const actionText = user.isActive ? "Deactivate" : "Activate";
+    const action = user.isActive ? 'deactivate' : 'activate';
+    const actionText = user.isActive ? 'Deactivate' : 'Activate';
 
     setConfirmDialog({
       isOpen: true,
       title: `${actionText} User`,
       message: `Are you sure you want to ${action} user "${user.name}"?`,
       confirmText: `Yes, ${actionText}`,
-      cancelText: "Cancel",
-      type: user.isActive ? "warning" : "info",
+      cancelText: 'Cancel',
+      type: user.isActive ? 'warning' : 'info',
       action: async () => {
         setConfirmDialog(null);
         clearMessages();
-        const result = await toggleUserStatus(userId);
-        if (result.success) {
+        const result = await supabaseService.toggleUserStatus(userId);
+        if (result) {
           setSuccess(`User ${action}ed successfully`);
           loadUsers();
         } else {
-          setError(result.error || `Failed to ${action} user`);
+          setError(`Failed to ${action} user`);
         }
       },
     });
   };
 
-  // ✅ Updated: after reset, show the new password in a handoff dialog
   const handleResetPassword = async (userId: string) => {
     if (!resetPassword || resetPassword.userId !== userId) {
-      setResetPassword({ userId, newPassword: "" });
+      setResetPassword({ userId, newPassword: '' });
       return;
     }
-
     if (resetPassword.newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError('Password must be at least 6 characters');
       return;
     }
-
     const user = users.find((u) => u.id === userId);
     if (!user) return;
 
     const newPw = resetPassword.newPassword;
-    const targetUser = { name: user.name, phone: user.phone, id: user.id };
+    const target = { name: user.name, phone: user.phone, id: user.id };
 
     setConfirmDialog({
       isOpen: true,
-      title: "Reset Password",
-      message: `Reset password for "${user.name}"? Their current password will stop working immediately.`,
-      confirmText: "Yes, Reset Password",
-      cancelText: "Cancel",
-      type: "warning",
+      title: 'Reset Password',
+      message: `Reset password for "${user.name}"?`,
+      confirmText: 'Yes, Reset Password',
+      cancelText: 'Cancel',
+      type: 'warning',
       action: async () => {
         setConfirmDialog(null);
         clearMessages();
-        const result = await resetUserPassword(userId, newPw);
-        if (result.success) {
-          setSuccess("Password reset successfully");
+        const ok = await supabaseService.changeUserPassword(userId, newPw);
+        if (ok) {
+          setSuccess('Password reset successfully');
           setResetPassword(null);
           loadUsers();
-          // ✅ Show the new password once for handoff
-          setHandoffDialog({
-            userName: targetUser.name,
-            userPhone: targetUser.phone,
-            password: newPw,
-          });
+          // Show handoff dialog
+          alert(`New password for ${target.name}: ${newPw}`);
         } else {
-          setError(result.error || "Failed to reset password");
+          setError('Failed to reset password');
         }
       },
     });
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
 
     setConfirmDialog({
       isOpen: true,
-      title: "Delete User",
-      message: `Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone!`,
-      confirmText: "Yes, Delete User",
-      cancelText: "Cancel",
-      type: "danger",
+      title: 'Delete User',
+      message: `Permanently delete "${user.name}"? This cannot be undone.`,
+      confirmText: 'Yes, Delete User',
+      cancelText: 'Cancel',
+      type: 'danger',
       action: async () => {
         setConfirmDialog(null);
         clearMessages();
-        const result = await deleteUser(userId);
-        if (result.success) {
-          setSuccess("User deleted successfully");
+        const ok = await supabaseService.deleteUser(userId);
+        if (ok) {
+          setSuccess('User deleted successfully');
           loadUsers();
         } else {
-          setError(result.error || "Failed to delete user");
+          setError('Failed to delete user');
         }
       },
     });
@@ -236,67 +202,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
 
   const closeConfirmDialog = () => setConfirmDialog(null);
 
-  // ✅ Generate a random 8-char password (skips ambiguous chars like 0/O, 1/l)
   const generateRandomPassword = (): string => {
-    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
-    let pw = "";
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let pw = '';
     for (let i = 0; i < 8; i++) {
       pw += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return pw;
   };
-
-  // ✅ Copy helper for handoff dialog
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setSuccess("Password copied to clipboard");
-    } catch {
-      // Fallback for browsers without clipboard API
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setSuccess("Password copied to clipboard");
-    }
-  };
-
-  // ✅ Build a ready-to-send WhatsApp message for handoff
-  const buildHandoffMessage = (name: string, phone: string, pw: string): string => {
-    return `Hi ${name}, your login details for the restaurant app:
-
-Phone: ${phone}
-Password: ${pw}
-
-Please change your password after first login.`;
-  };
-
-  const openWhatsAppHandoff = (name: string, phone: string, pw: string) => {
-    const msg = encodeURIComponent(buildHandoffMessage(name, phone, pw));
-    // Assumes Indian numbers; adjust country code as needed
-    const url = `https://wa.me/91${phone}?text=${msg}`;
-    window.open(url, "_blank");
-  };
-
-  if (!isAdmin) {
-    return (
-      <div className={styles.overlay} onClick={onClose}>
-        <div className={styles.panel}>
-          <div className={styles.header}>
-            <h2>Access Denied</h2>
-            <button className={styles.closeBtn} onClick={onClose}>
-              <CloseIcon width={18} height={18} fill="#4d4d4d" />
-            </button>
-          </div>
-          <div className={styles.errorMessage} style={{ margin: "20px" }}>
-            You don't have permission to access this page.
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -314,11 +227,7 @@ Please change your password after first login.`;
           {error && (
             <div className={styles.errorMessage}>
               <span>{error}</span>
-              <button
-                className={styles.messageCloseBtn}
-                onClick={() => setError("")}
-                aria-label="Dismiss error"
-              >
+              <button onClick={() => setError('')}>
                 <CloseIcon width={14} height={14} fill="#dc3545" />
               </button>
             </div>
@@ -326,11 +235,7 @@ Please change your password after first login.`;
           {success && (
             <div className={styles.successMessage}>
               <span>{success}</span>
-              <button
-                className={styles.messageCloseBtn}
-                onClick={() => setSuccess("")}
-                aria-label="Dismiss success"
-              >
+              <button onClick={() => setSuccess('')}>
                 <CloseIcon width={14} height={14} fill="#085b1b" />
               </button>
             </div>
@@ -350,7 +255,9 @@ Please change your password after first login.`;
                         onChange={(e) =>
                           setNewUser({
                             ...newUser,
-                            phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                            phone: e.target.value
+                              .replace(/\D/g, '')
+                              .slice(0, 10),
                           })
                         }
                         required
@@ -394,7 +301,7 @@ Please change your password after first login.`;
                           })
                         }
                       >
-                        Generate random
+                        🎲 Generate
                       </button>
                     </div>
                     <div className={styles.formGroup}>
@@ -404,7 +311,7 @@ Please change your password after first login.`;
                         onChange={(e) =>
                           setNewUser({
                             ...newUser,
-                            role: e.target.value as "admin" | "user",
+                            role: e.target.value as 'admin' | 'user',
                           })
                         }
                       >
@@ -439,14 +346,16 @@ Please change your password after first login.`;
                   <div
                     key={user.id}
                     className={`
-                      ${user.id === currentUser?.id ? styles.currentUser : ""} ${styles.user_item}`}
+                      ${
+                        user.id === currentUser?.id ? styles.currentUser : ''
+                      } ${styles.user_item}`}
                   >
                     <div className={`${styles.row} ${styles.head}`}>
                       <div className={styles.head_in}>
                         <span>{user.name}</span>
                         <span
                           className={
-                            user.role === "admin"
+                            user.role === 'admin'
                               ? styles.adminBadge
                               : styles.userBadge
                           }
@@ -459,44 +368,33 @@ Please change your password after first login.`;
                           user.isActive ? styles.active : styles.inactive
                         }
                       >
-                        {user.isActive ? "Active" : "Inactive"}
+                        {user.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     <div className={styles.row}>
-                      <label htmlFor="phone">Phone</label>
+                      <label>Phone</label>
                       <span>{user.phone}</span>
                     </div>
                     <div className={styles.row}>
-                      <label htmlFor="pass">Password</label>
-                      {/* ✅ Masked display — passwords are hashed and cannot be viewed */}
-                      <span className={styles.passwordHint}>
-                        #protected
-                        <span className={styles.passwordHintText}>
-                          (reset to change)
-                        </span>
-                      </span>
+                      <label>Password</label>
+                      <span className={styles.passwordHint}>••••••••</span>
                     </div>
                     <div className={styles.row}>
                       <div className={styles.actionButtons}>
-                        {user.role !== "admin" && (
+                        {user.role !== 'admin' && (
                           <button
                             className={styles.toggleBtn}
                             onClick={() => handleToggleStatus(user.id)}
-                            title={user.isActive ? "Deactivate" : "Activate"}
                           >
-                            {user.isActive ? "Lock" : "Unlock"}
+                            {user.isActive ? 'Lock' : 'Unlock'}
                           </button>
                         )}
                         {resetPassword?.userId === user.id ? (
                           <div className={styles.resetPasswordForm}>
                             <h2>Reset {user.name}'s Password</h2>
-                            <p>
-                              Choose a new password. You'll see it once so you can
-                              share it with {user.name}.
-                            </p>
                             <input
                               type="password"
-                              placeholder="New password (min 6 chars)"
+                              placeholder="New password"
                               value={resetPassword.newPassword}
                               onChange={(e) =>
                                 setResetPassword({
@@ -505,25 +403,11 @@ Please change your password after first login.`;
                                 })
                               }
                               className={styles.resetInput}
-                              autoFocus
                             />
-                            <button
-                              type="button"
-                              className={styles.generateBtn}
-                              onClick={() =>
-                                setResetPassword({
-                                  ...resetPassword,
-                                  newPassword: generateRandomPassword(),
-                                })
-                              }
-                            >
-                              Generate random
-                            </button>
                             <div className={styles.button_wrap}>
                               <button
                                 className={styles.resetConfirmBtn}
                                 onClick={() => handleResetPassword(user.id)}
-                                aria-label="Confirm password reset"
                               >
                                 <CheckIcon width={18} height={18} fill="#fff" />
                               </button>
@@ -531,7 +415,7 @@ Please change your password after first login.`;
                                 className={styles.resetCancelBtn}
                                 onClick={() => setResetPassword(null)}
                               >
-                                Cancel Reset
+                                Cancel
                               </button>
                             </div>
                           </div>
@@ -541,10 +425,9 @@ Please change your password after first login.`;
                             onClick={() =>
                               setResetPassword({
                                 userId: user.id,
-                                newPassword: "",
+                                newPassword: '',
                               })
                             }
-                            title="Reset Password"
                           >
                             Reset Password
                           </button>
@@ -553,7 +436,6 @@ Please change your password after first login.`;
                           <button
                             className={styles.deleteBtn}
                             onClick={() => handleDeleteUser(user.id)}
-                            title="Delete User"
                           >
                             Remove
                           </button>
@@ -574,11 +456,12 @@ Please change your password after first login.`;
         </div>
       </div>
 
-      {/* Confirmation Dialog Modal */}
       {confirmDialog && (
         <div className={styles.confirmOverlay} onClick={closeConfirmDialog}>
           <div
-            className={`${styles.confirmDialog} ${styles[confirmDialog.type]}`}
+            className={`${styles.confirmDialog} ${
+              styles[confirmDialog.type]
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.confirmHeader}>
@@ -586,7 +469,6 @@ Please change your password after first login.`;
               <button
                 className={styles.confirmCloseBtn}
                 onClick={closeConfirmDialog}
-                aria-label="Close"
               >
                 <CloseIcon width={18} height={18} fill="#666" />
               </button>
@@ -602,74 +484,12 @@ Please change your password after first login.`;
                 {confirmDialog.cancelText}
               </button>
               <button
-                className={`${styles.confirmActionBtn} ${styles[confirmDialog.type + "Btn"]}`}
+                className={`${styles.confirmActionBtn} ${
+                  styles[confirmDialog.type + 'Btn']
+                }`}
                 onClick={confirmDialog.action}
               >
                 {confirmDialog.confirmText}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ Post-reset handoff dialog — shows the new password once */}
-      {handoffDialog && (
-        <div
-          className={styles.confirmOverlay}
-          onClick={() => setHandoffDialog(null)}
-        >
-          <div
-            className={`${styles.confirmDialog} ${styles.info}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.confirmHeader}>
-              <h3>Password Reset Complete</h3>
-              <button
-                className={styles.confirmCloseBtn}
-                onClick={() => setHandoffDialog(null)}
-                aria-label="Close"
-              >
-                <CloseIcon width={18} height={18} fill="#666" />
-              </button>
-            </div>
-            <div className={styles.confirmBody}>
-              <p>
-                New password for <strong>{handoffDialog.userName}</strong>:
-              </p>
-              <div className={styles.passwordHandoff}>
-                <code>{handoffDialog.password}</code>
-                <button
-                  className={styles.copyBtn}
-                  onClick={() => copyToClipboard(handoffDialog.password)}
-                  aria-label="Copy password"
-                >
-                  Copy
-                </button>
-              </div>
-              <p className={styles.handoffNote}>
-                ⚠️ This password will not be shown again. Share it with{" "}
-                {handoffDialog.userName} now and ask them to change it after
-                first login.
-              </p>
-            </div>
-            <div className={styles.confirmFooter}>
-              <button
-                className={styles.confirmCancelBtn}
-                onClick={() => setHandoffDialog(null)}
-              >
-                Close
-              </button>
-              <button
-                className={`${styles.confirmActionBtn} ${styles.infoBtn}`}
-                onClick={() =>
-                  openWhatsAppHandoff(
-                    handoffDialog.userName,
-                    handoffDialog.userPhone,
-                    handoffDialog.password,
-                  )
-                }
-              >
-                Send via WhatsApp
               </button>
             </div>
           </div>

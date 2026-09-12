@@ -1,6 +1,35 @@
 // components/Admin/AdminPanel.module.scss
 
 // =========================================================
+// Design tokens — minimal set
+// =========================================================
+
+// Colors
+$primary:        #3caa46;
+$primary-dark:   #064a16;
+$primary-soft:   #e8f5e9;
+
+$danger:         #dc3545;
+$danger-dark:    #c82333;
+$danger-soft:    #fdecea;
+
+$text:           #1a1a1a;
+$text-muted:     #666;
+$text-faint:     #999;
+
+$border:         #e0e0e0;
+$border-soft:    #f0f0f0;
+$bg:             #ffffff;
+$bg-subtle:      #f7f7f7;
+
+// Radius (12px max)
+$radius: 8px;
+$radius-sm: 4px;
+
+// Transition
+$t: 0.2s ease;
+
+// =========================================================
 // Overlay + panel shell
 // =========================================================
 .overlay {
@@ -16,8 +45,8 @@
 }
 
 .panel {
-  background: white;
-  border-radius: 8px;
+  background: $bg;
+  border-radius: $radius;
   width: 100%;
   max-width: 800px;
   max-height: 80%;
@@ -28,36 +57,18 @@
 }
 
 @keyframes slideIn {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 // =========================================================
@@ -68,14 +79,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid $border;
   position: relative;
 
   h2 {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: $text;
   }
 }
 
@@ -88,7 +99,7 @@
   cursor: pointer;
 
   &:hover path {
-    fill: #333;
+    fill: $text;
   }
 }
 
@@ -96,15 +107,15 @@
   margin: 0 32px 0 0;
   padding: 4px 8px;
   font-size: 12px;
-  background: #e8e8e8;
-  color: #4d4d4d;
-  border-radius: 4px;
+  background: $bg-subtle;
+  color: $text-muted;
+  border-radius: $radius-sm;
   cursor: pointer;
-  border: none;
-  transition: background 0.2s;
+  border: 1px solid $border;
+  transition: background $t;
 
   &:hover {
-    background: #dcdcdc;
+    background: $border;
   }
 }
 
@@ -119,16 +130,16 @@
 
   .statItem {
     text-align: center;
-    border: 1.5px dashed #dcdcdc;
-    border-radius: 4px;
+    border: 1.5px dashed $border;
+    border-radius: $radius-sm;
     padding: 4px 8px;
-    background: #f8f9fa;
+    background: $bg-subtle;
   }
 
   .statLabel {
     display: block;
     font-size: 10px;
-    color: #666;
+    color: $text-muted;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 2px;
@@ -137,15 +148,10 @@
   .statValue {
     font-size: 14px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: $text;
 
-    &.inStock {
-      color: #3caa46;
-    }
-
-    &.outOfStock {
-      color: #dc3545;
-    }
+    &.inStock    { color: $primary; }
+    &.outOfStock { color: $danger; }
   }
 }
 
@@ -156,36 +162,36 @@
   padding: 8px;
   display: flex;
   gap: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid $border-soft;
   flex-wrap: wrap;
 
   .searchInput {
     flex: 1;
     min-width: 200px;
     padding: 10px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
+    border: 2px solid $border;
+    border-radius: $radius;
     font-size: 14px;
-    transition: border-color 0.2s;
+    transition: border-color $t;
 
     &:focus {
       outline: none;
-      border-color: #3caa46;
+      border-color: $primary;
     }
   }
 
   .filterSelect {
     padding: 10px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background: white;
+    border: 2px solid $border;
+    border-radius: $radius;
+    background: $bg;
     font-size: 14px;
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: border-color $t;
 
     &:focus {
       outline: none;
-      border-color: #3caa46;
+      border-color: $primary;
     }
   }
 }
@@ -199,7 +205,7 @@
   background: #fff8e1;
   color: #856404;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   text-align: center;
   border-left: 3px solid #ffc107;
 }
@@ -220,19 +226,11 @@
     border-bottom: 1px solid #f5f5f5;
     gap: 16px;
     position: relative;
-    transition:
-      background-color 0.15s,
-      opacity 0.15s,
-      transform 0.15s;
+    transition: background-color 0.15s, opacity 0.15s, transform 0.15s;
     cursor: grab;
 
-    &:active {
-      cursor: grabbing;
-    }
-
-    &:last-child {
-      border-bottom: none;
-    }
+    &:active { cursor: grabbing; }
+    &:last-child { border-bottom: none; }
   }
 }
 
@@ -246,13 +244,17 @@
     width: 48px;
     height: 48px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: $radius;
   }
 
   .itemName {
     font-weight: 600;
-    color: #1a1a1a;
-    font-size: 15px;
+    color: $text;
+    font-size: 14px;
+  }
+
+  @media (max-width: 580px) {
+    padding-right: 40px;
   }
 }
 
@@ -268,45 +270,45 @@
   }
 
   .inStockBadge {
-    color: #1d7e25;
+    color: $primary-dark;
     font-weight: 500;
     font-size: 13px;
     padding: 6px 12px;
-    background: #e8f5e9;
-    border-radius: 12px;
+    background: $primary-soft;
+    border-radius: $radius-sm;
   }
 
   .outOfStockBadge {
-    color: #dc3545;
+    color: $danger;
     font-weight: 500;
     font-size: 13px;
     padding: 4px 12px;
-    background: #fde8ea;
-    border-radius: 12px;
+    background: $danger-soft;
+    border-radius: $radius-sm;
   }
 }
 
 .toggleBtn {
   padding: 6px 16px;
   border: none;
-  border-radius: 6px;
-  background: #3caa46;
-  color: white;
+  border-radius: $radius-sm;
+  background: $primary;
+  color: #fff;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all $t;
 
   &:hover {
-    background: #064a16;
-    box-shadow: 0 2px 8px rgba(8, 91, 27, 0.3);
+    background: $primary-dark;
+    box-shadow: 0 2px 8px rgba(60, 170, 70, 0.3);
   }
 
   &.outOfStockBtn {
-    background: #dc3545;
+    background: $danger;
 
     &:hover {
-      background: #c82333;
+      background: $danger-dark;
       box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
     }
   }
@@ -315,13 +317,13 @@
 .editBtn {
   padding: 6px 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   background: #007bff;
-  color: white;
+  color: #fff;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all $t;
 
   &:hover {
     background: #0056b3;
@@ -332,7 +334,7 @@
 .emptyState {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: $text-muted;
   font-size: 15px;
 }
 
@@ -346,7 +348,7 @@
 }
 
 .dropTarget {
-  border-top: 2px solid #085b1b;
+  border-top: 2px solid $primary-dark;
   transform: translateY(1px);
 }
 
@@ -359,12 +361,10 @@
   height: 40px;
   margin-right: 8px;
   cursor: grab;
-  color: #999;
+  color: $text-faint;
   user-select: none;
 
-  &:active {
-    cursor: grabbing;
-  }
+  &:active { cursor: grabbing; }
 
   &:hover .dragDots,
   &:hover .dragDots::before,
@@ -391,13 +391,8 @@
     border-radius: 1px;
   }
 
-  &::before {
-    top: -5px;
-  }
-
-  &::after {
-    top: 5px;
-  }
+  &::before { top: -5px; }
+  &::after  { top: 5px; }
 }
 
 .reorderingBanner {
@@ -406,21 +401,14 @@
   z-index: 5;
   padding: 8px 12px;
   margin-bottom: 8px;
-  background: #085b1b;
+  background: $primary-dark;
   color: #fff;
   font-size: 13px;
   font-weight: 500;
   text-align: center;
-  border-radius: 6px;
+  border-radius: $radius-sm;
 }
 
-@media screen and (max-width: 580px) {
-  .dragHandle {
-    position: absolute;
-    top: 6px;
-    right: 0;
-  }
-}
 // =========================================================
 // Edit / Add modal
 // =========================================================
@@ -438,8 +426,8 @@
 }
 
 .editModalContent {
-  background: white;
-  border-radius: 8px;
+  background: $bg;
+  border-radius: $radius;
   width: 100%;
   max-width: 700px;
   max-height: 90vh;
@@ -455,13 +443,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 18px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid $border;
 
   h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: $text;
   }
 }
 
@@ -495,15 +483,15 @@
   input,
   textarea {
     padding: 8px 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border: 1px solid $border;
+    border-radius: $radius;
     font-size: 12px;
-    transition: border-color 0.2s;
+    transition: border-color $t;
     font-family: inherit;
 
     &:focus {
       outline: none;
-      border-color: #3caa46;
+      border-color: $primary;
     }
   }
 
@@ -532,7 +520,7 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: #3caa46;
+    accent-color: $primary;
   }
 }
 
@@ -552,9 +540,9 @@
 .customizationSection {
   margin-top: 16px;
   padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  background: $bg-subtle;
+  border-radius: $radius;
+  border: 1px solid $border;
 }
 
 .sectionHeader {
@@ -567,7 +555,7 @@
     margin: 0;
     font-size: 12px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: $text;
   }
 }
 
@@ -576,24 +564,24 @@
   background: #606060;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: $radius-sm;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all $t;
 
   &:hover {
-    background: #064a16;
+    background: $primary-dark;
     transform: translateY(-1px);
   }
 }
 
 .emptyCustomization {
-  color: #999;
+  color: $text-faint;
   font-size: 14px;
   text-align: center;
   padding: 16px;
-  background: white;
-  border-radius: 6px;
+  background: $bg;
+  border-radius: $radius-sm;
   margin: 0;
 }
 
@@ -606,10 +594,10 @@
 }
 
 .customizationItem {
-  background: white;
+  background: $bg;
   padding: 16px;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border-radius: $radius;
+  border: 1px solid $border;
   position: relative;
 
   .customizationHeader {
@@ -618,7 +606,7 @@
 
   .customizationIndex {
     font-weight: 600;
-    color: #666;
+    color: $text-muted;
     font-size: 13px;
   }
 
@@ -632,9 +620,7 @@
   .formGroup {
     margin-bottom: 12px;
 
-    &:last-child {
-      margin-bottom: 0;
-    }
+    &:last-child { margin-bottom: 0; }
   }
 }
 
@@ -662,15 +648,14 @@
 }
 
 .removeChoiceBtn {
-      cursor: pointer;
-    width: 32px;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #ffeaea;
-    border-radius: 4px;
-  
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffeaea;
+  border-radius: $radius-sm;
 
   &:disabled {
     opacity: 0.4;
@@ -681,7 +666,7 @@
 .addChoiceBtn {
   background: #f5f5f5;
   border: 1px dashed #bbb;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   padding: 8px 12px;
   font-size: 13px;
   color: #333;
@@ -698,74 +683,63 @@
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 14px;
-  background: #fff;
+  background: $bg;
   cursor: pointer;
 
   &:focus {
     outline: none;
-    border-color: #3caa46;
+    border-color: $primary;
   }
 }
 
-@media screen and (max-width: 580px) {
-  .choiceRow {
-      grid-template-columns: 1fr 60px 32px;
-  }
-}
 // =========================================================
 // Form actions
 // =========================================================
 .formActions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    padding-top: 12px;
-    border-top: 1px solid #e0e0e0;
-    margin-top: 8px;
-    position: sticky;
-    bottom: -16px;
-    padding: 10px 0;
-    background: #fff;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid $border;
+  margin-top: 8px;
+  position: sticky;
+  bottom: -16px;
+  padding: 10px 0;
+  background: $bg;
 }
 
 .cancelBtn {
   padding: 8px 18px;
-  background: #f0f0f0;
+  background: $border-soft;
   color: #333;
   border: none;
-  border-radius: 8px;
+  border-radius: $radius;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all $t;
 
-  &:hover:not(:disabled) {
-    background: #e0e0e0;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: $border; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
 .saveBtn {
   padding: 10px 18px;
-  background: #3caa46;
-  color: white;
+  background: $primary;
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: $radius;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all $t;
 
   &:hover:not(:disabled) {
-    background: #064a16;
+    background: $primary-dark;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(8, 91, 27, 0.3);
+    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.3);
   }
 
   &:disabled {
@@ -779,23 +753,17 @@
 .deleteBtn {
   padding: 8px 18px;
   background: transparent;
-  color: #c82333;
+  color: $danger-dark;
   border: none;
-  border-radius: 8px;
+  border-radius: $radius;
   font-size: 12px;
   font-weight: 500;
   text-decoration: underline;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color $t;
 
-  &:hover:not(:disabled) {
-    color: #a01c28;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { color: #a01c28; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 // =========================================================
@@ -805,14 +773,14 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #fdecea;
+  background: $danger-soft;
   color: #b71c1c;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 12px;
-  border-left: 4px solid #dc3545;
+  border-left: 4px solid $danger;
   box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
   animation: slideDown 0.2s ease-out;
 }
@@ -821,15 +789,15 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #e8f5e9;
+  background: $primary-soft;
   color: #1b5e20;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 12px;
-  border-left: 4px solid #2e7d32;
-  box-shadow: 0 2px 4px rgba(46, 125, 50, 0.1);
+  border-left: 4px solid $primary;
+  box-shadow: 0 2px 4px rgba(60, 170, 70, 0.1);
   animation: slideDown 0.2s ease-out;
 }
 
@@ -837,27 +805,27 @@
 // Invalid-field highlighting
 // =========================================================
 .inputError {
-  border-color: #dc3545 !important;
+  border-color: $danger !important;
   background-color: #fff8f8 !important;
   box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12) !important;
 
   &:focus {
     outline: none;
-    border-color: #dc3545 !important;
+    border-color: $danger !important;
     box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
   }
 }
 
 .imageUploadError {
-  border: 1px dashed #dc3545;
-  border-radius: 8px;
+  border: 1px dashed $danger;
+  border-radius: $radius;
   padding: 8px;
   background: #fff8f8;
   box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
 }
 
 // =========================================================
-// ImageUpload (used by child component — keep)
+// ImageUpload (used by child component)
 // =========================================================
 .imageUploadContainer {
   margin-bottom: 12px;
@@ -873,18 +841,16 @@
 
 .imageUploadArea {
   border: 2px dashed #ddd;
-  border-radius: 8px;
+  border-radius: $radius;
   padding: 16px;
   min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s ease;
+  transition: border-color $t;
   background: #fafafa;
 
-  &:hover {
-    border-color: #3caa46;
-  }
+  &:hover { border-color: $primary; }
 }
 
 .hiddenFileInput {
@@ -912,23 +878,17 @@
 
 .uploadBtn {
   padding: 8px 20px;
-  background: #3caa46;
-  color: white;
+  background: $primary;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background $t;
 
-  &:hover {
-    background: #2d8a36;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  &:hover { background: #2d8a36; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
 .uploadDivider {
@@ -938,23 +898,21 @@
 
 .urlBtn {
   padding: 8px 20px;
-  background: #f0f0f0;
+  background: $border-soft;
   color: #555;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background $t;
 
-  &:hover {
-    background: #e0e0e0;
-  }
+  &:hover { background: $border; }
 }
 
 .uploadHint {
   font-size: 12px;
-  color: #999;
+  color: $text-faint;
 }
 
 .imagePreviewWrapper {
@@ -969,8 +927,8 @@
   height: auto;
   max-height: 150px;
   object-fit: cover;
-  border-radius: 6px;
-  border: 2px solid #3caa46;
+  border-radius: $radius-sm;
+  border: 2px solid $primary;
 }
 
 .removeImageBtn {
@@ -980,13 +938,13 @@
   width: 28px;
   height: 28px;
   background: #e74c3c;
-  color: white;
+  color: #fff;
   border: none;
   border-radius: 50%;
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all $t;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1008,13 +966,13 @@
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  transition: border-color $t;
 
   &:focus {
     outline: none;
-    border-color: #3caa46;
+    border-color: $primary;
     box-shadow: 0 0 0 3px rgba(60, 170, 70, 0.1);
   }
 }
@@ -1027,34 +985,30 @@
 
 .urlSubmitBtn {
   padding: 8px 24px;
-  background: #3caa46;
-  color: white;
+  background: $primary;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background $t;
 
-  &:hover {
-    background: #2d8a36;
-  }
+  &:hover { background: #2d8a36; }
 }
 
 .urlCancelBtn {
   padding: 8px 24px;
-  background: #f0f0f0;
+  background: $border-soft;
   color: #555;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background $t;
 
-  &:hover {
-    background: #e0e0e0;
-  }
+  &:hover { background: $border; }
 }
 
 .errorText {
@@ -1076,21 +1030,21 @@
   width: 100%;
   max-width: 300px;
   height: 6px;
-  background: #e8e8e8;
+  background: $border-soft;
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #3caa46, #2d8a36);
+  background: linear-gradient(90deg, $primary, #2d8a36);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
 
 .progressText {
   font-size: 12px;
-  color: #666;
+  color: $text-muted;
 }
 
 // =========================================================
@@ -1110,8 +1064,8 @@
 }
 
 .confirmDialog {
-  background: white;
-  border-radius: 10px;
+  background: $bg;
+  border-radius: $radius;
   width: 100%;
   max-width: 380px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
@@ -1127,7 +1081,7 @@
     margin: 0;
     font-size: 15px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: $text;
   }
 }
 
@@ -1151,36 +1105,32 @@
 
 .confirmCancelBtn {
   padding: 8px 16px;
-  background: #f0f0f0;
+  background: $border-soft;
   color: #333;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background $t;
 
-  &:hover {
-    background: #e0e0e0;
-  }
+  &:hover { background: $border; }
 }
 
 .confirmActionBtn {
   padding: 8px 16px;
-  background: #3caa46;
-  color: white;
+  background: $primary;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
+  transition: background $t, box-shadow $t;
 
   &:hover {
-    background: #064a16;
-    box-shadow: 0 2px 8px rgba(8, 91, 27, 0.3);
+    background: $primary-dark;
+    box-shadow: 0 2px 8px rgba(60, 170, 70, 0.3);
   }
 }
 
@@ -1198,19 +1148,12 @@
     width: 100%;
   }
 
-  .imagePreviewWrapper {
-    max-width: 150px;
-  }
-
-  .progressBar {
-    max-width: 100%;
-  }
+  .imagePreviewWrapper { max-width: 150px; }
+  .progressBar { max-width: 100%; }
 }
 
 @media (max-width: 640px) {
-  .panel {
-    padding: 0;
-  }
+  .panel { padding: 0; }
 
   .controls {
     padding: 8px;
@@ -1222,14 +1165,14 @@
       border-width: 1px;
       padding: 8px;
       font-size: 12px;
-      border-radius: 4px;
+      border-radius: $radius-sm;
     }
 
     .filterSelect {
       padding: 8px;
       border-width: 1px;
-      border-radius: 4px;
-      color: #4d4d4d;
+      border-radius: $radius-sm;
+      color: $text-muted;
       font-size: 12px;
     }
   }
@@ -1249,12 +1192,10 @@
     .itemImage {
       width: 32px;
       height: 32px;
-      border-radius: 4px;
+      border-radius: $radius-sm;
     }
 
-    .itemName {
-      font-size: 12px;
-    }
+    .itemName { font-size: 12px; }
   }
 
   .itemStatus {
@@ -1263,13 +1204,11 @@
     justify-content: space-between;
     width: 100%;
 
-    .stock_wrap {
-      flex: 1;
-    }
+    .stock_wrap { flex: 1; }
 
     .inStockBadge,
     .outOfStockBadge {
-      border-radius: 4px;
+      border-radius: $radius-sm;
       font-size: 12px;
       padding: 4px 8px;
     }
@@ -1277,33 +1216,31 @@
 
   .toggleBtn {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: $radius-sm;
     font-size: 12px;
   }
 
   .editBtn {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: $radius-sm;
     font-size: 12px;
   }
 
-  .formRow {
-    grid-template-columns: 1fr;
+  .formRow { grid-template-columns: 1fr; }
+  .editModalContent { padding: 0; }
+  .editForm { padding: 16px; }
+  .checkboxRow { gap: 12px; }
+  .customizationItem { padding: 12px; }
+}
+
+@media screen and (max-width: 580px) {
+  .dragHandle {
+    position: absolute;
+    top: 6px;
+    right: 0;
   }
 
-  .editModalContent {
-    padding: 0;
-  }
-
-  .editForm {
-    padding: 16px;
-  }
-
-  .checkboxRow {
-    gap: 12px;
-  }
-
-  .customizationItem {
-    padding: 12px;
+  .choiceRow {
+    grid-template-columns: 1fr 60px 32px;
   }
 }

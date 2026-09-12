@@ -6,6 +6,7 @@ import { DEFAULT_ADMIN, SEED_USERS } from '../config/credentials';
 import { TABLES } from '../config/tables';
 
 const STORE_SETTINGS_KEY = TABLES.STORE_SETTINGS;
+const TENANT_SLUG_KEY = 'restaurant_tenant_slug';
 
 class DatabaseService {
   private static instance: DatabaseService;
@@ -18,27 +19,23 @@ class DatabaseService {
   private connectionCheckPromise: Promise<boolean> | null = null;
   private maintenanceInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Throttle state for connection-failure logs
   private lastTestFailureAt = 0;
   private lastTestFailureMsg = '';
   private static readonly TEST_FAIL_LOG_THROTTLE_MS = 60_000;
 
-  // Throttle for menu read errors
   private menuErrorLogged = false;
 
   private constructor() {
     this.useSupabase = isSupabaseConfigured;
 
     if (this.useSupabase) {
-      this.isMaintenanceMode = true;
+      this.isMaintenanceMode = false;
       this.connectionCheckPromise = this.checkConnectionOnStartup();
 
-      // Self-heal: re-check connection periodically
       this.maintenanceInterval = setInterval(() => {
-        this.forceConnectionCheck().catch(() => { /* already throttled */ });
+        this.forceConnectionCheck().catch(() => { /* throttled */ });
       }, 30_000);
 
-      // Also re-check when the tab regains focus
       if (typeof window !== 'undefined') {
         window.addEventListener('focus', () => {
           this.forceConnectionCheck().catch(() => { /* ignore */ });
@@ -55,6 +52,14 @@ class DatabaseService {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
+  }
+
+  // ============ TENANT KEY HELPERS ============
+  // localStorage keys are namespaced per tenant so two tenants never
+  // share cache accidentally.
+
+  private tenantKey(base: string, tenantSlug: string): string {
+    return `${base}::${tenantSlug}`;
   }
 
   // ============ CONNECTION / MAINTENANCE ============
@@ -75,10 +80,16 @@ class DatabaseService {
         setTimeout(() => reject(new Error('Connection timeout')), 5000);
       });
 
-      const itemsPromise = supabaseService.getMenuItems();
-      const items = await Promise.race([itemsPromise, timeoutPromise]) as MenuItem[] | null;
+      const slug =
+        (typeof sessionStorage !== 'undefined' &&
+          sessionStorage.getItem(TENANT_SLUG_KEY)) ||
+        'main';
 
-      // Success — reset throttle so future failures get logged again
+      const itemsPromise = supabaseService.getMenuItems(slug);
+      const items = await Promise.race([itemsPromise, timeoutPromise]) as
+        | MenuItem[]
+        | null;
+
       this.lastTestFailureAt = 0;
       this.lastTestFailureMsg = '';
       return items !== null;
@@ -86,7 +97,6 @@ class DatabaseService {
       const msg = error instanceof Error ? error.message : String(error);
       const now = Date.now();
 
-      // Only log once per minute per distinct message
       if (
         msg !== this.lastTestFailureMsg ||
         now - this.lastTestFailureAt > DatabaseService.TEST_FAIL_LOG_THROTTLE_MS
@@ -95,7 +105,6 @@ class DatabaseService {
         this.lastTestFailureAt = now;
         this.lastTestFailureMsg = msg;
       }
-
       return false;
     }
   }
@@ -104,12 +113,14 @@ class DatabaseService {
     this.maintenanceListeners.push(listener);
     listener(this.isMaintenanceMode);
     return () => {
-      this.maintenanceListeners = this.maintenanceListeners.filter(l => l !== listener);
+      this.maintenanceListeners = this.maintenanceListeners.filter(
+        (l) => l !== listener,
+      );
     };
   }
 
   private notifyMaintenanceListeners(): void {
-    this.maintenanceListeners.forEach(listener => listener(this.isMaintenanceMode));
+    this.maintenanceListeners.forEach((l) => l(this.isMaintenanceMode));
   }
 
   public isInMaintenanceMode(): boolean {
@@ -127,7 +138,6 @@ class DatabaseService {
 
   async forceConnectionCheck(): Promise<boolean> {
     if (!this.useSupabase) return false;
-
     const isConnected = await this.testConnection();
     const changed = this.isMaintenanceMode !== !isConnected;
     this.isMaintenanceMode = !isConnected;
@@ -136,120 +146,89 @@ class DatabaseService {
   }
 
   async waitForConnectionCheck(): Promise<boolean> {
-    if (this.connectionCheckPromise) {
-      return await this.connectionCheckPromise;
-    }
+    if (this.connectionCheckPromise) return await this.connectionCheckPromise;
     return !this.isMaintenanceMode;
   }
 
   // ============ HELPERS ============
 
   private isUuid(id: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id,
+    );
   }
 
-  // ============ LOCAL STORAGE — MENU ============
+  // ============ LOCAL STORAGE — MENU (per tenant) ============
 
-  private getLocalMenuItems(): MenuItem[] {
+  private getLocalMenuItems(tenantSlug: string): MenuItem[] {
     try {
-      const data = localStorage.getItem(this.localStorageKey);
+      const key = this.tenantKey(this.localStorageKey, tenantSlug);
+      const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
     }
   }
 
-  private saveLocalMenuItems(items: MenuItem[]): void {
+  private saveLocalMenuItems(tenantSlug: string, items: MenuItem[]): void {
     try {
-      localStorage.setItem(this.localStorageKey, JSON.stringify(items));
+      const key = this.tenantKey(this.localStorageKey, tenantSlug);
+      localStorage.setItem(key, JSON.stringify(items));
     } catch { /* ignore */ }
   }
 
-  // ============ LOCAL STORAGE — USERS ============
+  // ============ LOCAL STORAGE — USERS (per tenant) ============
 
-  private getLocalUsers(): User[] {
+  private getLocalUsers(tenantSlug: string): User[] {
     try {
-      const data = localStorage.getItem(this.localStorageUsersKey);
+      const key = this.tenantKey(this.localStorageUsersKey, tenantSlug);
+      const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
     }
   }
 
-  private saveLocalUsers(users: User[]): void {
+  private saveLocalUsers(tenantSlug: string, users: User[]): void {
     try {
-      localStorage.setItem(this.localStorageUsersKey, JSON.stringify(users));
+      const key = this.tenantKey(this.localStorageUsersKey, tenantSlug);
+      localStorage.setItem(key, JSON.stringify(users));
     } catch { /* ignore */ }
+  }
+
+  // ============ LOCAL STORAGE — STORE SETTINGS (per tenant) ============
+
+  private getStoreSettingsKey(tenantSlug: string): string {
+    return this.tenantKey(STORE_SETTINGS_KEY, tenantSlug);
   }
 
   // ============ STORE SETTINGS ============
 
-  async getStoreSettings(): Promise<StoreSettings | null> {
-  // Supabase is the source of truth when we're connected.
-  // Never write the local cache back — that causes the "store won't close" bug.
-  if (this.useSupabase && !this.isMaintenanceMode) {
-    try {
-      const settings = await supabaseService.getStoreSettings();
-      if (settings) {
-        localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(settings));
-        return settings;
+  async getStoreSettings(tenantSlug: string): Promise<StoreSettings | null> {
+    if (this.useSupabase && !this.isMaintenanceMode) {
+      try {
+        const settings = await supabaseService.getStoreSettings(tenantSlug);
+        if (settings) {
+          localStorage.setItem(
+            this.getStoreSettingsKey(tenantSlug),
+            JSON.stringify(settings),
+          );
+          return settings;
+        }
+      } catch (error) {
+        console.error('getStoreSettings failed, using local:', error);
       }
-    } catch (error) {
-      console.error('getStoreSettings failed, using local:', error);
     }
+    return this.getStoreSettingsFromLocalStorage(tenantSlug);
   }
-  return this.getStoreSettingsFromLocalStorage();
-}
 
-  private getStoreSettingsFromLocalStorage(): StoreSettings | null {
+  private getStoreSettingsFromLocalStorage(
+    tenantSlug: string,
+  ): StoreSettings | null {
     try {
-      const saved = localStorage.getItem(STORE_SETTINGS_KEY);
+      const saved = localStorage.getItem(this.getStoreSettingsKey(tenantSlug));
       if (!saved) return null;
       const parsed = JSON.parse(saved);
-
-      if (parsed.autoOpen || parsed.holiday) {
-        let isOpen = parsed.isOpen ?? true;
-
-        if (parsed.autoOpen?.enabled) {
-          const now = new Date();
-          const currentDay = now.getDay();
-          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-          const currentDayName = dayNames[currentDay];
-          const selectedDays = parsed.autoOpen?.days || [];
-          const isTodaySelected = selectedDays.includes('everyday') || selectedDays.includes(currentDayName);
-
-          if (isTodaySelected && parsed.autoOpen?.date && parsed.autoOpen?.time) {
-            const autoOpenTime = new Date(`${parsed.autoOpen.date}T${parsed.autoOpen.time}`);
-            const currentTime = now.getTime();
-
-            if (currentTime >= autoOpenTime.getTime()) {
-              if (parsed.autoOpen?.closeTime && parsed.autoOpen?.closeDate) {
-                const closeTime = new Date(`${parsed.autoOpen.closeDate}T${parsed.autoOpen.closeTime}`);
-                isOpen = currentTime < closeTime.getTime();
-              } else {
-                isOpen = true;
-              }
-            } else {
-              isOpen = false;
-            }
-          } else {
-            isOpen = false;
-          }
-        }
-
-        if (parsed.holiday?.enabled) isOpen = false;
-
-        const newSettings: StoreSettings = {
-          isOpen,
-          closedMessage: parsed.closedMessage || (isOpen ? '' : 'Store is currently closed'),
-          expectedOpenDate: parsed.autoOpen?.date || '',
-          expectedOpenTime: parsed.autoOpen?.time || '',
-          lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-        };
-
-        localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(newSettings));
-        return newSettings;
-      }
 
       return {
         isOpen: parsed.isOpen ?? true,
@@ -264,19 +243,27 @@ class DatabaseService {
     }
   }
 
-  async updateStoreSettings(settings: StoreSettings): Promise<boolean> {
+  async updateStoreSettings(
+    tenantSlug: string,
+    settings: StoreSettings,
+  ): Promise<boolean> {
     try {
-      localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem(
+        this.getStoreSettingsKey(tenantSlug),
+        JSON.stringify(settings),
+      );
 
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const result = await supabaseService.updateStoreSettings(settings);
+          const result = await supabaseService.updateStoreSettings(
+            tenantSlug,
+            settings,
+          );
           if (!result) console.warn('Supabase updateStoreSettings returned false');
         } catch (error) {
           console.error('Supabase updateStoreSettings threw:', error);
         }
       }
-
       return true;
     } catch (error) {
       console.error('updateStoreSettings failed:', error);
@@ -286,66 +273,61 @@ class DatabaseService {
 
   // ============ MENU ITEMS ============
 
-  // In-memory last-known-good menu (survives across reads in the same session)
-private lastGoodMenuItems: MenuItem[] | null = null;
-
-async getMenuItems(): Promise<MenuItem[] | null> {
-  // When Supabase is configured, always try Supabase first.
-  // Do NOT short-circuit to localStorage even if we think we're in maintenance mode,
-  // because maintenance mode is a lagging indicator — the connection may be fine now.
-  if (this.useSupabase) {
-    try {
-      const items = await supabaseService.getMenuItems();
-      if (items !== null) {
-        this.lastGoodMenuItems = items;
-        this.saveLocalMenuItems(items);   // cache for offline cold-start
-        return items;
+  async getMenuItems(tenantSlug: string): Promise<MenuItem[] | null> {
+    if (this.useSupabase) {
+      try {
+        const items = await supabaseService.getMenuItems(tenantSlug);
+        if (items !== null) {
+          this.menuErrorLogged = false;
+          this.saveLocalMenuItems(tenantSlug, items);
+          return items;
+        }
+      } catch (error) {
+        console.error('getMenuItems (Supabase) threw:', error);
       }
-    } catch (error) {
-      console.error('getMenuItems (Supabase) threw:', error);
+
+      if (!this.menuErrorLogged) {
+        console.warn('getMenuItems returned null — using local cache');
+        this.menuErrorLogged = true;
+      }
     }
+
+    const cached = this.getLocalMenuItems(tenantSlug);
+    if (cached.length > 0) return cached;
+    return this.useSupabase ? null : [];
   }
 
-  // Supabase genuinely unavailable → return last-known-good from this session,
-  // then fall back to persisted cache, then to null.
-  if (this.lastGoodMenuItems) {
-    return this.lastGoodMenuItems;
-  }
-  const cached = this.getLocalMenuItems();
-  if (cached.length > 0) return cached;
-  return this.useSupabase ? null : [];
-}
-
-  async getVisibleMenuItems(): Promise<MenuItem[]> {
-    const items = await this.getMenuItems();
+  async getVisibleMenuItems(tenantSlug: string): Promise<MenuItem[]> {
+    const items = await this.getMenuItems(tenantSlug);
     if (!items) return [];
-    return items.filter(item => item.inStock === true);
+    return items.filter((item) => item.inStock === true);
   }
 
-  async addMenuItem(item: MenuItem): Promise<MenuItem | null> {
+  async addMenuItem(
+    tenantSlug: string,
+    item: MenuItem,
+  ): Promise<MenuItem | null> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const result = await supabaseService.addMenuItem(item);
+          const result = await supabaseService.addMenuItem(tenantSlug, item);
           if (result) {
-            const localItems = this.getLocalMenuItems();
+            const localItems = this.getLocalMenuItems(tenantSlug);
             localItems.push(result);
-            this.saveLocalMenuItems(localItems);
+            this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          // RPC exists but returned null → real error, do NOT corrupt local cache
-          console.error('Supabase addMenuItem returned null — aborting (no local fallback while connected).');
+          console.error('Supabase addMenuItem returned null — aborting.');
           return null;
         } catch (error) {
           console.error('Supabase addMenuItem threw:', error);
-          return null; // don't fall through to local either
+          return null;
         }
       }
 
-      // Local-only mode (Supabase not configured or in maintenance)
-      const localItems = this.getLocalMenuItems();
+      const localItems = this.getLocalMenuItems(tenantSlug);
       localItems.push(item);
-      this.saveLocalMenuItems(localItems);
+      this.saveLocalMenuItems(tenantSlug, localItems);
       return item;
     } catch (error) {
       console.error('addMenuItem failed:', error);
@@ -353,14 +335,16 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async deleteMenuItem(id: number): Promise<boolean> {
+  async deleteMenuItem(tenantSlug: string, id: number): Promise<boolean> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const result = await supabaseService.deleteMenuItem(id);
+          const result = await supabaseService.deleteMenuItem(tenantSlug, id);
           if (result) {
-            const localItems = this.getLocalMenuItems().filter(i => i.id !== id);
-            this.saveLocalMenuItems(localItems);
+            const localItems = this.getLocalMenuItems(tenantSlug).filter(
+              (i) => i.id !== id,
+            );
+            this.saveLocalMenuItems(tenantSlug, localItems);
             return true;
           }
           console.error('Supabase deleteMenuItem returned false — aborting.');
@@ -371,10 +355,10 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localItems = this.getLocalMenuItems();
-      const filtered = localItems.filter(item => item.id !== id);
+      const localItems = this.getLocalMenuItems(tenantSlug);
+      const filtered = localItems.filter((item) => item.id !== id);
       if (filtered.length === localItems.length) return false;
-      this.saveLocalMenuItems(filtered);
+      this.saveLocalMenuItems(tenantSlug, filtered);
       return true;
     } catch (error) {
       console.error('deleteMenuItem failed:', error);
@@ -382,17 +366,25 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async updateMenuItem(id: number, updates: Partial<MenuItem>): Promise<MenuItem | null> {
+  async updateMenuItem(
+    tenantSlug: string,
+    id: number,
+    updates: Partial<MenuItem>,
+  ): Promise<MenuItem | null> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const result = await supabaseService.updateMenuItem(id, updates);
+          const result = await supabaseService.updateMenuItem(
+            tenantSlug,
+            id,
+            updates,
+          );
           if (result) {
-            const localItems = this.getLocalMenuItems();
-            const index = localItems.findIndex(i => i.id === id);
+            const localItems = this.getLocalMenuItems(tenantSlug);
+            const index = localItems.findIndex((i) => i.id === id);
             if (index !== -1) localItems[index] = result;
             else localItems.push(result);
-            this.saveLocalMenuItems(localItems);
+            this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
           console.error('Supabase updateMenuItem returned null — aborting.');
@@ -403,12 +395,11 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      // Local-only
-      const localItems = this.getLocalMenuItems();
-      const index = localItems.findIndex(item => item.id === id);
+      const localItems = this.getLocalMenuItems(tenantSlug);
+      const index = localItems.findIndex((item) => item.id === id);
       if (index === -1) return null;
       localItems[index] = { ...localItems[index], ...updates };
-      this.saveLocalMenuItems(localItems);
+      this.saveLocalMenuItems(tenantSlug, localItems);
       return localItems[index];
     } catch (error) {
       console.error('updateMenuItem failed:', error);
@@ -416,16 +407,22 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async toggleMenuItemStock(id: number): Promise<MenuItem | null> {
+  async toggleMenuItemStock(
+    tenantSlug: string,
+    id: number,
+  ): Promise<MenuItem | null> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const result = await supabaseService.toggleMenuItemStock(id);
+          const result = await supabaseService.toggleMenuItemStock(
+            tenantSlug,
+            id,
+          );
           if (result) {
-            const localItems = this.getLocalMenuItems();
-            const index = localItems.findIndex(i => i.id === id);
+            const localItems = this.getLocalMenuItems(tenantSlug);
+            const index = localItems.findIndex((i) => i.id === id);
             if (index !== -1) localItems[index] = result;
-            this.saveLocalMenuItems(localItems);
+            this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
           console.error('Supabase toggleMenuItemStock returned null — aborting.');
@@ -436,11 +433,11 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localItems = this.getLocalMenuItems();
-      const index = localItems.findIndex(item => item.id === id);
+      const localItems = this.getLocalMenuItems(tenantSlug);
+      const index = localItems.findIndex((item) => item.id === id);
       if (index === -1) return null;
       localItems[index].inStock = !localItems[index].inStock;
-      this.saveLocalMenuItems(localItems);
+      this.saveLocalMenuItems(tenantSlug, localItems);
       return localItems[index];
     } catch (error) {
       console.error('toggleMenuItemStock failed:', error);
@@ -448,22 +445,30 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async bulkUpdateMenuItems(updates: { id: number; inStock: boolean }[]): Promise<MenuItem[]> {
+  async bulkUpdateMenuItems(
+    tenantSlug: string,
+    updates: { id: number; inStock: boolean }[],
+  ): Promise<MenuItem[]> {
     const updatedItems: MenuItem[] = [];
 
     if (this.useSupabase && !this.isMaintenanceMode) {
       try {
-        const result = await supabaseService.bulkUpdateMenuItems(updates);
-        if (result && result.length > 0) {
-          const localItems = this.getLocalMenuItems();
-          result.forEach(updated => {
-            const index = localItems.findIndex(item => item.id === updated.id);
-            if (index !== -1) {
-              localItems[index] = updated;
-              updatedItems.push(updated);
-            }
+        const results = await Promise.all(
+          updates.map((u) =>
+            supabaseService.updateMenuItem(tenantSlug, u.id, {
+              inStock: u.inStock,
+            }),
+          ),
+        );
+        const ok = results.filter((r): r is MenuItem => !!r);
+        if (ok.length > 0) {
+          const localItems = this.getLocalMenuItems(tenantSlug);
+          ok.forEach((updated) => {
+            const index = localItems.findIndex((item) => item.id === updated.id);
+            if (index !== -1) localItems[index] = updated;
+            updatedItems.push(updated);
           });
-          this.saveLocalMenuItems(localItems);
+          this.saveLocalMenuItems(tenantSlug, localItems);
           return updatedItems;
         }
       } catch (error) {
@@ -471,168 +476,170 @@ async getMenuItems(): Promise<MenuItem[] | null> {
       }
     }
 
-    const localItems = this.getLocalMenuItems();
-    updates.forEach(update => {
-      const index = localItems.findIndex(item => item.id === update.id);
+    const localItems = this.getLocalMenuItems(tenantSlug);
+    updates.forEach((update) => {
+      const index = localItems.findIndex((item) => item.id === update.id);
       if (index !== -1) {
         localItems[index].inStock = update.inStock;
         updatedItems.push(localItems[index]);
       }
     });
-    this.saveLocalMenuItems(localItems);
+    this.saveLocalMenuItems(tenantSlug, localItems);
     return updatedItems;
   }
 
-  async reorderMenuItems(orderedIds: number[]): Promise<MenuItem[] | null> {
-  if (this.useSupabase && !this.isMaintenanceMode) {
-    try {
-      const result = await supabaseService.reorderMenuItems(orderedIds);
-      if (result) {
-        this.saveLocalMenuItems(result);
-        return result;
+  async reorderMenuItems(
+    tenantSlug: string,
+    orderedIds: number[],
+  ): Promise<MenuItem[] | null> {
+    if (this.useSupabase && !this.isMaintenanceMode) {
+      try {
+        const result = await supabaseService.reorderMenuItems(
+          tenantSlug,
+          orderedIds,
+        );
+        if (result) {
+          this.saveLocalMenuItems(tenantSlug, result);
+          return result;
+        }
+        console.error('Supabase reorderMenuItems returned null — aborting.');
+        return null;
+      } catch (error) {
+        console.error('Supabase reorderMenuItems threw:', error);
+        return null;
       }
-      console.error('Supabase reorderMenuItems returned null — aborting.');
-      return null;
-    } catch (error) {
-      console.error('Supabase reorderMenuItems threw:', error);
-      return null;
     }
+
+    const localItems = this.getLocalMenuItems(tenantSlug);
+    const byId = new Map(localItems.map((i) => [i.id, i]));
+    const reordered: MenuItem[] = [];
+    orderedIds.forEach((id, index) => {
+      const item = byId.get(id);
+      if (item) reordered.push({ ...item, sortOrder: index + 1 });
+    });
+    localItems.forEach((i) => {
+      if (!orderedIds.includes(i.id)) reordered.push(i);
+    });
+    this.saveLocalMenuItems(tenantSlug, reordered);
+    return reordered;
   }
 
-  // Local-only: reorder the local array
-  const localItems = this.getLocalMenuItems();
-  const byId = new Map(localItems.map(i => [i.id, i]));
-  const reordered: MenuItem[] = [];
-  orderedIds.forEach((id, index) => {
-    const item = byId.get(id);
-    if (item) reordered.push({ ...item, sortOrder: index + 1 });
-  });
-  // Append any items not in orderedIds
-  localItems.forEach(i => {
-    if (!orderedIds.includes(i.id)) reordered.push(i);
-  });
-  this.saveLocalMenuItems(reordered);
-  return reordered;
-}
+  async initializeMenuItems(
+    tenantSlug: string,
+    defaultItems: MenuItem[],
+  ): Promise<void> {
+    if (this.useSupabase && !this.isMaintenanceMode) {
+      try {
+        const supabaseItems = await supabaseService.getMenuItems(tenantSlug);
 
-  async initializeMenuItems(defaultItems: MenuItem[]): Promise<void> {
-  // ✅ In Supabase mode, the DB is the only source of truth for the menu.
-  // Never write the seed into localStorage — it makes the cache lie about
-  // what's actually on the server.
-  if (this.useSupabase && !this.isMaintenanceMode) {
-    try {
-      const supabaseItems = await supabaseService.getMenuItems();
+        if (supabaseItems === null) {
+          console.warn(
+            'initializeMenuItems: Supabase read failed — skipping seed',
+          );
+          return;
+        }
 
-      // Guard: don't seed if the read failed
-      if (supabaseItems === null) {
-        console.warn(
-          'initializeMenuItems: Supabase read failed — skipping seed to avoid duplicates',
-        );
+        if (supabaseItems.length === 0) {
+          for (const item of defaultItems) {
+            await supabaseService.addMenuItem(tenantSlug, item);
+          }
+        }
+        return;
+      } catch (error) {
+        console.error('initializeMenuItems (Supabase) failed:', error);
         return;
       }
+    }
 
-      // Seed the DB from menuData.ts only when the DB is genuinely empty
-      if (supabaseItems.length === 0) {
-        for (const item of defaultItems) {
-          await supabaseService.addMenuItem(item);
-        }
-      }
-      // If the DB already has items, do nothing — never merge with stale local
-      return;
-    } catch (error) {
-      console.error('initializeMenuItems (Supabase) failed:', error);
-      return;
+    const localItems = this.getLocalMenuItems(tenantSlug);
+    if (localItems.length === 0) {
+      this.saveLocalMenuItems(tenantSlug, defaultItems);
     }
   }
-
-  // Local-only mode (Supabase not configured, or maintenance mode):
-  // Safe to seed the cache, since there's no DB to be authoritative.
-  const localItems = this.getLocalMenuItems();
-  if (localItems.length === 0) {
-    this.saveLocalMenuItems(defaultItems);
-  }
-}
 
   // ============ USERS ============
 
-  async getUsers(): Promise<User[]> {
+  async getUsers(tenantSlug: string): Promise<User[]> {
     if (this.useSupabase && !this.isMaintenanceMode) {
       try {
-        const supabaseUsers = await supabaseService.getUsers();
-        // Trust Supabase even when empty
-        this.saveLocalUsers(supabaseUsers);
+        const supabaseUsers = await supabaseService.getUsers(tenantSlug);
+        this.saveLocalUsers(tenantSlug, supabaseUsers);
         return supabaseUsers;
       } catch (error) {
         console.error('getUsers (Supabase) failed, using local:', error);
       }
     }
-    return this.getLocalUsers();
+    return this.getLocalUsers(tenantSlug);
   }
 
-  async getUserByPhone(phone: string): Promise<User | null> {
+  async getUserByPhone(
+    tenantSlug: string,
+    phone: string,
+  ): Promise<User | null> {
     if (this.useSupabase && !this.isMaintenanceMode) {
       try {
-        const user = await supabaseService.getUserByPhone(phone);
+        const user = await supabaseService.getUserByPhone(tenantSlug, phone);
         if (user) {
-          // Replace any existing local entry with the same phone (prevents duplicates)
-          const localUsers = this.getLocalUsers().filter(u => u.phone !== phone);
+          const localUsers = this.getLocalUsers(tenantSlug).filter(
+            (u) => u.phone !== phone,
+          );
           localUsers.push(user);
-          this.saveLocalUsers(localUsers);
+          this.saveLocalUsers(tenantSlug, localUsers);
           return user;
         }
       } catch (error) {
         console.error('getUserByPhone (Supabase) failed:', error);
       }
     }
-    return this.getLocalUserByPhone(phone);
+    return (
+      this.getLocalUsers(tenantSlug).find((u) => u.phone === phone) || null
+    );
   }
 
-  async getUserById(id: string): Promise<User | null> {
-    if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
-      try {
-        const user = await supabaseService.getUserById(id);
-        if (user) {
-          // Replace by id AND by phone to prevent duplicates
-          const localUsers = this.getLocalUsers()
-            .filter(u => u.id !== id && u.phone !== user.phone);
-          localUsers.push(user);
-          this.saveLocalUsers(localUsers);
-          return user;
-        }
-      } catch (error) {
-        console.error('getUserById (Supabase) failed:', error);
+  async getUserById(tenantSlug: string, id: string): Promise<User | null> {
+  if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
+    try {
+      const user = await supabaseService.getUserById(id);   // ✅ matches the new method
+      if (user) {
+        const localUsers = this.getLocalUsers(tenantSlug).filter(
+          (u) => u.id !== id && u.phone !== user.phone,
+        );
+        localUsers.push(user);
+        this.saveLocalUsers(tenantSlug, localUsers);
+        return user;
       }
+    } catch (error) {
+      console.error('getUserById (Supabase) failed:', error);
     }
-    return this.getLocalUsers().find(u => u.id === id) || null;
   }
+  return this.getLocalUsers(tenantSlug).find((u) => u.id === id) || null;
+}
 
-  private getLocalUserByPhone(phone: string): User | null {
-    const users = this.getLocalUsers();
-    return users.find(u => u.phone === phone) || null;
-  }
-
-  async createUser(userData: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+  async createUser(
+    tenantSlug: string,
+    userData: Omit<User, 'id' | 'createdAt'>,
+  ): Promise<User> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
         try {
-          const user = await supabaseService.createUser(userData);
-          const localUsers = this.getLocalUsers();
+          const user = await supabaseService.createUser(tenantSlug, userData);
+          const localUsers = this.getLocalUsers(tenantSlug);
           localUsers.push(user);
-          this.saveLocalUsers(localUsers);
+          this.saveLocalUsers(tenantSlug, localUsers);
           return user;
         } catch (error) {
           console.error('Supabase createUser threw, falling back to local:', error);
         }
       }
 
-      const localUsers = this.getLocalUsers();
+      const localUsers = this.getLocalUsers(tenantSlug);
       const newUser: User = {
         ...userData,
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date().toISOString(),
       };
       localUsers.push(newUser);
-      this.saveLocalUsers(localUsers);
+      this.saveLocalUsers(tenantSlug, localUsers);
       return newUser;
     } catch (error) {
       console.error('createUser failed:', error);
@@ -640,11 +647,14 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+  async updateUser(
+    tenantSlug: string,
+    id: string,
+    updates: Partial<User>,
+  ): Promise<User | null> {
     try {
       let updatedUser: User | null = null;
 
-      // Only send UUIDs to Supabase
       if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
         try {
           const user = await supabaseService.updateUser(id, updates);
@@ -655,14 +665,13 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localUsers = this.getLocalUsers();
-      const index = localUsers.findIndex(u => u.id === id);
+      const localUsers = this.getLocalUsers(tenantSlug);
+      const index = localUsers.findIndex((u) => u.id === id);
       if (index !== -1) {
         localUsers[index] = { ...localUsers[index], ...updates };
-        this.saveLocalUsers(localUsers);
+        this.saveLocalUsers(tenantSlug, localUsers);
         if (!updatedUser) updatedUser = localUsers[index];
       }
-
       return updatedUser;
     } catch (error) {
       console.error('updateUser failed:', error);
@@ -670,15 +679,16 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async deleteUser(id: string): Promise<boolean> {
+  async deleteUser(tenantSlug: string, id: string): Promise<boolean> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
         try {
           const result = await supabaseService.deleteUser(id);
           if (result) {
-            const localUsers = this.getLocalUsers();
-            const filtered = localUsers.filter(u => u.id !== id);
-            this.saveLocalUsers(filtered);
+            const localUsers = this.getLocalUsers(tenantSlug).filter(
+              (u) => u.id !== id,
+            );
+            this.saveLocalUsers(tenantSlug, localUsers);
             return true;
           }
           console.warn('Supabase deleteUser returned false');
@@ -687,10 +697,10 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localUsers = this.getLocalUsers();
-      const filtered = localUsers.filter(u => u.id !== id);
+      const localUsers = this.getLocalUsers(tenantSlug);
+      const filtered = localUsers.filter((u) => u.id !== id);
       if (filtered.length === localUsers.length) return false;
-      this.saveLocalUsers(filtered);
+      this.saveLocalUsers(tenantSlug, filtered);
       return true;
     } catch (error) {
       console.error('deleteUser failed:', error);
@@ -698,17 +708,20 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async toggleUserStatus(id: string): Promise<User | null> {
+  async toggleUserStatus(
+    tenantSlug: string,
+    id: string,
+  ): Promise<User | null> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
         try {
           const user = await supabaseService.toggleUserStatus(id);
           if (user) {
-            const localUsers = this.getLocalUsers();
-            const index = localUsers.findIndex(u => u.id === id);
+            const localUsers = this.getLocalUsers(tenantSlug);
+            const index = localUsers.findIndex((u) => u.id === id);
             if (index !== -1) {
               localUsers[index] = user;
-              this.saveLocalUsers(localUsers);
+              this.saveLocalUsers(tenantSlug, localUsers);
             }
             return user;
           }
@@ -718,11 +731,11 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localUsers = this.getLocalUsers();
-      const index = localUsers.findIndex(u => u.id === id);
+      const localUsers = this.getLocalUsers(tenantSlug);
+      const index = localUsers.findIndex((u) => u.id === id);
       if (index === -1) return null;
       localUsers[index].isActive = !localUsers[index].isActive;
-      this.saveLocalUsers(localUsers);
+      this.saveLocalUsers(tenantSlug, localUsers);
       return localUsers[index];
     } catch (error) {
       console.error('toggleUserStatus failed:', error);
@@ -730,17 +743,24 @@ async getMenuItems(): Promise<MenuItem[] | null> {
     }
   }
 
-  async changeUserPassword(id: string, newPassword: string): Promise<boolean> {
+  async changeUserPassword(
+    tenantSlug: string,
+    id: string,
+    newPassword: string,
+  ): Promise<boolean> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
         try {
-          const result = await supabaseService.changeUserPassword(id, newPassword);
+          const result = await supabaseService.changeUserPassword(
+            id,
+            newPassword,
+          );
           if (result) {
-            const localUsers = this.getLocalUsers();
-            const index = localUsers.findIndex(u => u.id === id);
+            const localUsers = this.getLocalUsers(tenantSlug);
+            const index = localUsers.findIndex((u) => u.id === id);
             if (index !== -1) {
               localUsers[index].password = newPassword;
-              this.saveLocalUsers(localUsers);
+              this.saveLocalUsers(tenantSlug, localUsers);
             }
             return true;
           }
@@ -750,11 +770,11 @@ async getMenuItems(): Promise<MenuItem[] | null> {
         }
       }
 
-      const localUsers = this.getLocalUsers();
-      const index = localUsers.findIndex(u => u.id === id);
+      const localUsers = this.getLocalUsers(tenantSlug);
+      const index = localUsers.findIndex((u) => u.id === id);
       if (index === -1) return false;
       localUsers[index].password = newPassword;
-      this.saveLocalUsers(localUsers);
+      this.saveLocalUsers(tenantSlug, localUsers);
       return true;
     } catch (error) {
       console.error('changeUserPassword failed:', error);
@@ -764,46 +784,48 @@ async getMenuItems(): Promise<MenuItem[] | null> {
 
   // ============ DEFAULT SEEDING ============
 
-  async initializeDefaultUsers(): Promise<void> {
-    // When Supabase is configured + connected, the server is the source of truth.
+  async initializeDefaultUsers(tenantSlug: string): Promise<void> {
     if (this.useSupabase && !this.isMaintenanceMode) {
       try {
-        const supabaseUsers = await supabaseService.getUsers();
+        const supabaseUsers = await supabaseService.getUsers(tenantSlug);
         if (supabaseUsers.length > 0) {
-          this.saveLocalUsers(supabaseUsers);
+          this.saveLocalUsers(tenantSlug, supabaseUsers);
           return;
         }
       } catch (e) {
-        console.warn('initializeDefaultUsers: Supabase check failed, falling back', e);
+        console.warn('initializeDefaultUsers: Supabase check failed', e);
       }
     }
 
-    // Local fallback (dev / offline)
-    const localUsers = this.getLocalUsers();
-    const adminExists = localUsers.some(u => u.phone === DEFAULT_ADMIN.phone);
-    if (!adminExists) {
-      const adminUser: User = {
-        id: `admin_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        phone: DEFAULT_ADMIN.phone,
-        name: DEFAULT_ADMIN.name,
-        password: DEFAULT_ADMIN.password,
-        role: DEFAULT_ADMIN.role,
-        isActive: DEFAULT_ADMIN.isActive,
-        createdAt: new Date().toISOString(),
-      };
-      localUsers.push(adminUser);
-      for (const seedUser of SEED_USERS) {
-        localUsers.push({
-          id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          phone: seedUser.phone,
-          name: seedUser.name,
-          password: seedUser.password,
-          role: seedUser.role,
-          isActive: seedUser.isActive,
+    if (tenantSlug === 'main') {
+      const localUsers = this.getLocalUsers(tenantSlug);
+      const adminExists = localUsers.some(
+        (u) => u.phone === DEFAULT_ADMIN.phone,
+      );
+      if (!adminExists) {
+        const adminUser: User = {
+          id: `admin_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          phone: DEFAULT_ADMIN.phone,
+          name: DEFAULT_ADMIN.name,
+          password: DEFAULT_ADMIN.password,
+          role: DEFAULT_ADMIN.role,
+          isActive: DEFAULT_ADMIN.isActive,
           createdAt: new Date().toISOString(),
-        });
+        };
+        localUsers.push(adminUser);
+        for (const seedUser of SEED_USERS) {
+          localUsers.push({
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            phone: seedUser.phone,
+            name: seedUser.name,
+            password: seedUser.password,
+            role: seedUser.role,
+            isActive: seedUser.isActive,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        this.saveLocalUsers(tenantSlug, localUsers);
       }
-      this.saveLocalUsers(localUsers);
     }
   }
 

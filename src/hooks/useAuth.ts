@@ -13,8 +13,12 @@ export const useAuth = () => {
     return unsubscribe;
   }, []);
 
-  const login = async (phone: string, password: string) => {
-    return await authService.login(phone, password);
+  const login = async (
+    phone: string,
+    password: string,
+    tenantSlug: string | null,
+  ) => {
+    return await authService.login(phone, password, tenantSlug);
   };
 
   const logout = () => {
@@ -25,28 +29,6 @@ export const useAuth = () => {
     return await authService.updateUserProfile(updates);
   };
 
-  // Admin methods
-  const createUser = async (phone: string, password: string, name: string, role: 'admin' | 'user' = 'user') => {
-    return await authService.createUser(phone, password, name, role);
-  };
-
-  const getAllUsers = async () => {
-    return await authService.getAllUsers();
-  };
-
-  const toggleUserStatus = async (userId: string) => {
-    return await authService.toggleUserStatus(userId);
-  };
-
-  const resetUserPassword = async (userId: string, newPassword: string) => {
-    return await authService.resetUserPassword(userId, newPassword);
-  };
-
-  const deleteUser = async (userId: string) => {
-    return await authService.deleteUser(userId);
-  };
-
-  // Check if current user is admin
   const isAdmin = state.user?.role === 'admin';
 
   return {
@@ -54,11 +36,6 @@ export const useAuth = () => {
     login,
     logout,
     updateProfile,
-    createUser,
-    getAllUsers,
-    toggleUserStatus,
-    resetUserPassword,
-    deleteUser,
     isAdmin,
     getCurrentUser: authService.getCurrentUser,
   };

@@ -1,0 +1,856 @@
+/* ============================================================
+   TenantManager.module.scss
+   Modern admin panel: sticky header w/ Add button, responsive
+   card table, and modal dialogs for create & credentials.
+   ============================================================ */
+
+/* ---------- Design tokens ---------- */
+$color-bg: #ffffff;
+$color-bg-subtle: #f7f8fa;
+$color-bg-muted: #eef1f5;
+$color-border: #e2e6ec;
+$color-border-strong: #cbd2dc;
+
+$color-text: #1a1d21;
+$color-text-muted: #6b7280;
+$color-text-faint: #9aa1ac;
+
+$color-primary: #2563eb;
+$color-primary-dark: #1d4ed8;
+$color-primary-soft: #eff4ff;
+
+$color-success: #0f9d58;
+$color-success-soft: #e7f6ee;
+$color-warning: #b45309;
+$color-warning-soft: #fff6e5;
+$color-danger: #d92d20;
+$color-danger-soft: #fdecea;
+
+$radius-sm: 6px;
+$radius-md: 8px;
+$radius-lg: 12px;
+
+$shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+$shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+$shadow-lg: 0 24px 48px rgba(16, 24, 40, 0.18);
+
+$transition: 0.18s ease;
+
+/* ============================================================
+   Overlay & Panel
+   ============================================================ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 22, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  animation: fadeIn 0.18s ease;
+}
+
+.panel {
+  width: 100%;
+  max-width: 1080px;
+  max-height: 92vh;
+  background: $color-bg;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.22s ease;
+
+  @media (max-width: 640px) {
+    max-height: 100vh;
+    max-width: 100%;
+    height: 100%;
+  }
+}
+
+/* ============================================================
+   Header (sticky) with Add New Store button
+   ============================================================ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid $color-border;
+  background: $color-bg;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    position: relative;
+  }
+}
+
+.headerTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: $color-text;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 640px) {
+    h2 {
+      font-size: 16px;
+    }
+  }
+}
+
+.headerCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: $color-text-muted;
+  background: $color-bg-muted;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* Add New Store button (primary CTA in header) */
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: $color-primary;
+  border: 1px solid $color-primary;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition:
+    background $transition,
+    box-shadow $transition,
+    transform 0.05s ease;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-dark;
+    border-color: $color-primary-dark;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.addBtnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: $color-bg-subtle;
+  cursor: pointer;
+  transition: background $transition;
+  flex-shrink: 0;
+
+  @media (max-width: 580px) {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+  }
+
+  &:hover {
+    background: $color-bg-muted;
+  }
+}
+
+/* ============================================================
+   Flash messages
+   ============================================================ */
+.errorMessage,
+.successMessage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 24px 0;
+  padding: 10px 14px;
+  border-radius: $radius-md;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+
+  span {
+    flex: 1;
+  }
+
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  @media (max-width: 640px) {
+    margin: 10px 16px 0;
+  }
+}
+
+.errorMessage {
+  background: $color-danger-soft;
+  color: $color-danger;
+  border-left: 4px solid $color-danger;
+}
+
+.successMessage {
+  background: $color-success-soft;
+  color: $color-success;
+  border-left: 4px solid $color-success;
+}
+
+/* ============================================================
+   Item list (scrollable body)
+   ============================================================ */
+.itemList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
+}
+
+/* ============================================================
+   Form (used inside modal & inline edit)
+   ============================================================ */
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $color-text-muted;
+    letter-spacing: 0.01em;
+  }
+
+  input {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: $color-text;
+    background: $color-bg;
+    border: 1px solid $color-border-strong;
+    border-radius: $radius-sm;
+    transition:
+      border-color $transition,
+      box-shadow $transition;
+    outline: none;
+
+    &::placeholder {
+      color: $color-text-faint;
+    }
+
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    &:disabled {
+      background: $color-bg-muted;
+      cursor: not-allowed;
+    }
+  }
+
+  small {
+    font-size: 11px;
+    color: $color-text-muted;
+    line-height: 1.4;
+
+    code {
+      background: $color-bg-muted;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      word-break: break-all;
+    }
+  }
+}
+
+/* Password row: input + inline icon/show buttons */
+.passwordRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Small square icon button (🎲) */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 0 10px;
+  font-size: 15px;
+  background: $color-bg;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition:
+    background $transition,
+    border-color $transition;
+
+  &:hover {
+    background: $color-bg-subtle;
+    border-color: $color-primary;
+  }
+}
+
+/* ============================================================
+   Form actions
+   ============================================================ */
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+
+  @media (max-width: 640px) {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+/* ============================================================
+   Buttons (shared)
+   ============================================================ */
+.saveBtn,
+.cancelBtn,
+.editBtn,
+.deleteBtn,
+.toggleBtn,
+.confirmActionBtn,
+.confirmCancelBtn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: $radius-sm;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 8px 14px;
+  transition:
+    background $transition,
+    border-color $transition,
+    color $transition,
+    transform 0.05s ease;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+.saveBtn,
+.confirmActionBtn {
+  background: $color-primary;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-dark;
+  }
+}
+
+.cancelBtn,
+.confirmCancelBtn {
+  background: $color-bg;
+  color: $color-text;
+  border-color: $color-border-strong;
+
+  &:hover:not(:disabled) {
+    background: $color-bg-subtle;
+  }
+}
+
+.editBtn {
+  background: $color-bg;
+  color: $color-text;
+  border-color: $color-border-strong;
+  padding: 6px 12px;
+  font-size: 12.5px;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-soft;
+    border-color: $color-primary;
+    color: $color-primary-dark;
+  }
+}
+
+.toggleBtn {
+  background: $color-bg;
+  color: $color-warning;
+  border-color: $color-border-strong;
+  padding: 6px 12px;
+  font-size: 12.5px;
+
+  &:hover:not(:disabled) {
+    background: $color-warning-soft;
+    border-color: $color-warning;
+  }
+}
+
+.outOfStockBtn {
+  color: $color-warning;
+  border-color: rgba(180, 83, 9, 0.4);
+  background: $color-warning-soft;
+}
+
+.deleteBtn {
+  background: $color-bg;
+  color: $color-danger;
+  border-color: $color-border-strong;
+  padding: 6px 12px;
+  font-size: 12.5px;
+
+  &:hover:not(:disabled) {
+    background: $color-danger-soft;
+    border-color: $color-danger;
+  }
+}
+
+/* ============================================================
+   Tenant rows (responsive table)
+   ============================================================ */
+.itemRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  transition:
+    border-color $transition,
+    box-shadow $transition;
+
+  &:hover {
+    border-color: $color-border-strong;
+    box-shadow: $shadow-sm;
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: $color-text;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.tenantUrl {
+  font-size: 12px;
+  color: $color-text-muted;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.tenantMeta {
+  font-size: 11px;
+  color: $color-text-faint;
+  margin-top: 2px;
+}
+
+.tenantSlugBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: $color-primary-soft;
+  color: $color-primary-dark;
+}
+
+.badgeInactive {
+  background: $color-danger-soft;
+  color: #b71c1c;
+}
+
+.itemStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+
+  @media (max-width: 720px) {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* Inline edit wrapper inside a row */
+.editInline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+/* ============================================================
+   States
+   ============================================================ */
+.loading,
+.emptyState {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13.5px;
+  color: $color-text-muted;
+  background: $color-bg-subtle;
+  border: 1px dashed $color-border-strong;
+  border-radius: $radius-md;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: $color-text;
+  }
+}
+
+/* ============================================================
+   Modal (shared by Create Store & Credentials)
+   ============================================================ */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 22, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1100;
+  animation: fadeIn 0.18s ease;
+}
+
+.confirmDialog {
+  width: 100%;
+  max-width: 480px;
+  background: $color-bg;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.22s ease;
+
+  @media (max-width: 480px) {
+    max-width: 100%;
+  }
+}
+
+.confirmHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid $color-border;
+  flex-shrink: 0;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    color: $color-text;
+  }
+}
+
+.confirmCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: $color-bg-subtle;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-bg-muted;
+  }
+}
+
+.confirmBody {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 65vh;
+  font-size: 13.5px;
+  color: $color-text;
+  line-height: 1.5;
+
+  strong {
+    color: $color-text;
+  }
+}
+
+.confirmFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid $color-border;
+  background: $color-bg-subtle;
+  flex-shrink: 0;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+/* ============================================================
+   Credentials modal helpers
+   ============================================================ */
+.credentialsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 11px;
+  color: $color-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.passwordDisplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: $color-text-muted;
+  word-break: break-all;
+
+  span {
+    flex: 1;
+  }
+}
+
+.toggleLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: $color-primary-dark;
+  font-weight: 700;
+  padding: 2px 4px;
+  font-family: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.infoNote {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: $color-success-soft;
+  border-left: 4px solid $color-success;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  color: #1b5e20;
+}
+
+.warningNote {
+  margin-top: 14px;
+  font-size: 12px;
+  color: $color-warning;
+  background: $color-warning-soft;
+  border-left: 3px solid #ffc107;
+  padding: 8px 12px;
+  border-radius: $radius-sm;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Scrollbar (subtle, WebKit)
+   ============================================================ */
+.itemList,
+.confirmBody {
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $color-border-strong;
+    border-radius: 999px;
+    border: 2px solid $color-bg;
+
+    &:hover {
+      background: $color-text-faint;
+    }
+  }
+}

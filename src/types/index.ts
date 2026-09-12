@@ -7,7 +7,9 @@ export interface User {
   password: string;
   role: 'admin' | 'user';
   isActive: boolean;
+  tenantId?: string;
   createdAt: string;
+  tenantSlug?: string;
   lastLogin?: string;
 }
 

@@ -517,3 +517,29 @@
     }
   }
 }
+
+/* Add to Store.module.scss */
+.deactivatedBanner {
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  border: 1px solid #d0d0d0;
+
+  .bannerIcon {
+    filter: grayscale(1);
+  }
+
+  .tagLine {
+    color: #666;
+  }
+
+  .heading {
+    color: #333;
+  }
+
+  h3 {
+    color: #555;
+  }
+
+  .p {
+    color: #777;
+  }
+}

@@ -1,44 +1,59 @@
 // App.tsx
-import React, { useEffect, useState } from 'react';
-import { menuItems as defaultMenuItems } from './data/menuData';
-import { useCart } from './hooks/useCart';
-import { useAuth } from './hooks/useAuth';
-import { useMenu } from './hooks/useMenu';
-import { menuService } from './services/menu.service';
-import { db } from './services/database.service';
-import { isSupabaseConfigured } from './config/env';
-import { StoreProvider, useStore } from './contexts/StoreContext';
-import Menu from './components/Menu/Menu';
-import BrandInfo from './components/BrandInfo/BrandInfo';
-import Promotion from './components/Promotion/Promotion';
-import CartModal from './components/Cart/CartModal';
-import FloatingCart from './components/FloatingCart/FloatingCart';
-import ScheduleModal from './components/Schedule/ScheduleModal';
-import LocationModal from './components/Location/LocationModal';
-import MenuDetail from './components/MenuDetail/MenuDetail';
-import Header from './components/Header/Header';
-import AdminPanel from './components/Admin/AdminPanel';
-import StoreBanner from './components/Store/StoreBanner';
-import styles from './App.module.scss';
-import MenuSkeleton from './components/Menu/MenuSkeleton';
-import { ShopInfo } from './config/credentials';
+import React, { useEffect, useState } from "react";
+import { menuItems as defaultMenuItems } from "./data/menuData";
+import { useCart } from "./hooks/useCart";
+import { useAuth } from "./hooks/useAuth";
+import { useMenu } from "./hooks/useMenu";
+import { menuService } from "./services/menu.service";
+import { db } from "./services/database.service";
+import { isSupabaseConfigured } from "./config/env";
+import { StoreProvider, useStore } from "./contexts/StoreContext";
+import { TenantProvider, useTenant } from "./contexts/TenantContext";
+import Menu from "./components/Menu/Menu";
+import BrandInfo from "./components/BrandInfo/BrandInfo";
+import Promotion from "./components/Promotion/Promotion";
+import CartModal from "./components/Cart/CartModal";
+import FloatingCart from "./components/FloatingCart/FloatingCart";
+import ScheduleModal from "./components/Schedule/ScheduleModal";
+import LocationModal from "./components/Location/LocationModal";
+import MenuDetail from "./components/MenuDetail/MenuDetail";
+import Header from "./components/Header/Header";
+import AdminPanel from "./components/Admin/AdminPanel";
+import StoreBanner from "./components/Store/StoreBanner";
+import MenuSkeleton from "./components/Menu/MenuSkeleton";
+import { ShopInfo } from "./config/credentials";
+import StoreDeactivated from "./components/Store/StoreDeactivated";
+import MainDashboard from "./components/MainDashboard/MainDashboard";
+import TenantNotFound from './components/TenantNotFound/TenantNotFound';
+import styles from "./App.module.scss";
 
-// Database Status Notice Component
-const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean }> = ({ isConnected, isChecking }) => {
+// =========================================================
+// Database status notice (admin only)
+// =========================================================
+const DatabaseStatusNotice: React.FC<{
+  isConnected: boolean;
+  isChecking: boolean;
+}> = ({ isConnected, isChecking }) => {
   if (isChecking) {
     return (
       <div className={`${styles.dbStatusNotice} ${styles.checking}`}>
         <span className={styles.statusDot}></span>
-        <span className={styles.statusText}>⏳ Checking database connection...</span>
+        <span className={styles.statusText}>
+          ⏳ Checking database connection...
+        </span>
       </div>
     );
   }
 
   return (
-    <div className={`${styles.dbStatusNotice} ${isConnected ? styles.connected : styles.disconnected}`}>
+    <div
+      className={`${styles.dbStatusNotice} ${
+        isConnected ? styles.connected : styles.disconnected
+      }`}
+    >
       <span className={styles.statusDot}></span>
       <span className={styles.statusText}>
-        {isConnected ? 'Working!' : 'Wait'}
+        {isConnected ? "Working!" : "Wait"}
       </span>
       {!isConnected && (
         <span className={styles.reconnectingText}> - Reconnecting...</span>
@@ -47,13 +62,15 @@ const DatabaseStatusNotice: React.FC<{ isConnected: boolean; isChecking: boolean
   );
 };
 
+// =========================================================
+// App content
+// =========================================================
 const AppContent: React.FC = () => {
-  // Auth hooks - will load from localStorage
   const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
-  const {  isStoreOpen, isLoading: storeLoading } = useStore();
+  const { tenant, isLoading: tenantLoading, isDeactivated,tenantNotFound } = useTenant();
+  const { isStoreOpen, isLoading: storeLoading } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
-  const [isAdminOpen, setIsAdminOpen] = React.useState(false);
-  
+
   const {
     cart,
     paymentMode,
@@ -73,30 +90,31 @@ const AppContent: React.FC = () => {
     generateOrderNumber,
     DELIVERY_FEE,
     RESTAURANT_PHONE,
-    isLoaded: cartLoaded
+    isLoaded: cartLoaded,
   } = useCart();
 
-  const [isCartOpen, setIsCartOpen] = React.useState(false);
-  const [isScheduleOpen, setIsScheduleOpen] = React.useState(false);
-  const [isLocationOpen, setIsLocationOpen] = React.useState(false);
-  const [selectedItem, setSelectedItem] = React.useState<typeof defaultMenuItems[0] | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = React.useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<
+    (typeof defaultMenuItems)[0] | null
+  >(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Connection state - start with false (disconnected) until verified
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // Subscribe to maintenance/connection status changes
+  // ---------------------------------------------------------
+  // Connection check subscription
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setIsConnected(true);
       setIsChecking(false);
-      setIsInitializing(false);
       return;
     }
 
-    // Force a connection check on load
     const checkConnection = async () => {
       setIsChecking(true);
       const connected = await db.forceConnectionCheck();
@@ -106,48 +124,80 @@ const AppContent: React.FC = () => {
 
     checkConnection();
 
-    // Subscribe to maintenance status changes
-    if (typeof db.subscribeToMaintenance === 'function') {
+    if (typeof db.subscribeToMaintenance === "function") {
       const unsubscribe = db.subscribeToMaintenance((isActive) => {
-        const connected = !isActive;
-        setIsConnected(connected);
+        setIsConnected(!isActive);
         setIsChecking(false);
       });
-
       return () => {
         if (unsubscribe) unsubscribe();
       };
-    } else {
-      // Fallback - check every 5 seconds
-      const interval = setInterval(async () => {
-        const connected = await db.forceConnectionCheck();
-        setIsConnected(connected);
-        setIsChecking(false);
-      }, 5000);
-
-      return () => clearInterval(interval);
     }
+
+    const interval = setInterval(async () => {
+      const connected = await db.forceConnectionCheck();
+      setIsConnected(connected);
+      setIsChecking(false);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
+  // ---------------------------------------------------------
+  // Tenant-scoped initialization.
+  // Main URL (no tenant) is a valid state — don't block on it.
+  // ---------------------------------------------------------
   useEffect(() => {
-  let stop: (() => void) | undefined;
-  const init = async () => {
-    try {
-      await db.initializeDefaultUsers();
-      await menuService.initializeItems(defaultMenuItems);
-      stop = menuService.startSync({ pollMs: 60_000 });
-    } catch (error) {
-      console.error('App initialization failed:', error);
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-  init();
-  return () => { if (stop) stop(); };
-}, []);
+    // Wait until tenant context has resolved
+    if (tenantLoading) return;
 
-  // Show loading state
-if (isInitializing || authLoading || !cartLoaded || storeLoading) {
+    let stop: (() => void) | undefined;
+
+    const init = async () => {
+      try {
+        if (tenant) {
+          // Tenant URL: seed that tenant's data, start sync
+          await db.initializeDefaultUsers(tenant.slug);
+          await menuService.setTenant(tenant.slug);
+          await menuService.initializeItems(defaultMenuItems);
+          stop = menuService.startSync({ pollMs: 60_000 });
+        }
+        // Main URL: nothing tenant-specific to initialize here.
+        // The admin uses the Stores panel to manage tenants.
+      } catch (error) {
+        console.error("App initialization failed:", error);
+      } finally {
+        // Always clear the loading gate, tenant or not.
+        setIsInitializing(false);
+      }
+    };
+
+    init();
+    return () => {
+      if (stop) stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug, tenantLoading]);
+
+  // ---------------------------------------------------------
+  // Page title reflects the tenant
+  // ---------------------------------------------------------
+  useEffect(() => {
+    document.title = tenant
+      ? `${tenant.displayName} — Menu`
+      : "Menu Display by Teckut";
+  }, [tenant?.displayName]);
+
+  // ---------------------------------------------------------
+  // Loading gate
+  // ---------------------------------------------------------
+// Loading gate first
+if (
+  isInitializing ||
+  authLoading ||
+  tenantLoading ||
+  storeLoading ||
+  !cartLoaded
+) {
   return (
     <div className={styles.container}>
       <div className={styles.loadingState}>
@@ -158,35 +208,41 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
   );
 }
 
-  const handleItemClick = (item: typeof defaultMenuItems[0]) => {
-    // Only allow clicking if store is open - applies to ALL users
-    if (!isStoreOpen) {
-      return;
-    }
+// ✅ Dead URL — no header, no cart, just the error page
+if (tenantNotFound) {
+  return <TenantNotFound />;
+}
+
+  // ---------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------
+  const handleItemClick = (item: (typeof defaultMenuItems)[0]) => {
+    if (!isStoreOpen) return;
     setSelectedItem(item);
     setIsDetailOpen(true);
   };
 
-  const handleAddToCartFromDetail = (item: typeof defaultMenuItems[0], customizations?: Record<string, string>, customMessage?: string) => {
-    // Only allow adding if store is open - applies to ALL users
-    if (!isStoreOpen) {
-      return;
-    }
+  const handleAddToCartFromDetail = (
+    item: (typeof defaultMenuItems)[0],
+    customizations?: Record<string, string>,
+    customMessage?: string,
+  ) => {
+    if (!isStoreOpen) return;
     addItem(item, customizations, customMessage);
   };
 
-  const handleDeliveryChange = (type: 'now' | 'schedule') => {
-    if (type === 'schedule') {
+  const handleDeliveryChange = (type: "now" | "schedule") => {
+    if (type === "schedule") {
       if (cart.length === 0) {
-        setDeliveryType('now');
+        setDeliveryType("now");
         return;
       }
       if (!scheduleData) {
         setIsScheduleOpen(true);
       }
-      setDeliveryType('schedule');
+      setDeliveryType("schedule");
     } else {
-      setDeliveryType('now');
+      setDeliveryType("now");
       setScheduleData(null);
       setIsScheduleOpen(false);
     }
@@ -194,23 +250,22 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
 
   const handleScheduleSave = (date: string, time: string) => {
     setScheduleData({ date, time });
-    setDeliveryType('schedule');
+    setDeliveryType("schedule");
     setIsScheduleOpen(false);
   };
 
   const handleScheduleClose = () => {
-    setDeliveryType('now');
+    setDeliveryType("now");
     setScheduleData(null);
     setIsScheduleOpen(false);
   };
 
   const handlePlaceOrder = () => {
-    // Only allow placing order if store is open - applies to ALL users
     if (!isStoreOpen) {
-      alert('Store is currently closed. Please try again later.');
+      alert("Store is currently closed. Please try again later.");
       return;
     }
-    if (deliveryType === 'schedule' && !scheduleData) {
+    if (deliveryType === "schedule" && !scheduleData) {
       setIsScheduleOpen(true);
       return;
     }
@@ -239,17 +294,19 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
     message += `Order ID. - ${orderNo}\n`;
     message += `Total Items - ${totalItems}\n`;
     message += `Payment - ${paymentMode}`;
-    if (paymentMode === 'Online' && discountPercent > 0) {
+    if (paymentMode === "Online" && discountPercent > 0) {
       message += ` (${discountPercent}% OFF)`;
     }
     message += `\n`;
     message += `Exp. Delivery - ${deliveryTime}\n`;
 
-    if (deliveryType === 'schedule' && scheduleData) {
-      const scheduledDateTime = new Date(`${scheduleData.date}T${scheduleData.time}`);
+    if (deliveryType === "schedule" && scheduleData) {
+      const scheduledDateTime = new Date(
+        `${scheduleData.date}T${scheduleData.time}`,
+      );
       let schedHours = scheduledDateTime.getHours();
-      const schedMins = String(scheduledDateTime.getMinutes()).padStart(2, '0');
-      const schedAmpm = schedHours >= 12 ? 'PM' : 'AM';
+      const schedMins = String(scheduledDateTime.getMinutes()).padStart(2, "0");
+      const schedAmpm = schedHours >= 12 ? "PM" : "AM";
       schedHours = schedHours % 12;
       schedHours = schedHours ? schedHours : 12;
       message += `Scheduled Delivery - ${scheduleData.date} at ${schedHours}:${schedMins} ${schedAmpm}\n`;
@@ -258,18 +315,19 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
 
     message += `-----------------\n`;
     message += `*Item List*\n`;
-    
+
     let hasCustomMessages = false;
-    
-    cart.forEach(item => {
-      const pricePerItem = (item.basePrice || item.price) + (item.addonPrice || 0);
+
+    cart.forEach((item) => {
+      const pricePerItem =
+        (item.basePrice || item.price) + (item.addonPrice || 0);
       const itemTotal = pricePerItem * item.quantity;
       let itemLine = `${item.name} x ${item.quantity}`;
       message += `- - - - - - -\n`;
       if (item.customizations && Object.keys(item.customizations).length > 0) {
         const customStr = Object.entries(item.customizations)
           .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
+          .join(", ");
         itemLine += ` (${customStr})`;
       }
       if (item.addonPrice && item.addonPrice > 0) {
@@ -277,17 +335,17 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
       }
       itemLine += ` - Rs ${itemTotal}`;
       message += `${itemLine}\n`;
-      
+
       if (item.customMessage && item.customMessage.trim()) {
         hasCustomMessages = true;
       }
     });
-    
+
     message += `-----------------\n`;
     message += `Subtotal - Rs ${Math.round(subtotal)}\n`;
     message += `Delivery - Rs ${DELIVERY_FEE}\n`;
 
-    if (paymentMode === 'Online' && discountPercent > 0) {
+    if (paymentMode === "Online" && discountPercent > 0) {
       message += `Discount (${discountPercent}%) - Rs ${discount}\n`;
       message += `-----------------\n`;
       message += `\nTotal Amount - *Rs ${finalTotal}*\n`;
@@ -301,7 +359,7 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
     if (hasCustomMessages) {
       message += `\n-----------------\n`;
       message += `*Special Instructions:*\n`;
-      cart.forEach(item => {
+      cart.forEach((item) => {
         if (item.customMessage && item.customMessage.trim()) {
           message += `- ${item.name}: ${item.customMessage.trim()}\n`;
         }
@@ -315,36 +373,44 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
 
     const encoded = encodeURIComponent(message);
     const url = `https://wa.me/${RESTAURANT_PHONE}?text=${encoded}`;
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   };
 
+  // ---------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------
   return (
     <>
-      {isAuthenticated && (
-        <DatabaseStatusNotice isConnected={isConnected} isChecking={isChecking} />
+      {isAuthenticated && isAdmin && (
+        <DatabaseStatusNotice
+          isConnected={isConnected}
+          isChecking={isChecking}
+        />
       )}
-      <Header 
-        companyName='Teckut' 
-        year={2026}
-      />
-      <div className={`${styles.container} ${getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ''}`}>
-        <BrandInfo brandName={ShopInfo.Shop_name} brandDesc={ShopInfo.Shop_tagline}/>
 
-        {/* ✅ Store Banner - Shows for ALL users when store is closed */}
-        {!isStoreOpen && <StoreBanner />}
+      <Header companyName={tenant?.displayName ?? "Teckut"} year={2026} />
 
-        {/* ✅ Menu - Only visible when store is open for ALL users */}
-        {isStoreOpen && (
+      <div
+        className={`${styles.container} ${
+          getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
+        }`}
+      >
+        {/* Main URL — no tenant context. Show the platform dashboard. */}
+        {!tenant && <MainDashboard />}
+
+        {/* Deactivated tenant — no menu, no cart */}
+        {tenant && isDeactivated && <StoreDeactivated />}
+
+        {/* Active tenant, store closed */}
+        {tenant && !isDeactivated && !isStoreOpen && <StoreBanner />}
+
+        {/* Active tenant, store open */}
+        {tenant && !isDeactivated && isStoreOpen && (
           <>
-            {/* <Promotion
-            messages={[
-              "Welcome!",
-              "Pay Online and get 20% Off",
-              "Launch Time Offer!"
-            ]}
-            typingSpeed={110}
-            delayBeforeErase={1500}
-          /> */}
+            <BrandInfo
+              brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+              brandDesc={ShopInfo.Shop_tagline}
+            />
             {menuLoading ? (
               <MenuSkeleton count={6} />
             ) : (
@@ -359,37 +425,40 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
           </>
         )}
 
-        {/* ✅ Floating Cart - Only shows when store is open AND there are items in cart */}
-        {getTotalItems() > 0 && isStoreOpen && (
+        {/* Floating cart — only for active tenants with items */}
+        {tenant && !isDeactivated && isStoreOpen && getTotalItems() > 0 && (
           <FloatingCart
             itemCount={getTotalItems()}
             onClick={() => setIsCartOpen(true)}
           />
         )}
 
-        <CartModal
-          isOpen={isCartOpen}
-          cart={cart}
-          paymentMode={paymentMode}
-          deliveryType={deliveryType}
-          scheduleData={scheduleData}
-          onClose={() => setIsCartOpen(false)}
-          onIncrement={(id, customizations) => {
-            const item = allItems.find(item => item.id === id);
-            if (item && isStoreOpen) addItem(item, customizations);
-          }}
-          onDecrement={removeItem}
-          onPlaceOrder={handlePlaceOrder}
-          onPaymentChange={setPaymentMode}
-          onDeliveryChange={handleDeliveryChange}
-          onOpenSchedule={() => setIsScheduleOpen(true)}
-          subtotal={getSubtotal()}
-          total={getTotalWithDelivery()}
-          discount={getDiscountAmount()}
-          discountPercent={getDiscountPercent()}
-          deliveryFee={DELIVERY_FEE}
-          totalItems={getTotalItems()}
-        />
+        {/* Cart modal — hidden on main URL since there's no menu to add from */}
+        {tenant && (
+          <CartModal
+            isOpen={isCartOpen}
+            cart={cart}
+            paymentMode={paymentMode}
+            deliveryType={deliveryType}
+            scheduleData={scheduleData}
+            onClose={() => setIsCartOpen(false)}
+            onIncrement={(id, customizations) => {
+              const item = allItems.find((item) => item.id === id);
+              if (item && isStoreOpen) addItem(item, customizations);
+            }}
+            onDecrement={removeItem}
+            onPlaceOrder={handlePlaceOrder}
+            onPaymentChange={setPaymentMode}
+            onDeliveryChange={handleDeliveryChange}
+            onOpenSchedule={() => setIsScheduleOpen(true)}
+            subtotal={getSubtotal()}
+            total={getTotalWithDelivery()}
+            discount={getDiscountAmount()}
+            discountPercent={getDiscountPercent()}
+            deliveryFee={DELIVERY_FEE}
+            totalItems={getTotalItems()}
+          />
+        )}
 
         <ScheduleModal
           isOpen={isScheduleOpen}
@@ -412,22 +481,21 @@ if (isInitializing || authLoading || !cartLoaded || storeLoading) {
           }}
           onAddToCart={handleAddToCartFromDetail}
         />
-
-        {isAdminOpen && isAuthenticated && isAdmin && (
-          <AdminPanel
-            onClose={() => setIsAdminOpen(false)}
-          />
-        )}
       </div>
     </>
   );
 };
 
+// =========================================================
+// App root — providers in the right order
+// =========================================================
 const App: React.FC = () => {
   return (
-    <StoreProvider>
-      <AppContent />
-    </StoreProvider>
+    <TenantProvider>
+      <StoreProvider>
+        <AppContent />
+      </StoreProvider>
+    </TenantProvider>
   );
 };
 

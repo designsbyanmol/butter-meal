@@ -1,12 +1,14 @@
 // components/Header/Header.tsx
-import React, { useState } from "react";
-import { useAuth } from "../../hooks/useAuth";
-import LoginModal from "../Auth/LoginModal";
-import UserManagement from "../Admin/UserManagement";
-import AdminPanel from "../Admin/AdminPanel";
-import StoreModal from "../Store/StoreModal";
-import styles from "./Header.module.scss";
-import { MenuIcon, UsersIcon, StoreIcon } from "../../assets/svgs";
+import React, { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { useTenant } from '../../contexts/TenantContext';
+import LoginModal from '../Auth/LoginModal';
+import UserManagement from '../Admin/UserManagement';
+import AdminPanel from '../Admin/AdminPanel';
+import StoreModal from '../Store/StoreModal';
+import TenantManager from '../Admin/TenantManager';
+import styles from './Header.module.scss';
+import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
 
 interface HeaderProps {
   companyName: string;
@@ -15,14 +17,30 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
   const { user, isAuthenticated, logout, isAdmin } = useAuth();
+  const { tenant, isDeactivated } = useTenant();
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isMenuPanelOpen, setIsMenuPanelOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [isTenantManagerOpen, setIsTenantManagerOpen] = useState(false);
+
+  // ---------------------------------------------------------
+  // Visibility rules
+  // ---------------------------------------------------------
+
+  // Platform admin = admin who is NOT scoped to any tenant.
+  // Only the main host (no ?t= slug) qualifies.
+  const isPlatformAdmin = isAdmin && !tenant;
+
+  // Tenant-scoped buttons only make sense when a tenant exists
+  // AND it's not deactivated.
+  const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
 
   const handleLogin = () => setIsLoginOpen(true);
+
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
+    if (window.confirm('Are you sure you want to logout?')) {
       logout();
     }
   };
@@ -34,41 +52,57 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
           <div className={styles.brand}>
             {!isAuthenticated ? (
               <span className={styles.companyName}>
-                {companyName} {year}
+                {tenant ? tenant.displayName : `${companyName} ${year}`}
               </span>
             ) : (
               <span className={styles.tagline}>{user?.name}</span>
             )}
           </div>
+
           <div className={styles.actions}>
             {isAuthenticated ? (
               <>
-                {/* ✅ Store button - Visible to ALL authenticated users */}
-                <button
-                  className={styles.adminBtn}
-                  onClick={() => setIsStoreModalOpen(true)}
-                  title="Store Settings"
-                >
-                  <StoreIcon width={20} height={20} fill="#1e1e1e" />
-                </button>
+                {/* ============ TENANT-SCOPED BUTTONS ============ */}
+                {canManageTenant && (
+                  <>
+                    <button
+                      className={styles.adminBtn}
+                      onClick={() => setIsStoreModalOpen(true)}
+                      title="Store Settings"
+                    >
+                      <StoreIcon width={20} height={20} fill="#1e1e1e" />
+                    </button>
 
-                {/* ✅ Menu button - Visible to ALL authenticated users */}
-                <button
-                  className={styles.adminBtn}
-                  onClick={() => setIsMenuPanelOpen(true)}
-                  title="Manage Menu"
-                >
-                  <MenuIcon width={20} height={20} color="#1e1e1e" />
-                </button>
+                    <button
+                      className={styles.adminBtn}
+                      onClick={() => setIsMenuPanelOpen(true)}
+                      title="Manage Menu"
+                    >
+                      <MenuIcon width={20} height={20} color="#1e1e1e" />
+                    </button>
 
-                {/* ✅ Users button - Only visible to Admins */}
-                {isAdmin && (
+                    {/* Users button: only admins (platform or tenant owner) */}
+                    {isAdmin && (
+                      <button
+                        className={styles.adminBtn}
+                        onClick={() => setIsUserManagementOpen(true)}
+                        title="User Management"
+                      >
+                        <UsersIcon width={20} height={20} color="#1e1e1e" />
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* ============ PLATFORM ADMIN ONLY ============ */}
+                {isPlatformAdmin && (
                   <button
                     className={styles.adminBtn}
-                    onClick={() => setIsUserManagementOpen(true)}
-                    title="User Management"
+                    onClick={() => setIsTenantManagerOpen(true)}
+                    title="Manage Stores"
                   >
-                    <UsersIcon width={20} height={20} color="#1e1e1e" />
+                    <StoreIcon width={20} height={20} fill="#1e1e1e" />
+                    <span style={{ marginLeft: 4 }}>Stores</span>
                   </button>
                 )}
 
@@ -85,21 +119,28 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
         </div>
       </div>
 
+      {/* ============ MODALS ============ */}
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
 
-      {isUserManagementOpen && (
-        <UserManagement onClose={() => setIsUserManagementOpen(false)} />
+      {isUserManagementOpen && tenant && (
+        <UserManagement
+          tenantSlug={tenant.slug}
+          onClose={() => setIsUserManagementOpen(false)}
+        />
       )}
 
       {isMenuPanelOpen && (
         <AdminPanel onClose={() => setIsMenuPanelOpen(false)} />
       )}
 
-      {/* ✅ Store Modal - Visible to ALL authenticated users */}
       <StoreModal
         isOpen={isStoreModalOpen}
         onClose={() => setIsStoreModalOpen(false)}
       />
+
+      {isTenantManagerOpen && (
+        <TenantManager onClose={() => setIsTenantManagerOpen(false)} />
+      )}
     </>
   );
 };

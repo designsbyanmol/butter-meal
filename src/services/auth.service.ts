@@ -1,24 +1,50 @@
 // services/auth.service.ts
 import { User, AuthState } from '../types';
-import { db } from './database.service';
 import { isSupabaseConfigured } from '../config/env';
+import { supabase } from './supabase.client';
+import { credentialCache } from './credentialCache';
 
-const AUTH_SESSION_KEY = 'star_veg_auth_session';
+const AUTH_SESSION_KEY = 'restaurant_auth_session';
+
+interface RawAuthRow {
+  id: string;
+  phone: string;
+  name: string;
+  role: 'admin' | 'user';
+  is_active: boolean;
+  tenant_id: string;
+  tenant_slug: string;
+  created_at: string;
+  last_login: string | null;
+}
 
 class AuthService {
-  private authState: AuthState = { user: null, isAuthenticated: false, isLoading: true };
+  private authState: AuthState = {
+    user: null,
+    isAuthenticated: false,
+    isLoading: true,
+  };
+
   private listeners: ((state: AuthState) => void)[] = [];
 
   constructor() {
     this.loadSessionFromCache();
   }
 
+  // =========================================================
+  // SESSION LIFECYCLE
+  // =========================================================
+
   private loadSessionFromCache(): void {
     try {
       const session = localStorage.getItem(AUTH_SESSION_KEY);
       if (session) {
         const user = JSON.parse(session);
-        this.authState = { user, isAuthenticated: true, isLoading: false };
+        this.authState = {
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+        };
       } else {
         this.authState.isLoading = false;
       }
@@ -29,149 +55,229 @@ class AuthService {
   }
 
   private saveSession(user: User): void {
-    try { localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user)); } catch {}
+    try {
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+    } catch {
+      /* ignore */
+    }
   }
 
   private clearSession(): void {
-    try { localStorage.removeItem(AUTH_SESSION_KEY); } catch {}
-    this.authState = { user: null, isAuthenticated: false, isLoading: false };
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    this.authState = {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    };
     this.notifyListeners();
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(l => l({ ...this.authState }));
+    this.listeners.forEach((l) => l({ ...this.authState }));
   }
 
   subscribe(listener: (state: AuthState) => void): () => void {
     this.listeners.push(listener);
     listener({ ...this.authState });
-    return () => { this.listeners = this.listeners.filter(l => l !== listener); };
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
   }
 
-  getState(): AuthState { return { ...this.authState }; }
+  getState(): AuthState {
+    return { ...this.authState };
+  }
 
-  async login(phone: string, password: string): Promise<{ success: boolean; error?: string }> {
-    if (!phone || !password) return { success: false, error: 'Phone number and password are required' };
+  // =========================================================
+  // LOGIN
+  // =========================================================
 
-    // Try Supabase first (uses SECURITY DEFINER function; hashed comparison)
-    if (isSupabaseConfigured) {
-      try {
-        const { supabaseService } = await import('./supabase.service');
-        const result = await supabaseService.signIn(phone, password);
-        if (result.user) {
-          this.authState = { user: result.user, isAuthenticated: true, isLoading: false };
-          this.saveSession(result.user);
-          this.notifyListeners();
-          return { success: true };
-        }
-        // Don't hard-fail; fall through to local for offline/dev
-        console.warn('Supabase signin failed, trying local:', result.error);
-      } catch (e) {
-        console.warn('Supabase signin threw, trying local:', e);
+  async login(
+    phone: string,
+    password: string,
+    currentTenantSlug: string | null,
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!phone || !password) {
+      return {
+        success: false,
+        error: 'Phone number and password are required',
+      };
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        success: false,
+        error: 'Service temporarily unavailable. Please try again.',
+      };
+    }
+
+    const { data, error } = await supabase.rpc('verify_password', {
+      phone_in: phone,
+      pw: password,
+    });
+
+    if (error) {
+      console.error('verify_password error:', error);
+      return { success: false, error: 'Invalid phone number or password' };
+    }
+
+    const row: RawAuthRow | undefined = Array.isArray(data) ? data[0] : data;
+    if (!row) {
+      return { success: false, error: 'Invalid phone number or password' };
+    }
+    if (!row.is_active) {
+      return {
+        success: false,
+        error: 'Account is deactivated. Please contact admin.',
+      };
+    }
+
+    // ---- Tenant scope validation ----
+    //  - Admin (role='admin') can log in anywhere.
+    //  - Staff must log in at their own tenant URL.
+    if (row.role !== 'admin') {
+      if (!currentTenantSlug) {
+        return {
+          success: false,
+          error: 'Staff accounts must log in from their store URL.',
+        };
+      }
+      if (row.tenant_slug !== currentTenantSlug) {
+        return {
+          success: false,
+          error: 'This account belongs to a different store.',
+        };
       }
     }
 
-    // Local fallback
+    // If we're replacing a different user, wipe any cached credentials
+    const previousUser = this.authState.user;
+    if (previousUser && previousUser.id !== row.id) {
+      credentialCache.clearAll();
+    }
+
+    const user: User = {
+      id: row.id,
+      phone: row.phone,
+      name: row.name,
+      password: '',
+      role: row.role,
+      isActive: row.is_active,
+      tenantId: row.tenant_id,
+      tenantSlug: row.tenant_slug, // ✅ essential for scope enforcement
+      createdAt: row.created_at,
+      lastLogin: row.last_login ?? undefined,
+    };
+
     try {
-      const user = await db.getUserByPhone(phone);
-      if (!user) return { success: false, error: 'Phone number not found' };
-      if (!user.isActive) return { success: false, error: 'Account is deactivated. Please contact admin.' };
-
-      // Local cache stores plaintext for dev only — see database.service
-      if (user.password !== password) return { success: false, error: 'Invalid password' };
-
-      try { await db.updateUser(user.id, { lastLogin: new Date().toISOString() }); } catch {}
-
-      this.authState = { user, isAuthenticated: true, isLoading: false };
-      this.saveSession(user);
-      this.notifyListeners();
-      return { success: true };
+      await supabase.rpc('touch_last_login', { user_id: row.id });
     } catch {
-      return { success: false, error: 'Service temporarily unavailable. Please try again.' };
+      /* ignore */
+    }
+
+    this.authState = {
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+    };
+    this.saveSession(user);
+    this.notifyListeners();
+    return { success: true };
+  }
+
+  // =========================================================
+  // LOGOUT
+  // =========================================================
+
+  logout(): void {
+    // Clear any session-scoped credentials so the next login starts fresh
+    credentialCache.clearAll();
+    this.clearSession();
+  }
+
+  // =========================================================
+  // TENANT SCOPE ENFORCEMENT
+  // =========================================================
+
+  /**
+   * Returns true if the current session's user is allowed to be active
+   * on the given tenant slug.
+   *
+   * Rules:
+   *   - Not logged in            → true (nothing to invalidate).
+   *   - role='admin'             → true anywhere.
+   *   - role='user' at own slug  → true.
+   *   - role='user' at main URL  → false.
+   *   - role='user' at wrong slug → false.
+   */
+  isUserValidForTenant(currentTenantSlug: string | null): boolean {
+    const user = this.authState.user;
+    if (!user) return true;
+
+    // Admins roam freely across every tenant URL
+    if (user.role === 'admin') return true;
+
+    // Staff: must be at their own tenant URL
+    if (!currentTenantSlug) return false;
+    return user.tenantSlug === currentTenantSlug;
+  }
+
+  /**
+   * Logs out if the current session's user doesn't match the tenant
+   * of the URL they're on. Safe to call repeatedly.
+   *
+   * Called by TenantContext whenever the URL's tenant is resolved.
+   */
+  enforceTenantScope(currentTenantSlug: string | null): void {
+    if (!this.isUserValidForTenant(currentTenantSlug)) {
+      // Leave a breadcrumb so the UI can optionally show a notice
+      try {
+        sessionStorage.setItem(
+          'logged_out_reason',
+          'You were signed out because this URL belongs to a different store.',
+        );
+      } catch {
+        /* ignore */
+      }
+      this.logout();
     }
   }
 
-  logout(): void { this.clearSession(); }
+  // =========================================================
+  // PROFILE
+  // =========================================================
 
-  async updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; error?: string }> {
-    if (!this.authState.user) return { success: false, error: 'Not authenticated' };
+  async updateUserProfile(
+    updates: Partial<User>,
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.authState.user) {
+      return { success: false, error: 'Not authenticated' };
+    }
     const updatedUser = { ...this.authState.user, ...updates };
     this.authState.user = updatedUser;
     this.saveSession(updatedUser);
     this.notifyListeners();
-
-    try {
-      const updated = await db.updateUser(this.authState.user.id, updates);
-      if (updated) {
-        this.authState.user = updated;
-        this.saveSession(updated);
-        this.notifyListeners();
-      }
-      return { success: true };
-    } catch {
-      return { success: true, error: 'Updated locally but may not be synced with server' };
-    }
+    return { success: true };
   }
 
-  isAuthenticated(): boolean { return this.authState.isAuthenticated; }
-  getCurrentUser(): User | null { return this.authState.user; }
-  isAdmin(): boolean { return this.authState.user?.role === 'admin'; }
+  // =========================================================
+  // GETTERS
+  // =========================================================
 
-  async createUser(phone: string, password: string, name: string, role: 'admin' | 'user' = 'user') {
-    if (!this.isAdmin()) return { success: false, error: 'Only admins can create users' };
-    try {
-      const existing = await db.getUserByPhone(phone);
-      if (existing) return { success: false, error: 'User with this phone already exists' };
-      await db.createUser({ phone, password, name, role, isActive: true });
-      return { success: true };
-    } catch {
-      return { success: false, error: 'An error occurred during user creation' };
-    }
+  isAuthenticated(): boolean {
+    return this.authState.isAuthenticated;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    if (!this.isAdmin()) return [];
-    try { return await db.getUsers(); } catch { return []; }
+  getCurrentUser(): User | null {
+    return this.authState.user;
   }
 
-  async toggleUserStatus(userId: string) {
-    if (!this.isAdmin()) return { success: false, error: 'Only admins can toggle user status' };
-    try {
-      const updated = await db.toggleUserStatus(userId);
-      if (!updated) return { success: false, error: 'User not found' };
-
-      if (this.authState.user?.id === userId) {
-        this.authState.user = updated;
-        if (updated.isActive) this.saveSession(updated);
-        else this.clearSession();
-        this.notifyListeners();
-      }
-      return { success: true };
-    } catch {
-      return { success: false, error: 'An error occurred' };
-    }
-  }
-
-  async resetUserPassword(userId: string, newPassword: string) {
-    if (!this.isAdmin()) return { success: false, error: 'Only admins can reset passwords' };
-    if (newPassword.length < 6) return { success: false, error: 'Password must be at least 6 characters' };
-    try {
-      const ok = await db.changeUserPassword(userId, newPassword);
-      return ok ? { success: true } : { success: false, error: 'User not found' };
-    } catch {
-      return { success: false, error: 'An error occurred' };
-    }
-  }
-
-  async deleteUser(userId: string) {
-    if (!this.isAdmin()) return { success: false, error: 'Only admins can delete users' };
-    if (this.authState.user?.id === userId) return { success: false, error: 'Cannot delete your own account' };
-    try {
-      const ok = await db.deleteUser(userId);
-      return ok ? { success: true } : { success: false, error: 'User not found' };
-    } catch {
-      return { success: false, error: 'An error occurred' };
-    }
+  isAdmin(): boolean {
+    return this.authState.user?.role === 'admin';
   }
 }
 

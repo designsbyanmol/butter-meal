@@ -1,0 +1,93 @@
+// components/MainDashboard/MainDashboard.module.scss
+
+.dashboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 640px;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.primaryBtn {
+  margin-top: 8px;
+  padding: 12px 32px;
+  background: #085b1b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+
+  &:hover {
+    background: #064a16;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.placeholder {
+  margin-top: 24px;
+  padding: 32px 24px;
+  border: 2px dashed #d0d0d0;
+  border-radius: 12px;
+  background: #fafafa;
+  color: #888;
+  font-size: 14px;
+  width: 100%;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .dashboard {
+    min-height: 50vh;
+    padding: 24px 16px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+
+  .primaryBtn {
+    padding: 10px 24px;
+    font-size: 13px;
+  }
+}

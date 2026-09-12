@@ -9,8 +9,7 @@ import React, {
 } from 'react';
 import { StoreSettings } from '../types';
 import { db } from '../services/database.service';
-import { TABLES } from '../config/tables';
-import { isSupabaseConfigured } from '../config/env';
+import { useTenant } from './TenantContext';
 
 interface StoreContextType {
   storeSettings: StoreSettings;
@@ -28,21 +27,21 @@ const defaultStoreSettings: StoreSettings = {
   lastUpdated: new Date().toISOString(),
 };
 
-const STORE_SETTINGS_KEY = TABLES.STORE_SETTINGS;
-
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const useStore = () => {
   const context = useContext(StoreContext);
-  if (!context) throw new Error('useStore must be used within a StoreProvider');
+  if (!context) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
   return context;
 };
 
-interface StoreProviderProps {
-  children: ReactNode;
-}
+export const StoreProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const { tenant, isLoading: tenantLoading } = useTenant();
 
-export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   const [storeSettings, setStoreSettings] =
     useState<StoreSettings>(defaultStoreSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,43 +52,39 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   const isFetchingRef = useRef(false);
 
   // ---------------------------------------------------------
-  // Fetch — always trust Supabase when connected
+  // Fetch — always hit Supabase for the current tenant
   // ---------------------------------------------------------
   const fetchLatestSettings = async (
     force = false,
   ): Promise<StoreSettings | null> => {
+    if (!tenant) return null;
     if (isFetchingRef.current && !force) return null;
     if (pollingPaused && !force) return null;
 
+    const slug = tenant.slug;
+
     try {
       isFetchingRef.current = true;
-
-      const dbSettings = await db.getStoreSettings();
-      if (dbSettings) {
-        const latest: StoreSettings = {
-          isOpen: dbSettings.isOpen ?? true,
-          closedMessage: dbSettings.closedMessage || '',
-          expectedOpenDate: dbSettings.expectedOpenDate || '',
-          expectedOpenTime: dbSettings.expectedOpenTime || '',
-          lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
-        };
-
-        // Only setState if something actually changed (avoids re-renders)
-        if (latest.lastUpdated !== lastUpdateTimeRef.current) {
-          setStoreSettings(latest);
-          localStorage.setItem(
-            STORE_SETTINGS_KEY,
-            JSON.stringify(latest),
-          );
-          lastUpdateTimeRef.current = latest.lastUpdated;
-        }
-
+      const dbSettings = await db.getStoreSettings(slug);
+      if (!dbSettings) {
         isFetchingRef.current = false;
-        return latest;
+        return null;
       }
 
+      const latest: StoreSettings = {
+        isOpen: dbSettings.isOpen ?? true,
+        closedMessage: dbSettings.closedMessage || '',
+        expectedOpenDate: dbSettings.expectedOpenDate || '',
+        expectedOpenTime: dbSettings.expectedOpenTime || '',
+        lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
+      };
+
+      if (latest.lastUpdated !== lastUpdateTimeRef.current) {
+        setStoreSettings(latest);
+        lastUpdateTimeRef.current = latest.lastUpdated;
+      }
       isFetchingRef.current = false;
-      return null;
+      return latest;
     } catch (error) {
       console.error('fetchLatestSettings failed:', error);
       isFetchingRef.current = false;
@@ -98,67 +93,48 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   };
 
   // ---------------------------------------------------------
-  // Initial load — read local for instant first paint,
-  // then always fetch from DB to get the truth.
+  // Initial load / tenant switch.
+  // On the main URL (no tenant), we clear loading immediately
+  // so the app doesn't hang.
   // ---------------------------------------------------------
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        // Step 1: Quick local paint so UI doesn't flash
-        try {
-          const saved = localStorage.getItem(STORE_SETTINGS_KEY);
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            const localSettings: StoreSettings = {
-              isOpen: parsed.isOpen ?? true,
-              closedMessage: parsed.closedMessage || '',
-              expectedOpenDate: parsed.expectedOpenDate || '',
-              expectedOpenTime: parsed.expectedOpenTime || '',
-              lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-            };
-            setStoreSettings(localSettings);
-            lastUpdateTimeRef.current = localSettings.lastUpdated;
-          }
-        } catch {
-          // ignore local parse errors
-        }
+    if (tenantLoading) return;
 
-        // Step 2: Always hit Supabase when configured — no staleness gate.
-        if (isSupabaseConfigured) {
-          try {
-            const fresh = await fetchLatestSettings(true);
-            if (fresh) {
-              setStoreSettings(fresh);
-            }
-          } catch (e) {
-            console.error('Initial DB fetch failed:', e);
-          }
-        }
-      } finally {
-        setSettingsLoaded(true);
-        setIsLoading(false);
-      }
-    };
+    if (!tenant) {
+      // Main URL: no tenant context.
+      // Reset to defaults and clear loading so the platform admin can log in.
+      setStoreSettings(defaultStoreSettings);
+      setSettingsLoaded(true);
+      setIsLoading(false);
+      return;
+    }
 
-    loadSettings();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Tenant URL: fetch that tenant's store settings.
+    setIsLoading(true);
+    setSettingsLoaded(false);
+    lastUpdateTimeRef.current = '';
+
+    (async () => {
+      await fetchLatestSettings(true);
+      setSettingsLoaded(true);
+      setIsLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug, tenantLoading]);
 
   // ---------------------------------------------------------
-  // Polling — 10s, and re-fetch on tab focus
+  // Polling — 10s, only when a tenant is present
   // ---------------------------------------------------------
   useEffect(() => {
-    if (!settingsLoaded) return;
+    if (!settingsLoaded || !tenant) return;
 
     const pollInterval = setInterval(() => {
-      if (!pollingPaused) {
-        fetchLatestSettings(false);
-      }
-    }, 10_000); // 10s — cheap, one row
+      if (!pollingPaused) fetchLatestSettings(false);
+    }, 10_000);
 
     const onFocus = () => {
       if (!pollingPaused) fetchLatestSettings(false);
     };
-
     const onVisibility = () => {
       if (document.visibilityState === 'visible' && !pollingPaused) {
         fetchLatestSettings(false);
@@ -173,33 +149,15 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [settingsLoaded, pollingPaused]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded, pollingPaused, tenant?.slug]);
 
   // ---------------------------------------------------------
-  // Cross-tab sync via storage events
-  // ---------------------------------------------------------
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === STORE_SETTINGS_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (parsed.lastUpdated !== lastUpdateTimeRef.current) {
-            setStoreSettings(parsed);
-            lastUpdateTimeRef.current = parsed.lastUpdated;
-          }
-        } catch {
-          // ignore
-        }
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // ---------------------------------------------------------
-  // Update — local state + DB write
+  // Update — writes to the current tenant only
   // ---------------------------------------------------------
   const updateStoreSettings = (settings: Partial<StoreSettings>) => {
+    if (!tenant) return;
+
     const updated: StoreSettings = {
       ...storeSettings,
       ...settings,
@@ -212,19 +170,17 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       updated.expectedOpenTime = '';
     }
 
-    // Update local immediately (admin tab feels instant)
     setStoreSettings(updated);
     lastUpdateTimeRef.current = updated.lastUpdated;
-    localStorage.setItem(STORE_SETTINGS_KEY, JSON.stringify(updated));
 
-    // Persist to DB
-    db.updateStoreSettings(updated).catch((err) => {
+    db.updateStoreSettings(tenant.slug, updated).catch((err: unknown) => {
       console.error('updateStoreSettings failed:', err);
     });
   };
 
   const getIsStoreOpen = (): boolean => {
     if (isLoading || !settingsLoaded) return false;
+    if (!tenant) return false;
     return storeSettings.isOpen;
   };
 

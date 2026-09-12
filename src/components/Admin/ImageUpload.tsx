@@ -347,7 +347,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                     className={styles.urlBtn}
                     onClick={() => setShowUrlInput(true)}
                   >
-                    Fill URL
+                    Add URL
                   </button>
                 </div>
                 <span className={styles.uploadHint}>
