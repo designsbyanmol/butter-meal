@@ -1,288 +1,54 @@
 // components/Admin/AdminPanel.tsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { MenuItem, CustomizationOption } from '../../types';
+import {
+  MenuItem,
+  CustomizationOption,
+  DEFAULT_FORM_SCHEMA,
+} from '../../types';
 import { useMenu } from '../../hooks/useMenu';
+import { useTenant } from '../../contexts/TenantContext';
 import styles from './AdminPanel.module.scss';
 import { CloseIcon } from '../../assets/svgs';
-import ImageUpload from './ImageUpload';
+import BadgeSelector from './BadgeSelector';
+import CustomizationEditor from './CustomizationEditor';
+import DynamicField from './DynamicField';
+import FormBuilder from './FormBuilder';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
-// =========================================================
-// Badge selector — reusable across Add + Edit forms
-// =========================================================
-const BadgeSelector: React.FC<{
-  value: MenuItem['attributes'] | undefined;
-  onChange: (next: MenuItem['attributes']) => void;
-}> = ({ value = {}, onChange }) => {
-  const toggle = (key: keyof NonNullable<MenuItem['attributes']>) => {
-    onChange({ ...value, [key]: !value[key] });
-  };
+const UNCATEGORIZED = 'Uncategorized';
 
-  return (
-    <div className={styles.formGroup}>
-      <label>Badges</label>
-      <div className={styles.badgeSelector}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isPopular}
-            onChange={() => toggle('isPopular')}
-          />
-          Popular
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isNew}
-            onChange={() => toggle('isNew')}
-          />
-          New
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isChefSpecial}
-            onChange={() => toggle('isChefSpecial')}
-          />
-          Chef's Special
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isLimited}
-            onChange={() => toggle('isLimited')}
-          />
-          Limited
-        </label>
-      </div>
-    </div>
-  );
-};
-
-// =========================================================
-// Customization editor — new shape with per-choice pricing
-// =========================================================
-const CustomizationEditor: React.FC<{
-  options: CustomizationOption[];
-  onChange: (next: CustomizationOption[]) => void;
-}> = ({ options, onChange }) => {
-  const addOption = () => {
-    onChange([
-      ...options,
-      { name: '', choices: [{ name: '', price: 0 }], default: undefined },
-    ]);
-  };
-
-  const removeOption = (idx: number) => {
-    onChange(options.filter((_, i) => i !== idx));
-  };
-
-  const updateOptionName = (idx: number, name: string) => {
-    const next = [...options];
-    next[idx] = { ...next[idx], name };
-    onChange(next);
-  };
-
-  const addChoice = (idx: number) => {
-    const next = [...options];
-    next[idx] = {
-      ...next[idx],
-      choices: [...next[idx].choices, { name: '', price: 0 }],
-    };
-    onChange(next);
-  };
-
-  const removeChoice = (optIdx: number, choiceIdx: number) => {
-    const next = [...options];
-    const removedName = next[optIdx].choices[choiceIdx].name;
-    next[optIdx] = {
-      ...next[optIdx],
-      choices: next[optIdx].choices.filter((_, i) => i !== choiceIdx),
-      default:
-        next[optIdx].default === removedName ? undefined : next[optIdx].default,
-    };
-    onChange(next);
-  };
-
-  const updateChoice = (
-    optIdx: number,
-    choiceIdx: number,
-    field: 'name' | 'price',
-    value: string | number,
-  ) => {
-    const next = [...options];
-    const choices = [...next[optIdx].choices];
-    const oldName = choices[choiceIdx].name;
-    choices[choiceIdx] = { ...choices[choiceIdx], [field]: value };
-
-    let newDefault = next[optIdx].default;
-    if (field === 'name' && newDefault === oldName) {
-      newDefault = String(value);
-    }
-
-    next[optIdx] = { ...next[optIdx], choices, default: newDefault };
-    onChange(next);
-  };
-
-  const setDefault = (optIdx: number, choiceName: string) => {
-    const next = [...options];
-    next[optIdx] = { ...next[optIdx], default: choiceName || undefined };
-    onChange(next);
-  };
-
-  return (
-    <div className={styles.customizationSection}>
-      <div className={styles.sectionHeader}>
-        <h4>Customization</h4>
-        <button
-          type="button"
-          className={styles.addCustomizationBtn}
-          onClick={addOption}
-        >
-          + Add
-        </button>
-      </div>
-
-      {options.length === 0 ? (
-        <p className={styles.emptyCustomization}>
-          No customization options yet. Click "+ Add Group" to create one.
-        </p>
-      ) : (
-        <div className={styles.customizationList}>
-          {options.map((option, optIdx) => (
-            <div key={optIdx} className={styles.customizationItem}>
-              <div className={styles.customizationHeader}>
-                <button
-                  type="button"
-                  className={styles.removeCustomizationBtn}
-                  onClick={() => removeOption(optIdx)}
-                  aria-label="Remove option"
-                >
-                  <CloseIcon width={18} height={18} fill="#4d4d4d" />
-                </button>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Option #{optIdx + 1} Name</label>
-                <input
-                  type="text"
-                  value={option.name}
-                  onChange={(e) => updateOptionName(optIdx, e.target.value)}
-                  placeholder="e.g., Sauce, Size, Add-ons"
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Choices</label>
-                <div className={styles.choicesList}>
-                  {option.choices.map((choice, choiceIdx) => (
-                    <div key={choiceIdx} className={styles.choiceRow}>
-                      <input
-                        type="text"
-                        value={choice.name}
-                        onChange={(e) =>
-                          updateChoice(
-                            optIdx,
-                            choiceIdx,
-                            'name',
-                            e.target.value,
-                          )
-                        }
-                        placeholder={`Option ${choiceIdx + 1} name`}
-                        className={styles.choiceNameInput}
-                      />
-                      <input
-                        type="number"
-                        value={choice.price || ''}
-                        onChange={(e) =>
-                          updateChoice(
-                            optIdx,
-                            choiceIdx,
-                            'price',
-                            parseFloat(e.target.value) || 0,
-                          )
-                        }
-                        placeholder="+Rs"
-                        min="0"
-                        step="1"
-                        className={styles.choicePriceInput}
-                      />
-                      <button
-                        type="button"
-                        className={styles.removeChoiceBtn}
-                        onClick={() => removeChoice(optIdx, choiceIdx)}
-                        disabled={option.choices.length <= 1}
-                        aria-label="Remove choice"
-                      >
-                        <CloseIcon width={18} height={18} fill="#a62d2d" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className={styles.addChoiceBtn}
-                  onClick={() => addChoice(optIdx)}
-                >
-                  + Add Option
-                </button>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Default Option</label>
-                <select
-                  value={option.default || ''}
-                  onChange={(e) => setDefault(optIdx, e.target.value)}
-                  className={styles.defaultSelect}
-                >
-                  <option value="">— None —</option>
-                  {option.choices
-                    .filter((c) => c.name.trim() !== '')
-                    .map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                        {c.price > 0 ? ` (+Rs${c.price})` : ''}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// =========================================================
-// Main Admin Panel
-// =========================================================
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
+  const { tenant } = useTenant();
+  const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+
   const { items, toggleStock, updateItem, addItem, deleteItem, reorderItems } =
     useMenu();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'inStock' | 'outOfStock'>('all');
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editForm, setEditForm] = useState<Partial<MenuItem>>({});
   const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
   const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Customization state for edit
   const [customizationOptions, setCustomizationOptions] = useState<
     CustomizationOption[]
   >([]);
+  const [ingredientsInput, setIngredientsInput] = useState('');
 
-  // Add-new-item state
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newItemForm, setNewItemForm] = useState<Partial<MenuItem>>({
     name: '',
     desc: '',
     price: 0,
     costPrice: 0,
+    discount: 0,
     img: '',
     category: '',
     isVeg: false,
@@ -303,27 +69,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   >([]);
   const [newIngredientsInput, setNewIngredientsInput] = useState('');
 
-  // Ingredients input for edit
-  const [ingredientsInput, setIngredientsInput] = useState('');
-
-  // Drag & drop state
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [isReordering, setIsReordering] = useState(false);
 
-  // Confirm-dialog state for toggle-stock
+  // Collapsible categories
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+  const didInitCollapse = useRef(false);
+
   const [confirmToggle, setConfirmToggle] = useState<{
     itemId: number;
     action: 'in' | 'out';
     name: string;
   } | null>(null);
 
+  const [isFormBuilderOpen, setIsFormBuilderOpen] = useState(false);
+
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [formSuccess, setFormSuccess] = useState('');
-const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const [isSaving, setIsSaving] = useState(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canReorder = searchTerm === '' && filter === 'all';
+
+  // Schema allow-list for categories
+  const schemaCategorySet = useMemo(() => {
+    const catField = schema.fields.find((f) => f.key === 'category');
+    return new Set<string>(
+      (catField?.options ?? []).map((s) => s.trim()).filter(Boolean),
+    );
+  }, [schema]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -344,6 +119,129 @@ const [isSaving, setIsSaving] = useState(false);
 
   const inStockCount = items.filter((item) => item.inStock === true).length;
   const outOfStockCount = items.filter((item) => item.inStock === false).length;
+
+  // ---------- Grouped categories (schema-ordered) ----------
+  const categoryGroups = useMemo(() => {
+    const catField = schema.fields.find((f) => f.key === 'category');
+    const categoryOrder = (catField?.options ?? [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const orderIndex = new Map<string, number>();
+    categoryOrder.forEach((c, i) => orderIndex.set(c, i));
+    const UNCATEGORIZED_INDEX = Number.MAX_SAFE_INTEGER;
+
+    const groupsMap = new Map<string, MenuItem[]>();
+    filteredItems.forEach((item) => {
+      const raw = (item.category ?? '').trim();
+      const key = raw && schemaCategorySet.has(raw) ? raw : UNCATEGORIZED;
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(item);
+    });
+
+    return Array.from(groupsMap.entries())
+      .map(([category, list]) => ({ category, items: list }))
+      .sort((a, b) => {
+        const ai = orderIndex.get(a.category) ?? UNCATEGORIZED_INDEX;
+        const bi = orderIndex.get(b.category) ?? UNCATEGORIZED_INDEX;
+        return ai - bi;
+      });
+  }, [filteredItems, schemaCategorySet, schema]);
+
+  // Collapse everything on first load
+  useEffect(() => {
+    if (didInitCollapse.current) return;
+    if (categoryGroups.length === 0) return;
+    setCollapsedCategories(new Set(categoryGroups.map((g) => g.category)));
+    didInitCollapse.current = true;
+  }, [categoryGroups]);
+
+  // ============ HELPERS ============
+
+  const prettyField = (key: string): string => {
+    const fromSchema = schema.fields.find((f) => f.key === key);
+    if (fromSchema) return fromSchema.label;
+    switch (key) {
+      case 'name':
+        return 'Name';
+      case 'price':
+        return 'Price';
+      case 'img':
+        return 'Image';
+      default:
+        return key;
+    }
+  };
+
+  const validateRequired = (
+    form: Partial<MenuItem>,
+  ): { errors: Record<string, boolean>; message: string } => {
+    const errors: Record<string, boolean> = {};
+
+    if (!form.name || form.name.trim() === '') errors.name = true;
+
+    if (
+      form.price === undefined ||
+      form.price === null ||
+      Number.isNaN(form.price) ||
+      Number(form.price) <= 0
+    ) {
+      errors.price = true;
+    }
+
+    if (!form.img || form.img.trim() === '') errors.img = true;
+
+    const count = Object.keys(errors).length;
+    let message = '';
+    if (count === 1) {
+      const field = Object.keys(errors)[0];
+      message = `Please fill in the required field: ${prettyField(field)}`;
+    } else if (count > 1) {
+      message = `Please fill in all required fields (${count} missing).`;
+    }
+    return { errors, message };
+  };
+
+  const showTemporaryError = (message: string) => {
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    setFormSuccess('');
+    setFormError(message);
+    errorTimeoutRef.current = setTimeout(() => {
+      setFormError('');
+      setInvalidFields({});
+      errorTimeoutRef.current = null;
+    }, 5000);
+  };
+
+  const showSuccess = (message: string, delayMs = 1200) => {
+  if (successTimeoutRef.current) {
+    clearTimeout(successTimeoutRef.current);
+    successTimeoutRef.current = null;
+  }
+  setFormError('');
+  setInvalidFields({});
+  setFormSuccess(message);
+
+  // Auto-clear the success banner after the delay
+  successTimeoutRef.current = setTimeout(() => {
+    setFormSuccess('');
+    successTimeoutRef.current = null;
+  }, delayMs);
+};
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
 
   // ============ TOGGLE STOCK ============
 
@@ -368,17 +266,24 @@ const [isSaving, setIsSaving] = useState(false);
 
   const handleEditClick = (item: MenuItem) => {
     setEditingItem(item);
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
-  setIsSaving(false);
-    setEditForm({
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
+    setIsSaving(false);
+
+    const sanitizedCategory =
+      item.category && schemaCategorySet.has(item.category.trim())
+        ? item.category
+        : '';
+
+    const form: Record<string, any> = {
       name: item.name,
       desc: item.desc,
       price: item.price,
       costPrice: item.costPrice,
+      discount: item.discount ?? 0,
       img: item.img,
-      category: item.category,
+      category: sanitizedCategory,
       isVeg: item.isVeg,
       isSpicy: item.isSpicy,
       isGlutenFree: item.isGlutenFree,
@@ -390,191 +295,156 @@ const [isSaving, setIsSaving] = useState(false);
       nutritionalInfo: item.nutritionalInfo,
       attributes: item.attributes || {},
       customizationOptions: item.customizationOptions || [],
-    });
+    };
+
+    schema.fields
+      .filter((f) => !f.builtin)
+      .forEach((f) => {
+        form[f.key] = item.attributes?.[f.key] ?? '';
+      });
+
+    setEditForm(form as Partial<MenuItem>);
     setIngredientsInput(item.ingredients?.join(', ') || '');
     setCustomizationOptions(item.customizationOptions || []);
   };
 
-  // Return a map of invalid fields → true, plus a summary message.
-const validateRequired = (
-  form: Partial<MenuItem>,
-): { errors: Record<string, boolean>; message: string } => {
-  const errors: Record<string, boolean> = {};
-
-  if (!form.name || form.name.trim() === '') {
-    errors.name = true;
-  }
-  if (
-    form.price === undefined ||
-    form.price === null ||
-    Number.isNaN(form.price) ||
-    Number(form.price) <= 0
-  ) {
-    errors.price = true;
-  }
-  if (!form.img || form.img.trim() === '') {
-    errors.img = true;
-  }
-
-  const count = Object.keys(errors).length;
-  let message = '';
-  if (count === 1) {
-    const field = Object.keys(errors)[0];
-    message = `Please fill in the required field: ${prettyField(field)}`;
-  } else if (count > 1) {
-    message = `Please fill in all required fields (${count} missing).`;
-  }
-  return { errors, message };
-};
-
-const prettyField = (key: string): string => {
-  switch (key) {
-    case 'name':
-      return 'Name';
-    case 'price':
-      return 'Price';
-    case 'img':
-      return 'Image';
-    default:
-      return key;
-  }
-};
-
-// Show an error banner for 5 seconds, then clear it and the invalid highlights.
-const showTemporaryError = (message: string) => {
-  if (errorTimeoutRef.current) {
-    clearTimeout(errorTimeoutRef.current);
-    errorTimeoutRef.current = null;
-  }
-  if (successTimeoutRef.current) {
-    clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = null;
-  }
-  setFormSuccess('');            // ✅ new — kill any success banner
-  setFormError(message);
-  errorTimeoutRef.current = setTimeout(() => {
-    setFormError('');
-    setInvalidFields({});
-    errorTimeoutRef.current = null;
-  }, 5000);
-};
-
-// Clean up on unmount
-
-useEffect(() => {
-  return () => {
-    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+  /**
+   * Applies the discount ↔ costPrice mutual exclusion to a form patch.
+   * If discount > 0 → costPrice = 0. If costPrice > 0 → discount = 0.
+   */
+  const applyDiscountMutex = (
+    patch: Record<string, any>,
+  ): Record<string, any> => {
+    if ('discount' in patch) {
+      const d = Number(patch.discount) || 0;
+      if (d > 0) patch.costPrice = 0;
+    }
+    if ('costPrice' in patch) {
+      const c = Number(patch.costPrice) || 0;
+      if (c > 0) patch.discount = 0;
+    }
+    return patch;
   };
-}, []);
 
-// Show a success banner, then reload after a short pause.
-const showSuccessAndReload = (message: string, delayMs = 2000) => {
-  if (successTimeoutRef.current) {
-    clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = null;
-  }
-  // Clear any lingering error visuals so they don't overlap
-  setFormError('');
-  setInvalidFields({});
-  setFormSuccess(message);
+  const handleSaveEdit = async () => {
+    if (!editingItem || isSaving) return;
 
-  successTimeoutRef.current = setTimeout(() => {
-    window.location.reload();
-  }, delayMs);
-};
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
 
-const handleSaveEdit = async () => {
-  if (!editingItem || isSaving) return;
+    const { errors, message } = validateRequired(editForm);
+    if (Object.keys(errors).length > 0) {
+      setInvalidFields(errors);
+      showTemporaryError(message);
+      document
+        .querySelector(`.${styles.editForm}`)
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
-  // Reset prior banners before starting
-  if (errorTimeoutRef.current) {
-    clearTimeout(errorTimeoutRef.current);
-    errorTimeoutRef.current = null;
-  }
-  if (successTimeoutRef.current) {
-    clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = null;
-  }
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
+    setIsSaving(true);
 
-  // ---- Validation ----
-  const { errors, message } = validateRequired(editForm);
-  if (Object.keys(errors).length > 0) {
-    setInvalidFields(errors);
-    showTemporaryError(message);
-    document
-      .querySelector(`.${styles.editForm}`)
-      ?.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
+    try {
+      const nz = (v: any): number | undefined => {
+        if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
+          return undefined;
+        }
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      };
+      const s = (v: any): string | undefined => {
+        if (v === undefined || v === null) return undefined;
+        const str = String(v).trim();
+        return str === '' ? undefined : str;
+      };
 
-  setIsSaving(true);
+      const customAttributes: Record<string, any> = {
+        ...(editForm.attributes as Record<string, any> | undefined),
+      };
+      schema.fields
+        .filter((f) => !f.builtin && f.enabled)
+        .forEach((field) => {
+          const value = (editForm as any)[field.key];
+          if (value !== undefined && value !== null && value !== '') {
+            customAttributes[field.key] = value;
+          } else {
+            delete customAttributes[field.key];
+          }
+        });
 
-  try {
-    // ---- Normalize optional fields ----
-    const nz = (v: any): number | undefined => {
-      if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
-        return undefined;
-      }
-      const n = Number(v);
-      return Number.isFinite(n) && n > 0 ? n : undefined;
-    };
-    const s = (v: any): string | undefined => {
-      if (v === undefined || v === null) return undefined;
-      const str = String(v).trim();
-      return str === '' ? undefined : str;
-    };
+      const cleanedCategory =
+        editForm.category &&
+        schemaCategorySet.has(String(editForm.category).trim())
+          ? String(editForm.category).trim()
+          : undefined;
 
-    const cleaned: Partial<MenuItem> = {
-      name: editForm.name!.trim(),
-      desc: editForm.desc ?? '',
-      price: editForm.price,
-      costPrice: nz(editForm.costPrice),
-      img: editForm.img,
-      category: s(editForm.category),
-      isVeg: editForm.isVeg ?? false,
-      isSpicy: editForm.isSpicy ?? false,
-      isGlutenFree: editForm.isGlutenFree ?? false,
-      preparationTime: s(editForm.preparationTime),
-      calories: nz(editForm.calories),
-      rating: nz(editForm.rating),
-      reviewCount: nz(editForm.reviewCount),
-      ingredients:
-        editForm.ingredients && editForm.ingredients.length > 0
-          ? editForm.ingredients
-          : undefined,
-      nutritionalInfo:
-        editForm.nutritionalInfo &&
-        Object.values(editForm.nutritionalInfo).some(
-          (v) => v !== undefined && v !== null && String(v).trim() !== '',
-        )
-          ? editForm.nutritionalInfo
-          : undefined,
-      attributes:
-        editForm.attributes &&
-        Object.values(editForm.attributes).some(Boolean)
-          ? editForm.attributes
-          : undefined,
-      customizationOptions:
-        customizationOptions.length > 0 ? customizationOptions : undefined,
-    };
+      // ---- discount + costPrice mutual exclusion at save time ----
+      const rawDiscount = Number(editForm.discount) || 0;
+      const discount =
+        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
 
-    await updateItem(editingItem.id, cleaned);
+      const costPrice =
+        discount > 0 ? undefined : nz(editForm.costPrice);
 
-    // ✅ Success — banner for 2s, then reload.
-    // Note: on success we intentionally do NOT reset isSaving; the page
-    // is about to unload. Keeping the button disabled prevents a second click
-    // during the 2-second banner window.
-    showSuccessAndReload('Item updated successfully!');
-  } catch (err) {
-    console.error('Save edit failed:', err);
-    showTemporaryError('Failed to update menu item. Please try again.');
-    setIsSaving(false);
-  }
-};
+      const cleaned: Partial<MenuItem> = {
+        name: editForm.name!.trim(),
+        desc: editForm.desc ?? '',
+        price: editForm.price,
+        discount,
+        costPrice,
+        img: editForm.img,
+        category: cleanedCategory,
+        isVeg: editForm.isVeg ?? false,
+        isSpicy: editForm.isSpicy ?? false,
+        isGlutenFree: editForm.isGlutenFree ?? false,
+        preparationTime: s(editForm.preparationTime),
+        calories: nz(editForm.calories),
+        rating: nz(editForm.rating),
+        reviewCount: nz(editForm.reviewCount),
+        ingredients:
+          editForm.ingredients && editForm.ingredients.length > 0
+            ? editForm.ingredients
+            : undefined,
+        nutritionalInfo:
+          editForm.nutritionalInfo &&
+          Object.values(editForm.nutritionalInfo).some(
+            (v) => v !== undefined && v !== null && String(v).trim() !== '',
+          )
+            ? editForm.nutritionalInfo
+            : undefined,
+        attributes:
+          Object.keys(customAttributes).length > 0
+            ? customAttributes
+            : undefined,
+        customizationOptions:
+          customizationOptions.length > 0 ? customizationOptions : undefined,
+      };
+
+      await updateItem(editingItem.id, cleaned);
+showSuccess('Item updated successfully!');
+
+// Close the modal and clear edit state so the user sees the refreshed list
+setTimeout(() => {
+  setEditingItem(null);
+  setEditForm({});
+  setCustomizationOptions([]);
+  setIngredientsInput('');
+}, 900);
+    } catch (err) {
+      console.error('Save edit failed:', err);
+      showTemporaryError('Failed to update menu item. Please try again.');
+      setIsSaving(false);
+    }
+  };
 
   const handleDeleteItem = async () => {
     if (!editingItem) return;
@@ -597,12 +467,12 @@ const handleSaveEdit = async () => {
   };
 
   const handleCancelEdit = () => {
-    if (isSaving) return;         // ✅ guard: don't allow closing mid-save
-  setEditingItem(null);
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
-  setIsSaving(false);
+    if (isSaving) return;
+    setEditingItem(null);
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
+    setIsSaving(false);
     setCustomizationOptions([]);
     setIngredientsInput('');
   };
@@ -611,15 +481,16 @@ const handleSaveEdit = async () => {
 
   const handleAddNewItem = () => {
     setIsAddingNew(true);
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
-  setIsSaving(false);
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
+    setIsSaving(false);
     setNewItemForm({
       name: '',
       desc: '',
       price: 0,
       costPrice: 0,
+      discount: 0,
       img: '',
       category: '',
       isVeg: false,
@@ -639,106 +510,133 @@ const handleSaveEdit = async () => {
     setNewCustomizationOptions([]);
   };
 
-const handleSaveNewItem = async () => {
-  if (isSaving) return;
+  const handleSaveNewItem = async () => {
+    if (isSaving) return;
 
-  // Reset prior banners
-  if (errorTimeoutRef.current) {
-    clearTimeout(errorTimeoutRef.current);
-    errorTimeoutRef.current = null;
-  }
-  if (successTimeoutRef.current) {
-    clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = null;
-  }
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
 
-  // ---- Validation ----
-  const { errors, message } = validateRequired(newItemForm);
-  if (Object.keys(errors).length > 0) {
-    setInvalidFields(errors);
-    showTemporaryError(message);
-    document
-      .querySelector(`.${styles.editForm}`)
-      ?.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
+    const { errors, message } = validateRequired(newItemForm);
+    if (Object.keys(errors).length > 0) {
+      setInvalidFields(errors);
+      showTemporaryError(message);
+      document
+        .querySelector(`.${styles.editForm}`)
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
-  setIsSaving(true);
+    setIsSaving(true);
 
-  try {
-    // ---- Normalize optional fields ----
-    const nz = (v: any): number | undefined => {
-      if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
-        return undefined;
-      }
-      const n = Number(v);
-      return Number.isFinite(n) && n > 0 ? n : undefined;
-    };
-    const s = (v: any): string | undefined => {
-      if (v === undefined || v === null) return undefined;
-      const str = String(v).trim();
-      return str === '' ? undefined : str;
-    };
+    try {
+      const nz = (v: any): number | undefined => {
+        if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
+          return undefined;
+        }
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      };
+      const s = (v: any): string | undefined => {
+        if (v === undefined || v === null) return undefined;
+        const str = String(v).trim();
+        return str === '' ? undefined : str;
+      };
 
-    const newItem: Omit<MenuItem, 'id'> = {
-      name: newItemForm.name!.trim(),
-      desc: newItemForm.desc ?? '',
-      price: newItemForm.price!,
-      costPrice: nz(newItemForm.costPrice),
-      img: newItemForm.img!,
-      category: s(newItemForm.category),
-      isVeg: newItemForm.isVeg ?? false,
-      isSpicy: newItemForm.isSpicy ?? false,
-      isGlutenFree: newItemForm.isGlutenFree ?? false,
-      preparationTime: s(newItemForm.preparationTime),
-      calories: nz(newItemForm.calories),
-      rating: nz(newItemForm.rating),
-      reviewCount: nz(newItemForm.reviewCount),
-      ingredients:
-        newItemForm.ingredients && newItemForm.ingredients.length > 0
-          ? newItemForm.ingredients
-          : undefined,
-      nutritionalInfo:
-        newItemForm.nutritionalInfo &&
-        Object.values(newItemForm.nutritionalInfo).some(
-          (v) => v !== undefined && v !== null && String(v).trim() !== '',
-        )
-          ? newItemForm.nutritionalInfo
-          : undefined,
-      attributes:
-        newItemForm.attributes &&
-        Object.values(newItemForm.attributes).some(Boolean)
-          ? newItemForm.attributes
-          : undefined,
-      customizationOptions:
-        newCustomizationOptions.length > 0
-          ? newCustomizationOptions
-          : undefined,
-      inStock:
-        newItemForm.inStock !== undefined ? newItemForm.inStock : true,
-    };
+      const customAttributes: Record<string, any> = {
+        ...(newItemForm.attributes as Record<string, any> | undefined),
+      };
+      schema.fields
+        .filter((f) => !f.builtin && f.enabled)
+        .forEach((field) => {
+          const value = (newItemForm as any)[field.key];
+          if (value !== undefined && value !== null && value !== '') {
+            customAttributes[field.key] = value;
+          }
+        });
 
-    await addItem(newItem);
+      const cleanedCategory =
+        newItemForm.category &&
+        schemaCategorySet.has(String(newItemForm.category).trim())
+          ? String(newItemForm.category).trim()
+          : undefined;
 
-    // ✅ Success — banner then reload. isSaving stays true on purpose.
-    showSuccessAndReload('Item added successfully!');
-  } catch (err) {
-    console.error('Save new item failed:', err);
-    showTemporaryError('Failed to add menu item. Please try again.');
-    setIsSaving(false);
-  }
-};
+      const rawDiscount = Number(newItemForm.discount) || 0;
+      const discount =
+        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
+
+      const costPrice =
+        discount > 0 ? undefined : nz(newItemForm.costPrice);
+
+      const newItem: Omit<MenuItem, 'id'> = {
+        name: newItemForm.name!.trim(),
+        desc: newItemForm.desc ?? '',
+        price: newItemForm.price!,
+        discount,
+        costPrice,
+        img: newItemForm.img!,
+        category: cleanedCategory,
+        isVeg: newItemForm.isVeg ?? false,
+        isSpicy: newItemForm.isSpicy ?? false,
+        isGlutenFree: newItemForm.isGlutenFree ?? false,
+        preparationTime: s(newItemForm.preparationTime),
+        calories: nz(newItemForm.calories),
+        rating: nz(newItemForm.rating),
+        reviewCount: nz(newItemForm.reviewCount),
+        ingredients:
+          newItemForm.ingredients && newItemForm.ingredients.length > 0
+            ? newItemForm.ingredients
+            : undefined,
+        nutritionalInfo:
+          newItemForm.nutritionalInfo &&
+          Object.values(newItemForm.nutritionalInfo).some(
+            (v) => v !== undefined && v !== null && String(v).trim() !== '',
+          )
+            ? newItemForm.nutritionalInfo
+            : undefined,
+        attributes:
+          Object.keys(customAttributes).length > 0
+            ? customAttributes
+            : undefined,
+        customizationOptions:
+          newCustomizationOptions.length > 0
+            ? newCustomizationOptions
+            : undefined,
+        inStock:
+          newItemForm.inStock !== undefined ? newItemForm.inStock : true,
+      };
+
+      await addItem(newItem);
+showSuccess('Item added successfully!');
+
+// Close the Add modal so the user sees the new item in the list
+setTimeout(() => {
+  setIsAddingNew(false);
+  setNewIngredientsInput('');
+  setNewCustomizationOptions([]);
+}, 900);
+    } catch (err) {
+      console.error('Save new item failed:', err);
+      showTemporaryError('Failed to add menu item. Please try again.');
+      setIsSaving(false);
+    }
+  };
 
   const handleCancelNewItem = () => {
-    if (isSaving) return;         // ✅ guard
-  setIsAddingNew(false);
-  setFormError('');
-  setFormSuccess('');
-  setInvalidFields({});
-  setIsSaving(false);
+    if (isSaving) return;
+    setIsAddingNew(false);
+    setFormError('');
+    setFormSuccess('');
+    setInvalidFields({});
+    setIsSaving(false);
     setNewIngredientsInput('');
     setNewCustomizationOptions([]);
   };
@@ -798,7 +696,20 @@ const handleSaveNewItem = async () => {
     }
   };
 
+  // ============ CATEGORY COLLAPSE ============
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
   // ============ RENDER ============
+
+  const enabledFields = schema.fields.filter((f) => f.enabled);
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -807,6 +718,13 @@ const handleSaveNewItem = async () => {
           <h2>Menu Items</h2>
           <button className={styles.addNewBtn} onClick={handleAddNewItem}>
             + Add New Item
+          </button>
+          <button
+            className={styles.addNewBtn}
+            onClick={() => setIsFormBuilderOpen(true)}
+            style={{ marginLeft: 8 }}
+          >
+            Edit Fields
           </button>
           <button className={styles.closeBtn} onClick={onClose}>
             <CloseIcon width={18} height={18} fill="#4d4d4d" />
@@ -862,88 +780,153 @@ const handleSaveNewItem = async () => {
             <div className={styles.reorderingBanner}>Saving order...</div>
           )}
 
-          {filteredItems.map((item) => {
-            const isDragging = draggedId === item.id;
-            const isDropTarget =
-              dragOverId === item.id && draggedId !== item.id;
-
-            return (
-              <div
-                key={item.id}
-                className={[
-                  styles.itemRow,
-                  isDragging ? styles.dragging : '',
-                  isDropTarget ? styles.dropTarget : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                draggable={canReorder}
-                onDragStart={
-                  canReorder ? (e) => handleDragStart(e, item.id) : undefined
-                }
-                onDragOver={
-                  canReorder ? (e) => handleDragOver(e, item.id) : undefined
-                }
-                onDragLeave={canReorder ? handleDragLeave : undefined}
-                onDrop={canReorder ? (e) => handleDrop(e, item.id) : undefined}
-                onDragEnd={canReorder ? handleDragEnd : undefined}
-              >
-                {canReorder && (
-                  <div
-                    className={styles.dragHandle}
-                    title="Drag to reorder"
-                    aria-label="Drag to reorder"
-                  >
-                    <span className={styles.dragDots}></span>
-                  </div>
-                )}
-
-                <div className={styles.itemInfo}>
-                  <img
-                    src={item.img}
-                    alt={item.name}
-                    className={styles.itemImage}
-                  />
-                  <div>
-                    <div className={styles.itemName}>{item.name}</div>
-                  </div>
-                </div>
-
-                <div className={styles.itemStatus}>
-                  <div className={styles.stock_wrap}>
-                    <span
-                      className={
-                        item.inStock
-                          ? styles.inStockBadge
-                          : styles.outOfStockBadge
-                      }
-                    >
-                      {item.inStock ? 'In Stock' : 'Out of Stock'}
-                    </span>
-                  </div>
-                  <button
-                    className={`${styles.toggleBtn} ${
-                      !item.inStock ? styles.outOfStockBtn : ''
-                    }`}
-                    onClick={() => handleToggle(item.id)}
-                  >
-                    {item.inStock ? 'Mark Out of Stock' : 'Restock'}
-                  </button>
-                  <button
-                    className={styles.editBtn}
-                    onClick={() => handleEditClick(item)}
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {filteredItems.length === 0 && (
+          {categoryGroups.length === 0 ? (
             <div className={styles.emptyState}>
               No items found matching your criteria
             </div>
+          ) : (
+            (() => {
+              const forceOpen = searchTerm.trim() !== '';
+
+              return categoryGroups.map((group) => {
+                const isCollapsed =
+                  !forceOpen && collapsedCategories.has(group.category);
+
+                return (
+                  <div key={group.category} className={styles.categoryGroup}>
+                    <button
+                      type="button"
+                      className={styles.categoryHeader}
+                      onClick={() => {
+                        if (forceOpen) return;
+                        toggleCategory(group.category);
+                      }}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <span
+                        className={`${styles.chevron} ${
+                          isCollapsed ? '' : styles.chevronOpen
+                        }`}
+                        aria-hidden
+                      >
+                        ▸
+                      </span>
+                      <span className={styles.categoryGroupName}>
+                        {group.category}
+                      </span>
+                      <span className={styles.categoryGroupCount}>
+                        {group.items.length}
+                      </span>
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className={styles.categoryGroupBody}>
+                        {group.items.map((item) => {
+                          const isDragging = draggedId === item.id;
+                          const isDropTarget =
+                            dragOverId === item.id && draggedId !== item.id;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={[
+                                styles.itemRow,
+                                isDragging ? styles.dragging : '',
+                                isDropTarget ? styles.dropTarget : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              draggable={canReorder}
+                              onDragStart={
+                                canReorder
+                                  ? (e) => handleDragStart(e, item.id)
+                                  : undefined
+                              }
+                              onDragOver={
+                                canReorder
+                                  ? (e) => handleDragOver(e, item.id)
+                                  : undefined
+                              }
+                              onDragLeave={
+                                canReorder ? handleDragLeave : undefined
+                              }
+                              onDrop={
+                                canReorder
+                                  ? (e) => handleDrop(e, item.id)
+                                  : undefined
+                              }
+                              onDragEnd={
+                                canReorder ? handleDragEnd : undefined
+                              }
+                            >
+                              {canReorder && (
+                                <div
+                                  className={styles.dragHandle}
+                                  title="Drag to reorder"
+                                  aria-label="Drag to reorder"
+                                >
+                                  <span className={styles.dragDots}></span>
+                                </div>
+                              )}
+
+                              <div className={styles.itemInfo}>
+                                <img
+                                  src={item.img}
+                                  alt={item.name}
+                                  className={styles.itemImage}
+                                />
+                                <div>
+                                  <div className={styles.itemName}>
+                                    {item.name}
+                                    {item.discount && item.discount > 0 && (
+                                      <span className={styles.discountBadge}>
+                                        −{item.discount}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className={styles.itemStatus}>
+                                <div className={styles.stock_wrap}>
+                                  <span
+                                    className={
+                                      item.inStock
+                                        ? styles.inStockBadge
+                                        : styles.outOfStockBadge
+                                    }
+                                  >
+                                    {item.inStock ? 'In' : 'Out'}
+                                  </span>
+                                </div>
+                                <button
+                                  className={`${styles.toggleBtn} ${
+                                    !item.inStock
+                                      ? styles.outOfStockBtn
+                                      : ''
+                                  }`}
+                                  onClick={() => handleToggle(item.id)}
+                                >
+                                  {item.inStock
+                                    ? 'Mark Out of Stock'
+                                    : 'Restock'}
+                                </button>
+                                <button
+                                  className={styles.editBtn}
+                                  onClick={() => handleEditClick(item)}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()
           )}
         </div>
 
@@ -965,186 +948,45 @@ const handleSaveNewItem = async () => {
                 {formError && (
                   <div className={styles.formError}>{formError}</div>
                 )}
-
                 {formSuccess && (
-  <div className={styles.formSuccess}>{formSuccess}</div>
-)}
+                  <div className={styles.formSuccess}>{formSuccess}</div>
+                )}
 
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Name *</label>
-                    <input
-  type="text"
-  value={newItemForm.name || ''}
-  onChange={(e) => {
-    setNewItemForm({ ...newItemForm, name: e.target.value });
-    if (invalidFields.name) {
-      setInvalidFields((prev) => ({ ...prev, name: false }));
-    }
-  }}
-  placeholder="Item name"
-  required
-  className={invalidFields.name ? styles.inputError : ''}
-/>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Category</label>
-                    <input
-                      type="text"
-                      value={newItemForm.category || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          category: e.target.value,
-                        })
+                {enabledFields.map((field) => (
+                  <DynamicField
+                    key={field.key}
+                    field={field}
+                    value={(newItemForm as any)[field.key]}
+                    onChange={(v) => {
+                      setNewItemForm((prev) =>
+                        applyDiscountMutex({ ...prev, [field.key]: v }),
+                      );
+                      if (invalidFields[field.key]) {
+                        setInvalidFields((prev) => ({
+                          ...prev,
+                          [field.key]: false,
+                        }));
                       }
-                      placeholder="Category"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Description</label>
-                  <textarea
-                    value={newItemForm.desc || ''}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, desc: e.target.value })
+                    }}
+                    invalid={!!invalidFields[field.key]}
+                    onImageUploaded={
+                      field.key === 'img'
+                        ? (url) =>
+                            setNewItemForm({ ...newItemForm, img: url })
+                        : undefined
                     }
-                    placeholder="Item description"
-                    rows={3}
+                    ingredientsInput={
+                      field.key === 'ingredients'
+                        ? newIngredientsInput
+                        : undefined
+                    }
+                    onIngredientsInputChange={
+                      field.key === 'ingredients'
+                        ? setNewIngredientsInput
+                        : undefined
+                    }
                   />
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Price (Rs) *</label>
-                    <input
-  type="number"
-  value={newItemForm.price || ''}
-  onChange={(e) => {
-    setNewItemForm({
-      ...newItemForm,
-      price: parseFloat(e.target.value) || 0,
-    });
-    if (invalidFields.price) {
-      setInvalidFields((prev) => ({ ...prev, price: false }));
-    }
-  }}
-  placeholder="Price"
-  required
-  min="0"
-  step="1"
-  className={invalidFields.price ? styles.inputError : ''}
-/>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Cost Price (Rs)</label>
-                    <input
-                      type="number"
-                      value={newItemForm.costPrice || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          costPrice: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Cost price"
-                      min="0"
-                      step="1"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Image *</label>
-                  <div className={invalidFields.img ? styles.imageUploadError : ''}>
-                    <ImageUpload
-                      currentImage={newItemForm.img || ''}
-                      onImageUploaded={(url) => {
-                        setNewItemForm({ ...newItemForm, img: url });
-                        if (invalidFields.img) {
-                          setInvalidFields((prev) => ({ ...prev, img: false }));
-                        }
-                      }}
-                      label="Upload Item Image"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Preparation Time</label>
-                    <input
-                      type="text"
-                      value={newItemForm.preparationTime || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          preparationTime: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., 15-20 mins"
-                    />
-                  </div>
-                  <div className={styles.checkboxRow}>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={newItemForm.isVeg || false}
-                        onChange={(e) =>
-                          setNewItemForm({
-                            ...newItemForm,
-                            isVeg: e.target.checked,
-                          })
-                        }
-                      />
-                      Vegetarian
-                    </label>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={newItemForm.isSpicy || false}
-                        onChange={(e) =>
-                          setNewItemForm({
-                            ...newItemForm,
-                            isSpicy: e.target.checked,
-                          })
-                        }
-                      />
-                      Spicy
-                    </label>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={newItemForm.isGlutenFree || false}
-                        onChange={(e) =>
-                          setNewItemForm({
-                            ...newItemForm,
-                            isGlutenFree: e.target.checked,
-                          })
-                        }
-                      />
-                      Gluten Free
-                    </label>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={
-                          newItemForm.inStock !== undefined
-                            ? newItemForm.inStock
-                            : true
-                        }
-                        onChange={(e) =>
-                          setNewItemForm({
-                            ...newItemForm,
-                            inStock: e.target.checked,
-                          })
-                        }
-                      />
-                      In Stock
-                    </label>
-                  </div>
-                </div>
+                ))}
 
                 <BadgeSelector
                   value={newItemForm.attributes}
@@ -1152,81 +994,6 @@ const handleSaveNewItem = async () => {
                     setNewItemForm({ ...newItemForm, attributes: next })
                   }
                 />
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Rating</label>
-                    <input
-                      type="number"
-                      value={newItemForm.rating || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          rating: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="0-5"
-                      min="0"
-                      max="5"
-                      step="0.1"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Review Count</label>
-                    <input
-                      type="number"
-                      value={newItemForm.reviewCount || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          reviewCount: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Number of reviews"
-                      min="0"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Calories</label>
-                    <input
-                      type="number"
-                      value={newItemForm.calories || ''}
-                      onChange={(e) =>
-                        setNewItemForm({
-                          ...newItemForm,
-                          calories: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Calories"
-                      min="0"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Ingredients (comma separated)</label>
-                    <input
-                      type="text"
-                      value={newIngredientsInput}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setNewIngredientsInput(value);
-                        const ingredientsArray = value
-                          ? value
-                              .split(',')
-                              .map((s) => s.trim())
-                              .filter((s) => s !== '')
-                          : [];
-                        setNewItemForm({
-                          ...newItemForm,
-                          ingredients: ingredientsArray,
-                        });
-                      }}
-                      placeholder="Chicken, Cream, Spices"
-                    />
-                  </div>
-                </div>
 
                 <CustomizationEditor
                   options={newCustomizationOptions}
@@ -1241,19 +1008,19 @@ const handleSaveNewItem = async () => {
 
                 <div className={styles.formActions}>
                   <button
-  className={styles.cancelBtn}
-  onClick={handleCancelNewItem}
-  disabled={isSaving}
->
-  Cancel
-</button>
+                    className={styles.cancelBtn}
+                    onClick={handleCancelNewItem}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
                   <button
-  className={styles.saveBtn}
-  onClick={handleSaveNewItem}
-  disabled={isSaving}
->
-  {isSaving ? 'Saving...' : 'Add Item'}
-</button>
+                    className={styles.saveBtn}
+                    onClick={handleSaveNewItem}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Add Item'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1278,166 +1045,44 @@ const handleSaveNewItem = async () => {
                 {formError && (
                   <div className={styles.formError}>{formError}</div>
                 )}
-
                 {formSuccess && (
-  <div className={styles.formSuccess}>{formSuccess}</div>
-)}
+                  <div className={styles.formSuccess}>{formSuccess}</div>
+                )}
 
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Name *</label>
-                    <input
-                      type="text"
-                      value={editForm.name || ''}
-                      onChange={(e) => {
-                        setEditForm({ ...editForm, name: e.target.value });
-                        if (invalidFields.name) {
-                          setInvalidFields((prev) => ({ ...prev, name: false }));
-                        }
-                      }}
-                      placeholder="Item name"
-                      required
-                      className={invalidFields.name ? styles.inputError : ''}
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Category</label>
-                    <input
-                      type="text"
-                      value={editForm.category || ''}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, category: e.target.value })
+                {enabledFields.map((field) => (
+                  <DynamicField
+                    key={field.key}
+                    field={field}
+                    value={(editForm as any)[field.key]}
+                    onChange={(v) => {
+                      setEditForm((prev) =>
+                        applyDiscountMutex({ ...prev, [field.key]: v }),
+                      );
+                      if (invalidFields[field.key]) {
+                        setInvalidFields((prev) => ({
+                          ...prev,
+                          [field.key]: false,
+                        }));
                       }
-                      placeholder="Category"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Description</label>
-                  <textarea
-                    value={editForm.desc || ''}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, desc: e.target.value })
+                    }}
+                    invalid={!!invalidFields[field.key]}
+                    onImageUploaded={
+                      field.key === 'img'
+                        ? (url) => setEditForm({ ...editForm, img: url })
+                        : undefined
                     }
-                    placeholder="Item description"
-                    rows={3}
+                    ingredientsInput={
+                      field.key === 'ingredients'
+                        ? ingredientsInput
+                        : undefined
+                    }
+                    onIngredientsInputChange={
+                      field.key === 'ingredients'
+                        ? setIngredientsInput
+                        : undefined
+                    }
                   />
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Price (Rs) *</label>
-                    <input
-                      type="number"
-                      value={editForm.price || ''}
-                      onChange={(e) => {
-                        setEditForm({
-                          ...editForm,
-                          price: parseFloat(e.target.value) || 0,
-                        });
-                        if (invalidFields.price) {
-                          setInvalidFields((prev) => ({ ...prev, price: false }));
-                        }
-                      }}
-                      placeholder="Price"
-                      required
-                      min="0"
-                      step="1"
-                      className={invalidFields.price ? styles.inputError : ''}
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Cost Price (Rs)</label>
-                    <input
-                      type="number"
-                      value={editForm.costPrice || ''}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          costPrice: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Cost price"
-                      min="0"
-                      step="1"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Image *</label>
-                  <div className={invalidFields.img ? styles.imageUploadError : ''}>
-                    <ImageUpload
-                      currentImage={editForm.img || ''}
-                      onImageUploaded={(url) => {
-                        setEditForm({ ...editForm, img: url });
-                        if (invalidFields.img) {
-                          setInvalidFields((prev) => ({ ...prev, img: false }));
-                        }
-                      }}
-                      label="Upload Item Image"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Preparation Time</label>
-                    <input
-                      type="text"
-                      value={editForm.preparationTime || ''}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          preparationTime: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., 15-20 mins"
-                    />
-                  </div>
-                  <div className={styles.checkboxRow}>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={editForm.isVeg || false}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            isVeg: e.target.checked,
-                          })
-                        }
-                      />
-                      Vegetarian
-                    </label>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={editForm.isSpicy || false}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            isSpicy: e.target.checked,
-                          })
-                        }
-                      />
-                      Spicy
-                    </label>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={editForm.isGlutenFree || false}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            isGlutenFree: e.target.checked,
-                          })
-                        }
-                      />
-                      Gluten Free
-                    </label>
-                  </div>
-                </div>
+                ))}
 
                 <BadgeSelector
                   value={editForm.attributes}
@@ -1445,81 +1090,6 @@ const handleSaveNewItem = async () => {
                     setEditForm({ ...editForm, attributes: next })
                   }
                 />
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Rating</label>
-                    <input
-                      type="number"
-                      value={editForm.rating || ''}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          rating: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="0-5"
-                      min="0"
-                      max="5"
-                      step="0.1"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Review Count</label>
-                    <input
-                      type="number"
-                      value={editForm.reviewCount || ''}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          reviewCount: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Number of reviews"
-                      min="0"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Calories</label>
-                    <input
-                      type="number"
-                      value={editForm.calories || ''}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          calories: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="Calories"
-                      min="0"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Ingredients (comma separated)</label>
-                    <input
-                      type="text"
-                      value={ingredientsInput}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setIngredientsInput(value);
-                        const ingredientsArray = value
-                          ? value
-                              .split(',')
-                              .map((s) => s.trim())
-                              .filter((s) => s !== '')
-                          : [];
-                        setEditForm({
-                          ...editForm,
-                          ingredients: ingredientsArray,
-                        });
-                      }}
-                      placeholder="Chicken, Cream, Spices"
-                    />
-                  </div>
-                </div>
 
                 <CustomizationEditor
                   options={customizationOptions}
@@ -1531,19 +1101,19 @@ const handleSaveNewItem = async () => {
 
                 <div className={styles.formActions}>
                   <button
-  className={styles.deleteBtn}
-  onClick={handleDeleteItem}
-  disabled={isSaving}
->
-  Delete
-</button>
+                    className={styles.deleteBtn}
+                    onClick={handleDeleteItem}
+                    disabled={isSaving}
+                  >
+                    Delete
+                  </button>
                   <button
-  className={styles.saveBtn}
-  onClick={handleSaveEdit}
-  disabled={isSaving}
->
-  {isSaving ? 'Saving...' : 'Save Changes'}
-</button>
+                    className={styles.saveBtn}
+                    onClick={handleSaveEdit}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1590,6 +1160,11 @@ const handleSaveNewItem = async () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ========== FORM BUILDER ========== */}
+        {isFormBuilderOpen && (
+          <FormBuilder onClose={() => setIsFormBuilderOpen(false)} />
         )}
       </div>
     </div>

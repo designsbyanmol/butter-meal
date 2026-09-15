@@ -1,0 +1,152 @@
+// components/Menu/MenuFilters.module.scss  (add/update these)
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchBox {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e6ded7;
+  border-radius: 12px;
+  padding: 0 12px;
+  height: 44px;
+  transition: border-color 0.15s ease;
+
+  &:focus-within { border-color: #3caa46; }
+}
+
+.searchIcon {
+  font-size: 14px;
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: #1e1e1e;
+  height: 100%;
+
+  &::placeholder { color: #a89b92; }
+}
+
+.clearSearch {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: pointer;
+}
+
+/* ---------- Filter button ---------- */
+.filterBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #e6ded7;
+  background: #fff;
+  color: #4d4d4d;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: #3caa46;
+    color: #1e7e34;
+  }
+}
+
+.filterBtnActive {
+  background: #1e7e34;
+  border-color: #1e7e34;
+  color: #fff;
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: #1e7e34;
+  font-size: 11px;
+  font-weight: 800;
+  margin-left: 2px;
+}
+
+/* ---------- Category pills ---------- */
+.pillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.pill {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4d4d4d;
+  background: #fff;
+  border: 1px solid #e6ded7;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover { border-color: #3caa46; color: #1e7e34; }
+}
+
+.pillActive {
+  background: #1e7e34;
+  border-color: #1e7e34;
+  color: #fff;
+
+  &:hover { color: #fff; }
+}
+
+/* ---------- Clear all ---------- */
+.clearAll {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #a62d2d;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+
+  &:hover { text-decoration: underline; }
+}

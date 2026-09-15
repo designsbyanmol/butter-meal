@@ -14,3 +14,8 @@ Run in this exact order in Supabase SQL Editor:
 10_schedule store close.sql
 11_check admin - option
 12_Delete extra tables - optional
+
+
+Planning ////
+
+greate now show an admin avatar  in the left of header on which clicked should open a popup "Informations" that will have some informations like Store Offer Banner, Owner Name, Owner Phone, Store Name, Store Tagline, Store Whatsapp number, Store Delivery Charge, Storewide Discount.

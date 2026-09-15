@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { menuItems as defaultMenuItems } from "./data/menuData";
 import { useCart } from "./hooks/useCart";
 import { useAuth } from "./hooks/useAuth";
@@ -11,20 +11,23 @@ import { StoreProvider, useStore } from "./contexts/StoreContext";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
 import Menu from "./components/Menu/Menu";
 import BrandInfo from "./components/BrandInfo/BrandInfo";
-import Promotion from "./components/Promotion/Promotion";
 import CartModal from "./components/Cart/CartModal";
 import FloatingCart from "./components/FloatingCart/FloatingCart";
 import ScheduleModal from "./components/Schedule/ScheduleModal";
 import LocationModal from "./components/Location/LocationModal";
 import MenuDetail from "./components/MenuDetail/MenuDetail";
 import Header from "./components/Header/Header";
-import AdminPanel from "./components/Admin/AdminPanel";
 import StoreBanner from "./components/Store/StoreBanner";
-import MenuSkeleton from "./components/Menu/MenuSkeleton";
+import DashboardSkeleton from "./components/DashboardSkeleton/DashboardSkeleton";
 import { ShopInfo } from "./config/credentials";
 import StoreDeactivated from "./components/Store/StoreDeactivated";
 import MainDashboard from "./components/MainDashboard/MainDashboard";
-import TenantNotFound from './components/TenantNotFound/TenantNotFound';
+import TenantNotFound from "./components/TenantNotFound/TenantNotFound";
+import MenuFilters from "./components/Menu/MenuFilters";
+import {
+  MenuFilterState,
+  EMPTY_FILTERS,
+} from "./components/Menu/menuFilters.types";
 import styles from "./App.module.scss";
 
 // =========================================================
@@ -67,7 +70,12 @@ const DatabaseStatusNotice: React.FC<{
 // =========================================================
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
-  const { tenant, isLoading: tenantLoading, isDeactivated,tenantNotFound } = useTenant();
+  const {
+    tenant,
+    isLoading: tenantLoading,
+    isDeactivated,
+    tenantNotFound,
+  } = useTenant();
   const { isStoreOpen, isLoading: storeLoading } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
 
@@ -104,6 +112,12 @@ const AppContent: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // Menu filters
+  const [filters, setFilters] = useState<MenuFilterState>({
+    ...EMPTY_FILTERS,
+    types: new Set(),
+  });
 
   // ---------------------------------------------------------
   // Connection check subscription
@@ -143,11 +157,9 @@ const AppContent: React.FC = () => {
   }, []);
 
   // ---------------------------------------------------------
-  // Tenant-scoped initialization.
-  // Main URL (no tenant) is a valid state — don't block on it.
+  // Tenant-scoped initialization
   // ---------------------------------------------------------
   useEffect(() => {
-    // Wait until tenant context has resolved
     if (tenantLoading) return;
 
     let stop: (() => void) | undefined;
@@ -155,18 +167,14 @@ const AppContent: React.FC = () => {
     const init = async () => {
       try {
         if (tenant) {
-          // Tenant URL: seed that tenant's data, start sync
           await db.initializeDefaultUsers(tenant.slug);
           await menuService.setTenant(tenant.slug);
           await menuService.initializeItems(defaultMenuItems);
           stop = menuService.startSync({ pollMs: 60_000 });
         }
-        // Main URL: nothing tenant-specific to initialize here.
-        // The admin uses the Stores panel to manage tenants.
       } catch (error) {
         console.error("App initialization failed:", error);
       } finally {
-        // Always clear the loading gate, tenant or not.
         setIsInitializing(false);
       }
     };
@@ -179,7 +187,7 @@ const AppContent: React.FC = () => {
   }, [tenant?.slug, tenantLoading]);
 
   // ---------------------------------------------------------
-  // Page title reflects the tenant
+  // Page title
   // ---------------------------------------------------------
   useEffect(() => {
     document.title = tenant
@@ -188,30 +196,94 @@ const AppContent: React.FC = () => {
   }, [tenant?.displayName]);
 
   // ---------------------------------------------------------
-  // Loading gate
+  // Filtered items
   // ---------------------------------------------------------
-// Loading gate first
-if (
-  isInitializing ||
-  authLoading ||
-  tenantLoading ||
-  storeLoading ||
-  !cartLoaded
-) {
-  return (
-    <div className={styles.container}>
-      <div className={styles.loadingState}>
-        <div className={styles.loader}></div>
-        <p>Loading...</p>
-      </div>
-    </div>
-  );
-}
+  const filteredItems = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
 
-// ✅ Dead URL — no header, no cart, just the error page
-if (tenantNotFound) {
-  return <TenantNotFound />;
-}
+    const list = visibleItems.filter((item) => {
+      if (q) {
+        const hay =
+          `${item.name} ${item.desc ?? ''} ${item.category ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      if (filters.category && item.category !== filters.category) return false;
+
+      if (filters.stock === 'inStock' && !item.inStock) return false;
+      if (filters.stock === 'outOfStock' && item.inStock) return false;
+
+      if (filters.types.size > 0) {
+        const t = filters.types;
+        const match =
+          (t.has('popular') && item.attributes?.isPopular) ||
+          (t.has('new') && item.attributes?.isNew) ||
+          (t.has('chefSpecial') && item.attributes?.isChefSpecial) ||
+          (t.has('limited') && item.attributes?.isLimited) ||
+          (t.has('veg') && item.isVeg === true) ||
+          (t.has('nonVeg') && item.isVeg === false);
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    const priceOf = (it: typeof visibleItems[number]) =>
+      it.costPrice && it.costPrice > 0 ? it.costPrice : it.price;
+
+    const healthScore = (it: typeof visibleItems[number]) => {
+      const n = it.nutritionalInfo;
+      const p = Number(n?.protein ?? 0);
+      const f = Number(n?.fat ?? 0);
+      const c = Number(n?.carbs ?? 0);
+      return p * 2 - f - c * 0.5;
+    };
+
+    const discountOf = (it: typeof visibleItems[number]) => {
+      const base = Number(it.costPrice ?? 0);
+      const sell = Number(it.price ?? 0);
+      if (base <= 0 || sell <= 0 || base <= sell) return 0;
+      return (base - sell) / base;
+    };
+
+    const sorted = [...list];
+    switch (filters.sort) {
+      case 'priceAsc':
+        sorted.sort((a, b) => priceOf(a) - priceOf(b));
+        break;
+      case 'priceDesc':
+        sorted.sort((a, b) => priceOf(b) - priceOf(a));
+        break;
+      case 'ratingDesc':
+        sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        break;
+      case 'ratingAsc':
+        sorted.sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0));
+        break;
+      case 'healthiest':
+        sorted.sort((a, b) => healthScore(b) - healthScore(a));
+        break;
+      case 'discountDesc':
+        sorted.sort((a, b) => discountOf(b) - discountOf(a));
+        break;
+      case 'discountLeast':
+        sorted.sort((a, b) => discountOf(a) - discountOf(b));
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [visibleItems, filters]);
+
+  // ---------------------------------------------------------
+  // Single loading flag for the whole boot sequence
+  // ---------------------------------------------------------
+  const isAppLoading =
+    authLoading ||
+    tenantLoading ||
+    storeLoading ||
+    !cartLoaded ||
+    isInitializing ||
+    menuLoading;
 
   // ---------------------------------------------------------
   // Handlers
@@ -379,43 +451,83 @@ if (tenantNotFound) {
   // ---------------------------------------------------------
   // Render
   // ---------------------------------------------------------
+
+  // Fully bare-bones screen while bootstrapping: skeleton only.
+  // Fully bare-bones screen while bootstrapping: combined skeleton only.
+if (isAppLoading && !tenantNotFound && tenant) {
+  return <DashboardSkeleton count={6} />;
+}
+
   return (
     <>
-      {isAuthenticated && isAdmin && (
+      {/* Database status — only for admins, only after loading */}
+      {isAuthenticated && isAdmin && !isAppLoading && (
         <DatabaseStatusNotice
           isConnected={isConnected}
           isChecking={isChecking}
         />
       )}
 
-      <Header companyName={tenant?.displayName ?? "Teckut"} year={2026} />
+      {/* Header — hidden during loading, and hidden on dead URLs */}
+      {!tenantNotFound && !isAppLoading && (
+        <Header
+          companyName={tenant?.displayName ?? "Teckut"}
+          year={2026}
+          onWishlistItemClick={(item) => {
+            setSelectedItem(item);
+            setIsDetailOpen(true);
+          }}
+        />
+      )}
 
       <div
         className={`${styles.container} ${
           getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
         }`}
       >
-        {/* Main URL — no tenant context. Show the platform dashboard. */}
-        {!tenant && <MainDashboard />}
+        {/* Main URL — no tenant. Show platform dashboard. */}
+        {!tenant && !tenantLoading && <MainDashboard />}
 
-        {/* Deactivated tenant — no menu, no cart */}
-        {tenant && isDeactivated && <StoreDeactivated />}
+        {/* Dead URL */}
+        {tenantNotFound && <TenantNotFound />}
 
-        {/* Active tenant, store closed */}
-        {tenant && !isDeactivated && !isStoreOpen && <StoreBanner />}
+        {/* Deactivated tenant */}
+        {!isAppLoading && tenant && isDeactivated && <StoreDeactivated />}
 
-        {/* Active tenant, store open */}
-        {tenant && !isDeactivated && isStoreOpen && (
+        {/* Store closed */}
+        {!isAppLoading && tenant && !isDeactivated && !isStoreOpen && (
+          <StoreBanner />
+        )}
+
+        {/* Store open — menu */}
+        {!isAppLoading && tenant && !isDeactivated && isStoreOpen && (
           <>
             <BrandInfo
               brandName={tenant?.displayName ?? ShopInfo.Shop_name}
               brandDesc={ShopInfo.Shop_tagline}
             />
-            {menuLoading ? (
-              <MenuSkeleton count={6} />
+
+            <MenuFilters
+              items={visibleItems}
+              filters={filters}
+              onChange={setFilters}
+            />
+
+            {filteredItems.length === 0 ? (
+              <div className={styles.emptyFilterState}>
+                <p>No dishes match your filters.</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilters({ ...EMPTY_FILTERS, types: new Set() })
+                  }
+                >
+                  Clear filters
+                </button>
+              </div>
             ) : (
               <Menu
-                items={visibleItems}
+                items={filteredItems}
                 cart={cart}
                 onAddItem={addItem}
                 onRemoveItem={removeItem}
@@ -425,15 +537,19 @@ if (tenantNotFound) {
           </>
         )}
 
-        {/* Floating cart — only for active tenants with items */}
-        {tenant && !isDeactivated && isStoreOpen && getTotalItems() > 0 && (
-          <FloatingCart
-            itemCount={getTotalItems()}
-            onClick={() => setIsCartOpen(true)}
-          />
-        )}
+        {/* Floating cart */}
+        {!isAppLoading &&
+          tenant &&
+          !isDeactivated &&
+          isStoreOpen &&
+          getTotalItems() > 0 && (
+            <FloatingCart
+              itemCount={getTotalItems()}
+              onClick={() => setIsCartOpen(true)}
+            />
+          )}
 
-        {/* Cart modal — hidden on main URL since there's no menu to add from */}
+        {/* Cart modal */}
         {tenant && (
           <CartModal
             isOpen={isCartOpen}

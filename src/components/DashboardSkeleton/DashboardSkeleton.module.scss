@@ -1,0 +1,253 @@
+// components/DashboardSkeleton/DashboardSkeleton.module.scss
+
+/* Base shimmer line */
+.line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.wrap {
+  min-height: 100vh;
+  background: #fdfbf8;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Header ---------- */
+.header {
+  width: 100%;
+  background: #fff;
+  border-bottom: 1px solid #f0eae5;
+  padding: 14px 16px;
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.headerBrand {
+  width: 140px;
+  height: 20px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ecebe8;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* ---------- Main ---------- */
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ---------- Brand info ---------- */
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 4px 20px;
+}
+
+.brandTitle {
+  width: 220px;
+  height: 26px;
+}
+
+.brandSub {
+  width: 160px;
+  height: 14px;
+}
+
+/* ---------- Filter bar ---------- */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.searchBox {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e6ded7;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #f6f2ee 0%,
+    #fdfbf8 50%,
+    #f6f2ee 100%
+  );
+  background-size: 200% 100%;
+}
+
+.filterBtn {
+  width: 110px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ecebe8;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+}
+
+.pillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.pill {
+  flex-shrink: 0;
+  width: 84px;
+  height: 30px;
+  border-radius: 999px;
+  background: #ecebe8;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* ---------- Grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.cardImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #ecebe8;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+}
+
+.cardBody {
+  padding: 12px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lineWide {
+  width: 80%;
+}
+
+.lineNarrow {
+  width: 50%;
+  height: 10px;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 14px;
+}
+
+.linePrice {
+  width: 60px;
+  height: 16px;
+}
+
+.cardBtn {
+  width: 72px;
+  height: 32px;
+  border-radius: 8px;
+  background: #e6ded7;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    #e6ded7 0%,
+    #f2ebe4 50%,
+    #e6ded7 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .headerBrand {
+    width: 110px;
+  }
+
+  .filterBtn {
+    width: 90px;
+  }
+}

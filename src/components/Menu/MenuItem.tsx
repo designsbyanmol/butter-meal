@@ -1,7 +1,10 @@
 // components/Menu/MenuItem.tsx
 import React from 'react';
 import { MenuItem } from '../../types';
+import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { useTenant } from '../../contexts/TenantContext';
 import { Special, StarIcon } from '../../assets/svgs';
+import WishlistButton from './WishlistButton';
 import styles from './Menu.module.scss';
 import NewIcon from '../../assets/svgs/NewIcon';
 import PopularIcon from '../../assets/svgs/PopularIcon';
@@ -13,13 +16,25 @@ interface MenuItemProps {
   onAdd: (item: MenuItem) => void;
   onRemove: (id: number) => void;
   onItemClick: (item: MenuItem) => void;
+  isWishlisted: boolean;
+  onToggleWishlist: (item: MenuItem) => void;
 }
 
 const MenuItemComponent: React.FC<MenuItemProps> = ({
   item,
   quantity,
   onItemClick,
+  isWishlisted,
+  onToggleWishlist,
 }) => {
+  const { tenant } = useTenant();
+  const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+
+  const isFieldEnabled = (key: string): boolean => {
+    const field = schema.fields.find((f) => f.key === key);
+    return field ? field.enabled : false;
+  };
+
   const isAdded = quantity > 0;
   const isOutOfStock = !item.inStock;
 
@@ -35,9 +50,50 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   };
 
   const hasRating =
-    typeof item.rating === 'number' && item.rating > 0;
+    isFieldEnabled('rating') &&
+    typeof item.rating === 'number' &&
+    item.rating > 0;
+
   const hasReviewCount =
-    typeof item.reviewCount === 'number' && item.reviewCount > 0;
+    isFieldEnabled('reviewCount') &&
+    typeof item.reviewCount === 'number' &&
+    item.reviewCount > 0;
+
+  const showVegBadge = isFieldEnabled('isVeg') && item.isVeg === true;
+
+  // ---------- Price display ----------
+  const discount = Number(item.discount ?? 0);
+  const hasDiscount = discount > 0 && discount <= 100;
+  const originalPrice = Number(item.price);
+  const finalPrice = hasDiscount
+    ? Math.round(originalPrice * (1 - discount / 100))
+    : originalPrice;
+
+  // Strikethrough: prefer costPrice when there's no discount, else original price
+  const showCostPrice =
+    !hasDiscount &&
+    isFieldEnabled('costPrice') &&
+    typeof item.costPrice === 'number' &&
+    item.costPrice > 0;
+
+  const strikethrough = hasDiscount
+    ? originalPrice
+    : showCostPrice
+    ? item.costPrice!
+    : null;
+
+  // Custom attributes (short pills)
+  const simpleCustomEntries = schema.fields
+    .filter((f) => !f.builtin && f.enabled)
+    .map((field) => ({ field, value: item.attributes?.[field.key] }))
+    .filter(
+      ({ value }) =>
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== '' &&
+        String(value).length <= 16,
+    )
+    .slice(0, 2);
 
   return (
     <div
@@ -53,6 +109,12 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         onKeyDown={(e) => e.key === 'Enter' && handleClick()}
         style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
+        <WishlistButton
+          item={item}
+          isWishlisted={isWishlisted}
+          onToggle={onToggleWishlist}
+        />
+
         <div className={styles.itemImg}>
           <img
             src={item.img}
@@ -67,6 +129,11 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
               <span className={styles.outOfStockBadge}>Out of Stock</span>
             </div>
           )}
+
+          {/* Discount ribbon on the image */}
+          {hasDiscount && !isOutOfStock && (
+            <span className={styles.discountRibbon}>-{discount}%</span>
+          )}
         </div>
 
         {!isOutOfStock && hasRating && (
@@ -79,28 +146,25 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
             )}
           </span>
         )}
-        
 
         {!isOutOfStock &&
           (item.attributes?.isPopular ||
             item.attributes?.isNew ||
             item.attributes?.isChefSpecial ||
             item.attributes?.isLimited ||
-            item?.isVeg) && (
+            showVegBadge) && (
             <div className={styles.badgeGroup}>
               {item.attributes?.isPopular && (
-                <PopularIcon width={32} height={32}/>
+                <PopularIcon width={32} height={32} />
               )}
-              {item.attributes?.isNew && (
-                <NewIcon width={32} height={32}/>
-              )}
+              {item.attributes?.isNew && <NewIcon width={32} height={32} />}
               {item.attributes?.isChefSpecial && (
-                <Special width={32} height={32}/>
+                <Special width={32} height={32} />
               )}
               {item.attributes?.isLimited && (
-                <LimitedIcon width={32} height={32}/>
+                <LimitedIcon width={32} height={32} />
               )}
-              {item.isVeg && (
+              {showVegBadge && (
                 <span className={`${styles.badge} ${styles.veg}`} />
               )}
             </div>
@@ -116,14 +180,29 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
         <div className={styles.itemName}>{item.name}</div>
+
+        {simpleCustomEntries.length > 0 && (
+          <div className={styles.itemMeta}>
+            {simpleCustomEntries.map(({ field, value }) => (
+              <span key={field.key} className={styles.prepTime}>
+                {field.label}:{' '}
+                {typeof value === 'boolean'
+                  ? value
+                    ? 'Yes'
+                    : 'No'
+                  : String(value)}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={styles.itemFooter}>
         <span className={styles.price}>
-          {!!item.costPrice && item.costPrice > 0 && (
-            <del>Rs{item.costPrice}</del>
+          {strikethrough !== null && (
+            <del>Rs{strikethrough}</del>
           )}
-          Rs{item.price}
+          Rs{finalPrice}
         </span>
         <div className={styles.actions}>
           {isOutOfStock ? (
@@ -148,13 +227,13 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   );
 };
 
-// ✅ Memoized so identical poll results don't re-render — saves image revalidation
 export default React.memo(MenuItemComponent, (prev, next) => {
   return (
     prev.item.id === next.item.id &&
     prev.item.img === next.item.img &&
     prev.item.name === next.item.name &&
     prev.item.price === next.item.price &&
+    prev.item.discount === next.item.discount &&      // ← NEW
     prev.item.costPrice === next.item.costPrice &&
     prev.item.inStock === next.item.inStock &&
     prev.item.rating === next.item.rating &&
@@ -164,6 +243,8 @@ export default React.memo(MenuItemComponent, (prev, next) => {
     prev.item.attributes?.isNew === next.item.attributes?.isNew &&
     prev.item.attributes?.isChefSpecial ===
       next.item.attributes?.isChefSpecial &&
-    prev.quantity === next.quantity
+    prev.item.attributes?.isLimited === next.item.attributes?.isLimited &&
+    prev.quantity === next.quantity &&
+    prev.isWishlisted === next.isWishlisted
   );
 });

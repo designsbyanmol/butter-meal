@@ -1,0 +1,606 @@
+// components/Admin/FormBuilder.module.scss
+@use './tokens' as *;
+
+/* =========================================================
+   Overlay + Panel
+   ========================================================= */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1500; // above AdminPanel
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(6px);
+  animation: overlayFade 0.2s ease-out;
+}
+
+.panel {
+  background: $bg-elevated;
+  border-radius: $radius-lg;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: $shadow-lg;
+  animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* =========================================================
+   Header
+   ========================================================= */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 22px;
+  border-bottom: 1px solid $border-soft;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: $text;
+    letter-spacing: -0.2px;
+    flex: 1;
+  }
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background $t-fast;
+
+  &:hover { background: $border-soft; }
+}
+
+/* =========================================================
+   Banners
+   ========================================================= */
+.errorMessage {
+  margin: 8px 22px 0;
+  padding: 10px 14px;
+  background: $danger-soft;
+  color: #b71c1c;
+  border-left: 4px solid $danger;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+
+  button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: $radius-xs;
+
+    &:hover { background: rgba(220, 53, 69, 0.1); }
+  }
+}
+
+.successMessage {
+  margin: 8px 22px 0;
+  padding: 10px 14px;
+  background: $primary-soft;
+  color: $primary-dark;
+  border-left: 4px solid $primary;
+  border-radius: $radius-sm;
+  font-size: 13px;
+}
+
+/* =========================================================
+   Item list (scroll body)
+   ========================================================= */
+.itemList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 22px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text;
+}
+
+.sectionHint {
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.customHeader {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* =========================================================
+   Item rows
+   ========================================================= */
+.itemRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 6px;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  background: #fff;
+  transition: border-color $t-fast;
+  position: relative;
+
+  &:hover { border-color: rgba(60, 170, 70, 0.3); }
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Stack for field controls inside a row */
+.fieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.fieldName {
+  font-weight: 600;
+}
+
+.lockedMark {
+  margin-left: 6px;
+  font-size: 11px;
+  color: $text-faint;
+}
+
+.fieldType {
+  font-size: 10px;
+  color: $text-faint;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fieldInput {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: #fff;
+  font-family: inherit;
+  color: $text;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &::placeholder { color: $text-faint; }
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba(60, 170, 70, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: $bg-subtle;
+  }
+}
+
+.selectOptionsWrap {
+  margin-top: 6px;
+}
+
+.fieldHint {
+  font-size: 11px;
+  color: $text-muted;
+  margin-top: 4px;
+}
+
+.fieldHintLabel {
+  font-size: 11px;
+  color: $text-muted;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.emptyCustom {
+  font-size: 12px;
+  color: $text-faint;
+  text-align: center;
+  padding: 12px;
+  margin: 0;
+}
+
+/* =========================================================
+   Add-field card
+   ========================================================= */
+.addFieldCard {
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+/* =========================================================
+   Forms
+   ========================================================= */
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-muted;
+    letter-spacing: 0.1px;
+  }
+
+  input,
+  select {
+    padding: 10px 12px;
+    border: 1.5px solid $border;
+    border-radius: $radius-sm;
+    font-size: 13px;
+    color: $text;
+    background: #fff;
+    font-family: inherit;
+    transition: border-color $t-fast, box-shadow $t-fast;
+
+    &::placeholder { color: $text-faint; }
+    &:hover:not(:disabled) { border-color: $border-hover; }
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
+    }
+    &:disabled {
+      background: $bg-subtle;
+      color: $text-faint;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/* =========================================================
+   Checkbox (toggle switch)
+   ========================================================= */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: $text;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  position: relative;
+  transition: color $t-fast;
+
+  input[type='checkbox'] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    content: '';
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d8dade;
+    transition: background $t-fast;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform $t-fast;
+    pointer-events: none;
+  }
+
+  &:has(input[type='checkbox']:checked)::before { background: $primary; }
+  &:has(input[type='checkbox']:checked)::after  { transform: translateX(16px); }
+
+  &:has(input[type='checkbox']:disabled)::before { opacity: 0.5; }
+  &:has(input[type='checkbox']:disabled)::after  { opacity: 0.7; }
+
+  &:has(input[type='checkbox']:disabled) {
+    cursor: not-allowed;
+    color: $text-faint;
+  }
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.addCustomizationBtn {
+  padding: 6px 14px;
+  background: #fff;
+  color: $primary-dark;
+  border: 1px solid rgba(60, 170, 70, 0.4);
+  border-radius: $radius-sm;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover { background: $primary-tint; border-color: $primary; }
+}
+
+.cancelBtn {
+  padding: 10px 18px;
+  background: transparent;
+  color: $text-muted;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast, color $t-fast;
+
+  &:hover:not(:disabled) {
+    background: $bg-subtle;
+    border-color: $border-strong;
+    color: $text;
+  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.saveBtn {
+  padding: 10px 20px;
+  background: $primary;
+  color: #fff;
+  border: 1px solid $primary;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background $t-fast, box-shadow $t-fast, transform $t-fast;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark;
+    border-color: $primary-dark;
+    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.3);
+  }
+  &:active:not(:disabled) { transform: scale(0.98); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.deleteBtn {
+  padding: 4px 6px;
+  background: transparent;
+  color: $danger;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $t-fast, color $t-fast, border-color $t-fast;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+
+  &:hover:not(:disabled) {
+    background: $danger;
+    color: #fff;
+    border-color: $danger;
+  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+/* =========================================================
+   Footer actions
+   ========================================================= */
+.formActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid $border-soft;
+  background: #fff;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 768px) {
+  .overlay { padding: 12px; }
+  .panel { max-height: 94vh; }
+  .formRow { grid-template-columns: 1fr; }
+  .itemList { padding: 12px 16px; }
+  .header { padding: 14px 16px; }
+  .formActions { padding: 12px 16px; }
+}
+
+/* ---------- Category manager ---------- */
+.categoryManager {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #e6ded7;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.fieldHintLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7d6b60;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.categoryChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.emptyCategories {
+  font-size: 12px;
+  color: #a89b92;
+}
+
+.categoryChip {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e6ded7;
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+  font-size: 13px;
+  color: #1e1e1e;
+}
+
+.categoryChipInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: inherit;
+  width: auto;
+  min-width: 60px;
+  max-width: 180px;
+  padding: 4px 2px;
+}
+
+.categoryChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &:hover { background: #fff5f5; }
+}
+
+.categoryAddRow {
+  display: flex;
+  gap: 8px;
+}
+
+.addCategoryBtn {
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #3caa46;
+  background: #3caa46;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background: #1e7e34;
+    border-color: #1e7e34;
+  }
+}
+/* ---------- Category chips: drag support ---------- */
+.chipDragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px 0 0;
+  font-size: 12px;
+  color: #a89b92;
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -2px;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chipDragging {
+  opacity: 0.4;
+}
+
+.chipDropTarget {
+  border-color: #3caa46 !important;
+  box-shadow: 0 0 0 2px rgba(60, 170, 70, 0.2);
+}
+
+/* Existing categoryChip input needs a touch more left padding now
+   that a handle sits to its left */
+.categoryChip {
+  /* …your existing rules… */
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.categoryChipInput {
+  /* …existing rules… */
+  cursor: text;
+}

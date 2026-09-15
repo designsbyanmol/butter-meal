@@ -1,0 +1,74 @@
+// components/Admin/BadgeSelector.module.scss
+@use './tokens' as *;
+
+.badgeSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding: 10px 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-muted;
+    letter-spacing: 0.1px;
+  }
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: $text;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  position: relative;
+  transition: color $t-fast;
+
+  input[type='checkbox'] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    content: '';
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d8dade;
+    transition: background $t-fast;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform $t-fast;
+    pointer-events: none;
+  }
+
+  &:has(input[type='checkbox']:checked)::before { background: $primary; }
+  &:has(input[type='checkbox']:checked)::after  { transform: translateX(16px); }
+}
+
+@media (max-width: 768px) {
+  .badgeSelector { gap: 10px 14px; }
+}

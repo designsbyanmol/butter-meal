@@ -1,6 +1,6 @@
 // components/Admin/ImageUpload.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import styles from './AdminPanel.module.scss';
+import styles from './ImageUpload.module.scss';
 import { CloseIcon } from '../../assets/svgs';
 import { config } from '../../config/env';
 interface ImageUploadProps {

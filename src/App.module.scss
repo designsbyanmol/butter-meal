@@ -246,3 +246,55 @@
     line-height: 1.6;
   }
 }
+
+.emptyFilterState {
+  text-align: center;
+  padding: 48px 16px;
+  color: #7d6b60;
+
+  p {
+    margin: 0 0 12px;
+    font-size: 15px;
+  }
+
+  button {
+    background: transparent;
+    border: 1px solid #3caa46;
+    color: #1e7e34;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &:hover {
+      background: #3caa46;
+      color: #fff;
+    }
+  }
+}
+
+.emptyFilterState {
+  text-align: center;
+  padding: 48px 16px;
+  color: #7d6b60;
+
+  p {
+    margin: 0 0 12px;
+    font-size: 15px;
+  }
+
+  button {
+    background: transparent;
+    border: 1px solid #3caa46;
+    color: #1e7e34;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &:hover {
+      background: #3caa46;
+      color: #fff;
+    }
+  }
+}

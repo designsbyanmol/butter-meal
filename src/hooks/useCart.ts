@@ -14,10 +14,16 @@ const DELIVERY_FEE = ShopInfo.Delivery_fee;
 const DISCOUNT_PERCENTAGE = ShopInfo.Discount_percentage;
 const FALLBACK_PHONE = ShopInfo.Restaurant_message;
 
+/** Compute the effective price after the item-level discount. */
+export const getEffectivePrice = (item: MenuItem): number => {
+  const d = Number(item.discount ?? 0);
+  if (!Number.isFinite(d) || d <= 0 || d > 100) return item.price;
+  return Math.round(item.price * (1 - d / 100));
+};
+
 export const useCart = () => {
   const { tenant } = useTenant();
 
-  // ✅ Per-tenant WhatsApp order phone, with a fallback for the main host
   const RESTAURANT_PHONE = tenant?.whatsappPhone || FALLBACK_PHONE;
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -105,7 +111,6 @@ export const useCart = () => {
     }
   }, [scheduleData, isLoaded]);
 
-  // Parse add-on prices out of customization display strings
   const getCustomizationPrice = (
     customizations: Record<string, string>,
   ): number => {
@@ -128,6 +133,9 @@ export const useCart = () => {
           ? getCustomizationPrice(customizations)
           : 0;
 
+        // ✅ Apply item-level discount to the base price
+        const discountedBase = getEffectivePrice(item);
+
         const existingIndex = prevCart.findIndex((c) => {
           if (c.id !== item.id) return false;
           if (!customizations && !c.customizations) return true;
@@ -143,6 +151,9 @@ export const useCart = () => {
           const updatedCart = [...prevCart];
           updatedCart[existingIndex] = {
             ...updatedCart[existingIndex],
+            // Refresh base price in case the item's discount changed
+            basePrice: discountedBase,
+            addonPrice,
             quantity: updatedCart[existingIndex].quantity + 1,
             customMessage:
               customMessage || updatedCart[existingIndex].customMessage,
@@ -158,7 +169,7 @@ export const useCart = () => {
             customizations: customizations || {},
             customMessage: customMessage || '',
             addonPrice,
-            basePrice: item.price,
+            basePrice: discountedBase,
           },
         ];
       });
@@ -227,6 +238,7 @@ export const useCart = () => {
 
   const getSubtotal = useCallback(() => {
     return cart.reduce((sum, item) => {
+      // basePrice already reflects the item-level discount
       const price = item.basePrice || item.price;
       const addonPrice = item.addonPrice || 0;
       return sum + (price + addonPrice) * (item.quantity || 0);
@@ -298,7 +310,7 @@ export const useCart = () => {
     clearCart,
     getTotalItems,
     getSubtotal,
-    getTotalWithDiscount: getTotalWithDelivery, // alias for backwards compat
+    getTotalWithDiscount: getTotalWithDelivery,
     getTotalWithDelivery,
     getDiscountPercent,
     getDiscountAmount,

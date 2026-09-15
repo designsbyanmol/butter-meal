@@ -1,6 +1,8 @@
 // components/MenuDetail/MenuDetail.tsx
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../types';
+import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { useTenant } from '../../contexts/TenantContext';
 import {
   MinusIcon,
   CheckIcon,
@@ -32,45 +34,61 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   onClose,
   onAddToCart,
 }) => {
+  const { tenant } = useTenant();
+  const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+
   const [selectedCustomizations, setSelectedCustomizations] = useState<
     Record<string, string>
   >({});
   const [quantity, setQuantity] = useState(1);
   const [customMessage, setCustomMessage] = useState('');
 
-// This keeps user selections stable across polls.
-const itemId = item?.id;
-useEffect(() => {
-  if (!item) return;
+  const itemId = item?.id;
 
-  setQuantity(1);
-  setCustomMessage('');
+  useEffect(() => {
+    if (!item) return;
 
-  const defaults: Record<string, string> = {};
-  item.customizationOptions?.forEach((option) => {
-    // Defensive: skip malformed groups
-    if (!option || !Array.isArray(option.choices)) return;
+    setQuantity(1);
+    setCustomMessage('');
 
-    if (option.default) {
-      const trimmedDefault = String(option.default).trim();
-      const choice = option.choices.find(
-        (c) => c && typeof c.name === 'string' && c.name.trim() === trimmedDefault,
-      );
-      if (choice) {
-        defaults[option.name] =
-          choice.price > 0
-            ? `${choice.name} +Rs${choice.price}`
-            : choice.name;
+    const defaults: Record<string, string> = {};
+    item.customizationOptions?.forEach((option) => {
+      if (!option || !Array.isArray(option.choices)) return;
+
+      if (option.default) {
+        const trimmedDefault = String(option.default).trim();
+        const choice = option.choices.find(
+          (c) =>
+            c && typeof c.name === 'string' && c.name.trim() === trimmedDefault,
+        );
+        if (choice) {
+          defaults[option.name] =
+            choice.price > 0
+              ? `${choice.name} +Rs${choice.price}`
+              : choice.name;
+        }
       }
-    }
-  });
-  setSelectedCustomizations(defaults);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [itemId]);
+    });
+    setSelectedCustomizations(defaults);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId]);
 
   if (!isOpen || !item) return null;
 
-  // ============ HANDLERS ============
+  // ============ SCHEMA HELPERS ============
+
+  const isFieldEnabled = (key: string): boolean => {
+    const field = schema.fields.find((f) => f.key === key);
+    return field ? field.enabled : false;
+  };
+
+  // ============ DISCOUNT + PRICE ============
+
+  const discount = Number(item.discount ?? 0);
+  const hasDiscount = discount > 0 && discount <= 100;
+  const effectiveUnitPrice = hasDiscount
+    ? Math.round(item.price * (1 - discount / 100))
+    : item.price;
 
   const handleCustomizationChange = (optionName: string, value: string) => {
     setSelectedCustomizations((prev) => ({
@@ -96,7 +114,7 @@ useEffect(() => {
   };
 
   const getTotalPrice = (): number => {
-    return (item.price + getAddonPrice()) * quantity;
+    return (effectiveUnitPrice + getAddonPrice()) * quantity;
   };
 
   const getCustomizationSummary = (): string => {
@@ -106,33 +124,55 @@ useEffect(() => {
     return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
 
-  // ============ FIELD PRESENCE FLAGS ============
+  // ============ FIELD PRESENCE FLAGS (schema-aware) ============
 
-  const hasDesc = !!item.desc && item.desc.trim() !== '';
-  const hasCategory = !!item.category && item.category.trim() !== '';
+  const hasDesc =
+    isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
+
+  const hasCategory =
+    isFieldEnabled('category') &&
+    !!item.category &&
+    item.category.trim() !== '';
+
   const hasPrepTime =
-    !!item.preparationTime && item.preparationTime.trim() !== '';
+    isFieldEnabled('preparationTime') &&
+    !!item.preparationTime &&
+    item.preparationTime.trim() !== '';
+
   const hasCalories =
-    typeof item.calories === 'number' && item.calories > 0;
-  const hasRating = typeof item.rating === 'number' && item.rating > 0;
+    isFieldEnabled('calories') &&
+    typeof item.calories === 'number' &&
+    item.calories > 0;
+
+  const hasRating =
+    isFieldEnabled('rating') &&
+    typeof item.rating === 'number' &&
+    item.rating > 0;
+
   const hasReviewCount =
-    typeof item.reviewCount === 'number' && item.reviewCount > 0;
+    isFieldEnabled('reviewCount') &&
+    typeof item.reviewCount === 'number' &&
+    item.reviewCount > 0;
+
+  const showSpicy = isFieldEnabled('isSpicy') && item.isSpicy === true;
+  const showGlutenFree =
+    isFieldEnabled('isGlutenFree') && item.isGlutenFree === true;
 
   const hasAnyTag =
-    hasCategory ||
-    item.isSpicy === true ||
-    item.isGlutenFree === true ||
-    hasPrepTime ||
-    hasCalories;
+    hasCategory || showSpicy || showGlutenFree || hasPrepTime || hasCalories;
 
   const nutritionEntries =
     item.nutritionalInfo && typeof item.nutritionalInfo === 'object'
       ? Object.entries(item.nutritionalInfo).filter(
-          ([_, v]) =>
-            v !== undefined && v !== null && String(v).trim() !== '',
+          ([_, v]) => v !== undefined && v !== null && String(v).trim() !== '',
         )
       : [];
   const hasNutrition = nutritionEntries.length > 0;
+
+  const hasIngredients =
+    isFieldEnabled('ingredients') &&
+    Array.isArray(item.ingredients) &&
+    item.ingredients.length > 0;
 
   const hasCustomizations =
     Array.isArray(item.customizationOptions) &&
@@ -140,6 +180,19 @@ useEffect(() => {
 
   const hasAnyCustomizationSelected =
     Object.keys(selectedCustomizations).length > 0;
+
+  const customFieldEntries = schema.fields
+    .filter((f) => !f.builtin && f.enabled)
+    .map((field) => {
+      const value = item.attributes?.[field.key];
+      return { field, value };
+    })
+    .filter(
+      ({ value }) =>
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== '',
+    );
 
   // ============ RENDER ============
 
@@ -149,25 +202,29 @@ useEffect(() => {
         {/* Image */}
         <div className={styles.imageWrapper}>
           <img src={item.img} alt={item.name} />
+
+          {/* Discount ribbon */}
+          {hasDiscount && (
+            <span className={styles.discountRibbon}>-{discount}%</span>
+          )}
+
           {(item.attributes?.isPopular ||
             item.attributes?.isNew ||
             item.attributes?.isChefSpecial ||
             item.attributes?.isLimited ||
-            item?.isVeg) && (
+            (isFieldEnabled('isVeg') && item?.isVeg)) && (
             <div className={styles.badgesWrapper}>
               {item.attributes?.isPopular && (
-                <PopularIcon width={32} height={32}/>
+                <PopularIcon width={32} height={32} />
               )}
-              {item.attributes?.isNew && (
-                <NewIcon width={32} height={32}/>
-              )}
+              {item.attributes?.isNew && <NewIcon width={32} height={32} />}
               {item.attributes?.isChefSpecial && (
-                <Special width={32} height={32}/>
+                <Special width={32} height={32} />
               )}
               {item.attributes?.isLimited && (
-                <LimitedIcon width={32} height={32}/>
+                <LimitedIcon width={32} height={32} />
               )}
-              {item.isVeg && (
+              {isFieldEnabled('isVeg') && item.isVeg && (
                 <span className={`${styles.badge} ${styles.veg}`}>Veg</span>
               )}
             </div>
@@ -194,7 +251,15 @@ useEffect(() => {
             )}
           </div>
 
-          {/* Description — only if non-empty */}
+          {/* Discount line */}
+          {hasDiscount && (
+            <div className={styles.discountLine}>
+              <del>Rs{item.price}</del>
+              <span className={styles.discountTag}>{discount}% off</span>
+            </div>
+          )}
+
+          {/* Description */}
           {hasDesc && <p className={styles.description}>{item.desc}</p>}
 
           {/* Tags */}
@@ -206,8 +271,8 @@ useEffect(() => {
                   {item.category}
                 </span>
               )}
-              {item.isSpicy && <span className={styles.tag}>Spicy</span>}
-              {item.isGlutenFree && (
+              {showSpicy && <span className={styles.tag}>Spicy</span>}
+              {showGlutenFree && (
                 <span className={styles.tag}>Gluten-Free</span>
               )}
               {hasPrepTime && (
@@ -225,12 +290,33 @@ useEffect(() => {
             </div>
           )}
 
+          {/* Custom fields */}
+          {customFieldEntries.length > 0 && (
+            <div className={styles.section}>
+              <h4>Additional Information</h4>
+              <div className={styles.nutritionalInfo}>
+                {customFieldEntries.map(({ field, value }) => (
+                  <div key={field.key} className={styles.nutritionItem}>
+                    <span>{field.label}</span>
+                    <span>
+                      {typeof value === 'boolean'
+                        ? value
+                          ? 'Yes'
+                          : 'No'
+                        : String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Ingredients */}
-          {item.ingredients && item.ingredients.length > 0 && (
+          {hasIngredients && (
             <div className={styles.section}>
               <h4>Ingredients</h4>
               <div className={styles.ingredients}>
-                {item.ingredients.map((ingredient, index) => (
+                {item.ingredients!.map((ingredient, index) => (
                   <span key={index} className={styles.ingredient}>
                     <CheckIcon width={12} height={12} fill="#3CAA46" />
                     {ingredient}
@@ -240,7 +326,7 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Nutritional Info — only if at least one value exists */}
+          {/* Nutritional Info */}
           {hasNutrition && (
             <div className={styles.section}>
               <h4>Nutritional Information</h4>
@@ -257,7 +343,7 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Customizations — new shape with per-choice pricing */}
+          {/* Customizations */}
           {hasCustomizations && (
             <div className={styles.section}>
               <h4>Customize Your Order</h4>
@@ -355,13 +441,14 @@ useEffect(() => {
                   Rs{getTotalPrice()}
                   {quantity > 1 && (
                     <span className={styles.pricePerItem}>
-                      (Rs{item.price + getAddonPrice()} × {quantity})
+                      (Rs{effectiveUnitPrice + getAddonPrice()} × {quantity})
                     </span>
                   )}
                 </div>
                 {getAddonPrice() > 0 && (
                   <div className={styles.basePrice}>
-                    Base: Rs{item.price} + Add-ons: Rs{getAddonPrice()}
+                    Base: Rs{effectiveUnitPrice} + Add-ons: Rs
+                    {getAddonPrice()}
                   </div>
                 )}
               </div>

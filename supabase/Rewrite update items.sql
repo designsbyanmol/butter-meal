@@ -1,3 +1,6 @@
+-- ============================================
+-- Rewrite update item
+-- ============================================
 CREATE OR REPLACE FUNCTION update_menu_item(item_id INTEGER, payload JSONB)
 RETURNS star_veg_menu_items AS $$
 DECLARE

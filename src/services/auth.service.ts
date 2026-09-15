@@ -4,7 +4,14 @@ import { isSupabaseConfigured } from '../config/env';
 import { supabase } from './supabase.client';
 import { credentialCache } from './credentialCache';
 
-const AUTH_SESSION_KEY = 'restaurant_auth_session';
+// ---- Session storage keys ----
+const SESSION_PREFIX = 'restaurant_auth_session';
+const PLATFORM_KEY = `${SESSION_PREFIX}::platform`;
+const SESSION_EVENT = 'auth:changed';
+
+/** Key used for the currently active tab's tenant. */
+const keyForTenant = (slug: string | null): string =>
+  slug ? `${SESSION_PREFIX}::${slug}` : PLATFORM_KEY;
 
 interface RawAuthRow {
   id: string;
@@ -27,53 +34,81 @@ class AuthService {
 
   private listeners: ((state: AuthState) => void)[] = [];
 
+  /** Which tenant slot this tab is currently bound to. */
+  private currentSlug: string | null = null;
+
   constructor() {
-    this.loadSessionFromCache();
+    this.currentSlug = this.readSlugFromUrl();
+    this.loadSessionFromCache(this.currentSlug);
+  }
+
+  // =========================================================
+  // URL / SLUG HELPERS
+  // =========================================================
+
+  private readSlugFromUrl(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qp = params.get('t');
+      return qp ? qp.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Re-bind the service to a different tenant.
+   * Called by TenantContext when the URL slug resolves.
+   * Loads that tenant's session (if any) into the active auth state.
+   */
+  bindTenant(slug: string | null): void {
+    if (this.currentSlug === slug) return;
+    this.currentSlug = slug;
+    this.loadSessionFromCache(slug);
   }
 
   // =========================================================
   // SESSION LIFECYCLE
   // =========================================================
 
-  private loadSessionFromCache(): void {
+  private loadSessionFromCache(slug: string | null): void {
     try {
-      const session = localStorage.getItem(AUTH_SESSION_KEY);
-      if (session) {
-        const user = JSON.parse(session);
+      const raw = localStorage.getItem(keyForTenant(slug));
+      if (raw) {
+        const user: User = JSON.parse(raw);
+        this.authState = { user, isAuthenticated: true, isLoading: false };
+      } else {
         this.authState = {
-          user,
-          isAuthenticated: true,
+          user: null,
+          isAuthenticated: false,
           isLoading: false,
         };
-      } else {
-        this.authState.isLoading = false;
       }
     } catch {
-      this.authState.isLoading = false;
+      this.authState = {
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      };
     }
     this.notifyListeners();
   }
 
-  private saveSession(user: User): void {
+  private saveSession(slug: string | null, user: User): void {
     try {
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+      localStorage.setItem(keyForTenant(slug), JSON.stringify(user));
     } catch {
       /* ignore */
     }
   }
 
-  private clearSession(): void {
+  private clearSession(slug: string | null): void {
     try {
-      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(keyForTenant(slug));
     } catch {
       /* ignore */
     }
-    this.authState = {
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    };
-    this.notifyListeners();
   }
 
   private notifyListeners(): void {
@@ -83,8 +118,20 @@ class AuthService {
   subscribe(listener: (state: AuthState) => void): () => void {
     this.listeners.push(listener);
     listener({ ...this.authState });
+
+    // Cross-tab sync — react to logout/login in other tabs
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      const targetKey = keyForTenant(this.currentSlug);
+      if (e.key === targetKey) {
+        this.loadSessionFromCache(this.currentSlug);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
+      window.removeEventListener('storage', onStorage);
     };
   }
 
@@ -115,6 +162,9 @@ class AuthService {
       };
     }
 
+    // Always log into the slot of the URL's tenant
+    const targetSlug = currentTenantSlug;
+
     const { data, error } = await supabase.rpc('verify_password', {
       phone_in: phone,
       pw: password,
@@ -140,24 +190,18 @@ class AuthService {
     //  - Admin (role='admin') can log in anywhere.
     //  - Staff must log in at their own tenant URL.
     if (row.role !== 'admin') {
-      if (!currentTenantSlug) {
+      if (!targetSlug) {
         return {
           success: false,
           error: 'Staff accounts must log in from their store URL.',
         };
       }
-      if (row.tenant_slug !== currentTenantSlug) {
+      if (row.tenant_slug !== targetSlug) {
         return {
           success: false,
           error: 'This account belongs to a different store.',
         };
       }
-    }
-
-    // If we're replacing a different user, wipe any cached credentials
-    const previousUser = this.authState.user;
-    if (previousUser && previousUser.id !== row.id) {
-      credentialCache.clearAll();
     }
 
     const user: User = {
@@ -168,7 +212,7 @@ class AuthService {
       role: row.role,
       isActive: row.is_active,
       tenantId: row.tenant_id,
-      tenantSlug: row.tenant_slug, // ✅ essential for scope enforcement
+      tenantSlug: row.tenant_slug,
       createdAt: row.created_at,
       lastLogin: row.last_login ?? undefined,
     };
@@ -179,13 +223,20 @@ class AuthService {
       /* ignore */
     }
 
-    this.authState = {
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-    };
-    this.saveSession(user);
-    this.notifyListeners();
+    // Persist into the slot matching the URL's tenant
+    this.saveSession(targetSlug, user);
+
+    // If this tab is currently bound to the targetSlug, update live state
+    if (this.currentSlug === targetSlug) {
+      this.currentSlug = targetSlug;  // keep service in sync
+      this.authState = {
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      };
+      this.notifyListeners();
+    }
+
     return { success: true };
   }
 
@@ -193,32 +244,56 @@ class AuthService {
   // LOGOUT
   // =========================================================
 
+  /** Logs out of the CURRENT tenant slot only. */
   logout(): void {
-    // Clear any session-scoped credentials so the next login starts fresh
+    const slug = this.currentSlug;
+
+    // Clear session-scoped credentials for this tenant only
+    if (slug) {
+      credentialCache.remove(slug);
+    }
+
+    this.clearSession(slug);
+
+    this.authState = {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+    this.notifyListeners();
+  }
+
+  /** Explicit "log out everywhere" — used by platform admins if needed. */
+  logoutAll(): void {
+    // Wipe every tenant slot
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(SESSION_PREFIX)) keys.push(k);
+      }
+      keys.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* ignore */
+    }
     credentialCache.clearAll();
-    this.clearSession();
+    this.authState = {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+    this.notifyListeners();
   }
 
   // =========================================================
   // TENANT SCOPE ENFORCEMENT
   // =========================================================
 
-  /**
-   * Returns true if the current session's user is allowed to be active
-   * on the given tenant slug.
-   *
-   * Rules:
-   *   - Not logged in            → true (nothing to invalidate).
-   *   - role='admin'             → true anywhere.
-   *   - role='user' at own slug  → true.
-   *   - role='user' at main URL  → false.
-   *   - role='user' at wrong slug → false.
-   */
   isUserValidForTenant(currentTenantSlug: string | null): boolean {
     const user = this.authState.user;
     if (!user) return true;
 
-    // Admins roam freely across every tenant URL
+    // Admins roam freely
     if (user.role === 'admin') return true;
 
     // Staff: must be at their own tenant URL
@@ -226,15 +301,12 @@ class AuthService {
     return user.tenantSlug === currentTenantSlug;
   }
 
-  /**
-   * Logs out if the current session's user doesn't match the tenant
-   * of the URL they're on. Safe to call repeatedly.
-   *
-   * Called by TenantContext whenever the URL's tenant is resolved.
-   */
   enforceTenantScope(currentTenantSlug: string | null): void {
+    // First re-bind the service to this URL's tenant
+    this.bindTenant(currentTenantSlug);
+
+    // Now check if the loaded session is valid for this URL
     if (!this.isUserValidForTenant(currentTenantSlug)) {
-      // Leave a breadcrumb so the UI can optionally show a notice
       try {
         sessionStorage.setItem(
           'logged_out_reason',
@@ -248,7 +320,7 @@ class AuthService {
   }
 
   // =========================================================
-  // PROFILE
+  // PROFILE / GETTERS (unchanged)
   // =========================================================
 
   async updateUserProfile(
@@ -259,14 +331,10 @@ class AuthService {
     }
     const updatedUser = { ...this.authState.user, ...updates };
     this.authState.user = updatedUser;
-    this.saveSession(updatedUser);
+    this.saveSession(this.currentSlug, updatedUser);
     this.notifyListeners();
     return { success: true };
   }
-
-  // =========================================================
-  // GETTERS
-  // =========================================================
 
   isAuthenticated(): boolean {
     return this.authState.isAuthenticated;

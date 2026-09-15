@@ -1,0 +1,298 @@
+// components/Admin/AdminLogin.module.scss
+@use './tokens' as *;
+
+/* =========================================================
+   Overlay + Card
+   ========================================================= */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: overlayFade 0.2s ease-out;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: $bg-elevated;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* =========================================================
+   Header
+   ========================================================= */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid $border-soft;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: $text;
+    letter-spacing: -0.2px;
+  }
+}
+
+.cancelBtn {
+  background: transparent;
+  border: none;
+  color: $text-muted;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: $radius-sm;
+  transition: background $t-fast, color $t-fast;
+
+  &:hover { background: $border-soft; color: $text; }
+}
+
+/* =========================================================
+   Sign-in form
+   ========================================================= */
+.form {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-muted;
+    letter-spacing: 0.1px;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid $border;
+    border-radius: $radius-sm;
+    font-size: 14px;
+    color: $text;
+    background: #fff;
+    font-family: inherit;
+    transition: border-color $t-fast, box-shadow $t-fast;
+
+    &::placeholder { color: $text-faint; }
+    &:hover:not(:disabled) { border-color: $border-hover; }
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
+    }
+    &:disabled {
+      background: $bg-subtle;
+      color: $text-faint;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.passwordRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+
+  input { flex: 1; min-width: 0; }
+}
+
+.showBtn {
+  padding: 0 14px;
+  background: $bg-subtle;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-muted;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast, color $t-fast;
+
+  &:hover {
+    background: $border-soft;
+    border-color: $border-hover;
+    color: $text;
+  }
+}
+
+/* =========================================================
+   Messages
+   ========================================================= */
+.errorMessage {
+  padding: 10px 14px;
+  background: $danger-soft;
+  color: #b71c1c;
+  border-left: 4px solid $danger;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.warningMessage {
+  padding: 10px 14px;
+  background: #fff8e1;
+  color: #856404;
+  border-left: 4px solid #ffc107;
+  border-radius: $radius-sm;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: $text-faint;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   Submit
+   ========================================================= */
+.submitBtn {
+  padding: 12px 20px;
+  background: $primary;
+  color: #fff;
+  border: 1px solid $primary;
+  border-radius: $radius-sm;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background $t-fast, box-shadow $t-fast, transform $t-fast;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark;
+    border-color: $primary-dark;
+    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.3);
+  }
+  &:active:not(:disabled) { transform: scale(0.98); }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+/* =========================================================
+   Locked-out state
+   ========================================================= */
+.lockedBlock {
+  padding: 28px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.lockIcon {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.lockTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: $text;
+}
+
+.lockMessage {
+  margin: 0;
+  font-size: 13.5px;
+  color: $danger;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.lockDivider {
+  width: 60px;
+  height: 1px;
+  background: $border;
+  margin: 4px 0 8px;
+}
+
+.lockHelp {
+  margin: 0;
+  font-size: 13px;
+  color: $text-muted;
+  line-height: 1.55;
+
+  strong { color: $text; }
+}
+
+.whatsappBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  background: #25d366;
+  color: #fff;
+  border: none;
+  border-radius: $radius-sm;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background $t-fast, box-shadow $t-fast, transform $t-fast;
+  margin-top: 4px;
+
+  &:hover {
+    background: #1da851;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  }
+  &:active { transform: scale(0.98); }
+}
+
+.whatsappIcon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.secondaryBtn {
+  padding: 8px 14px;
+  background: transparent;
+  color: $text-muted;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast, color $t-fast;
+  margin-top: 4px;
+
+  &:hover {
+    background: $bg-subtle;
+    border-color: $border-hover;
+    color: $text;
+  }
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 480px) {
+  .overlay { padding: 12px; }
+  .form { padding: 18px 16px; }
+  .header { padding: 14px 16px; }
+  .lockedBlock { padding: 22px 16px; }
+}

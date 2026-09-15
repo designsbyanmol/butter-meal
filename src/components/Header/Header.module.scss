@@ -149,3 +149,39 @@
     padding: 4px 10px 4px 4px;
   }
 }
+
+// components/Header/Header.module.scss  (add)
+
+.wishlistBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover { background: rgba(0, 0, 0, 0.05); }
+}
+
+.wishlistBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e23744;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

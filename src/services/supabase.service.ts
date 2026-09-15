@@ -3,6 +3,8 @@ import { supabase, isSupabaseConfigured } from "./supabase.client";
 import { User, MenuItem, StoreSettings } from "../types";
 import { TABLES } from "../config/tables";
 import { Tenant } from '../contexts/TenantContext';
+import { FormSchema } from '../types';
+
 
 // =========================================================
 // Module-level helpers — do not depend on `this`
@@ -388,6 +390,8 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
 
   if (typeof item.costPrice === 'number' && item.costPrice > 0)
     payload.cost_price = item.costPrice;
+  if (typeof item.discount === 'number' && item.discount > 0)
+  payload.discount = item.discount;
   if (typeof item.calories === 'number' && item.calories > 0)
     payload.calories = item.calories;
   if (typeof item.rating === 'number' && item.rating > 0)
@@ -447,6 +451,7 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
   if ('name' in updates) payload.name = updates.name;
   if ('desc' in updates) payload.description = updates.desc;
   if ('costPrice' in updates) payload.cost_price = updates.costPrice ?? null;
+  if ('discount' in updates) payload.discount = updates.discount ?? 0;
   if ('price' in updates) payload.price = updates.price;
   if ('img' in updates) payload.image_url = updates.img ?? null;
   if ('category' in updates) payload.category = updates.category ?? null;
@@ -781,6 +786,7 @@ private mapUser(row: any): User {
       desc: item.description ?? "",
       costPrice: positiveNum(item.cost_price),
       price: item.price,
+      discount: nonNegativeNum(item.discount) ?? 0,
       img: item.image_url,
       category: item.category || undefined,
       isVeg: item.is_veg ?? false,
@@ -803,6 +809,23 @@ private mapUser(row: any): User {
       ),
     };
   }
+
+  async updateFormSchema(
+  tenantSlug: string,
+  schema: FormSchema,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data, error } = await client.rpc('update_tenant_form_schema', {
+    tenant_slug_in: tenantSlug,
+    schema_in: schema,
+  });
+  if (error) {
+    console.error('update_tenant_form_schema error:', error);
+    throw new Error(error.message || 'Failed to save form schema');
+  }
+  return !!data;
+}
 }
 
 export const supabaseService = SupabaseService.getInstance();

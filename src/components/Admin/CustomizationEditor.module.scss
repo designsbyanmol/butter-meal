@@ -1,0 +1,201 @@
+// components/Admin/CustomizationEditor.module.scss
+@use './tokens' as *;
+
+.customizationSection {
+  margin-top: 10px;
+  padding: 16px;
+  background: $bg-subtle;
+  border-radius: $radius;
+  border: 1px solid $border-soft;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+
+  h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: $text;
+    letter-spacing: 0.1px;
+  }
+}
+
+.addCustomizationBtn {
+  padding: 6px 14px;
+  background: #fff;
+  color: $primary-dark;
+  border: 1px solid rgba(60, 170, 70, 0.4);
+  border-radius: $radius-sm;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover { background: $primary-tint; border-color: $primary; }
+  &:active { transform: scale(0.97); }
+}
+
+.emptyCustomization {
+  color: $text-faint;
+  font-size: 13px;
+  text-align: center;
+  padding: 18px;
+  background: #fff;
+  border-radius: $radius-sm;
+  margin: 0;
+  border: 1px dashed $border;
+}
+
+.customizationList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.customizationItem {
+  background: #fff;
+  padding: 14px;
+  border-radius: $radius;
+  border: 1px solid $border-soft;
+  position: relative;
+  transition: border-color $t-fast;
+
+  &:hover { border-color: rgba(60, 170, 70, 0.3); }
+
+  .customizationHeader { margin-bottom: 10px; min-height: 20px; }
+
+  .customizationIndex {
+    font-weight: 700;
+    color: $text-muted;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+  }
+
+  .removeCustomizationBtn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: $radius-xs;
+    transition: background $t-fast;
+
+    &:hover { background: $danger-soft; }
+  }
+
+  .formGroup {
+    margin-bottom: 12px;
+    &:last-child { margin-bottom: 0; }
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-muted;
+    letter-spacing: 0.1px;
+  }
+
+  input,
+  select {
+    padding: 10px 12px;
+    border: 1.5px solid $border;
+    border-radius: $radius-sm;
+    font-size: 13px;
+    color: $text;
+    background: #fff;
+    font-family: inherit;
+    transition: border-color $t-fast, box-shadow $t-fast;
+
+    &::placeholder { color: $text-faint; }
+    &:hover { border-color: $border-hover; }
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
+    }
+  }
+}
+
+.choicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.choiceRow {
+  display: grid;
+  grid-template-columns: 1fr 100px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.choiceNameInput { width: 100%; }
+.choicePriceInput { width: 100%; text-align: right; }
+
+.removeChoiceBtn {
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover:not(:disabled) {
+    background: $danger-soft;
+    border-color: rgba(220, 53, 69, 0.3);
+  }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.addChoiceBtn {
+  background: #fff;
+  border: 1px dashed rgba(60, 170, 70, 0.4);
+  border-radius: $radius-sm;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: $primary-dark;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover { background: $primary-tint; border-color: $primary; border-style: solid; }
+}
+
+.defaultSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  background: #fff;
+  color: $text;
+  cursor: pointer;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
+  }
+}
