@@ -1,5 +1,5 @@
 // components/Header/Header.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../contexts/TenantContext';
 import { useWishlist } from '../../hooks/useWishlist';
@@ -10,11 +10,15 @@ import AdminPanel from '../Admin/AdminPanel';
 import StoreModal from '../Store/StoreModal';
 import TenantManager from '../Admin/TenantManager';
 import WishlistPanel from '../Menu/WishlistPanel';
+import InfoPopup from '../Store/InfoPopup';
 import WishlistIcon from '../../assets/svgs/WishlistIcon';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
 import styles from './Header.module.scss';
 import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
-import { authService } from '../../services/auth.service';
+import {
+  subscribeAdminAction,
+  AdminAction,
+} from '../../../utils/adminEvents';
 
 interface HeaderProps {
   companyName: string;
@@ -37,6 +41,30 @@ const Header: React.FC<HeaderProps> = ({
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isTenantManagerOpen, setIsTenantManagerOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  useEffect(() => {
+  const unsubscribe = subscribeAdminAction((action: AdminAction) => {
+    switch (action) {
+      case 'open-menu-panel':
+        setIsMenuPanelOpen(true);
+        break;
+      case 'open-store-settings':
+        setIsStoreModalOpen(true);
+        break;
+      case 'open-user-management':
+        setIsUserManagementOpen(true);
+        break;
+      case 'open-info-popup':
+        setIsInfoOpen(true);
+        break;
+      case 'open-tenant-manager':
+        setIsTenantManagerOpen(true);
+        break;
+    }
+  });
+  return unsubscribe;
+}, []);
 
   // ---------------------------------------------------------
   // Visibility rules
@@ -54,6 +82,9 @@ const Header: React.FC<HeaderProps> = ({
   // (i.e. not on the platform host and not on a deactivated store).
   const showWishlist = !!tenant && !isDeactivated;
 
+  // Admin avatar — only when logged in and inside a tenant context
+  const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
+
   const handleLogin = () => setIsLoginOpen(true);
 
   const handleLogout = () => {
@@ -62,43 +93,54 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleLogoutAll = () => {
-  if (
-    window.confirm(
-      'Log out of every store on this browser? You will need to sign in again on each store.',
-    )
-  ) {
-    authService.logoutAll();
-  }
-};
-
   const handleWishlistItemClick = (item: MenuItem) => {
     onWishlistItemClick?.(item);
   };
+
+  const avatarInitial =
+    user?.name && user.name.trim().length > 0
+      ? user.name.trim().charAt(0).toUpperCase()
+      : '?';
 
   return (
     <>
       <div className={styles.bm_header}>
         <div className={styles.container}>
+          {/* ============ LEFT: avatar + brand ============ */}
           <div className={styles.brand}>
-            {!isAuthenticated ? (
-              <span className={styles.companyName}>
-                {tenant ? tenant.displayName : `${companyName} ${year}`}
-              </span>
-            ) : (
-              <span className={styles.tagline}>{user?.name}</span>
+            {showAdminAvatar && isAdmin && (
+              <button
+                type="button"
+                className={styles.avatarBtn}
+                onClick={() => setIsInfoOpen(true)}
+                title="Store informations"
+                aria-label="Open store informations"
+              >
+                {avatarInitial}
+              </button>
             )}
+
+            <span className={styles.brandText}>
+              {!isAuthenticated ? (
+                <span className={styles.companyName}>
+                  {tenant ? tenant.displayName : `${companyName} ${year}`}
+                </span>
+              ) : (
+                <span className={styles.tagline}>{user?.name}</span>
+              )}
+            </span>
           </div>
 
+          {/* ============ RIGHT: actions ============ */}
           <div className={styles.actions}>
-            {/* ============ WISHLIST ICON (customers) ============ */}
-            {showWishlist && (
+            {/* ---- Wishlist icon (customers) ---- */}
+            {showWishlist && !isAuthenticated && (
               <button
+                type="button"
                 className={styles.wishlistBtn}
                 onClick={() => setIsWishlistOpen(true)}
                 aria-label="Open wishlist"
                 title="Wishlist"
-                type="button"
               >
                 {wishlistCount > 0 ? (
                   <WishlistFilledIcon width={20} height={20} fill="#e23744" />
@@ -115,7 +157,7 @@ const Header: React.FC<HeaderProps> = ({
 
             {isAuthenticated ? (
               <>
-                {/* ============ TENANT-SCOPED BUTTONS ============ */}
+                {/* ---- Tenant-scoped buttons ---- */}
                 {canManageTenant && (
                   <>
                     <button
@@ -134,7 +176,6 @@ const Header: React.FC<HeaderProps> = ({
                       <MenuIcon width={20} height={20} color="#1e1e1e" />
                     </button>
 
-                    {/* Users button: only admins (platform or tenant owner) */}
                     {isAdmin && (
                       <button
                         className={styles.adminBtn}
@@ -147,21 +188,16 @@ const Header: React.FC<HeaderProps> = ({
                   </>
                 )}
 
-                {/* ============ PLATFORM ADMIN ONLY ============ */}
+                {/* ---- Platform admin only ---- */}
                 {isPlatformAdmin && (
-                  <>
-                    <button
-                      className={styles.adminBtn}
-                      onClick={() => setIsTenantManagerOpen(true)}
-                      title="Manage Stores"
-                    >
-                      <StoreIcon width={20} height={20} fill="#1e1e1e" />
-                      <span style={{ marginLeft: 4 }}>Stores</span>
-                    </button>
-                    <button className={styles.logoutBtn} onClick={handleLogoutAll}>
-                      Logout All
-                    </button>
-                  </>
+                  <button
+                    className={styles.adminBtn}
+                    onClick={() => setIsTenantManagerOpen(true)}
+                    title="Manage Stores"
+                  >
+                    <StoreIcon width={20} height={20} fill="#1e1e1e" />
+                    <span style={{ marginLeft: 4 }}>Stores</span>
+                  </button>
                 )}
 
                 <button className={styles.logoutBtn} onClick={handleLogout}>
@@ -169,12 +205,9 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
               </>
             ) : (
-              <>
-                {/* Sign In still available alongside wishlist */}
-                <button className={styles.loginBtn} onClick={handleLogin}>
-                  Sign In
-                </button>
-              </>
+              <button className={styles.loginBtn} onClick={handleLogin}>
+                Sign In
+              </button>
             )}
           </div>
         </div>
@@ -208,6 +241,13 @@ const Header: React.FC<HeaderProps> = ({
         onClose={() => setIsWishlistOpen(false)}
         onItemClick={handleWishlistItemClick}
       />
+
+      {showAdminAvatar && (
+        <InfoPopup
+          isOpen={isInfoOpen}
+          onClose={() => setIsInfoOpen(false)}
+        />
+      )}
     </>
   );
 };

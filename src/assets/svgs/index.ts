@@ -21,3 +21,4 @@ export { default as Special } from './SpecialIcon';
 export { default as FilterIcon } from './FilterIcon';
 export { default as WishlistIcon } from './WishlistIcon';
 export { default as WishlistFilledIcon } from './WishlistFilledIcon';
+export { default as ExpandIcon } from './ExpandIcon';

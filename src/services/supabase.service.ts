@@ -387,6 +387,9 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
     is_gluten_free: item.isGlutenFree ?? false,
     review_count: item.reviewCount ?? 0,
   };
+  if (Array.isArray(item.gallery) && item.gallery.length > 0) {
+  payload.gallery = item.gallery;
+}
 
   if (typeof item.costPrice === 'number' && item.costPrice > 0)
     payload.cost_price = item.costPrice;
@@ -453,7 +456,7 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
   if ('costPrice' in updates) payload.cost_price = updates.costPrice ?? null;
   if ('discount' in updates) payload.discount = updates.discount ?? 0;
   if ('price' in updates) payload.price = updates.price;
-  if ('img' in updates) payload.image_url = updates.img ?? null;
+  if ('gallery' in updates) payload.gallery = updates.gallery ?? null;
   if ('category' in updates) payload.category = updates.category ?? null;
   if ('isVeg' in updates) payload.is_veg = updates.isVeg;
   if ('isSpicy' in updates) payload.is_spicy = updates.isSpicy;
@@ -710,6 +713,42 @@ async updateTenant(
   return true;
 }
 
+async updateTenantInfo(
+  slug: string,
+  field: string,
+  value: string,
+): Promise<Tenant | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  const { data, error } = await client.rpc('update_tenant_info', {
+    tenant_slug_in: slug,
+    field_in: field,
+    value_in: value,
+  });
+
+  if (error) {
+    console.error('update_tenant_info error:', error);
+    throw new Error(error.message || 'Failed to update store info');
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    displayName: row.display_name,
+    whatsappPhone: row.whatsapp_phone || undefined,
+    isActive: row.is_active,
+    bannerUrl: row.banner_url || undefined,
+    storeTagline: row.store_tagline || undefined,
+    deliveryCharge: row.delivery_charge ?? 0,
+    storewideDiscount: row.storewide_discount ?? 0,
+    ownerPhone: row.owner_phone || undefined,
+  };
+}
+
 async resetTenantOwnerPassword(
   slug: string,
   ownerPhone: string,
@@ -788,6 +827,9 @@ private mapUser(row: any): User {
       price: item.price,
       discount: nonNegativeNum(item.discount) ?? 0,
       img: item.image_url,
+    gallery: Array.isArray(item.gallery) && item.gallery.length > 0
+      ? (item.gallery as string[]).filter((s) => typeof s === 'string')
+      : undefined,
       category: item.category || undefined,
       isVeg: item.is_veg ?? false,
       isSpicy: item.is_spicy ?? false,

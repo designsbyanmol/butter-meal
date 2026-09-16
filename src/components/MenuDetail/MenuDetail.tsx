@@ -1,5 +1,5 @@
 // components/MenuDetail/MenuDetail.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MenuItem } from '../../types';
 import { DEFAULT_FORM_SCHEMA } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
@@ -16,6 +16,8 @@ import styles from './MenuDetail.module.scss';
 import PopularIcon from '../../assets/svgs/PopularIcon';
 import NewIcon from '../../assets/svgs/NewIcon';
 import LimitedIcon from '../../assets/svgs/LimitedIcon';
+import ImagePreview from '../ImagePreview/ImagePreview';
+import ExpandIcon from '../../assets/svgs/ExpandIcon';
 
 interface MenuDetailProps {
   isOpen: boolean;
@@ -43,6 +45,17 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [customMessage, setCustomMessage] = useState('');
 
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // ---- Slider state ----
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [prevIndex, setPrevIndex] = useState<number | null>(null);
+  const [isFading, setIsFading] = useState(false);
+  const dragStartXRef = useRef<number | null>(null);
+  const dragDeltaRef = useRef<number>(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const itemId = item?.id;
 
   useEffect(() => {
@@ -50,6 +63,13 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
     setQuantity(1);
     setCustomMessage('');
+
+    // Reset slider
+    setSlideIndex(0);
+    setPrevIndex(null);
+    setIsFading(false);
+    dragStartXRef.current = null;
+    dragDeltaRef.current = 0;
 
     const defaults: Record<string, string> = {};
     item.customizationOptions?.forEach((option) => {
@@ -70,6 +90,10 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
       }
     });
     setSelectedCustomizations(defaults);
+
+    return () => {
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
@@ -89,6 +113,97 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const effectiveUnitPrice = hasDiscount
     ? Math.round(item.price * (1 - discount / 100))
     : item.price;
+
+  // ============ GALLERY / SLIDER ============
+
+  const galleryImages: string[] =
+    item.gallery && item.gallery.length > 0
+      ? item.gallery
+      : item.img
+      ? [item.img]
+      : [];
+
+  const hasMultipleImages = galleryImages.length > 1;
+  const currentImage = galleryImages[slideIndex] ?? item.img ?? '';
+
+  const swipeThreshold = () => {
+    const w = sliderRef.current?.offsetWidth ?? 320;
+    return Math.max(40, w * 0.12);
+  };
+
+  /** Fade to a new index — smooth cross-fade, no bouncy translate. */
+  const goToSlide = (nextIndex: number) => {
+    if (nextIndex === slideIndex) return;
+    if (nextIndex < 0 || nextIndex >= galleryImages.length) return;
+
+    if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+
+    setPrevIndex(slideIndex);
+    setSlideIndex(nextIndex);
+    setIsFading(true);
+
+    fadeTimeoutRef.current = setTimeout(() => {
+      setPrevIndex(null);
+      setIsFading(false);
+      fadeTimeoutRef.current = null;
+    }, 260);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  if (!hasMultipleImages) return;
+
+  // Ignore clicks on the dots or the expand icon
+  const target = e.target as HTMLElement;
+  if (target.closest('[data-slider-dot]')) return;
+  if (target.closest('[data-slider-icon]')) return;
+
+  dragStartXRef.current = e.clientX;
+  dragDeltaRef.current = 0;
+  try {
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  } catch {
+    /* ignore */
+  }
+};
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartXRef.current === null) return;
+    dragDeltaRef.current = e.clientX - dragStartXRef.current;
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartXRef.current === null) return;
+
+    const delta = dragDeltaRef.current;
+    const threshold = swipeThreshold();
+
+    dragStartXRef.current = null;
+    dragDeltaRef.current = 0;
+
+    try {
+      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    if (delta <= -threshold && slideIndex < galleryImages.length - 1) {
+      goToSlide(slideIndex + 1);
+    } else if (delta >= threshold && slideIndex > 0) {
+      goToSlide(slideIndex - 1);
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragStartXRef.current = null;
+    dragDeltaRef.current = 0;
+    try {
+      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // ============ HANDLERS ============
 
   const handleCustomizationChange = (optionName: string, value: string) => {
     setSelectedCustomizations((prev) => ({
@@ -199,11 +314,66 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        {/* Image */}
-        <div className={styles.imageWrapper}>
-          <img src={item.img} alt={item.name} />
+        {/* ============ Image / Cross-fade Slider ============ */}
+        <div
+          className={styles.imageWrapper}
+          ref={sliderRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={handlePointerCancel}
+          style={{
+            cursor: hasMultipleImages ? 'grab' : 'default',
+            touchAction: hasMultipleImages ? 'pan-y' : 'auto',
+          }}
+        >
+          {/* Previous image — fades out */}
+          {prevIndex !== null && (
+            <img
+              key={`prev-${prevIndex}`}
+              src={galleryImages[prevIndex]}
+              alt=""
+              className={`${styles.sliderLayer} ${styles.sliderPrev}`}
+              draggable={false}
+            />
+          )}
 
-          {/* Discount ribbon */}
+          {/* Current image — fades in */}
+          <img
+  key={`curr-${slideIndex}`}
+  src={currentImage}
+  alt={item.name}
+  className={`${styles.sliderLayer} ${
+    prevIndex !== null ? styles.sliderCurrIn : styles.sliderCurrIdle
+  }`}
+  draggable={false}
+  style={{ pointerEvents: 'auto' }}
+/>
+
+          {hasMultipleImages && (
+            <div className={styles.sliderDots}>
+              {galleryImages.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  data-slider-dot
+                  className={`${styles.sliderDot} ${
+                    i === slideIndex ? styles.sliderDotActive : ''
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToSlide(i);
+                  }}
+                  aria-label={`Go to image ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+
+          {hasMultipleImages && (
+            <div className={styles.swipeHint}>‹ Swipe to see more ›</div>
+          )}
+
           {hasDiscount && (
             <span className={styles.discountRibbon}>-{discount}%</span>
           )}
@@ -229,9 +399,23 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
               )}
             </div>
           )}
+          {/* Fullscreen preview icon — bottom-right */}
+<button
+  type="button"
+  className={styles.expandBtn}
+  data-slider-icon
+  onClick={(e) => {
+    e.stopPropagation();
+    setIsPreviewOpen(true);
+  }}
+  aria-label="Preview image"
+  title="Preview image"
+>
+  <ExpandIcon width={16} height={16} fill="#fff" />
+</button>
         </div>
 
-        {/* Content */}
+        {/* ============ Content ============ */}
         <div className={styles.content}>
           {/* Header */}
           <div className={styles.header}>
@@ -415,7 +599,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
           {/* Special Instructions */}
           <div className={styles.section}>
-            <h4>Special Instructions</h4>
+            <h4>Add Customized Message</h4>
             <div className={styles.customMessageWrapper}>
               <textarea
                 className={styles.customMessageInput}
@@ -484,6 +668,12 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           </div>
         </div>
       </div>
+      <ImagePreview
+  isOpen={isPreviewOpen}
+  images={galleryImages}
+  initialIndex={slideIndex}
+  onClose={() => setIsPreviewOpen(false)}
+/>
     </div>
   );
 };

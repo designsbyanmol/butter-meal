@@ -1,24 +1,25 @@
 // components/Admin/AdminPanel.tsx
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   MenuItem,
   CustomizationOption,
   DEFAULT_FORM_SCHEMA,
-} from '../../types';
-import { useMenu } from '../../hooks/useMenu';
-import { useTenant } from '../../contexts/TenantContext';
-import styles from './AdminPanel.module.scss';
-import { CloseIcon } from '../../assets/svgs';
-import BadgeSelector from './BadgeSelector';
-import CustomizationEditor from './CustomizationEditor';
-import DynamicField from './DynamicField';
-import FormBuilder from './FormBuilder';
+} from "../../types";
+import { useMenu } from "../../hooks/useMenu";
+import { useTenant } from "../../contexts/TenantContext";
+import styles from "./AdminPanel.module.scss";
+import { CloseIcon } from "../../assets/svgs";
+import BadgeSelector from "./BadgeSelector";
+import CustomizationEditor from "./CustomizationEditor";
+import DynamicField from "./DynamicField";
+import FormBuilder from "./FormBuilder";
+import { useAuth } from '../../hooks/useAuth';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
-const UNCATEGORIZED = 'Uncategorized';
+const UNCATEGORIZED = "Uncategorized";
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { tenant } = useTenant();
@@ -27,34 +28,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { items, toggleStock, updateItem, addItem, deleteItem, reorderItems } =
     useMenu();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'inStock' | 'outOfStock'>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState<"all" | "inStock" | "outOfStock">("all");
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editForm, setEditForm] = useState<Partial<MenuItem>>({});
-  const [formError, setFormError] = useState('');
-  const [formSuccess, setFormSuccess] = useState('');
-  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>(
+    {},
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const [customizationOptions, setCustomizationOptions] = useState<
     CustomizationOption[]
   >([]);
-  const [ingredientsInput, setIngredientsInput] = useState('');
+  const [ingredientsInput, setIngredientsInput] = useState("");
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newItemForm, setNewItemForm] = useState<Partial<MenuItem>>({
-    name: '',
-    desc: '',
+    name: "",
+    desc: "",
     price: 0,
     costPrice: 0,
     discount: 0,
-    img: '',
-    category: '',
+    img: "",
+    category: "",
     isVeg: false,
     isSpicy: false,
     isGlutenFree: false,
-    preparationTime: '',
+    preparationTime: "",
     calories: 0,
     rating: 0,
     reviewCount: 0,
@@ -67,7 +70,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [newCustomizationOptions, setNewCustomizationOptions] = useState<
     CustomizationOption[]
   >([]);
-  const [newIngredientsInput, setNewIngredientsInput] = useState('');
+  const [newIngredientsInput, setNewIngredientsInput] = useState("");
 
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
@@ -81,7 +84,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const [confirmToggle, setConfirmToggle] = useState<{
     itemId: number;
-    action: 'in' | 'out';
+    action: "in" | "out";
     name: string;
   } | null>(null);
 
@@ -90,11 +93,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canReorder = searchTerm === '' && filter === 'all';
+  const canReorder = searchTerm === "" && filter === "all";
 
   // Schema allow-list for categories
   const schemaCategorySet = useMemo(() => {
-    const catField = schema.fields.find((f) => f.key === 'category');
+    const catField = schema.fields.find((f) => f.key === "category");
     return new Set<string>(
       (catField?.options ?? []).map((s) => s.trim()).filter(Boolean),
     );
@@ -106,13 +109,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.category?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter =
-        filter === 'all'
+        filter === "all"
           ? true
-          : filter === 'inStock'
-          ? item.inStock === true
-          : filter === 'outOfStock'
-          ? item.inStock === false
-          : true;
+          : filter === "inStock"
+            ? item.inStock === true
+            : filter === "outOfStock"
+              ? item.inStock === false
+              : true;
       return matchesSearch && matchesFilter;
     });
   }, [items, searchTerm, filter]);
@@ -122,7 +125,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   // ---------- Grouped categories (schema-ordered) ----------
   const categoryGroups = useMemo(() => {
-    const catField = schema.fields.find((f) => f.key === 'category');
+    const catField = schema.fields.find((f) => f.key === "category");
     const categoryOrder = (catField?.options ?? [])
       .map((s) => s.trim())
       .filter(Boolean);
@@ -133,7 +136,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
     const groupsMap = new Map<string, MenuItem[]>();
     filteredItems.forEach((item) => {
-      const raw = (item.category ?? '').trim();
+      const raw = (item.category ?? "").trim();
       const key = raw && schemaCategorySet.has(raw) ? raw : UNCATEGORIZED;
       if (!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key)!.push(item);
@@ -162,12 +165,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     const fromSchema = schema.fields.find((f) => f.key === key);
     if (fromSchema) return fromSchema.label;
     switch (key) {
-      case 'name':
-        return 'Name';
-      case 'price':
-        return 'Price';
-      case 'img':
-        return 'Image';
+      case "name":
+        return "Name";
+      case "price":
+        return "Price";
+      case "img":
+        return "Image";
       default:
         return key;
     }
@@ -178,7 +181,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   ): { errors: Record<string, boolean>; message: string } => {
     const errors: Record<string, boolean> = {};
 
-    if (!form.name || form.name.trim() === '') errors.name = true;
+    if (!form.name || form.name.trim() === "") errors.name = true;
 
     if (
       form.price === undefined ||
@@ -189,10 +192,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       errors.price = true;
     }
 
-    if (!form.img || form.img.trim() === '') errors.img = true;
+    const hasImg =
+  Array.isArray(form.img)
+    ? form.img.some((s) => typeof s === 'string' && s.trim() !== '')
+    : !!(form.img && String(form.img).trim() !== '');
+if (!hasImg) errors.img = true;
 
     const count = Object.keys(errors).length;
-    let message = '';
+    let message = "";
     if (count === 1) {
       const field = Object.keys(errors)[0];
       message = `Please fill in the required field: ${prettyField(field)}`;
@@ -211,30 +218,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
-    setFormSuccess('');
+    setFormSuccess("");
     setFormError(message);
     errorTimeoutRef.current = setTimeout(() => {
-      setFormError('');
+      setFormError("");
       setInvalidFields({});
       errorTimeoutRef.current = null;
     }, 5000);
   };
 
   const showSuccess = (message: string, delayMs = 1200) => {
-  if (successTimeoutRef.current) {
-    clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = null;
-  }
-  setFormError('');
-  setInvalidFields({});
-  setFormSuccess(message);
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    setFormError("");
+    setInvalidFields({});
+    setFormSuccess(message);
 
-  // Auto-clear the success banner after the delay
-  successTimeoutRef.current = setTimeout(() => {
-    setFormSuccess('');
-    successTimeoutRef.current = null;
-  }, delayMs);
-};
+    // Auto-clear the success banner after the delay
+    successTimeoutRef.current = setTimeout(() => {
+      setFormSuccess("");
+      successTimeoutRef.current = null;
+    }, delayMs);
+  };
 
   useEffect(() => {
     return () => {
@@ -250,7 +257,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     if (!item) return;
     setConfirmToggle({
       itemId,
-      action: item.inStock ? 'out' : 'in',
+      action: item.inStock ? "out" : "in",
       name: item.name,
     });
   };
@@ -266,15 +273,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const handleEditClick = (item: MenuItem) => {
     setEditingItem(item);
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
     setIsSaving(false);
 
     const sanitizedCategory =
       item.category && schemaCategorySet.has(item.category.trim())
         ? item.category
-        : '';
+        : "";
 
     const form: Record<string, any> = {
       name: item.name,
@@ -282,7 +289,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       price: item.price,
       costPrice: item.costPrice,
       discount: item.discount ?? 0,
-      img: item.img,
+      img: item.gallery && item.gallery.length > 0
+    ? item.gallery
+    : item.img
+    ? [item.img]
+    : [],
       category: sanitizedCategory,
       isVeg: item.isVeg,
       isSpicy: item.isSpicy,
@@ -300,11 +311,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     schema.fields
       .filter((f) => !f.builtin)
       .forEach((f) => {
-        form[f.key] = item.attributes?.[f.key] ?? '';
+        form[f.key] = item.attributes?.[f.key] ?? "";
       });
 
     setEditForm(form as Partial<MenuItem>);
-    setIngredientsInput(item.ingredients?.join(', ') || '');
+    setIngredientsInput(item.ingredients?.join(", ") || "");
     setCustomizationOptions(item.customizationOptions || []);
   };
 
@@ -315,11 +326,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const applyDiscountMutex = (
     patch: Record<string, any>,
   ): Record<string, any> => {
-    if ('discount' in patch) {
+    if ("discount" in patch) {
       const d = Number(patch.discount) || 0;
       if (d > 0) patch.costPrice = 0;
     }
-    if ('costPrice' in patch) {
+    if ("costPrice" in patch) {
       const c = Number(patch.costPrice) || 0;
       if (c > 0) patch.discount = 0;
     }
@@ -337,8 +348,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
 
     const { errors, message } = validateRequired(editForm);
@@ -347,7 +358,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       showTemporaryError(message);
       document
         .querySelector(`.${styles.editForm}`)
-        ?.scrollTo({ top: 0, behavior: 'smooth' });
+        ?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -355,7 +366,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
     try {
       const nz = (v: any): number | undefined => {
-        if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
+        if (v === undefined || v === null || v === "" || Number.isNaN(v)) {
           return undefined;
         }
         const n = Number(v);
@@ -364,7 +375,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       const s = (v: any): string | undefined => {
         if (v === undefined || v === null) return undefined;
         const str = String(v).trim();
-        return str === '' ? undefined : str;
+        return str === "" ? undefined : str;
       };
 
       const customAttributes: Record<string, any> = {
@@ -374,7 +385,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         .filter((f) => !f.builtin && f.enabled)
         .forEach((field) => {
           const value = (editForm as any)[field.key];
-          if (value !== undefined && value !== null && value !== '') {
+          if (value !== undefined && value !== null && value !== "") {
             customAttributes[field.key] = value;
           } else {
             delete customAttributes[field.key];
@@ -389,19 +400,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
       // ---- discount + costPrice mutual exclusion at save time ----
       const rawDiscount = Number(editForm.discount) || 0;
-      const discount =
-        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
+      const discount = rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
 
-      const costPrice =
-        discount > 0 ? undefined : nz(editForm.costPrice);
+      const costPrice = discount > 0 ? undefined : nz(editForm.costPrice);
+
+      const imgArray = Array.isArray(editForm.img)
+  ? (editForm.img as string[]).filter(Boolean)
+  : typeof editForm.img === 'string' && editForm.img
+  ? [editForm.img]
+  : [];
+
+const primaryImg = imgArray[0] ?? '';
+const gallery = imgArray.length > 1 ? imgArray : undefined;
 
       const cleaned: Partial<MenuItem> = {
         name: editForm.name!.trim(),
-        desc: editForm.desc ?? '',
+        desc: editForm.desc ?? "",
         price: editForm.price,
         discount,
         costPrice,
-        img: editForm.img,
+        img: primaryImg,
+  gallery,
         category: cleanedCategory,
         isVeg: editForm.isVeg ?? false,
         isSpicy: editForm.isSpicy ?? false,
@@ -417,7 +436,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         nutritionalInfo:
           editForm.nutritionalInfo &&
           Object.values(editForm.nutritionalInfo).some(
-            (v) => v !== undefined && v !== null && String(v).trim() !== '',
+            (v) => v !== undefined && v !== null && String(v).trim() !== "",
           )
             ? editForm.nutritionalInfo
             : undefined,
@@ -430,18 +449,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       };
 
       await updateItem(editingItem.id, cleaned);
-showSuccess('Item updated successfully!');
+      showSuccess("Item updated successfully!");
 
-// Close the modal and clear edit state so the user sees the refreshed list
-setTimeout(() => {
-  setEditingItem(null);
-  setEditForm({});
-  setCustomizationOptions([]);
-  setIngredientsInput('');
-}, 900);
+      // Close the modal and clear edit state so the user sees the refreshed list
+      setTimeout(() => {
+        setEditingItem(null);
+        setEditForm({});
+        setCustomizationOptions([]);
+        setIngredientsInput("");
+      }, 900);
     } catch (err) {
-      console.error('Save edit failed:', err);
-      showTemporaryError('Failed to update menu item. Please try again.');
+      console.error("Save edit failed:", err);
+      showTemporaryError("Failed to update menu item. Please try again.");
       setIsSaving(false);
     }
   };
@@ -459,9 +478,9 @@ setTimeout(() => {
         setEditingItem(null);
         setEditForm({});
         setCustomizationOptions([]);
-        setIngredientsInput('');
+        setIngredientsInput("");
       } catch {
-        setFormError('Failed to delete menu item');
+        setFormError("Failed to delete menu item");
       }
     }
   };
@@ -469,34 +488,34 @@ setTimeout(() => {
   const handleCancelEdit = () => {
     if (isSaving) return;
     setEditingItem(null);
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
     setIsSaving(false);
     setCustomizationOptions([]);
-    setIngredientsInput('');
+    setIngredientsInput("");
   };
 
   // ============ ADD NEW ============
 
   const handleAddNewItem = () => {
     setIsAddingNew(true);
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
     setIsSaving(false);
     setNewItemForm({
-      name: '',
-      desc: '',
+      name: "",
+      desc: "",
       price: 0,
       costPrice: 0,
       discount: 0,
-      img: '',
-      category: '',
+      img: [] as any,
+      category: "",
       isVeg: false,
       isSpicy: false,
       isGlutenFree: false,
-      preparationTime: '',
+      preparationTime: "",
       calories: 0,
       rating: 0,
       reviewCount: 0,
@@ -506,7 +525,7 @@ setTimeout(() => {
       customizationOptions: [],
       inStock: true,
     });
-    setNewIngredientsInput('');
+    setNewIngredientsInput("");
     setNewCustomizationOptions([]);
   };
 
@@ -521,8 +540,8 @@ setTimeout(() => {
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
 
     const { errors, message } = validateRequired(newItemForm);
@@ -531,7 +550,7 @@ setTimeout(() => {
       showTemporaryError(message);
       document
         .querySelector(`.${styles.editForm}`)
-        ?.scrollTo({ top: 0, behavior: 'smooth' });
+        ?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -539,7 +558,7 @@ setTimeout(() => {
 
     try {
       const nz = (v: any): number | undefined => {
-        if (v === undefined || v === null || v === '' || Number.isNaN(v)) {
+        if (v === undefined || v === null || v === "" || Number.isNaN(v)) {
           return undefined;
         }
         const n = Number(v);
@@ -548,7 +567,7 @@ setTimeout(() => {
       const s = (v: any): string | undefined => {
         if (v === undefined || v === null) return undefined;
         const str = String(v).trim();
-        return str === '' ? undefined : str;
+        return str === "" ? undefined : str;
       };
 
       const customAttributes: Record<string, any> = {
@@ -558,7 +577,7 @@ setTimeout(() => {
         .filter((f) => !f.builtin && f.enabled)
         .forEach((field) => {
           const value = (newItemForm as any)[field.key];
-          if (value !== undefined && value !== null && value !== '') {
+          if (value !== undefined && value !== null && value !== "") {
             customAttributes[field.key] = value;
           }
         });
@@ -570,19 +589,27 @@ setTimeout(() => {
           : undefined;
 
       const rawDiscount = Number(newItemForm.discount) || 0;
-      const discount =
-        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
+      const discount = rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
 
-      const costPrice =
-        discount > 0 ? undefined : nz(newItemForm.costPrice);
+      const costPrice = discount > 0 ? undefined : nz(newItemForm.costPrice);
 
-      const newItem: Omit<MenuItem, 'id'> = {
+      const imgArray = Array.isArray(newItemForm.img)
+  ? (newItemForm.img as string[]).filter(Boolean)
+  : typeof newItemForm.img === 'string' && newItemForm.img
+  ? [newItemForm.img]
+  : [];
+
+const primaryImg = imgArray[0] ?? '';
+const gallery = imgArray.length > 1 ? imgArray : undefined;
+
+      const newItem: Omit<MenuItem, "id"> = {
         name: newItemForm.name!.trim(),
-        desc: newItemForm.desc ?? '',
+        desc: newItemForm.desc ?? "",
         price: newItemForm.price!,
         discount,
         costPrice,
-        img: newItemForm.img!,
+        img: primaryImg,
+  gallery,
         category: cleanedCategory,
         isVeg: newItemForm.isVeg ?? false,
         isSpicy: newItemForm.isSpicy ?? false,
@@ -598,7 +625,7 @@ setTimeout(() => {
         nutritionalInfo:
           newItemForm.nutritionalInfo &&
           Object.values(newItemForm.nutritionalInfo).some(
-            (v) => v !== undefined && v !== null && String(v).trim() !== '',
+            (v) => v !== undefined && v !== null && String(v).trim() !== "",
           )
             ? newItemForm.nutritionalInfo
             : undefined,
@@ -610,22 +637,21 @@ setTimeout(() => {
           newCustomizationOptions.length > 0
             ? newCustomizationOptions
             : undefined,
-        inStock:
-          newItemForm.inStock !== undefined ? newItemForm.inStock : true,
+        inStock: newItemForm.inStock !== undefined ? newItemForm.inStock : true,
       };
 
       await addItem(newItem);
-showSuccess('Item added successfully!');
+      showSuccess("Item added successfully!");
 
-// Close the Add modal so the user sees the new item in the list
-setTimeout(() => {
-  setIsAddingNew(false);
-  setNewIngredientsInput('');
-  setNewCustomizationOptions([]);
-}, 900);
+      // Close the Add modal so the user sees the new item in the list
+      setTimeout(() => {
+        setIsAddingNew(false);
+        setNewIngredientsInput("");
+        setNewCustomizationOptions([]);
+      }, 900);
     } catch (err) {
-      console.error('Save new item failed:', err);
-      showTemporaryError('Failed to add menu item. Please try again.');
+      console.error("Save new item failed:", err);
+      showTemporaryError("Failed to add menu item. Please try again.");
       setIsSaving(false);
     }
   };
@@ -633,11 +659,11 @@ setTimeout(() => {
   const handleCancelNewItem = () => {
     if (isSaving) return;
     setIsAddingNew(false);
-    setFormError('');
-    setFormSuccess('');
+    setFormError("");
+    setFormSuccess("");
     setInvalidFields({});
     setIsSaving(false);
-    setNewIngredientsInput('');
+    setNewIngredientsInput("");
     setNewCustomizationOptions([]);
   };
 
@@ -645,13 +671,13 @@ setTimeout(() => {
 
   const handleDragStart = (e: React.DragEvent, id: number) => {
     setDraggedId(id);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(id));
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(id));
   };
 
   const handleDragOver = (e: React.DragEvent, id: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     if (id !== dragOverId) setDragOverId(id);
   };
 
@@ -689,8 +715,8 @@ setTimeout(() => {
     try {
       await reorderItems(newOrder);
     } catch (err) {
-      console.error('Reorder failed:', err);
-      setFormError('Failed to save the new order. Please try again.');
+      console.error("Reorder failed:", err);
+      setFormError("Failed to save the new order. Please try again.");
     } finally {
       setIsReordering(false);
     }
@@ -711,21 +737,27 @@ setTimeout(() => {
 
   const enabledFields = schema.fields.filter((f) => f.enabled);
 
+  const { isAdmin } = useAuth();
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>Menu Items</h2>
-          <button className={styles.addNewBtn} onClick={handleAddNewItem}>
-            + Add New Item
-          </button>
-          <button
-            className={styles.addNewBtn}
-            onClick={() => setIsFormBuilderOpen(true)}
-            style={{ marginLeft: 8 }}
-          >
-            Edit Fields
-          </button>
+          {isAdmin && (
+            <button className={styles.addNewBtn} onClick={handleAddNewItem}>
+              + Add New Item
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className={styles.addNewBtn}
+              onClick={() => setIsFormBuilderOpen(true)}
+              style={{ marginLeft: 8 }}
+            >
+              Edit Fields
+            </button>
+          )}
           <button className={styles.closeBtn} onClick={onClose}>
             <CloseIcon width={18} height={18} fill="#4d4d4d" />
           </button>
@@ -786,7 +818,7 @@ setTimeout(() => {
             </div>
           ) : (
             (() => {
-              const forceOpen = searchTerm.trim() !== '';
+              const forceOpen = searchTerm.trim() !== "";
 
               return categoryGroups.map((group) => {
                 const isCollapsed =
@@ -805,7 +837,7 @@ setTimeout(() => {
                     >
                       <span
                         className={`${styles.chevron} ${
-                          isCollapsed ? '' : styles.chevronOpen
+                          isCollapsed ? "" : styles.chevronOpen
                         }`}
                         aria-hidden
                       >
@@ -831,11 +863,11 @@ setTimeout(() => {
                               key={item.id}
                               className={[
                                 styles.itemRow,
-                                isDragging ? styles.dragging : '',
-                                isDropTarget ? styles.dropTarget : '',
+                                isDragging ? styles.dragging : "",
+                                isDropTarget ? styles.dropTarget : "",
                               ]
                                 .filter(Boolean)
-                                .join(' ')}
+                                .join(" ")}
                               draggable={canReorder}
                               onDragStart={
                                 canReorder
@@ -855,9 +887,7 @@ setTimeout(() => {
                                   ? (e) => handleDrop(e, item.id)
                                   : undefined
                               }
-                              onDragEnd={
-                                canReorder ? handleDragEnd : undefined
-                              }
+                              onDragEnd={canReorder ? handleDragEnd : undefined}
                             >
                               {canReorder && (
                                 <div
@@ -878,11 +908,11 @@ setTimeout(() => {
                                 <div>
                                   <div className={styles.itemName}>
                                     {item.name}
-                                    {item.discount && item.discount > 0 && (
+                                    {item.discount && item.discount > 0 ? (
                                       <span className={styles.discountBadge}>
                                         −{item.discount}%
                                       </span>
-                                    )}
+                                    ) : ('')}
                                   </div>
                                 </div>
                               </div>
@@ -896,20 +926,18 @@ setTimeout(() => {
                                         : styles.outOfStockBadge
                                     }
                                   >
-                                    {item.inStock ? 'In' : 'Out'}
+                                    {item.inStock ? "In" : "Out"}
                                   </span>
                                 </div>
                                 <button
                                   className={`${styles.toggleBtn} ${
-                                    !item.inStock
-                                      ? styles.outOfStockBtn
-                                      : ''
+                                    !item.inStock ? styles.outOfStockBtn : ""
                                   }`}
                                   onClick={() => handleToggle(item.id)}
                                 >
                                   {item.inStock
-                                    ? 'Mark Out of Stock'
-                                    : 'Restock'}
+                                    ? "Mark Out of Stock"
+                                    : "Restock"}
                                 </button>
                                 <button
                                   className={styles.editBtn}
@@ -970,18 +998,17 @@ setTimeout(() => {
                     }}
                     invalid={!!invalidFields[field.key]}
                     onImageUploaded={
-                      field.key === 'img'
-                        ? (url) =>
-                            setNewItemForm({ ...newItemForm, img: url })
+                      field.key === "img"
+                        ? (url) => setNewItemForm({ ...newItemForm, img: url })
                         : undefined
                     }
                     ingredientsInput={
-                      field.key === 'ingredients'
+                      field.key === "ingredients"
                         ? newIngredientsInput
                         : undefined
                     }
                     onIngredientsInputChange={
-                      field.key === 'ingredients'
+                      field.key === "ingredients"
                         ? setNewIngredientsInput
                         : undefined
                     }
@@ -1019,7 +1046,7 @@ setTimeout(() => {
                     onClick={handleSaveNewItem}
                     disabled={isSaving}
                   >
-                    {isSaving ? 'Saving...' : 'Add Item'}
+                    {isSaving ? "Saving..." : "Add Item"}
                   </button>
                 </div>
               </div>
@@ -1033,10 +1060,7 @@ setTimeout(() => {
             <div className={styles.editModalContent}>
               <div className={styles.editModalHeader}>
                 <h3>Edit Menu Item</h3>
-                <button
-                  className={styles.closeBtn}
-                  onClick={handleCancelEdit}
-                >
+                <button className={styles.closeBtn} onClick={handleCancelEdit}>
                   <CloseIcon width={18} height={18} fill="#4d4d4d" />
                 </button>
               </div>
@@ -1067,17 +1091,15 @@ setTimeout(() => {
                     }}
                     invalid={!!invalidFields[field.key]}
                     onImageUploaded={
-                      field.key === 'img'
+                      field.key === "img"
                         ? (url) => setEditForm({ ...editForm, img: url })
                         : undefined
                     }
                     ingredientsInput={
-                      field.key === 'ingredients'
-                        ? ingredientsInput
-                        : undefined
+                      field.key === "ingredients" ? ingredientsInput : undefined
                     }
                     onIngredientsInputChange={
-                      field.key === 'ingredients'
+                      field.key === "ingredients"
                         ? setIngredientsInput
                         : undefined
                     }
@@ -1112,7 +1134,7 @@ setTimeout(() => {
                     onClick={handleSaveEdit}
                     disabled={isSaving}
                   >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </div>
@@ -1132,14 +1154,14 @@ setTimeout(() => {
             >
               <div className={styles.confirmHeader}>
                 <h3>
-                  {confirmToggle.action === 'out'
-                    ? 'Mark Out of Stock'
-                    : 'Restock Item'}
+                  {confirmToggle.action === "out"
+                    ? "Mark Out of Stock"
+                    : "Restock Item"}
                 </h3>
               </div>
               <div className={styles.confirmBody}>
                 <p>
-                  {confirmToggle.action === 'out'
+                  {confirmToggle.action === "out"
                     ? `Mark "${confirmToggle.name}" as Out of Stock?`
                     : `Restock "${confirmToggle.name}"?`}
                 </p>

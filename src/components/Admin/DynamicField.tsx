@@ -37,23 +37,29 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [field.key, currentValue, selectOptions]);
 
-  if (field.key === 'img' && onImageUploaded) {
-    return (
-      <div className={styles.formGroup}>
-        <label>
-          {field.label}
-          {field.builtin && field.key === 'img' ? ' *' : ''}
-        </label>
-        <div className={invalid ? styles.imageUploadError : ''}>
-          <ImageUpload
-            currentImage={typeof value === 'string' ? value : ''}
-            onImageUploaded={onImageUploaded}
-            label="Upload Item Image"
-          />
-        </div>
+  if (field.key === 'img') {
+  const gallery = Array.isArray(value) ? value : [];
+  // Fall back: if the parent passes a single string, wrap it.
+  const images = gallery.length > 0 ? gallery : typeof value === 'string' && value ? [value] : [];
+
+  return (
+    <div className={styles.formGroup}>
+      <label>
+        {field.label}
+        {field.builtin && field.key === 'img' ? ' *' : ''}
+      </label>
+      <div className={invalid ? styles.imageUploadError : ''}>
+        <ImageUpload
+          multiple
+          currentImages={images}
+          onImagesUploaded={(urls) => onChange(urls)}
+          label="Upload Item Images"
+          maxImages={6}
+        />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   if (field.key === 'ingredients' && onIngredientsInputChange) {
     return (

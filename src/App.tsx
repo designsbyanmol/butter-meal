@@ -29,6 +29,7 @@ import {
   EMPTY_FILTERS,
 } from "./components/Menu/menuFilters.types";
 import styles from "./App.module.scss";
+import { dispatchAdminAction } from "../utils/adminEvents";
 
 // =========================================================
 // Database status notice (admin only)
@@ -204,33 +205,33 @@ const AppContent: React.FC = () => {
     const list = visibleItems.filter((item) => {
       if (q) {
         const hay =
-          `${item.name} ${item.desc ?? ''} ${item.category ?? ''}`.toLowerCase();
+          `${item.name} ${item.desc ?? ""} ${item.category ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
 
       if (filters.category && item.category !== filters.category) return false;
 
-      if (filters.stock === 'inStock' && !item.inStock) return false;
-      if (filters.stock === 'outOfStock' && item.inStock) return false;
+      if (filters.stock === "inStock" && !item.inStock) return false;
+      if (filters.stock === "outOfStock" && item.inStock) return false;
 
       if (filters.types.size > 0) {
         const t = filters.types;
         const match =
-          (t.has('popular') && item.attributes?.isPopular) ||
-          (t.has('new') && item.attributes?.isNew) ||
-          (t.has('chefSpecial') && item.attributes?.isChefSpecial) ||
-          (t.has('limited') && item.attributes?.isLimited) ||
-          (t.has('veg') && item.isVeg === true) ||
-          (t.has('nonVeg') && item.isVeg === false);
+          (t.has("popular") && item.attributes?.isPopular) ||
+          (t.has("new") && item.attributes?.isNew) ||
+          (t.has("chefSpecial") && item.attributes?.isChefSpecial) ||
+          (t.has("limited") && item.attributes?.isLimited) ||
+          (t.has("veg") && item.isVeg === true) ||
+          (t.has("nonVeg") && item.isVeg === false);
         if (!match) return false;
       }
       return true;
     });
 
-    const priceOf = (it: typeof visibleItems[number]) =>
+    const priceOf = (it: (typeof visibleItems)[number]) =>
       it.costPrice && it.costPrice > 0 ? it.costPrice : it.price;
 
-    const healthScore = (it: typeof visibleItems[number]) => {
+    const healthScore = (it: (typeof visibleItems)[number]) => {
       const n = it.nutritionalInfo;
       const p = Number(n?.protein ?? 0);
       const f = Number(n?.fat ?? 0);
@@ -238,7 +239,7 @@ const AppContent: React.FC = () => {
       return p * 2 - f - c * 0.5;
     };
 
-    const discountOf = (it: typeof visibleItems[number]) => {
+    const discountOf = (it: (typeof visibleItems)[number]) => {
       const base = Number(it.costPrice ?? 0);
       const sell = Number(it.price ?? 0);
       if (base <= 0 || sell <= 0 || base <= sell) return 0;
@@ -247,25 +248,25 @@ const AppContent: React.FC = () => {
 
     const sorted = [...list];
     switch (filters.sort) {
-      case 'priceAsc':
+      case "priceAsc":
         sorted.sort((a, b) => priceOf(a) - priceOf(b));
         break;
-      case 'priceDesc':
+      case "priceDesc":
         sorted.sort((a, b) => priceOf(b) - priceOf(a));
         break;
-      case 'ratingDesc':
+      case "ratingDesc":
         sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
-      case 'ratingAsc':
+      case "ratingAsc":
         sorted.sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0));
         break;
-      case 'healthiest':
+      case "healthiest":
         sorted.sort((a, b) => healthScore(b) - healthScore(a));
         break;
-      case 'discountDesc':
+      case "discountDesc":
         sorted.sort((a, b) => discountOf(b) - discountOf(a));
         break;
-      case 'discountLeast':
+      case "discountLeast":
         sorted.sort((a, b) => discountOf(a) - discountOf(b));
         break;
       default:
@@ -454,9 +455,9 @@ const AppContent: React.FC = () => {
 
   // Fully bare-bones screen while bootstrapping: skeleton only.
   // Fully bare-bones screen while bootstrapping: combined skeleton only.
-if (isAppLoading && !tenantNotFound && tenant) {
-  return <DashboardSkeleton count={6} />;
-}
+  if (isAppLoading && !tenantNotFound && tenant) {
+    return <DashboardSkeleton count={6} />;
+  }
 
   return (
     <>
@@ -506,33 +507,129 @@ if (isAppLoading && !tenantNotFound && tenant) {
               brandName={tenant?.displayName ?? ShopInfo.Shop_name}
               brandDesc={ShopInfo.Shop_tagline}
             />
+            {isAuthenticated && (
+  <div className={styles.adminInfoWrap}>
+    <div className={styles.adminInfoHeader}>
+      <h2>You're in Admin Mode</h2>
+      <p>
+        Everything you change here goes live on the customer side — no
+        separate publishing step.
+      </p>
+    </div>
 
-            <MenuFilters
-              items={visibleItems}
-              filters={filters}
-              onChange={setFilters}
-            />
+    <div className={styles.adminInfoGrid}>
+      {/* ---- Update Menu ---- */}
+      <div className={styles.adminInfoCard}>
+        <button
+          type="button"
+          className={styles.cardLink}
+          onClick={() => dispatchAdminAction('open-menu-panel')}
+          aria-label="Open menu manager"
+          title="Open menu manager"
+        >
+          →
+        </button>
+        <div className={`${styles.adminInfoIcon} ${styles.iconMenu}`}>🍽️</div>
+        <h3>Update Menu</h3>
+        <p>
+          Add, edit, or remove dishes. Changes appear instantly for customers.
+        </p>
+      </div>
 
-            {filteredItems.length === 0 ? (
-              <div className={styles.emptyFilterState}>
-                <p>No dishes match your filters.</p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilters({ ...EMPTY_FILTERS, types: new Set() })
-                  }
-                >
-                  Clear filters
-                </button>
-              </div>
-            ) : (
-              <Menu
-                items={filteredItems}
-                cart={cart}
-                onAddItem={addItem}
-                onRemoveItem={removeItem}
-                onItemClick={handleItemClick}
-              />
+      {/* ---- Store Settings ---- */}
+      <div className={styles.adminInfoCard}>
+        <button
+          type="button"
+          className={styles.cardLink}
+          onClick={() => dispatchAdminAction('open-store-settings')}
+          aria-label="Open store settings"
+          title="Open store settings"
+        >
+          →
+        </button>
+        <div className={`${styles.adminInfoIcon} ${styles.iconStore}`}>🏪</div>
+        <h3>Store Settings</h3>
+        <p>
+          Open or close the store, set a closing message, and control when
+          customers can order.
+        </p>
+      </div>
+
+      {/* ---- Manage Staff ---- */}
+      <div className={styles.adminInfoCard}>
+        <button
+          type="button"
+          className={styles.cardLink}
+          onClick={() => dispatchAdminAction('open-user-management')}
+          aria-label="Open user management"
+          title="Open user management"
+        >
+          →
+        </button>
+        <div className={`${styles.adminInfoIcon} ${styles.iconUsers}`}>👥</div>
+        <h3>Manage Staff</h3>
+        <p>
+          Add team accounts, reset passwords, and control who can log in to
+          this store.
+        </p>
+      </div>
+
+      {/* ---- Store Info ---- */}
+      <div className={styles.adminInfoCard}>
+        <button
+          type="button"
+          className={styles.cardLink}
+          onClick={() => dispatchAdminAction('open-info-popup')}
+          aria-label="Open store information"
+          title="Open store information"
+        >
+          →
+        </button>
+        <div className={`${styles.adminInfoIcon} ${styles.iconInfo}`}>ℹ️</div>
+        <h3>Store Info</h3>
+        <p>
+          Edit the store name, tagline, banner, delivery fee, and discounts.
+        </p>
+      </div>
+    </div>
+
+    <div className={styles.adminInfoFooter}>
+      <span className={styles.liveDot} />
+      <span>Live sync is on — customer menu updates in real time.</span>
+    </div>
+  </div>
+)}
+
+            {!isAuthenticated && (
+              <>
+                <MenuFilters
+                  items={visibleItems}
+                  filters={filters}
+                  onChange={setFilters}
+                />
+
+                {filteredItems.length === 0 ? (
+                  <div className={styles.emptyFilterState}>
+                    <p>No dishes match your filters.</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters({ ...EMPTY_FILTERS, types: new Set() })
+                      }
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                ) : (
+                  <Menu
+                    items={filteredItems}
+                    cart={cart}
+                    onAddItem={addItem}
+                    onRemoveItem={removeItem}
+                    onItemClick={handleItemClick}
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -542,7 +639,8 @@ if (isAppLoading && !tenantNotFound && tenant) {
           tenant &&
           !isDeactivated &&
           isStoreOpen &&
-          getTotalItems() > 0 && (
+          getTotalItems() > 0 &&
+          !isAuthenticated && (
             <FloatingCart
               itemCount={getTotalItems()}
               onClick={() => setIsCartOpen(true)}

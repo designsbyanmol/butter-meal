@@ -10,10 +10,6 @@ import {
 import { ShopInfo } from '../config/credentials';
 import { useTenant } from '../contexts/TenantContext';
 
-const DELIVERY_FEE = ShopInfo.Delivery_fee;
-const DISCOUNT_PERCENTAGE = ShopInfo.Discount_percentage;
-const FALLBACK_PHONE = ShopInfo.Restaurant_message;
-
 /** Compute the effective price after the item-level discount. */
 export const getEffectivePrice = (item: MenuItem): number => {
   const d = Number(item.discount ?? 0);
@@ -24,15 +20,38 @@ export const getEffectivePrice = (item: MenuItem): number => {
 export const useCart = () => {
   const { tenant } = useTenant();
 
-  const RESTAURANT_PHONE = tenant?.whatsappPhone || FALLBACK_PHONE;
+  // ---------------------------------------------------------
+  // Tenant-aware store values — fall back to ShopInfo defaults.
+  // Recomputed on every render, so editing them in the InfoPopup
+  // is reflected immediately across the cart.
+  // ---------------------------------------------------------
+  const DELIVERY_FEE =
+    typeof tenant?.deliveryCharge === 'number' && tenant.deliveryCharge >= 0
+      ? tenant.deliveryCharge
+      : ShopInfo.Delivery_charge;
 
+  const DISCOUNT_PERCENTAGE =
+    typeof tenant?.storewideDiscount === 'number' &&
+    tenant.storewideDiscount >= 0 &&
+    tenant.storewideDiscount <= 100
+      ? tenant.storewideDiscount
+      : ShopInfo.Storewide_discount;
+
+  const RESTAURANT_PHONE =
+    tenant?.whatsappPhone || ShopInfo.Store_whatsapp;
+
+  // ---------------------------------------------------------
+  // Cart state
+  // ---------------------------------------------------------
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('COD');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('now');
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load cart + preferences from localStorage on mount
+  // ---------------------------------------------------------
+  // Hydrate from localStorage on mount
+  // ---------------------------------------------------------
   useEffect(() => {
     const savedCart = localStorage.getItem('restaurant_cart');
     if (savedCart) {
@@ -76,7 +95,9 @@ export const useCart = () => {
     setIsLoaded(true);
   }, []);
 
+  // ---------------------------------------------------------
   // Persist cart
+  // ---------------------------------------------------------
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem('restaurant_cart', JSON.stringify(cart));
@@ -111,6 +132,30 @@ export const useCart = () => {
     }
   }, [scheduleData, isLoaded]);
 
+  // ---------------------------------------------------------
+  // Migrate legacy cart rows: recompute basePrice for discounted items
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!isLoaded) return;
+    setCart((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        const d = Number(c.discount ?? 0);
+        if (d <= 0 || d > 100) return c;
+
+        const expected = Math.round(c.price * (1 - d / 100));
+        if (c.basePrice === expected) return c;
+
+        changed = true;
+        return { ...c, basePrice: expected };
+      });
+      return changed ? next : prev;
+    });
+  }, [isLoaded]);
+
+  // ---------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------
   const getCustomizationPrice = (
     customizations: Record<string, string>,
   ): number => {
@@ -122,6 +167,9 @@ export const useCart = () => {
     return total;
   };
 
+  // ---------------------------------------------------------
+  // Add to cart
+  // ---------------------------------------------------------
   const addItem = useCallback(
     (
       item: MenuItem,
@@ -133,7 +181,7 @@ export const useCart = () => {
           ? getCustomizationPrice(customizations)
           : 0;
 
-        // ✅ Apply item-level discount to the base price
+        // Apply item-level discount to the base price
         const discountedBase = getEffectivePrice(item);
 
         const existingIndex = prevCart.findIndex((c) => {
@@ -177,6 +225,9 @@ export const useCart = () => {
     [],
   );
 
+  // ---------------------------------------------------------
+  // Remove one unit
+  // ---------------------------------------------------------
   const removeItem = useCallback(
     (id: number, customizations?: Record<string, string>) => {
       setCart((prevCart) => {
@@ -208,6 +259,9 @@ export const useCart = () => {
     [],
   );
 
+  // ---------------------------------------------------------
+  // Remove completely (all quantities of a variant)
+  // ---------------------------------------------------------
   const removeItemCompletely = useCallback(
     (id: number, customizations?: Record<string, string>) => {
       setCart((prevCart) =>
@@ -226,38 +280,43 @@ export const useCart = () => {
     [],
   );
 
+  // ---------------------------------------------------------
+  // Clear cart
+  // ---------------------------------------------------------
   const clearCart = useCallback(() => {
     setCart([]);
     setScheduleData(null);
     localStorage.removeItem('restaurant_schedule_data');
   }, []);
 
+  // ---------------------------------------------------------
+  // Derived values
+  // ---------------------------------------------------------
   const getTotalItems = useCallback(() => {
     return cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
   }, [cart]);
 
   const getSubtotal = useCallback(() => {
     return cart.reduce((sum, item) => {
-      // basePrice already reflects the item-level discount
       const price = item.basePrice || item.price;
       const addonPrice = item.addonPrice || 0;
       return sum + (price + addonPrice) * (item.quantity || 0);
     }, 0);
   }, [cart]);
 
-  const getDiscountPercent = useCallback(() => {
-    return DISCOUNT_PERCENTAGE;
-  }, []);
+  const getDiscountPercent = useCallback(
+    () => DISCOUNT_PERCENTAGE,
+    [DISCOUNT_PERCENTAGE],
+  );
 
   const getDiscountAmount = useCallback(() => {
     const subtotal = getSubtotal();
-    const discountPercent = getDiscountPercent();
     const baseTotal = subtotal + DELIVERY_FEE;
     if (paymentMode === 'Online') {
-      return Math.round(baseTotal * (discountPercent / 100));
+      return Math.round(baseTotal * (DISCOUNT_PERCENTAGE / 100));
     }
     return 0;
-  }, [getSubtotal, paymentMode, getDiscountPercent]);
+  }, [getSubtotal, paymentMode, DELIVERY_FEE, DISCOUNT_PERCENTAGE]);
 
   const getTotalWithDelivery = useCallback(() => {
     const subtotal = getSubtotal();
@@ -267,7 +326,7 @@ export const useCart = () => {
       return Math.round(baseTotal - discount);
     }
     return Math.round(baseTotal);
-  }, [getSubtotal, paymentMode, getDiscountAmount]);
+  }, [getSubtotal, paymentMode, getDiscountAmount, DELIVERY_FEE]);
 
   const getDeliveryTime = useCallback(() => {
     const totalItems = getTotalItems();
@@ -296,6 +355,9 @@ export const useCart = () => {
     return `${day}${month}${hours}${mins}`;
   }, []);
 
+  // ---------------------------------------------------------
+  // Return
+  // ---------------------------------------------------------
   return {
     cart,
     paymentMode,

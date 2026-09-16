@@ -29,10 +29,11 @@ export const SEED_USERS: AdminCredentials[] = [
 ];
 
 export const ShopInfo = {
-  // Hardcoded because Blogger doesn't support import.meta.env
-  Restaurant_message: '7459999998',
-  Shop_name: 'Star Vegetables Online',
-  Shop_tagline: 'Green . Fresh . Healthy',
-  Delivery_fee: 20,
-  Discount_percentage: 100
+  Shop_name: 'exomenu',
+  Shop_tagline: 'Fast . Easy . Trusted',
+  Shop_banner: '',
+  Owner_phone: '8004608951',
+  Store_whatsapp: '8004608951',
+  Delivery_charge: 20,
+  Storewide_discount: 100,
 };

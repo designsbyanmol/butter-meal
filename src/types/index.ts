@@ -124,8 +124,10 @@ export interface MenuItem {
   desc: string;
   costPrice?: number;
   price: number;
-  discount?: number;        // ← NEW: 0–100, percent
+  discount?: number;
   img: string;
+  /** Optional multi-image gallery. First item matches `img`. */
+  gallery?: string[];
   category?: string;
   isVeg?: boolean;
   isSpicy?: boolean;

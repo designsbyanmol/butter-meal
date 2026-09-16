@@ -1,4 +1,5 @@
 // components/Header/Header.module.scss
+
 .bm_header {
   background: #fff;
   padding: 8px 15px;
@@ -16,23 +17,75 @@
   gap: 12px;
 }
 
+/* =========================================================
+   BRAND (left)
+   ========================================================= */
 .brand {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brandText {
+  display: inline-flex;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
 
   .companyName {
     font-size: 14px;
     letter-spacing: 1px;
     color: #4d4d4d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tagline {
     font-size: 14px;
     color: #3a3a3a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
+/* =========================================================
+   ADMIN AVATAR (left of brand text)
+   ========================================================= */
+.avatarBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1e7e34;
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+  user-select: none;
+
+  &:hover {
+    transform: scale(1.06);
+    background: #17642a;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+/* =========================================================
+   ACTIONS (right)
+   ========================================================= */
 .actions {
   display: flex;
   align-items: center;
@@ -71,7 +124,7 @@
 .userPhone {
   font-size: 12px;
   opacity: 0.7;
-  display: none; /* Hidden */
+  display: none;
 }
 
 .adminBadge {
@@ -84,7 +137,12 @@
   text-transform: uppercase;
 }
 
-.loginBtn, .logoutBtn, .adminBtn {
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+.loginBtn,
+.logoutBtn,
+.adminBtn {
   padding: 6px;
   border: none;
   border-radius: 4px;
@@ -94,6 +152,7 @@
   white-space: nowrap;
   display: flex;
   gap: 2px;
+  align-items: center;
 }
 
 .loginBtn {
@@ -103,7 +162,7 @@
   font-size: 14px;
 
   &:hover {
-  background: #299132;
+    background: #299132;
   }
 }
 
@@ -139,19 +198,9 @@
   }
 }
 
-@media (max-width: 768px) {
-  .container {
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
-
-  .userInfo {
-    padding: 4px 10px 4px 4px;
-  }
-}
-
-// components/Header/Header.module.scss  (add)
-
+/* =========================================================
+   WISHLIST
+   ========================================================= */
 .wishlistBtn {
   position: relative;
   display: inline-flex;
@@ -165,7 +214,9 @@
   cursor: pointer;
   transition: background 0.15s ease;
 
-  &:hover { background: rgba(0, 0, 0, 0.05); }
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
 }
 
 .wishlistBadge {
@@ -184,4 +235,29 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 768px) {
+  .container {
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .userInfo {
+    padding: 4px 10px 4px 4px;
+  }
+
+  .avatarBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .brandText .companyName,
+  .brandText .tagline {
+    font-size: 13px;
+  }
 }
