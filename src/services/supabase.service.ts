@@ -1,6 +1,6 @@
 // services/supabase.service.ts
 import { supabase, isSupabaseConfigured } from "./supabase.client";
-import { User, MenuItem, StoreSettings } from "../types";
+import { MenuItem, MessageTemplate, StoreSettings, User } from '../types';
 import { TABLES } from "../config/tables";
 import { Tenant } from '../contexts/TenantContext';
 import { FormSchema } from '../types';
@@ -798,6 +798,23 @@ async deleteTenant(slug: string): Promise<boolean> {
     throw new Error(error.message || 'Failed to delete store');
   }
   return !!data;
+}
+
+async updateTenantMessageTemplate(
+  slug: string,
+  template: MessageTemplate,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { error } = await client.rpc('update_tenant_message_template', {
+    tenant_slug_in: slug,
+    template_in: template,
+  });
+  if (error) {
+    console.error('update_tenant_message_template error:', error);
+    throw new Error(error.message || 'Failed to save template');
+  }
+  return true;
 }
 
   // ============ MAPPERS ============

@@ -854,3 +854,47 @@ $transition: 0.18s ease;
     }
   }
 }
+
+/* ---------- URL pair (admin + customer) ---------- */
+.urlPair {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.urlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.urlTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 66px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  background: #f5f1ec;
+  color: #7d6b60;
+
+  &:first-child {
+    background: #eef7ef;
+    color: #1e7e34;
+  }
+}
+
+/* The second tag is "Customer" — different tint */
+.urlRow:nth-child(2) .urlTag {
+  background: #fef4e6;
+  color: #92400e;
+}

@@ -4,14 +4,29 @@ import { isSupabaseConfigured } from '../config/env';
 import { supabase } from './supabase.client';
 import { credentialCache } from './credentialCache';
 
-// ---- Session storage keys ----
+// =========================================================
+// Session storage keys
+// =========================================================
 const SESSION_PREFIX = 'restaurant_auth_session';
 const PLATFORM_KEY = `${SESSION_PREFIX}::platform`;
-const SESSION_EVENT = 'auth:changed';
+const SMART_ADMIN_KEY = `${SESSION_PREFIX}::smart_admin`;
+const ADMIN_SUFFIX = '_admin';
 
-/** Key used for the currently active tab's tenant. */
-const keyForTenant = (slug: string | null): string =>
-  slug ? `${SESSION_PREFIX}::${slug}` : PLATFORM_KEY;
+/**
+ * Session key resolution:
+ *   - No slug + no smart-admin  → ::platform
+ *   - No slug + smart-admin     → ::smart_admin
+ *   - Slug + customer view      → ::<slug>
+ *   - Slug + admin view         → ::<slug>_admin
+ */
+const keyFor = (
+  slug: string | null,
+  isAdminView: boolean,
+  isSmartAdminHost: boolean,
+): string => {
+  if (!slug) return isSmartAdminHost ? SMART_ADMIN_KEY : PLATFORM_KEY;
+  return `${SESSION_PREFIX}::${slug}${isAdminView ? ADMIN_SUFFIX : ''}`;
+};
 
 interface RawAuthRow {
   id: string;
@@ -25,6 +40,12 @@ interface RawAuthRow {
   last_login: string | null;
 }
 
+interface UrlContext {
+  slug: string | null;
+  isAdminView: boolean;
+  isSmartAdminHost: boolean;
+}
+
 class AuthService {
   private authState: AuthState = {
     user: null,
@@ -34,47 +55,83 @@ class AuthService {
 
   private listeners: ((state: AuthState) => void)[] = [];
 
-  /** Which tenant slot this tab is currently bound to. */
   private currentSlug: string | null = null;
+  private currentIsAdminView = false;
+  private currentIsSmartAdminHost = false;
 
   constructor() {
-    this.currentSlug = this.readSlugFromUrl();
-    this.loadSessionFromCache(this.currentSlug);
+    const ctx = this.readContextFromUrl();
+    this.currentSlug = ctx.slug;
+    this.currentIsAdminView = ctx.isAdminView;
+    this.currentIsSmartAdminHost = ctx.isSmartAdminHost;
+    this.loadSessionFromCache(
+      ctx.slug,
+      ctx.isAdminView,
+      ctx.isSmartAdminHost,
+    );
   }
 
   // =========================================================
-  // URL / SLUG HELPERS
+  // URL PARSING
   // =========================================================
 
-  private readSlugFromUrl(): string | null {
-    if (typeof window === 'undefined') return null;
+  private readContextFromUrl(): UrlContext {
+    if (typeof window === 'undefined') {
+      return { slug: null, isAdminView: false, isSmartAdminHost: false };
+    }
     try {
-      const params = new URLSearchParams(window.location.search);
-      const qp = params.get('t');
-      return qp ? qp.trim() : null;
+      const url = new URL(window.location.href);
+      const isSmartAdminHost = url.searchParams.has('_smart-admin');
+
+      const qp = url.searchParams.get('t');
+      if (!qp) {
+        return { slug: null, isAdminView: false, isSmartAdminHost };
+      }
+
+      const raw = qp.trim();
+      const isAdminView = raw.endsWith(ADMIN_SUFFIX);
+      const slug = isAdminView ? raw.slice(0, -ADMIN_SUFFIX.length) : raw;
+
+      if (!slug) {
+        return { slug: null, isAdminView: false, isSmartAdminHost };
+      }
+      return { slug, isAdminView, isSmartAdminHost };
     } catch {
-      return null;
+      return { slug: null, isAdminView: false, isSmartAdminHost: false };
     }
   }
 
-  /**
-   * Re-bind the service to a different tenant.
-   * Called by TenantContext when the URL slug resolves.
-   * Loads that tenant's session (if any) into the active auth state.
-   */
-  bindTenant(slug: string | null): void {
-    if (this.currentSlug === slug) return;
+  bindTenant(
+    slug: string | null,
+    isAdminView = false,
+    isSmartAdminHost = false,
+  ): void {
+    if (
+      this.currentSlug === slug &&
+      this.currentIsAdminView === isAdminView &&
+      this.currentIsSmartAdminHost === isSmartAdminHost
+    ) {
+      return;
+    }
     this.currentSlug = slug;
-    this.loadSessionFromCache(slug);
+    this.currentIsAdminView = isAdminView;
+    this.currentIsSmartAdminHost = isSmartAdminHost;
+    this.loadSessionFromCache(slug, isAdminView, isSmartAdminHost);
   }
 
   // =========================================================
   // SESSION LIFECYCLE
   // =========================================================
 
-  private loadSessionFromCache(slug: string | null): void {
+  private loadSessionFromCache(
+    slug: string | null,
+    isAdminView: boolean,
+    isSmartAdminHost: boolean,
+  ): void {
     try {
-      const raw = localStorage.getItem(keyForTenant(slug));
+      const raw = localStorage.getItem(
+        keyFor(slug, isAdminView, isSmartAdminHost),
+      );
       if (raw) {
         const user: User = JSON.parse(raw);
         this.authState = { user, isAuthenticated: true, isLoading: false };
@@ -95,17 +152,31 @@ class AuthService {
     this.notifyListeners();
   }
 
-  private saveSession(slug: string | null, user: User): void {
+  private saveSession(
+    slug: string | null,
+    isAdminView: boolean,
+    user: User,
+    isSmartAdminHost: boolean,
+  ): void {
     try {
-      localStorage.setItem(keyForTenant(slug), JSON.stringify(user));
+      localStorage.setItem(
+        keyFor(slug, isAdminView, isSmartAdminHost),
+        JSON.stringify(user),
+      );
     } catch {
       /* ignore */
     }
   }
 
-  private clearSession(slug: string | null): void {
+  private clearSession(
+    slug: string | null,
+    isAdminView: boolean,
+    isSmartAdminHost: boolean,
+  ): void {
     try {
-      localStorage.removeItem(keyForTenant(slug));
+      localStorage.removeItem(
+        keyFor(slug, isAdminView, isSmartAdminHost),
+      );
     } catch {
       /* ignore */
     }
@@ -119,12 +190,19 @@ class AuthService {
     this.listeners.push(listener);
     listener({ ...this.authState });
 
-    // Cross-tab sync — react to logout/login in other tabs
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
-      const targetKey = keyForTenant(this.currentSlug);
+      const targetKey = keyFor(
+        this.currentSlug,
+        this.currentIsAdminView,
+        this.currentIsSmartAdminHost,
+      );
       if (e.key === targetKey) {
-        this.loadSessionFromCache(this.currentSlug);
+        this.loadSessionFromCache(
+          this.currentSlug,
+          this.currentIsAdminView,
+          this.currentIsSmartAdminHost,
+        );
       }
     };
     window.addEventListener('storage', onStorage);
@@ -147,6 +225,8 @@ class AuthService {
     phone: string,
     password: string,
     currentTenantSlug: string | null,
+    isAdminView = false,
+    isSmartAdminHost = false,
   ): Promise<{ success: boolean; error?: string }> {
     if (!phone || !password) {
       return {
@@ -161,9 +241,6 @@ class AuthService {
         error: 'Service temporarily unavailable. Please try again.',
       };
     }
-
-    // Always log into the slot of the URL's tenant
-    const targetSlug = currentTenantSlug;
 
     const { data, error } = await supabase.rpc('verify_password', {
       phone_in: phone,
@@ -186,17 +263,15 @@ class AuthService {
       };
     }
 
-    // ---- Tenant scope validation ----
-    //  - Admin (role='admin') can log in anywhere.
-    //  - Staff must log in at their own tenant URL.
+    // Tenant scope validation
     if (row.role !== 'admin') {
-      if (!targetSlug) {
+      if (!currentTenantSlug) {
         return {
           success: false,
           error: 'Staff accounts must log in from their store URL.',
         };
       }
-      if (row.tenant_slug !== targetSlug) {
+      if (row.tenant_slug !== currentTenantSlug) {
         return {
           success: false,
           error: 'This account belongs to a different store.',
@@ -223,19 +298,22 @@ class AuthService {
       /* ignore */
     }
 
-    // Persist into the slot matching the URL's tenant
-    this.saveSession(targetSlug, user);
+    this.saveSession(
+      currentTenantSlug,
+      isAdminView,
+      user,
+      isSmartAdminHost,
+    );
 
-    // If this tab is currently bound to the targetSlug, update live state
-    if (this.currentSlug === targetSlug) {
-      this.currentSlug = targetSlug;  // keep service in sync
-      this.authState = {
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      };
-      this.notifyListeners();
-    }
+    this.currentSlug = currentTenantSlug;
+    this.currentIsAdminView = isAdminView;
+    this.currentIsSmartAdminHost = isSmartAdminHost;
+    this.authState = {
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+    };
+    this.notifyListeners();
 
     return { success: true };
   }
@@ -244,16 +322,16 @@ class AuthService {
   // LOGOUT
   // =========================================================
 
-  /** Logs out of the CURRENT tenant slot only. */
   logout(): void {
     const slug = this.currentSlug;
+    const isAdminView = this.currentIsAdminView;
+    const isSmartAdminHost = this.currentIsSmartAdminHost;
 
-    // Clear session-scoped credentials for this tenant only
     if (slug) {
       credentialCache.remove(slug);
     }
 
-    this.clearSession(slug);
+    this.clearSession(slug, isAdminView, isSmartAdminHost);
 
     this.authState = {
       user: null,
@@ -263,9 +341,7 @@ class AuthService {
     this.notifyListeners();
   }
 
-  /** Explicit "log out everywhere" — used by platform admins if needed. */
   logoutAll(): void {
-    // Wipe every tenant slot
     try {
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -292,20 +368,18 @@ class AuthService {
   isUserValidForTenant(currentTenantSlug: string | null): boolean {
     const user = this.authState.user;
     if (!user) return true;
-
-    // Admins roam freely
     if (user.role === 'admin') return true;
-
-    // Staff: must be at their own tenant URL
     if (!currentTenantSlug) return false;
     return user.tenantSlug === currentTenantSlug;
   }
 
-  enforceTenantScope(currentTenantSlug: string | null): void {
-    // First re-bind the service to this URL's tenant
-    this.bindTenant(currentTenantSlug);
+  enforceTenantScope(
+    currentTenantSlug: string | null,
+    isAdminView = false,
+    isSmartAdminHost = false,
+  ): void {
+    this.bindTenant(currentTenantSlug, isAdminView, isSmartAdminHost);
 
-    // Now check if the loaded session is valid for this URL
     if (!this.isUserValidForTenant(currentTenantSlug)) {
       try {
         sessionStorage.setItem(
@@ -320,7 +394,7 @@ class AuthService {
   }
 
   // =========================================================
-  // PROFILE / GETTERS (unchanged)
+  // PROFILE
   // =========================================================
 
   async updateUserProfile(
@@ -331,10 +405,19 @@ class AuthService {
     }
     const updatedUser = { ...this.authState.user, ...updates };
     this.authState.user = updatedUser;
-    this.saveSession(this.currentSlug, updatedUser);
+    this.saveSession(
+      this.currentSlug,
+      this.currentIsAdminView,
+      updatedUser,
+      this.currentIsSmartAdminHost,
+    );
     this.notifyListeners();
     return { success: true };
   }
+
+  // =========================================================
+  // GETTERS
+  // =========================================================
 
   isAuthenticated(): boolean {
     return this.authState.isAuthenticated;

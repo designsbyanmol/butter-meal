@@ -261,3 +261,38 @@
     font-size: 13px;
   }
 }
+.customerGreeting {
+  font-size: 14px;
+  color: #4d4d4d;
+
+  strong {
+    color: #1e7e34;
+    font-weight: 800;
+    margin-left: 2px;
+  }
+}
+.adminViewBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.smartAdminBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef1fb;
+  color: #1e40af;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}

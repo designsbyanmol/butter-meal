@@ -193,3 +193,58 @@ export interface Tenant {
   isActive?: boolean;
   formSchema?: FormSchema;
 }
+
+// =========================================================
+// WHATSAPP MESSAGE TEMPLATE
+// =========================================================
+
+export interface MessageTemplate {
+  // ---- Header ----
+  orderLabel: string;          // e.g., "New Order From {customerName}"
+  namePrompt: string;          // shown in the customer-name popup
+  namePromptPlaceholder: string;
+
+  // ---- Item list ----
+  itemListTitle: string;       // "Item List"
+  itemLineTemplate: string;    // "{name} x {qty}" — order of tokens, not style
+  showItemDiscount: boolean;   // append "(X% off)" when item has a discount
+  showItemAddons: boolean;     // append "[+RsN add-ons]"
+  showItemCustomizations: boolean;
+  showItemNotes: boolean;      // append the item's special instructions
+
+  // ---- Pricing ----
+  subtotalLabel: string;
+  deliveryLabel: string;
+  discountLabel: string;
+  totalLabel: string;
+  freeDeliveryLabel: string;   // e.g., "(+Rs {fee} Inc. for delivery)"
+
+  // ---- Footer ----
+  footerNote1: string;
+  footerNote2: string;
+  footerSignature: string;
+}
+
+export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
+  orderLabel: 'New Order From {customerName}',
+  namePrompt: 'Please enter your name',
+  namePromptPlaceholder: 'e.g., Anmol',
+
+  itemListTitle: 'Item List',
+  itemLineTemplate: '{name} x {qty}',
+  showItemDiscount: true,
+  showItemAddons: true,
+  showItemCustomizations: true,
+  showItemNotes: true,
+
+  subtotalLabel: 'Subtotal',
+  deliveryLabel: 'Delivery',
+  discountLabel: 'Discount',
+  totalLabel: 'Total Amount',
+  freeDeliveryLabel: '(+Rs {fee} Inc. for delivery)',
+
+  footerNote1:
+    'We take orders on trust. Once a faulty will be a lifetime faulty',
+  footerNote2: 'Editing this order before payment = Order Cancelled',
+  footerSignature: '-Butter Meal',
+};

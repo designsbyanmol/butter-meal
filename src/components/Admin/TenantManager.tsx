@@ -23,8 +23,7 @@ const slugify = (s: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-// Human-friendly random password: skips ambiguous characters
-// (0/O, 1/l/I) so it's easy to read aloud or type on a phone.
+/** Human-friendly random password — skips ambiguous characters. */
 const generateRandomPassword = (length = 8): string => {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let pw = '';
@@ -80,7 +79,8 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   // -------- Copy-credentials modal state --------
   const [credentialsModal, setCredentialsModal] = useState<{
     displayName: string;
-    url: string;
+    adminUrl: string;
+    customerUrl: string;
     phone: string;
     password: string;
     generatedAt: string;
@@ -95,10 +95,17 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     }
   }, [displayName, slugTouched]);
 
+  // ---------- URL builders ----------
   const buildTenantUrl = (slug: string): string => {
     const origin = window.location.origin;
     const path = window.location.pathname;
     return `${origin}${path}?t=${slug}`;
+  };
+
+  const buildAdminUrl = (slug: string): string => {
+    const origin = window.location.origin;
+    const path = window.location.pathname;
+    return `${origin}${path}?t=${slug}_admin`;
   };
 
   const loadTenants = async () => {
@@ -157,6 +164,10 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     window.open(buildTenantUrl(slug), '_blank');
   };
 
+  const openAdminInNewTab = (slug: string) => {
+    window.open(buildAdminUrl(slug), '_blank');
+  };
+
   // -------- Create modal open/close --------
   const openCreateModal = () => {
     setDisplayName('');
@@ -193,7 +204,8 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
       setCredentialsModal({
         displayName: tenant.displayName,
-        url: tenant.url,
+        adminUrl: buildAdminUrl(tenant.slug),
+        customerUrl: buildTenantUrl(tenant.slug),
         phone: owner.phone,
         password: cached.password,
         generatedAt: cached.generatedAt,
@@ -225,7 +237,8 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
     setCredentialsModal({
       displayName: tenant.displayName,
-      url: tenant.url,
+      adminUrl: buildAdminUrl(tenant.slug),
+      customerUrl: buildTenantUrl(tenant.slug),
       phone: owner.phone,
       password: newPassword,
       generatedAt,
@@ -236,10 +249,12 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
   const copyCredentialsToClipboard = async () => {
     if (!credentialsModal) return;
-    const { displayName, url, phone, password } = credentialsModal;
+    const { displayName, adminUrl, customerUrl, phone, password } =
+      credentialsModal;
     const text =
       `*${displayName} — Login Details*\n\n` +
-      `Store URL: ${url}\n` +
+      `Admin URL (owner login):\n${adminUrl}\n\n` +
+      `Customer URL (share with customers):\n${customerUrl}\n\n` +
       `Phone: ${phone}\n` +
       `Password: ${password}\n\n` +
       `Keep these credentials safe.`;
@@ -303,7 +318,8 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
       setCredentialsModal({
         displayName: tenant.displayName,
-        url: buildTenantUrl(tenant.slug),
+        adminUrl: buildAdminUrl(tenant.slug),
+        customerUrl: buildTenantUrl(tenant.slug),
         phone: ownerPhone.trim(),
         password: ownerPassword,
         generatedAt,
@@ -419,7 +435,9 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
     const ok = await supabaseService.setTenantActive(tenant.slug, targetState);
     if (ok) {
-      flashSuccess(`Store "${tenant.displayName}" ${actionLabel.toLowerCase()}d`);
+      flashSuccess(
+        `Store "${tenant.displayName}" ${actionLabel.toLowerCase()}d`,
+      );
       await loadTenants();
     } else {
       flashError(`Failed to ${actionLabel.toLowerCase()} store`);
@@ -658,20 +676,21 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                             </span>
                           )}
                         </div>
-                        <div className={styles.tenantUrl}>{t.url}</div>
+
                         {t.whatsappPhone && (
                           <div className={styles.tenantMeta}>
                             WhatsApp: +91 {t.whatsappPhone}
                           </div>
                         )}
                       </div>
+
                       <div className={styles.itemStatus}>
                         <button
                           className={styles.editBtn}
                           onClick={() => handleCopyCredentials(t)}
                           title="Generate or reuse this session's credentials"
                         >
-                          Copy Credentials
+                          Copy all
                         </button>
                         <button
                           className={styles.editBtn}
@@ -681,9 +700,17 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                         </button>
                         <button
                           className={styles.editBtn}
-                          onClick={() => openInNewTab(t.slug)}
+                          onClick={() => openAdminInNewTab(t.slug)}
+                          title="Open the admin login URL"
                         >
-                          Open
+                          Admin URL
+                        </button>
+                        <button
+                          className={styles.editBtn}
+                          onClick={() => openInNewTab(t.slug)}
+                          title="Open the customer view"
+                        >
+                          Public URL
                         </button>
                         {t.slug !== 'main' && (
                           <button
@@ -764,7 +791,10 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                       required
                     />
                     <small>
-                      URL will be:{' '}
+                      Admin URL:{' '}
+                      <code>{buildAdminUrl(slug || 'your-slug')}</code>
+                      <br />
+                      Customer URL:{' '}
                       <code>{buildTenantUrl(slug || 'your-slug')}</code>
                     </small>
                   </div>
@@ -843,7 +873,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                       </button>
                     </div>
                     <small>
-                      Share this with the store owner along with their URL.
+                      Share this with the store owner along with the Admin URL.
                     </small>
                   </div>
                 </div>
@@ -880,7 +910,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
           <div
             className={styles.confirmDialog}
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 480 }}
+            style={{ maxWidth: 520 }}
           >
             <div className={styles.confirmHeader}>
               <h3>
@@ -912,9 +942,20 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
               <div className={styles.credentialsList}>
                 <div>
-                  <label className={styles.fieldLabel}>Store URL</label>
+                  <label className={styles.fieldLabel}>
+                    Admin URL (owner login)
+                  </label>
                   <div className={styles.tenantUrl}>
-                    {credentialsModal.url}
+                    {credentialsModal.adminUrl}
+                  </div>
+                </div>
+
+                <div>
+                  <label className={styles.fieldLabel}>
+                    Customer URL (share with customers)
+                  </label>
+                  <div className={styles.tenantUrl}>
+                    {credentialsModal.customerUrl}
                   </div>
                 </div>
 

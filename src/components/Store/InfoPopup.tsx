@@ -7,6 +7,7 @@ import EditIcon from '../../assets/svgs/EditIcon';
 import ImageUpload from '../Admin/ImageUpload';
 import styles from './InfoPopup.module.scss';
 import { ShopInfo } from '../../config/credentials';
+import MessageTemplateEditor from './MessageTemplateEditor';
 
 interface InfoPopupProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ const FIELDS: FieldDef[] = [
     label: 'Store Offer Banner',
     type: 'image',
     getValue: (t) => t?.bannerUrl || ShopInfo.Shop_banner || '',
-    hint: 'Shown at the top of the menu page. Image Dimension 1200x630px prefered',
+    hint: 'Shown at the top of the menu page. Image Dimension 1200x630px preferred.',
   },
   {
     key: 'display_name',
@@ -98,6 +99,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
 
   // Reset when popup opens
   useEffect(() => {
@@ -110,17 +112,20 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Esc closes any open editor, or the whole popup
+  // Esc closes any open editor, or the whole popup.
+  // Note: if the template editor is open, it handles its own Esc,
+  // so we bail out here to avoid closing both at once.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (isTemplateEditorOpen) return;   // template editor handles its own Esc
       if (editingField) setEditingField(null);
       else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, editingField, onClose]);
+  }, [isOpen, editingField, isTemplateEditorOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -214,16 +219,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
 
   const activeFieldDef = FIELDS.find((f) => f.key === editingField) || null;
 
-  console.log('[InfoPopup] tenant', {
-  displayName: tenant?.displayName,
-  storeTagline: tenant?.storeTagline,
-  deliveryCharge: tenant?.deliveryCharge,
-  storewideDiscount: tenant?.storewideDiscount,
-  whatsappPhone: tenant?.whatsappPhone,
-  ownerPhone: tenant?.ownerPhone,
-  bannerUrl: tenant?.bannerUrl,
-  infoDefaults: tenant?.infoDefaults,
-});
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div
@@ -293,6 +288,28 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
               </div>
             );
           })}
+
+          {/* ---- WhatsApp Message Template row ---- */}
+          <div className={styles.row}>
+            <div className={styles.rowMain}>
+              <div className={styles.labelRow}>
+                <span className={styles.label}>
+                  WhatsApp Message Template
+                </span>
+              </div>
+              <div className={styles.value}>
+                Customize the exact text customers send to your WhatsApp.
+              </div>
+            </div>
+            <button
+              className={styles.editBtn}
+              onClick={() => setIsTemplateEditorOpen(true)}
+              aria-label="Edit message template"
+              title="Edit message template"
+            >
+              <EditIcon width={16} height={16} fill="#1e7e34" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -326,7 +343,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                   currentImage={draftValue}
                   onImageUploaded={(url) => {
                     setDraftValue(url);
-                    // Auto-save on upload — one less tap for the owner
                     saveEdit(url);
                   }}
                   label="Upload Banner"
@@ -396,6 +412,12 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
       )}
+
+      {/* ============ MESSAGE TEMPLATE EDITOR ============ */}
+      <MessageTemplateEditor
+        isOpen={isTemplateEditorOpen}
+        onClose={() => setIsTemplateEditorOpen(false)}
+      />
     </div>
   );
 };

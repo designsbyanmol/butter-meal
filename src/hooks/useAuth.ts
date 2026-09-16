@@ -5,9 +5,10 @@ import { AuthState, User } from '../types';
 import { useTenant } from '../contexts/TenantContext';
 
 export const useAuth = () => {
-  const { tenant } = useTenant();
+  const { tenant, isAdminView, isSmartAdminHost } = useTenant();
   const [state, setState] = useState<AuthState>(authService.getState());
 
+  // Subscribe to auth state changes
   useEffect(() => {
     const unsubscribe = authService.subscribe((newState) => {
       setState(newState);
@@ -15,14 +16,23 @@ export const useAuth = () => {
     return unsubscribe;
   }, []);
 
-  // Re-bind auth to the current URL's tenant whenever the tenant resolves
+  // Re-bind the auth service whenever the URL context changes
   useEffect(() => {
-    authService.bindTenant(tenant?.slug ?? null);
-  }, [tenant?.slug]);
+    authService.bindTenant(
+      tenant?.slug ?? null,
+      isAdminView,
+      isSmartAdminHost,
+    );
+  }, [tenant?.slug, isAdminView, isSmartAdminHost]);
 
   const login = async (phone: string, password: string) => {
-    // Automatically inject the tenant slug from context — callers stay simple
-    return await authService.login(phone, password, tenant?.slug ?? null);
+    return await authService.login(
+      phone,
+      password,
+      tenant?.slug ?? null,
+      isAdminView,
+      isSmartAdminHost,
+    );
   };
 
   const logout = () => {

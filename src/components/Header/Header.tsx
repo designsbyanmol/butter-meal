@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../contexts/TenantContext';
 import { useWishlist } from '../../hooks/useWishlist';
+import { useCustomerName } from '../../hooks/useCustomerName';
 import { MenuItem } from '../../types';
 import LoginModal from '../Auth/LoginModal';
 import UserManagement from '../Admin/UserManagement';
@@ -18,7 +19,7 @@ import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
 import {
   subscribeAdminAction,
   AdminAction,
-} from '../../../utils/adminEvents';
+} from '../../utils/adminEvents';
 
 interface HeaderProps {
   companyName: string;
@@ -32,8 +33,9 @@ const Header: React.FC<HeaderProps> = ({
   onWishlistItemClick,
 }) => {
   const { user, isAuthenticated, logout, isAdmin } = useAuth();
-  const { tenant, isDeactivated } = useTenant();
+  const { tenant, isDeactivated, isAdminView, isSmartAdminHost } = useTenant();
   const { count: wishlistCount } = useWishlist();
+  const customerName = useCustomerName();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
@@ -44,45 +46,42 @@ const Header: React.FC<HeaderProps> = ({
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   useEffect(() => {
-  const unsubscribe = subscribeAdminAction((action: AdminAction) => {
-    switch (action) {
-      case 'open-menu-panel':
-        setIsMenuPanelOpen(true);
-        break;
-      case 'open-store-settings':
-        setIsStoreModalOpen(true);
-        break;
-      case 'open-user-management':
-        setIsUserManagementOpen(true);
-        break;
-      case 'open-info-popup':
-        setIsInfoOpen(true);
-        break;
-      case 'open-tenant-manager':
-        setIsTenantManagerOpen(true);
-        break;
-    }
-  });
-  return unsubscribe;
-}, []);
+    const unsubscribe = subscribeAdminAction((action: AdminAction) => {
+      switch (action) {
+        case 'open-menu-panel':
+          setIsMenuPanelOpen(true);
+          break;
+        case 'open-store-settings':
+          setIsStoreModalOpen(true);
+          break;
+        case 'open-user-management':
+          setIsUserManagementOpen(true);
+          break;
+        case 'open-info-popup':
+          setIsInfoOpen(true);
+          break;
+        case 'open-tenant-manager':
+          setIsTenantManagerOpen(true);
+          break;
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // ---------------------------------------------------------
+  // Hide the entire header on the plain main host.
+  // Only shows when:
+  //   - a tenant exists (any ?t= URL), OR
+  //   - the main host has ?_smart-admin
+  // ---------------------------------------------------------
+  const shouldHideHeader = !tenant && !isSmartAdminHost;
 
   // ---------------------------------------------------------
   // Visibility rules
   // ---------------------------------------------------------
-
-  // Platform admin = admin who is NOT scoped to any tenant.
-  // Only the main host (no ?t= slug) qualifies.
   const isPlatformAdmin = isAdmin && !tenant;
-
-  // Tenant-scoped buttons only make sense when a tenant exists
-  // AND it's not deactivated.
   const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
-
-  // Wishlist only makes sense for a real, active, storefront URL
-  // (i.e. not on the platform host and not on a deactivated store).
-  const showWishlist = !!tenant && !isDeactivated;
-
-  // Admin avatar — only when logged in and inside a tenant context
+  const showWishlist = !!tenant && !isDeactivated && !isAdminView;
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
   const handleLogin = () => setIsLoginOpen(true);
@@ -101,6 +100,11 @@ const Header: React.FC<HeaderProps> = ({
     user?.name && user.name.trim().length > 0
       ? user.name.trim().charAt(0).toUpperCase()
       : '?';
+
+  const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
+
+  // Early return AFTER all hooks have been called
+  if (shouldHideHeader) return null;
 
   return (
     <>
@@ -121,19 +125,27 @@ const Header: React.FC<HeaderProps> = ({
             )}
 
             <span className={styles.brandText}>
-              {!isAuthenticated ? (
+              {isAuthenticated ? (
+                <span className={styles.tagline}>{user?.name}</span>
+              ) : hasCustomerName ? (
+                <span className={styles.customerGreeting}>
+                  Hey! <strong>{customerName}</strong>
+                </span>
+              ) : (
                 <span className={styles.companyName}>
                   {tenant ? tenant.displayName : `${companyName} ${year}`}
                 </span>
-              ) : (
-                <span className={styles.tagline}>{user?.name}</span>
               )}
             </span>
+
+            {isSmartAdminHost && !tenant && (
+              <span className={styles.smartAdminBadge}>Smart Admin</span>
+            )}
           </div>
 
           {/* ============ RIGHT: actions ============ */}
           <div className={styles.actions}>
-            {/* ---- Wishlist icon (customers) ---- */}
+            {/* Wishlist (customers only) */}
             {showWishlist && !isAuthenticated && (
               <button
                 type="button"
@@ -157,7 +169,6 @@ const Header: React.FC<HeaderProps> = ({
 
             {isAuthenticated ? (
               <>
-                {/* ---- Tenant-scoped buttons ---- */}
                 {canManageTenant && (
                   <>
                     <button
@@ -188,7 +199,6 @@ const Header: React.FC<HeaderProps> = ({
                   </>
                 )}
 
-                {/* ---- Platform admin only ---- */}
                 {isPlatformAdmin && (
                   <button
                     className={styles.adminBtn}
@@ -205,9 +215,13 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
               </>
             ) : (
-              <button className={styles.loginBtn} onClick={handleLogin}>
-                Sign In
-              </button>
+              <>
+                {(!tenant || isAdminView || isSmartAdminHost) && (
+                  <button className={styles.loginBtn} onClick={handleLogin}>
+                    Sign In
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
