@@ -117,8 +117,6 @@ const CategoryChip: React.FC<CategoryChipProps> = ({
           }
         }}
         aria-label={`Rename category ${value}`}
-        // Prevent the input from initiating a drag when the user
-        // grabs text inside it
         onDragStart={(e) => e.stopPropagation()}
       />
       <button
@@ -158,10 +156,10 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
   const [draggedChipIndex, setDraggedChipIndex] = useState<number | null>(null);
   const [dragOverChipIndex, setDragOverChipIndex] = useState<number | null>(null);
 
-  // Snapshot of the tenant schema at modal open — used to diff removed cats
+  // Snapshot of the schema at modal open — used to diff removed categories
   const initialSchemaRef = useRef<FormSchema | null>(null);
 
-  // Guard: auto-seed must only run once per modal lifetime
+  // Auto-seed must run at most once per modal lifetime
   const seedRanRef = useRef(false);
 
   // -------- Initialize schema from the tenant ONCE on mount --------
@@ -174,6 +172,12 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
   }, []);
 
   // -------- Auto-seed categories from existing items (ONE TIME ONLY) --------
+  //
+  // Only seeds when the owner has NEVER customized the schema:
+  //   • category field has 0 options
+  //   • no custom fields exist
+  //
+  // This keeps a removed category from creeping back after a save.
   useEffect(() => {
     if (seedRanRef.current) return;
     if (!allMenuItems.length) return;
@@ -183,6 +187,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     const hasCustomFields = schema.fields.some((f) => !f.builtin);
 
     if (catOpts.length > 0 || hasCustomFields) {
+      // Owner has already customized — do not seed
       seedRanRef.current = true;
       return;
     }
@@ -327,6 +332,10 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     }));
   };
 
+  /**
+   * Rename a category option. Cascades to any items currently in the old
+   * category so they follow the rename immediately (before Save).
+   */
   const renameCategoryOption = async (
     fieldKey: string,
     oldName: string,
@@ -335,6 +344,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) return;
 
+    // 1. Update schema locally
     setSchema((prev) => ({
       ...prev,
       fields: prev.fields.map((f) => {
@@ -346,6 +356,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       }),
     }));
 
+    // 2. Cascade to any item currently in that category
     const affected = allMenuItems.filter(
       (it) => (it.category ?? '').trim() === oldName,
     );
@@ -469,11 +480,13 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       // ---------------- 3. Persist the schema ----------------
       await supabaseService.updateFormSchema(tenant.slug, schema);
 
+      // Background refresh — do not await so this modal doesn't re-render
+      // mid-close with a stale snapshot.
       Promise.allSettled([
         refreshTenant(),
         menuService.refresh(),
       ]).catch(() => {
-        /* silently ignore */
+        /* silently ignore — errors already logged inside each */
       });
 
       flashSuccess(
@@ -490,8 +503,10 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     }
   };
 
-  const builtinFields = schema.fields.filter((f) => f.builtin);
-  const customFields = schema.fields.filter((f) => !f.builtin);
+const builtinFields = schema.fields.filter(
+  (f) => f.builtin && !f.platformOnly,
+);
+const customFields = schema.fields.filter((f) => !f.builtin);
 
   // =========================================================
   // RENDER

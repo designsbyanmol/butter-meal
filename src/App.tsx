@@ -80,7 +80,11 @@ const AppContent: React.FC = () => {
     isDeactivated,
     tenantNotFound,
   } = useTenant();
-  const { isStoreOpen, isLoading: storeLoading } = useStore();
+  const {
+  isStoreOpen,
+  isAcceptingOrders,   // ← NEW
+  isLoading: storeLoading,
+} = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
 
   const {
@@ -119,48 +123,28 @@ const AppContent: React.FC = () => {
   const [isNameOpen, setIsNameOpen] = useState(false);
   const [customerName, setCustomerName] = useState<string>(() => getCustomerName());
 
+  // One-shot connection check. No interval — the maintenance notice for
+// admins reflects the state at page load and is updated only when an
+// admin action triggers a check.
+useEffect(() => {
+  if (!isSupabaseConfigured) {
+    setIsConnected(true);
+    setIsChecking(false);
+    return;
+  }
+
+  (async () => {
+    const connected = await db.forceConnectionCheck();
+    setIsConnected(connected);
+    setIsChecking(false);
+  })();
+}, []);
+
   // Menu filters
   const [filters, setFilters] = useState<MenuFilterState>({
     ...EMPTY_FILTERS,
     types: new Set(),
   });
-
-  // ---------------------------------------------------------
-  // Connection check subscription
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setIsConnected(true);
-      setIsChecking(false);
-      return;
-    }
-
-    const checkConnection = async () => {
-      setIsChecking(true);
-      const connected = await db.forceConnectionCheck();
-      setIsConnected(connected);
-      setIsChecking(false);
-    };
-
-    checkConnection();
-
-    if (typeof db.subscribeToMaintenance === "function") {
-      const unsubscribe = db.subscribeToMaintenance((isActive) => {
-        setIsConnected(!isActive);
-        setIsChecking(false);
-      });
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
-    }
-
-    const interval = setInterval(async () => {
-      const connected = await db.forceConnectionCheck();
-      setIsConnected(connected);
-      setIsChecking(false);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   // ---------------------------------------------------------
   // Tenant-scoped initialization
@@ -176,7 +160,7 @@ const AppContent: React.FC = () => {
           await db.initializeDefaultUsers(tenant.slug);
           await menuService.setTenant(tenant.slug);
           await menuService.initializeItems(defaultMenuItems);
-          stop = menuService.startSync({ pollMs: 60_000 });
+          stop = menuService.startSync({ pollMs: 0 });
         }
       } catch (error) {
         console.error("App initialization failed:", error);
@@ -200,6 +184,29 @@ const AppContent: React.FC = () => {
       ? `${tenant.displayName} — Menu`
       : "Menu Display by Teckut";
   }, [tenant?.displayName]);
+
+  useEffect(() => {
+  const LEGACY_KEYS = [
+    'restaurant_cart',
+    'restaurant_payment_mode',
+    'restaurant_delivery_type',
+    'restaurant_schedule_data',
+    'restaurant_customer_name',
+  ];
+  LEGACY_KEYS.forEach((k) => {
+    try { localStorage.removeItem(k); } catch { /* ignore */ }
+  });
+}, []);
+
+// inside AppContent
+useEffect(() => {
+  if (!selectedItem) return;
+  const latest = allItems.find((it) => it.id === selectedItem.id);
+  if (latest && latest !== selectedItem) {
+    setSelectedItem(latest);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [allItems, selectedItem?.id]);
 
   // ---------------------------------------------------------
   // Filtered items
@@ -339,17 +346,20 @@ const AppContent: React.FC = () => {
   };
 
   const handlePlaceOrder = () => {
-    if (!isStoreOpen) {
-      alert("Store is currently closed. Please try again later.");
-      return;
-    }
-    if (deliveryType === "schedule" && !scheduleData) {
-      setIsScheduleOpen(true);
-      return;
-    }
-    // Ask for the name first
-    setIsNameOpen(true);
-  };
+  if (!isStoreOpen) {
+    alert('Store is currently closed. Please try again later.');
+    return;
+  }
+  if (!isAcceptingOrders) {
+    alert('This store is not accepting orders right now.');
+    return;
+  }
+  if (deliveryType === 'schedule' && !scheduleData) {
+    setIsScheduleOpen(true);
+    return;
+  }
+  setIsNameOpen(true);
+};
 
   const handleNameConfirmed = (name: string) => {
   setCustomerName(name);
@@ -672,6 +682,7 @@ const AppContent: React.FC = () => {
                   onAddItem={addItem}
                   onRemoveItem={removeItem}
                   onItemClick={handleItemClick}
+                  acceptingOrders={isAcceptingOrders}
                 />
               )}
             </>
@@ -681,10 +692,11 @@ const AppContent: React.FC = () => {
 
       {/* Floating cart */}
       {!isAppLoading &&
-        tenant &&
-        !isDeactivated &&
-        isStoreOpen &&
-        getTotalItems() > 0 &&
+  tenant &&
+  !isDeactivated &&
+  isStoreOpen &&
+  isAcceptingOrders &&
+  getTotalItems() > 0 &&
         !isAuthenticated && (
           <FloatingCart
             itemCount={getTotalItems()}
@@ -695,28 +707,29 @@ const AppContent: React.FC = () => {
 
     {tenant && (
       <CartModal
-        isOpen={isCartOpen}
-        cart={cart}
-        paymentMode={paymentMode}
-        deliveryType={deliveryType}
-        scheduleData={scheduleData}
-        onClose={() => setIsCartOpen(false)}
-        onIncrement={(id, customizations) => {
-          const item = allItems.find((item) => item.id === id);
-          if (item && isStoreOpen) addItem(item, customizations);
-        }}
-        onDecrement={removeItem}
-        onPlaceOrder={handlePlaceOrder}
-        onPaymentChange={setPaymentMode}
-        onDeliveryChange={handleDeliveryChange}
-        onOpenSchedule={() => setIsScheduleOpen(true)}
-        subtotal={getSubtotal()}
-        total={getTotalWithDelivery()}
-        discount={getDiscountAmount()}
-        discountPercent={getDiscountPercent()}
-        deliveryFee={DELIVERY_FEE}
-        totalItems={getTotalItems()}
-      />
+  isOpen={isCartOpen}
+  cart={cart}
+  paymentMode={paymentMode}
+  deliveryType={deliveryType}
+  scheduleData={scheduleData}
+  onClose={() => setIsCartOpen(false)}
+  onIncrement={(id, customizations) => {
+    const item = allItems.find((item) => item.id === id);
+    if (item && isStoreOpen && isAcceptingOrders) addItem(item, customizations);
+  }}
+  onDecrement={removeItem}
+  onPlaceOrder={handlePlaceOrder}
+  onPaymentChange={setPaymentMode}
+  onDeliveryChange={handleDeliveryChange}
+  onOpenSchedule={() => setIsScheduleOpen(true)}
+  subtotal={getSubtotal()}
+  total={getTotalWithDelivery()}
+  discount={getDiscountAmount()}
+  discountPercent={getDiscountPercent()}
+  deliveryFee={DELIVERY_FEE}
+  totalItems={getTotalItems()}
+  acceptingOrders={isAcceptingOrders}   // ← optional prop; disables Place Order button
+/>
     )}
 
         <CustomerNameModal
@@ -746,14 +759,15 @@ const AppContent: React.FC = () => {
     />
 
     <MenuDetail
-      isOpen={isDetailOpen}
-      item={selectedItem}
-      onClose={() => {
-        setIsDetailOpen(false);
-        setSelectedItem(null);
-      }}
-      onAddToCart={handleAddToCartFromDetail}
-    />
+  isOpen={isDetailOpen}
+  item={selectedItem}
+  onClose={() => {
+    setIsDetailOpen(false);
+    setSelectedItem(null);
+  }}
+  onAddToCart={handleAddToCartFromDetail}
+  acceptingOrders={isAcceptingOrders}   // ← NEW
+/>
   </>
 );
 };

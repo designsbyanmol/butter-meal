@@ -5,6 +5,8 @@ import { Tenant } from '../../contexts/TenantContext';
 import { credentialCache } from '../../services/credentialCache';
 import { CloseIcon, PlusIcon } from '../../assets/svgs';
 import styles from './TenantManager.module.scss';
+import { menuItems as defaultMenuItems } from "../../data/menuData";
+import { DEFAULT_FORM_SCHEMA } from '../../types';
 
 interface TenantManagerProps {
   onClose: () => void;
@@ -310,6 +312,29 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
         ownerPassword,
         whatsappPhone: whatsappPhone.trim() || undefined,
       });
+
+      // After createTenantWithOwner, before showing credentials modal
+try {
+  // Derive the initial category list from the seed menu
+  const initialCats = Array.from(
+    new Set(
+      defaultMenuItems
+        .map((it) => it.category?.trim())
+        .filter((c): c is string => !!c),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  if (initialCats.length > 0) {
+    const seededSchema = {
+      fields: DEFAULT_FORM_SCHEMA.fields.map((f) =>
+        f.key === 'category' ? { ...f, options: initialCats } : f,
+      ),
+    };
+    await supabaseService.updateFormSchema(tenant.slug, seededSchema);
+  }
+} catch (err) {
+  console.warn('Failed to seed initial categories:', err);
+}
 
       const generatedAt = new Date().toISOString();
       credentialCache.set(tenant.slug, ownerPassword);

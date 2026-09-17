@@ -26,6 +26,7 @@ export interface StoreSettings {
   closedMessage: string;
   expectedOpenDate: string;
   expectedOpenTime: string;
+  acceptingOrders: boolean;   // ← NEW
   lastUpdated: string;
 }
 
@@ -58,20 +59,15 @@ export type FormFieldType =
   | 'select';
 
 export interface FormFieldConfig {
-  /** Internal id. Built-ins have fixed keys; custom fields use `custom_*`. */
   key: string;
-  /** Label shown on the form. Renameable for non-locked fields. */
   label: string;
   type: FormFieldType;
-  /** Include the field in the Add/Edit form. */
   enabled: boolean;
-  /** True for the built-in fields shipped with the app. */
   builtin: boolean;
-  /** True only for user-added fields that can be removed. */
   removable: boolean;
-  /** Locked fields cannot be renamed or disabled. */
   locked?: boolean;
-  /** Options for `select` type fields (also used by `category`). */
+  /** Field is managed by the platform admin only — hidden for tenants. */
+  platformOnly?: boolean;
   options?: string[];
 }
 
@@ -81,16 +77,19 @@ export interface FormSchema {
 
 export const DEFAULT_FORM_SCHEMA: FormSchema = {
   fields: [
-    // Locked built-ins — always present, cannot be renamed or hidden
-    { key: 'name',            label: 'Name',             type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'img',             label: 'Image',            type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'price',           label: 'Price',            type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'discount',        label: 'Discount (%)',     type: 'number',   enabled: true, builtin: true, removable: false, locked: true }, // ← NEW
-    { key: 'desc',            label: 'Description',      type: 'textarea', enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'costPrice',       label: 'Cost Price',       type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'rating',          label: 'Rating',           type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'reviewCount',     label: 'Review Count',     type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'inStock',         label: 'In Stock',         type: 'checkbox', enabled: true, builtin: true, removable: false, locked: true },
+    // Locked built-ins
+    { key: 'name',        label: 'Name',         type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
+    { key: 'img',         label: 'Image',        type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
+    { key: 'price',       label: 'Price',        type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
+    { key: 'discount',    label: 'Discount (%)', type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
+    { key: 'desc',        label: 'Description',  type: 'textarea', enabled: true, builtin: true, removable: false, locked: true },
+    { key: 'costPrice',   label: 'Cost Price',   type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
+
+    // Platform-managed — hidden from tenant item form / edit fields
+    { key: 'rating',      label: 'Rating',       type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
+    { key: 'reviewCount', label: 'Review Count', type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
+
+    { key: 'inStock',     label: 'In Stock',     type: 'checkbox', enabled: true, builtin: true, removable: false, locked: true },
 
     // Editable built-ins
     { key: 'category',        label: 'Category',         type: 'select',   enabled: true, builtin: true, removable: false, options: [] },
@@ -248,3 +247,20 @@ export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
   footerNote2: 'Editing this order before payment = Order Cancelled',
   footerSignature: '-Butter Meal',
 };
+
+// types/index.ts (append)
+
+export interface Review {
+  id: string;
+  itemId: number;
+  itemName: string;
+  itemCategory: string;
+  rating: number;
+  comment: string;
+  customerName: string;
+  deviceId: string;
+  deviceFingerprint: string;
+  createdAt: string;
+}
+
+export type ReviewFilter = 'all' | 'lte4' | 'lte3' | 'lte2' | 'commented';

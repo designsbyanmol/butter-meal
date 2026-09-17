@@ -1,6 +1,6 @@
-import React from 'react';
-import { CartItem, PaymentMode, DeliveryType, ScheduleData } from '../../types';
-import CartItemComponent from './CartItem';
+import React from "react";
+import { CartItem, PaymentMode, DeliveryType, ScheduleData } from "../../types";
+import CartItemComponent from "./CartItem";
 import {
   CartIcon,
   CloseIcon,
@@ -8,9 +8,9 @@ import {
   ClockIcon,
   DiscountIcon,
   CheckIcon,
-  PlusIcon
-} from '../../assets/svgs';
-import styles from './Cart.module.scss';
+  PlusIcon,
+} from "../../assets/svgs";
+import styles from "./Cart.module.scss";
 
 interface CartModalProps {
   isOpen: boolean;
@@ -31,6 +31,7 @@ interface CartModalProps {
   discountPercent: number;
   deliveryFee: number;
   totalItems: number;
+  acceptingOrders?: boolean;
 }
 
 const CartModal: React.FC<CartModalProps> = ({
@@ -50,23 +51,26 @@ const CartModal: React.FC<CartModalProps> = ({
   discount,
   discountPercent,
   deliveryFee,
-  totalItems
+  totalItems,
+  acceptingOrders,
 }) => {
   React.useEffect(() => {
-    if (deliveryType === 'schedule' && paymentMode !== 'Online') {
-      onPaymentChange('Online');
+    if (deliveryType === "schedule" && paymentMode !== "Online") {
+      onPaymentChange("Online");
     }
   }, [deliveryType, paymentMode, onPaymentChange]);
-  
+
   if (!isOpen) return null;
 
-  const isSchedule = deliveryType === 'schedule';
+  const isSchedule = deliveryType === "schedule";
   const hasItems = cart.length > 0;
 
   // Helper to generate unique key for cart items with customizations
   const getItemKey = (item: CartItem): string => {
-    const customStr = item.customizations ? JSON.stringify(item.customizations) : 'none';
-    const messageStr = item.customMessage || 'none';
+    const customStr = item.customizations
+      ? JSON.stringify(item.customizations)
+      : "none";
+    const messageStr = item.customMessage || "none";
     return `${item.id}-${customStr}-${messageStr}`;
   };
 
@@ -82,7 +86,7 @@ const CartModal: React.FC<CartModalProps> = ({
               <CloseIcon width={18} height={18} fill="#1e1e1e" />
             </button>
           </div>
-          
+
           <div className={styles.modalItems}>
             {!hasItems ? (
               <div className={styles.emptyCart}>
@@ -92,7 +96,7 @@ const CartModal: React.FC<CartModalProps> = ({
                 your cart is empty
               </div>
             ) : (
-              cart.map(item => (
+              cart.map((item) => (
                 <div key={getItemKey(item)} className={styles.cartItemWrapper}>
                   <CartItemComponent
                     item={item}
@@ -135,29 +139,35 @@ const CartModal: React.FC<CartModalProps> = ({
                 <div className={styles.optionGroup}>
                   <label>Payment mode</label>
                   <div className={styles.radioGroup}>
-                    <label className={`${paymentMode === 'COD' ? styles.active : ''} ${isSchedule ? styles.disabled : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="paymentMode" 
-                        value="COD" 
-                        checked={paymentMode === 'COD'}
-                        onChange={() => onPaymentChange('COD')}
+                    <label
+                      className={`${paymentMode === "COD" ? styles.active : ""} ${isSchedule ? styles.disabled : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMode"
+                        value="COD"
+                        checked={paymentMode === "COD"}
+                        onChange={() => onPaymentChange("COD")}
                         disabled={isSchedule}
-                      /> COD
+                      />{" "}
+                      COD
                     </label>
-                    <label className={`${styles.discountLabel} ${paymentMode === 'Online' ? styles.active : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="paymentMode" 
-                        value="Online" 
-                        checked={paymentMode === 'Online'}
-                        onChange={() => onPaymentChange('Online')}
-                      /> Online
-                      {discountPercent > 0 &&(
-                      <span className={styles.discountBadge}>
-                        <DiscountIcon width={14} height={14} fill="#fff" />
-                        {discountPercent}% off
-                      </span>
+                    <label
+                      className={`${styles.discountLabel} ${paymentMode === "Online" ? styles.active : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMode"
+                        value="Online"
+                        checked={paymentMode === "Online"}
+                        onChange={() => onPaymentChange("Online")}
+                      />{" "}
+                      Online
+                      {discountPercent > 0 && (
+                        <span className={styles.discountBadge}>
+                          <DiscountIcon width={14} height={14} fill="#fff" />
+                          {discountPercent}% off
+                        </span>
                       )}
                     </label>
                   </div>
@@ -165,38 +175,51 @@ const CartModal: React.FC<CartModalProps> = ({
                 <div className={styles.optionGroup}>
                   <label>Delivery type</label>
                   <div className={styles.radioGroup}>
-                    <label className={deliveryType === 'now' ? styles.active : ''}>
-                      <input 
-                        type="radio" 
-                        name="deliveryType" 
-                        value="now" 
-                        checked={deliveryType === 'now'}
-                        onChange={() => onDeliveryChange('now')}
-                      /> 
-                        Deliver Now
-                    </label>
-                    <label className={deliveryType === 'schedule' ? styles.active : ''}>
-                      <input 
-                        type="radio" 
-                        name="deliveryType" 
-                        value="schedule" 
-                        checked={deliveryType === 'schedule'}
-                        onChange={() => onDeliveryChange('schedule')}
+                    <label
+                      className={deliveryType === "now" ? styles.active : ""}
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryType"
+                        value="now"
+                        checked={deliveryType === "now"}
+                        onChange={() => onDeliveryChange("now")}
                       />
-                        Schedule Later
+                      Deliver Now
+                    </label>
+                    <label
+                      className={
+                        deliveryType === "schedule" ? styles.active : ""
+                      }
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryType"
+                        value="schedule"
+                        checked={deliveryType === "schedule"}
+                        onChange={() => onDeliveryChange("schedule")}
+                      />
+                      Schedule Later
                     </label>
                   </div>
                 </div>
-                <div className={`${styles.scheduleNote} ${isSchedule && scheduleData ? styles.success : ''}`}>
+                <div
+                  className={`${styles.scheduleNote} ${isSchedule && scheduleData ? styles.success : ""}`}
+                >
                   {isSchedule && scheduleData ? (
                     <>
                       <CheckIcon width={12} height={12} fill="#1e7e34" />
-                      <span>Scheduled for {scheduleData.date} at {scheduleData.time}</span>
+                      <span>
+                        Scheduled for {scheduleData.date} at {scheduleData.time}
+                      </span>
                     </>
                   ) : isSchedule ? (
                     <>
                       <ClockIcon width={12} height={12} fill="#c0392b" />
-                      <span>Scheduled orders: Prepaid only · Non-refundable · Reminder sent 1hr before</span>
+                      <span>
+                        Scheduled orders: Prepaid only · Non-refundable ·
+                        Reminder sent 1hr before
+                      </span>
                     </>
                   ) : null}
                 </div>
@@ -207,43 +230,50 @@ const CartModal: React.FC<CartModalProps> = ({
           <div className={styles.modalTotal}>
             <span>Total Amount</span>
             <span className={styles.totalValue}>
-              {paymentMode === 'Online' && hasItems && discountPercent > 0 &&(
-                <del className={styles.originalPrice}>Rs{subtotal + deliveryFee}</del>
-              )} {hasItems ? `Rs${total}` : 0}
+              {paymentMode === "Online" && hasItems && discountPercent > 0 && (
+                <del className={styles.originalPrice}>
+                  Rs{subtotal + deliveryFee}
+                </del>
+              )}{" "}
+              {hasItems ? `Rs${total}` : 0}
             </span>
           </div>
           <div className={styles.appliedOffer}>
             {hasItems ? (
               discountPercent > 0 ? (
-                <>
+                paymentMode === "Online" ? (
                   <span className={styles.discountText}>
-                    <DiscountIcon width={12} height={12} fill="#1e1e1e" />
-                    ({discountPercent}% off applied)
+                    <DiscountIcon width={12} height={12} fill="#1e1e1e" />(
+                    {discountPercent}% off applied)
                   </span>
-                </>
+                ) : (
+                  `incl. delivery`
+                )
               ) : (
                 `incl. delivery`
               )
             ) : (
-              'No items'
+              "No items"
             )}
           </div>
-          
+
           <div className={styles.modalActions}>
-            <button 
-              className={styles.btnAddMore} 
-              onClick={onClose} 
-            >
+            <button className={styles.btnAddMore} onClick={onClose}>
               <PlusIcon width={16} height={16} fill="#1e1e1e" />
               Add Item
             </button>
-            <button 
-              className={styles.btnPlaceOrder} 
+            <button
+              className={styles.btnPlaceOrder}
               onClick={onPlaceOrder}
-              disabled={!hasItems}
+              disabled={!hasItems || acceptingOrders === false}
+              title={
+                acceptingOrders === false
+                  ? "This store is not accepting orders right now"
+                  : undefined
+              }
             >
               <WhatsAppIcon width={16} height={16} fill="white" />
-              Place Order
+              {acceptingOrders === false ? "Ordering Disabled" : "Place Order"}
             </button>
           </div>
         </div>

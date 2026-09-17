@@ -16,6 +16,7 @@ interface StoreContextType {
   updateStoreSettings: (settings: Partial<StoreSettings>) => void;
   isStoreOpen: boolean;
   isLoading: boolean;
+  isAcceptingOrders: boolean;
   setPollingPaused: (paused: boolean) => void;
 }
 
@@ -24,6 +25,7 @@ const defaultStoreSettings: StoreSettings = {
   closedMessage: '',
   expectedOpenDate: '',
   expectedOpenTime: '',
+  acceptingOrders: true,   // ← NEW
   lastUpdated: new Date().toISOString(),
 };
 
@@ -72,12 +74,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       const latest: StoreSettings = {
-        isOpen: dbSettings.isOpen ?? true,
-        closedMessage: dbSettings.closedMessage || '',
-        expectedOpenDate: dbSettings.expectedOpenDate || '',
-        expectedOpenTime: dbSettings.expectedOpenTime || '',
-        lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
-      };
+  isOpen: dbSettings.isOpen ?? true,
+  closedMessage: dbSettings.closedMessage || '',
+  expectedOpenDate: dbSettings.expectedOpenDate || '',
+  expectedOpenTime: dbSettings.expectedOpenTime || '',
+  acceptingOrders: dbSettings.acceptingOrders !== false,   // ← NEW
+  lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
+};
 
       if (latest.lastUpdated !== lastUpdateTimeRef.current) {
         setStoreSettings(latest);
@@ -122,35 +125,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, tenantLoading]);
 
-  // ---------------------------------------------------------
-  // Polling — 10s, only when a tenant is present
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (!settingsLoaded || !tenant) return;
-
-    const pollInterval = setInterval(() => {
-      if (!pollingPaused) fetchLatestSettings(false);
-    }, 10_000);
-
-    const onFocus = () => {
-      if (!pollingPaused) fetchLatestSettings(false);
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible' && !pollingPaused) {
-        fetchLatestSettings(false);
-      }
-    };
-
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded, pollingPaused, tenant?.slug]);
+  // Polling + focus/visibility refetch intentionally disabled.
+// Store settings are fetched once on tenant resolution (below) and
+// on manual reload. Owners updating settings will see the change on
+// their own screen via the optimistic update in updateStoreSettings.
 
   // ---------------------------------------------------------
   // Update — writes to the current tenant only
@@ -184,12 +162,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     return storeSettings.isOpen;
   };
 
+  const getIsAcceptingOrders = (): boolean => {
+  if (isLoading || !settingsLoaded) return false;
+  if (!tenant) return false;
+  return storeSettings.acceptingOrders;
+};
+
   return (
     <StoreContext.Provider
       value={{
         storeSettings,
         updateStoreSettings,
         isStoreOpen: getIsStoreOpen(),
+        isAcceptingOrders: getIsAcceptingOrders(),
         isLoading: isLoading || !settingsLoaded,
         setPollingPaused,
       }}

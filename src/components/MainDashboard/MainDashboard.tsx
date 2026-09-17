@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import LoginModal from '../Auth/LoginModal';
 import styles from './MainDashboard.module.scss';
+import ReviewsOverview from './ReviewsOverview';
 
 const MainDashboard: React.FC = () => {
   const { isAuthenticated, user, isAdmin } = useAuth();
@@ -57,13 +58,7 @@ const MainDashboard: React.FC = () => {
       <div className={styles.hero}>
         <h1 className={styles.title}>Welcome back, {user?.name}</h1>
         <p className={styles.subtitle}>This is your platform dashboard.</p>
-        <p className={styles.hint}>
-          Your custom dashboard UI goes here — add analytics, quick links,
-          recent activity, or whatever you need.
-        </p>
-        <div className={styles.placeholder}>
-          <p>Placeholder — replace with your dashboard content.</p>
-        </div>
+        <ReviewsOverview />
       </div>
     </div>
   );

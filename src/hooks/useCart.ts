@@ -9,8 +9,14 @@ import {
 } from '../types';
 import { ShopInfo } from '../config/credentials';
 import { useTenant } from '../contexts/TenantContext';
+import { tenantKey } from '../utils/tenantStorage';
 
-/** Compute the effective price after the item-level discount. */
+// ---- base keys (namespaced at runtime) ----
+const BASE_CART = 'restaurant_cart';
+const BASE_PAYMENT = 'restaurant_payment_mode';
+const BASE_DELIVERY = 'restaurant_delivery_type';
+const BASE_SCHEDULE = 'restaurant_schedule_data';
+
 export const getEffectivePrice = (item: MenuItem): number => {
   const d = Number(item.discount ?? 0);
   if (!Number.isFinite(d) || d <= 0 || d > 100) return item.price;
@@ -20,11 +26,12 @@ export const getEffectivePrice = (item: MenuItem): number => {
 export const useCart = () => {
   const { tenant } = useTenant();
 
-  // ---------------------------------------------------------
-  // Tenant-aware store values — fall back to ShopInfo defaults.
-  // Recomputed on every render, so editing them in the InfoPopup
-  // is reflected immediately across the cart.
-  // ---------------------------------------------------------
+  // ---- namespaced keys for this tenant ----
+  const CART_KEY = tenantKey(BASE_CART, tenant?.slug);
+  const PAYMENT_KEY = tenantKey(BASE_PAYMENT, tenant?.slug);
+  const DELIVERY_KEY = tenantKey(BASE_DELIVERY, tenant?.slug);
+  const SCHEDULE_KEY = tenantKey(BASE_SCHEDULE, tenant?.slug);
+
   const DELIVERY_FEE =
     typeof tenant?.deliveryCharge === 'number' && tenant.deliveryCharge >= 0
       ? tenant.deliveryCharge
@@ -40,9 +47,6 @@ export const useCart = () => {
   const RESTAURANT_PHONE =
     tenant?.whatsappPhone || ShopInfo.Store_whatsapp;
 
-  // ---------------------------------------------------------
-  // Cart state
-  // ---------------------------------------------------------
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('COD');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('now');
@@ -50,13 +54,22 @@ export const useCart = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // ---------------------------------------------------------
-  // Hydrate from localStorage on mount
+  // Hydrate from localStorage whenever the tenant changes.
+  // Reset everything first so a previous tenant's data never leaks.
   // ---------------------------------------------------------
   useEffect(() => {
-    const savedCart = localStorage.getItem('restaurant_cart');
-    if (savedCart) {
-      try {
-        const parsed = JSON.parse(savedCart);
+    // Reset in-memory state before loading the new tenant's cache
+    setCart([]);
+    setPaymentMode('COD');
+    setDeliveryType('now');
+    setScheduleData(null);
+    setIsLoaded(false);
+
+    // ---- Cart ----
+    try {
+      const saved = localStorage.getItem(CART_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           setCart(
             parsed.filter(
@@ -64,76 +77,74 @@ export const useCart = () => {
                 item && typeof item === 'object' && item.id && item.quantity,
             ),
           );
-        } else {
-          setCart([]);
         }
-      } catch {
-        setCart([]);
       }
+    } catch {
+      setCart([]);
     }
 
-    const savedPaymentMode = localStorage.getItem(
-      'restaurant_payment_mode',
-    ) as PaymentMode;
-    if (savedPaymentMode) setPaymentMode(savedPaymentMode);
+    // ---- Payment mode ----
+    const savedPayment = localStorage.getItem(PAYMENT_KEY) as PaymentMode | null;
+    if (savedPayment) setPaymentMode(savedPayment);
 
-    const savedDeliveryType = localStorage.getItem(
-      'restaurant_delivery_type',
-    ) as DeliveryType;
-    if (savedDeliveryType) setDeliveryType(savedDeliveryType);
+    // ---- Delivery type ----
+    const savedDelivery = localStorage.getItem(DELIVERY_KEY) as DeliveryType | null;
+    if (savedDelivery) setDeliveryType(savedDelivery);
 
-    const savedScheduleData = localStorage.getItem('restaurant_schedule_data');
-    if (savedScheduleData) {
-      try {
-        const parsed = JSON.parse(savedScheduleData);
+    // ---- Schedule ----
+    try {
+      const savedSchedule = localStorage.getItem(SCHEDULE_KEY);
+      if (savedSchedule) {
+        const parsed = JSON.parse(savedSchedule);
         if (parsed && parsed.date && parsed.time) setScheduleData(parsed);
-      } catch {
-        setScheduleData(null);
       }
+    } catch {
+      setScheduleData(null);
     }
 
     setIsLoaded(true);
-  }, []);
+  }, [CART_KEY, PAYMENT_KEY, DELIVERY_KEY, SCHEDULE_KEY]);
 
   // ---------------------------------------------------------
   // Persist cart
   // ---------------------------------------------------------
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('restaurant_cart', JSON.stringify(cart));
-    }
-  }, [cart, isLoaded]);
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    } catch { /* ignore */ }
+  }, [cart, isLoaded, CART_KEY]);
 
   // Persist payment mode
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('restaurant_payment_mode', paymentMode);
-    }
-  }, [paymentMode, isLoaded]);
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(PAYMENT_KEY, paymentMode);
+    } catch { /* ignore */ }
+  }, [paymentMode, isLoaded, PAYMENT_KEY]);
 
   // Persist delivery type
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('restaurant_delivery_type', deliveryType);
-    }
-  }, [deliveryType, isLoaded]);
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(DELIVERY_KEY, deliveryType);
+    } catch { /* ignore */ }
+  }, [deliveryType, isLoaded, DELIVERY_KEY]);
 
-  // Persist schedule data
+  // Persist schedule
   useEffect(() => {
-    if (isLoaded) {
+    if (!isLoaded) return;
+    try {
       if (scheduleData) {
-        localStorage.setItem(
-          'restaurant_schedule_data',
-          JSON.stringify(scheduleData),
-        );
+        localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleData));
       } else {
-        localStorage.removeItem('restaurant_schedule_data');
+        localStorage.removeItem(SCHEDULE_KEY);
       }
-    }
-  }, [scheduleData, isLoaded]);
+    } catch { /* ignore */ }
+  }, [scheduleData, isLoaded, SCHEDULE_KEY]);
 
   // ---------------------------------------------------------
-  // Migrate legacy cart rows: recompute basePrice for discounted items
+  // Migrate legacy cart rows: recompute basePrice for discounts
   // ---------------------------------------------------------
   useEffect(() => {
     if (!isLoaded) return;
@@ -142,10 +153,8 @@ export const useCart = () => {
       const next = prev.map((c) => {
         const d = Number(c.discount ?? 0);
         if (d <= 0 || d > 100) return c;
-
         const expected = Math.round(c.price * (1 - d / 100));
         if (c.basePrice === expected) return c;
-
         changed = true;
         return { ...c, basePrice: expected };
       });
@@ -167,9 +176,6 @@ export const useCart = () => {
     return total;
   };
 
-  // ---------------------------------------------------------
-  // Add to cart
-  // ---------------------------------------------------------
   const addItem = useCallback(
     (
       item: MenuItem,
@@ -181,7 +187,6 @@ export const useCart = () => {
           ? getCustomizationPrice(customizations)
           : 0;
 
-        // Apply item-level discount to the base price
         const discountedBase = getEffectivePrice(item);
 
         const existingIndex = prevCart.findIndex((c) => {
@@ -199,7 +204,6 @@ export const useCart = () => {
           const updatedCart = [...prevCart];
           updatedCart[existingIndex] = {
             ...updatedCart[existingIndex],
-            // Refresh base price in case the item's discount changed
             basePrice: discountedBase,
             addonPrice,
             quantity: updatedCart[existingIndex].quantity + 1,
@@ -225,9 +229,6 @@ export const useCart = () => {
     [],
   );
 
-  // ---------------------------------------------------------
-  // Remove one unit
-  // ---------------------------------------------------------
   const removeItem = useCallback(
     (id: number, customizations?: Record<string, string>) => {
       setCart((prevCart) => {
@@ -259,9 +260,6 @@ export const useCart = () => {
     [],
   );
 
-  // ---------------------------------------------------------
-  // Remove completely (all quantities of a variant)
-  // ---------------------------------------------------------
   const removeItemCompletely = useCallback(
     (id: number, customizations?: Record<string, string>) => {
       setCart((prevCart) =>
@@ -280,18 +278,14 @@ export const useCart = () => {
     [],
   );
 
-  // ---------------------------------------------------------
-  // Clear cart
-  // ---------------------------------------------------------
   const clearCart = useCallback(() => {
     setCart([]);
     setScheduleData(null);
-    localStorage.removeItem('restaurant_schedule_data');
-  }, []);
+    try {
+      localStorage.removeItem(SCHEDULE_KEY);
+    } catch { /* ignore */ }
+  }, [SCHEDULE_KEY]);
 
-  // ---------------------------------------------------------
-  // Derived values
-  // ---------------------------------------------------------
   const getTotalItems = useCallback(() => {
     return cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
   }, [cart]);
@@ -355,9 +349,6 @@ export const useCart = () => {
     return `${day}${month}${hours}${mins}`;
   }, []);
 
-  // ---------------------------------------------------------
-  // Return
-  // ---------------------------------------------------------
   return {
     cart,
     paymentMode,

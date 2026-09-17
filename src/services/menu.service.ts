@@ -26,21 +26,25 @@ class MenuService {
     this.isInitialized = false;
     this.isLoading = false;
     this.pendingReload = false;
-    this.initialFetchPromise = this.loadMenuItems().catch((err) => {
-      console.error('menu.service initial load failed:', err);
-    });
+    this.initialFetchPromise = this.loadMenuItems(true).catch((err) => {
+  console.error('Menu Service initial load failed:', err);
+});
 
     // Notify subscribers immediately with the empty list so the UI shows
     // the skeleton instead of stale data from the previous tenant.
     this.notifyListeners();
   }
 
-  private async loadMenuItems(): Promise<void> {
-    if (!this.tenantSlug) return;
-    if (this.isLoading) {
-      this.pendingReload = true;
-      return;
-    }
+  private async loadMenuItems(force = false): Promise<void> {
+  if (!this.tenantSlug) return;
+
+  // Already loaded and not forced → skip (no network call)
+  if (this.isInitialized && !force) return;
+
+  if (this.isLoading) {
+    this.pendingReload = true;
+    return;
+  }
 
     const slug = this.tenantSlug;
     this.isLoading = true;
@@ -115,10 +119,10 @@ class MenuService {
   }
 
   async refresh(): Promise<void> {
-    this.isLoading = false;
-    this.pendingReload = false;
-    await this.loadMenuItems();
-  }
+  this.isLoading = false;
+  this.pendingReload = false;
+  await this.loadMenuItems(true);
+}
 
   private async reloadAuthoritative(): Promise<void> {
     if (!this.tenantSlug) return;
@@ -138,34 +142,16 @@ class MenuService {
     }
   }
 
-  startSync(options: { pollMs?: number } = {}): () => void {
-    const pollMs = options.pollMs ?? 30_000;
-
-    if (typeof window !== 'undefined') {
-      if (!this.focusHandler) {
-        this.focusHandler = () => {
-          this.loadMenuItems().catch(() => { /* handled */ });
-        };
-        window.addEventListener('focus', this.focusHandler);
-      }
-      if (!this.visibilityHandler) {
-        this.visibilityHandler = () => {
-          if (document.visibilityState === 'visible') {
-            this.loadMenuItems().catch(() => { /* handled */ });
-          }
-        };
-        document.addEventListener('visibilitychange', this.visibilityHandler);
-      }
-    }
-
-    if (pollMs > 0 && !this.pollInterval) {
-      this.pollInterval = setInterval(() => {
-        this.loadMenuItems().catch(() => { /* handled */ });
-      }, pollMs);
-    }
-
-    return () => this.stopSync();
-  }
+  /**
+ * No-op by default. Polling and focus/visibility refetches are disabled
+ * so the customer end makes no network calls while a tab is idle.
+ * Data is fetched on mount (via setTenant) or on manual refresh.
+ */
+startSync(_options: { pollMs?: number } = {}): () => void {
+  return () => {
+    /* no-op */
+  };
+}
 
   stopSync(): void {
     if (this.focusHandler && typeof window !== 'undefined') {

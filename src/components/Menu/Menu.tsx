@@ -10,6 +10,7 @@ import styles from './Menu.module.scss';
 interface MenuProps {
   items: MenuItemType[];
   cart: CartItem[];
+  acceptingOrders: boolean;
   onAddItem: (item: MenuItemType) => void;
   onRemoveItem: (id: number) => void;
   onItemClick: (item: MenuItemType) => void;
@@ -28,6 +29,7 @@ const Menu: React.FC<MenuProps> = ({
   onAddItem,
   onRemoveItem,
   onItemClick,
+  acceptingOrders
 }) => {
   const { tenant } = useTenant();
   const { isWishlisted, toggle } = useWishlist();
@@ -106,6 +108,7 @@ const Menu: React.FC<MenuProps> = ({
                   onItemClick={onItemClick}
                   isWishlisted={isWishlisted(item.id)}
                   onToggleWishlist={toggle}
+                  acceptingOrders={acceptingOrders}
                 />
               );
             })}

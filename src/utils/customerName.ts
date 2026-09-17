@@ -1,10 +1,24 @@
 // utils/customerName.ts
-const STORAGE_KEY = 'restaurant_customer_name';
+import { tenantKey } from './tenantStorage';
+
+const BASE_KEY = 'restaurant_customer_name';
 const EVENT = 'customer-name:changed';
+
+/** The tenant slug is stored by TenantContext so we can read it here without React. */
+const getSlugFromStorage = (): string | null => {
+  try {
+    return sessionStorage.getItem('restaurant_tenant_slug');
+  } catch {
+    return null;
+  }
+};
+
+const currentKey = (): string =>
+  tenantKey(BASE_KEY, getSlugFromStorage());
 
 export const getCustomerName = (): string => {
   try {
-    return (localStorage.getItem(STORAGE_KEY) ?? '').trim();
+    return (localStorage.getItem(currentKey()) ?? '').trim();
   } catch {
     return '';
   }
@@ -12,12 +26,11 @@ export const getCustomerName = (): string => {
 
 export const setCustomerName = (name: string): void => {
   const trimmed = name.trim();
+  const key = currentKey();
   try {
-    if (trimmed) localStorage.setItem(STORAGE_KEY, trimmed);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
+    if (trimmed) localStorage.setItem(key, trimmed);
+    else localStorage.removeItem(key);
+  } catch { /* ignore */ }
   window.dispatchEvent(new Event(EVENT));
 };
 
@@ -26,7 +39,7 @@ export const subscribeCustomerName = (
 ): (() => void) => {
   const onLocal = () => handler(getCustomerName());
   const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) handler(getCustomerName());
+    if (e.key === currentKey()) handler(getCustomerName());
   };
   window.addEventListener(EVENT, onLocal);
   window.addEventListener('storage', onStorage);

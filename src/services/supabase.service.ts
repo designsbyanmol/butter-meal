@@ -1,10 +1,10 @@
 // services/supabase.service.ts
 import { supabase, isSupabaseConfigured } from "./supabase.client";
-import { MenuItem, MessageTemplate, StoreSettings, User } from '../types';
+import { MenuItem, MessageTemplate, Review, ReviewFilter, StoreSettings, User } from '../types';
 import { TABLES } from "../config/tables";
-import { Tenant } from '../contexts/TenantContext';
-import { FormSchema } from '../types';
-
+import { Tenant } from "../contexts/TenantContext";
+import { FormSchema } from "../types";
+import { menuService } from "./menu.service";
 
 // =========================================================
 // Module-level helpers — do not depend on `this`
@@ -138,67 +138,70 @@ class SupabaseService {
   // ============ USERS ============
 
   async getUsers(tenantSlug: string): Promise<User[]> {
-  const client = this.getClient();
-  if (!client) return [];
-  const { data, error } = await client.rpc('list_users', {
-    tenant_slug_in: tenantSlug,
-  });
-  if (error) {
-    console.error('list_users error:', error);
-    return [];
+    const client = this.getClient();
+    if (!client) return [];
+    const { data, error } = await client.rpc("list_users", {
+      tenant_slug_in: tenantSlug,
+    });
+    if (error) {
+      console.error("list_users error:", error);
+      return [];
+    }
+    return (data || []).map((row: any) => this.mapUser(row));
   }
-  return (data || []).map((row: any) => this.mapUser(row));
-}
 
-async getUserByPhone(tenantSlug: string, phone: string): Promise<User | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('get_user_by_phone', {
-    tenant_slug_in: tenantSlug,
-    phone_in: phone,
-  });
-  if (error) {
-    console.error('get_user_by_phone error:', error);
-    return null;
+  async getUserByPhone(
+    tenantSlug: string,
+    phone: string,
+  ): Promise<User | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("get_user_by_phone", {
+      tenant_slug_in: tenantSlug,
+      phone_in: phone,
+    });
+    if (error) {
+      console.error("get_user_by_phone error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapUser(row) : null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? this.mapUser(row) : null;
-}
 
-async createUser(
-  tenantSlug: string,
-  userData: Omit<User, 'id' | 'createdAt'>,
-): Promise<User> {
-  const client = this.getClient();
-  if (!client) throw new Error('Supabase not configured');
+  async createUser(
+    tenantSlug: string,
+    userData: Omit<User, "id" | "createdAt">,
+  ): Promise<User> {
+    const client = this.getClient();
+    if (!client) throw new Error("Supabase not configured");
 
-  const { error } = await client.rpc('create_user', {
-    tenant_slug_in: tenantSlug,
-    phone_in: userData.phone,
-    name_in: userData.name,
-    pw_in: userData.password,
-    role_in: userData.role || 'user',
-  });
-  if (error) throw error;
+    const { error } = await client.rpc("create_user", {
+      tenant_slug_in: tenantSlug,
+      phone_in: userData.phone,
+      name_in: userData.name,
+      pw_in: userData.password,
+      role_in: userData.role || "user",
+    });
+    if (error) throw error;
 
-  const user = await this.getUserByPhone(tenantSlug, userData.phone);
-  if (!user) throw new Error('User created but not found');
-  return user;
-}
-
-async getUserById(id: string): Promise<User | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('get_user_by_id', {
-    user_id: id,
-  });
-  if (error) {
-    console.error('get_user_by_id error:', error);
-    return null;
+    const user = await this.getUserByPhone(tenantSlug, userData.phone);
+    if (!user) throw new Error("User created but not found");
+    return user;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? this.mapUser(row) : null;
-}
+
+  async getUserById(id: string): Promise<User | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("get_user_by_id", {
+      user_id: id,
+    });
+    if (error) {
+      console.error("get_user_by_id error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapUser(row) : null;
+  }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     const client = this.getClient();
@@ -246,49 +249,49 @@ async getUserById(id: string): Promise<User | null> {
 
   // ============ TENANTS ============
 
-async getTenantBySlug(slug: string): Promise<Tenant | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client
-    .from('star_veg_tenants')
-    .select('id, slug, display_name, is_active')
-    .eq('slug', slug)
-    .maybeSingle();
-  if (error || !data) return null;
-  return {
-    id: data.id,
-    slug: data.slug,
-    displayName: data.display_name,
-  };
-}
+  async getTenantBySlug(slug: string): Promise<Tenant | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client
+      .from("star_veg_tenants")
+      .select("id, slug, display_name, is_active")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      slug: data.slug,
+      displayName: data.display_name,
+    };
+  }
 
-async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
-  const client = this.getClient();
-  if (!client) throw new Error('Supabase not configured');
+  async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
+    const client = this.getClient();
+    if (!client) throw new Error("Supabase not configured");
 
-  const slug = displayName
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+    const slug = displayName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
 
-  const { data, error } = await client
-    .from('star_veg_tenants')
-    .insert({
-      slug,
-      display_name: displayName,
-      owner_phone: ownerPhone,
-      is_active: true,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return {
-    id: data.id,
-    slug: data.slug,
-    displayName: data.display_name,
-  };
-}
+    const { data, error } = await client
+      .from("star_veg_tenants")
+      .insert({
+        slug,
+        display_name: displayName,
+        owner_phone: ownerPhone,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      slug: data.slug,
+      displayName: data.display_name,
+    };
+  }
 
   // ============ AUTH ============
 
@@ -325,33 +328,33 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
   // ============ MENU — READ ============
 
   async getMenuItems(tenantSlug: string): Promise<MenuItem[] | null> {
-  const client = this.getClient();
-  if (!client) return null;
+    const client = this.getClient();
+    if (!client) return null;
 
-  // Resolve slug → id in one trip
-  const { data: tenantRow, error: tErr } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (tErr || !tenantRow) {
-    console.error('getMenuItems: unknown tenant', tenantSlug);
-    return null;
+    // Resolve slug → id in one trip
+    const { data: tenantRow, error: tErr } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (tErr || !tenantRow) {
+      console.error("getMenuItems: unknown tenant", tenantSlug);
+      return null;
+    }
+
+    const { data, error } = await client
+      .from(TABLES.MENU)
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error("getMenuItems error:", error);
+      return null;
+    }
+    return (data || []).map((row: any) => this.mapMenuItem(row));
   }
-
-  const { data, error } = await client
-    .from(TABLES.MENU)
-    .select('*')
-    .eq('tenant_id', tenantRow.id)
-    .order('sort_order', { ascending: true, nullsFirst: false })
-    .order('id', { ascending: false });
-
-  if (error) {
-    console.error('getMenuItems error:', error);
-    return null;
-  }
-  return (data || []).map((row: any) => this.mapMenuItem(row));
-}
 
   async getVisibleMenuItems(): Promise<MenuItem[] | null> {
     const client = this.getClient();
@@ -371,170 +374,198 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
 
   // ============ MENU — WRITE ============
 
-  async addMenuItem(tenantSlug: string, item: MenuItem): Promise<MenuItem | null> {
-  const client = this.getClient();
-  if (!client) return null;
+  async addMenuItem(
+    tenantSlug: string,
+    item: MenuItem,
+  ): Promise<MenuItem | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  const payload: Record<string, unknown> = {
-    sort_order: 0,
-    in_stock: item.inStock ?? true,
-    name: item.name,
-    description: item.desc ?? '',
-    price: item.price,
-    image_url: item.img,
-    is_veg: item.isVeg ?? false,
-    is_spicy: item.isSpicy ?? false,
-    is_gluten_free: item.isGlutenFree ?? false,
-    review_count: item.reviewCount ?? 0,
-  };
-  if (Array.isArray(item.gallery) && item.gallery.length > 0) {
-  payload.gallery = item.gallery;
-}
+    const payload: Record<string, unknown> = {
+      sort_order: 0,
+      in_stock: item.inStock ?? true,
+      name: item.name,
+      description: item.desc ?? "",
+      price: item.price,
+      image_url: item.img,
+      is_veg: item.isVeg ?? false,
+      is_spicy: item.isSpicy ?? false,
+      is_gluten_free: item.isGlutenFree ?? false,
+      review_count: item.reviewCount ?? 0,
+    };
+    if (Array.isArray(item.gallery) && item.gallery.length > 0) {
+      payload.gallery = item.gallery;
+    }
 
-  if (typeof item.costPrice === 'number' && item.costPrice > 0)
-    payload.cost_price = item.costPrice;
-  if (typeof item.discount === 'number' && item.discount > 0)
-  payload.discount = item.discount;
-  if (typeof item.calories === 'number' && item.calories > 0)
-    payload.calories = item.calories;
-  if (typeof item.rating === 'number' && item.rating > 0)
-    payload.rating = item.rating;
-  if (item.category?.trim()) payload.category = item.category;
-  if (item.preparationTime?.trim()) payload.preparation_time = item.preparationTime;
-  if (Array.isArray(item.ingredients) && item.ingredients.length > 0)
-    payload.ingredients = item.ingredients;
-  if (
-    item.nutritionalInfo &&
-    Object.keys(item.nutritionalInfo).length > 0
-  )
-    payload.nutritional_info = item.nutritionalInfo;
-  if (item.attributes && Object.values(item.attributes).some(Boolean))
-    payload.attributes = item.attributes;
-  if (
-    Array.isArray(item.customizationOptions) &&
-    item.customizationOptions.length > 0
-  )
-    payload.customization_options = item.customizationOptions;
+    if (typeof item.costPrice === "number" && item.costPrice > 0)
+      payload.cost_price = item.costPrice;
+    if (typeof item.discount === "number" && item.discount > 0)
+      payload.discount = item.discount;
+    if (typeof item.calories === "number" && item.calories > 0)
+      payload.calories = item.calories;
+    if (typeof item.rating === 'number' && item.rating > 0)
+  payload.rating = item.rating;
+if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
+  payload.review_count = item.reviewCount;
+    if (item.category?.trim()) payload.category = item.category;
+    if (item.preparationTime?.trim())
+      payload.preparation_time = item.preparationTime;
+    if (Array.isArray(item.ingredients) && item.ingredients.length > 0)
+      payload.ingredients = item.ingredients;
+    if (item.nutritionalInfo && Object.keys(item.nutritionalInfo).length > 0)
+      payload.nutritional_info = item.nutritionalInfo;
+    if (item.attributes && Object.values(item.attributes).some(Boolean))
+      payload.attributes = item.attributes;
+    if (
+      Array.isArray(item.customizationOptions) &&
+      item.customizationOptions.length > 0
+    )
+      payload.customization_options = item.customizationOptions;
 
-  const { data, error } = await client.rpc('add_menu_item', {
-    tenant_slug_in: tenantSlug,
-    payload,
-  });
-  if (error) {
-    console.error('add_menu_item error:', error);
-    return null;
+    const { data, error } = await client.rpc("add_menu_item", {
+      tenant_slug_in: tenantSlug,
+      payload,
+    });
+    if (error) {
+      console.error("add_menu_item error:", error);
+      return null;
+    }
+    return data ? this.mapMenuItem(data) : null;
   }
-  return data ? this.mapMenuItem(data) : null;
-}
 
   async deleteMenuItem(tenantSlug: string, id: number): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('delete_menu_item', {
-    tenant_slug_in: tenantSlug,
-    item_id: id,
-  });
-  if (error) {
-    console.error('delete_menu_item error:', error);
-    return false;
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("delete_menu_item", {
+      tenant_slug_in: tenantSlug,
+      item_id: id,
+    });
+    if (error) {
+      console.error("delete_menu_item error:", error);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
   async updateMenuItem(
-  tenantSlug: string,
-  id: number,
-  updates: Partial<MenuItem>,
-): Promise<MenuItem | null> {
-  const client = this.getClient();
-  if (!client) return null;
+    tenantSlug: string,
+    id: number,
+    updates: Partial<MenuItem>,
+  ): Promise<MenuItem | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  const payload: Record<string, unknown> = {};
-  if ('inStock' in updates) payload.in_stock = updates.inStock;
-  if ('name' in updates) payload.name = updates.name;
-  if ('desc' in updates) payload.description = updates.desc;
-  if ('costPrice' in updates) payload.cost_price = updates.costPrice ?? null;
-  if ('discount' in updates) payload.discount = updates.discount ?? 0;
-  if ('price' in updates) payload.price = updates.price;
-  if ('gallery' in updates) payload.gallery = updates.gallery ?? null;
-  if ('category' in updates) payload.category = updates.category ?? null;
-  if ('isVeg' in updates) payload.is_veg = updates.isVeg;
-  if ('isSpicy' in updates) payload.is_spicy = updates.isSpicy;
-  if ('isGlutenFree' in updates) payload.is_gluten_free = updates.isGlutenFree;
-  if ('preparationTime' in updates)
-    payload.preparation_time = updates.preparationTime ?? null;
-  if ('calories' in updates) payload.calories = updates.calories ?? null;
-  if ('rating' in updates) payload.rating = updates.rating ?? null;
-  if ('reviewCount' in updates) payload.review_count = updates.reviewCount ?? null;
-  if ('ingredients' in updates) payload.ingredients = updates.ingredients ?? null;
-  if ('nutritionalInfo' in updates)
-    payload.nutritional_info = updates.nutritionalInfo ?? null;
-  if ('attributes' in updates) payload.attributes = updates.attributes ?? null;
-  if ('customizationOptions' in updates)
-    payload.customization_options = updates.customizationOptions ?? null;
+    const payload: Record<string, unknown> = {};
+    if ("inStock" in updates) payload.in_stock = updates.inStock;
+    if ("name" in updates) payload.name = updates.name;
+    if ("desc" in updates) payload.description = updates.desc;
+    if ("costPrice" in updates) payload.cost_price = updates.costPrice ?? null;
+    if ("discount" in updates) payload.discount = updates.discount ?? 0;
+    if ("price" in updates) payload.price = updates.price;
+    if ("gallery" in updates) payload.gallery = updates.gallery ?? null;
+    if ("category" in updates) payload.category = updates.category ?? null;
+    if ("isVeg" in updates) payload.is_veg = updates.isVeg;
+    if ("isSpicy" in updates) payload.is_spicy = updates.isSpicy;
+    if ("isGlutenFree" in updates)
+      payload.is_gluten_free = updates.isGlutenFree;
+    if ("preparationTime" in updates)
+      payload.preparation_time = updates.preparationTime ?? null;
+    if ("calories" in updates) payload.calories = updates.calories ?? null;
+    if ("rating" in updates) payload.rating = updates.rating ?? null;
+    if ("reviewCount" in updates)
+      payload.review_count = updates.reviewCount ?? null;
+    if ("ingredients" in updates)
+      payload.ingredients = updates.ingredients ?? null;
+    if ("nutritionalInfo" in updates)
+      payload.nutritional_info = updates.nutritionalInfo ?? null;
+    if ("attributes" in updates)
+      payload.attributes = updates.attributes ?? null;
+    if ("customizationOptions" in updates)
+      payload.customization_options = updates.customizationOptions ?? null;
 
-  const { data, error } = await client.rpc('update_menu_item', {
-    tenant_slug_in: tenantSlug,
-    item_id: id,
-    payload,
-  });
-  if (error) {
-    console.error('update_menu_item error:', error);
-    return null;
+    const { data, error } = await client.rpc("update_menu_item", {
+      tenant_slug_in: tenantSlug,
+      item_id: id,
+      payload,
+    });
+    if (error) {
+      console.error("update_menu_item error:", error);
+      return null;
+    }
+    return data ? this.mapMenuItem(data) : null;
   }
-  return data ? this.mapMenuItem(data) : null;
-}
 
-
- async toggleMenuItemStock(tenantSlug: string, id: number): Promise<MenuItem | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('toggle_menu_item_stock', {
-    tenant_slug_in: tenantSlug,
-    item_id: id,
-  });
-  if (error) {
-    console.error('toggle_menu_item_stock error:', error);
-    return null;
+  /**
+   * Cheap liveness check. Does a HEAD + limit(1) on the tenants table,
+   * returning only a tiny response. Used by DatabaseService to decide
+   * whether the app should enter maintenance mode.
+   */
+  async ping(): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    try {
+      const { error } = await client
+        .from("star_veg_tenants")
+        .select("id", { head: true, count: "exact" })
+        .limit(1);
+      return !error;
+    } catch {
+      return false;
+    }
   }
-  return data ? this.mapMenuItem(data) : null;
-}
+
+  async toggleMenuItemStock(
+    tenantSlug: string,
+    id: number,
+  ): Promise<MenuItem | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("toggle_menu_item_stock", {
+      tenant_slug_in: tenantSlug,
+      item_id: id,
+    });
+    if (error) {
+      console.error("toggle_menu_item_stock error:", error);
+      return null;
+    }
+    return data ? this.mapMenuItem(data) : null;
+  }
 
   async bulkUpdateMenuItems(
-  tenantSlug: string,
-  updates: { id: number; inStock: boolean }[],
-): Promise<MenuItem[]> {
-  const results: MenuItem[] = [];
-  const errors: string[] = [];
-  for (const update of updates) {
-    const r = await this.updateMenuItem(tenantSlug, update.id, {
-      inStock: update.inStock,
-    });
-    if (r) results.push(r);
-    else errors.push(`id=${update.id}`);
+    tenantSlug: string,
+    updates: { id: number; inStock: boolean }[],
+  ): Promise<MenuItem[]> {
+    const results: MenuItem[] = [];
+    const errors: string[] = [];
+    for (const update of updates) {
+      const r = await this.updateMenuItem(tenantSlug, update.id, {
+        inStock: update.inStock,
+      });
+      if (r) results.push(r);
+      else errors.push(`id=${update.id}`);
+    }
+    if (errors.length) {
+      console.error("bulkUpdateMenuItems failed for:", errors.join(", "));
+    }
+    return results;
   }
-  if (errors.length) {
-    console.error('bulkUpdateMenuItems failed for:', errors.join(', '));
-  }
-  return results;
-}
 
   async reorderMenuItems(
-  tenantSlug: string,
-  orderedIds: number[],
-): Promise<MenuItem[] | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('reorder_menu_items', {
-    tenant_slug_in: tenantSlug,
-    ordered_ids: orderedIds,
-  });
-  if (error) {
-    console.error('reorder_menu_items error:', error);
-    return null;
+    tenantSlug: string,
+    orderedIds: number[],
+  ): Promise<MenuItem[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("reorder_menu_items", {
+      tenant_slug_in: tenantSlug,
+      ordered_ids: orderedIds,
+    });
+    if (error) {
+      console.error("reorder_menu_items error:", error);
+      return null;
+    }
+    return (data || []).map((row: any) => this.mapMenuItem(row));
   }
-  return (data || []).map((row: any) => this.mapMenuItem(row));
-}
 
   async initializeMenuItems(
   tenantSlug: string,
@@ -543,295 +574,292 @@ async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
   const client = this.getClient();
   if (!client) return;
 
+  // Resolve tenant id
+  const { data: tenantRow, error: tErr } = await client
+    .from('star_veg_tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+  if (tErr || !tenantRow) return;
+
   const { count, error } = await client
     .from(TABLES.MENU)
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', tenantRow.id);   // ← THE FIX
   if (error) throw error;
   if ((count ?? 0) > 0) return;
 
-  console.log(`Seeding ${defaultItems.length} items...`);
-  let inserted = 0;
-  let failed = 0;
+  console.log(`Seeding ${defaultItems.length} items for tenant ${tenantSlug}...`);
 
   for (const item of defaultItems) {
-    const result = await this.addMenuItem(tenantSlug, item);   // ✅ pass slug
-    if (result) inserted++;
-    else {
-      failed++;
-      console.error(`Failed to insert: ${item.name}`);
-    }
-  }
-  console.log(`Seed done: ${inserted} inserted, ${failed} failed`);
-
-  if (inserted === 0 && defaultItems.length > 0) {
-    throw new Error(
-      'Seeding failed entirely — check add_menu_item RPC + grants.',
-    );
+    await this.addMenuItem(tenantSlug, item);
   }
 }
 
   // ============ STORE SETTINGS ============
 
   async getStoreSettings(tenantSlug: string): Promise<StoreSettings | null> {
-  const client = this.getClient();
-  if (!client) return null;
+    const client = this.getClient();
+    if (!client) return null;
 
-  const { data: tenantRow, error: tErr } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (tErr || !tenantRow) return null;
+    const { data: tenantRow, error: tErr } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (tErr || !tenantRow) return null;
 
-  const { data, error } = await client
-    .from(TABLES.STORE_SETTINGS)
-    .select('*')
-    .eq('tenant_id', tenantRow.id)
-    .maybeSingle();
+    const { data, error } = await client
+      .from(TABLES.STORE_SETTINGS)
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .maybeSingle();
 
-  if (error) {
-    console.error('getStoreSettings error:', error);
-    return null;
-  }
-  if (!data) return null;
+    if (error) {
+      console.error("getStoreSettings error:", error);
+      return null;
+    }
+    if (!data) return null;
 
-  return {
-    isOpen: data.is_open ?? true,
-    closedMessage: data.closed_message || '',
-    expectedOpenDate: data.expected_open_date || '',
-    expectedOpenTime: data.expected_open_time || '',
-    lastUpdated: data.last_updated || new Date().toISOString(),
-  };
-}
-
-async updateStoreSettings(
-  tenantSlug: string,
-  settings: StoreSettings,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('upsert_store_settings', {
-    tenant_slug_in: tenantSlug,
-    is_open_in: settings.isOpen,
-    closed_message_in: settings.closedMessage || '',
-    expected_open_date_in: settings.expectedOpenDate || null,
-    expected_open_time_in: settings.expectedOpenTime || null,
-  });
-  if (error) {
-    console.error('upsert_store_settings error:', error);
-    return false;
-  }
-  return true;
-}
-
-// =========== create tenant ===========
-
-async createTenantWithOwner(params: {
-  displayName: string;
-  slug: string;
-  ownerPhone: string;
-  ownerName: string;
-  ownerPassword: string;
-  whatsappPhone?: string;        // ✅ added
-}): Promise<Tenant> {
-  const client = this.getClient();
-  if (!client) throw new Error('Supabase not configured');
-
-  const { data, error } = await client.rpc('create_tenant_with_owner', {
-    display_name_in: params.displayName,
-    slug_in: params.slug,
-    owner_phone_in: params.ownerPhone,
-    owner_name_in: params.ownerName,
-    owner_pw_in: params.ownerPassword,
-    whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,   // ✅ added
-  });
-  if (error) {
-    console.error('create_tenant_with_owner error:', error);
-    throw new Error(error.message || 'Failed to create tenant');
+    return {
+      isOpen: data.is_open ?? true,
+      closedMessage: data.closed_message || "",
+      expectedOpenDate: data.expected_open_date || "",
+      expectedOpenTime: data.expected_open_time || "",
+      acceptingOrders: data.accepting_orders !== false, // ← NEW
+      lastUpdated: data.last_updated || new Date().toISOString(),
+    };
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) throw new Error('Tenant created but no row returned');
-
-  return {
-    id: row.id,
-    slug: row.slug,
-    displayName: row.display_name,
-    whatsappPhone: row.whatsapp_phone || undefined,   // ✅ added
-  };
-}
-
-async getAllTenants(): Promise<Tenant[]> {
-  const client = this.getClient();
-  if (!client) return [];
-  const { data, error } = await client
-    .from('star_veg_tenants')
-    .select('id, slug, display_name, is_active, whatsapp_phone')
-    .order('created_at', { ascending: true });
-  if (error) return [];
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    slug: row.slug,
-    displayName: row.display_name,
-    whatsappPhone: row.whatsapp_phone || undefined,
-    isActive: row.is_active,   // ✅
-  }));
-}
-
-async setTenantActive(slug: string, isActive: boolean): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('set_tenant_active', {
-    tenant_slug_in: slug,
-    is_active_in: isActive,
-  });
-  if (error) {
-    console.error('set_tenant_active error:', error);
-    return false;
-  }
-  return !!data;
-}
-
-async updateTenant(
-  slug: string,
-  displayName: string,
-  ownerPhone: string,
-  whatsappPhone?: string,        // ✅ added 4th parameter
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('update_tenant', {
-    tenant_slug_in: slug,
-    display_name_in: displayName,
-    owner_phone_in: ownerPhone,
-    whatsapp_phone_in: whatsappPhone ?? ownerPhone,   // ✅ pass through
-  });
-  if (error) {
-    console.error('update_tenant error:', error);
-    throw new Error(error.message || 'Failed to update tenant');
-  }
-  return true;
-}
-
-async updateTenantInfo(
-  slug: string,
-  field: string,
-  value: string,
-): Promise<Tenant | null> {
-  const client = this.getClient();
-  if (!client) return null;
-
-  const { data, error } = await client.rpc('update_tenant_info', {
-    tenant_slug_in: slug,
-    field_in: field,
-    value_in: value,
-  });
-
-  if (error) {
-    console.error('update_tenant_info error:', error);
-    throw new Error(error.message || 'Failed to update store info');
+  async updateStoreSettings(
+    tenantSlug: string,
+    settings: StoreSettings,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("upsert_store_settings", {
+      tenant_slug_in: tenantSlug,
+      is_open_in: settings.isOpen,
+      closed_message_in: settings.closedMessage || "",
+      expected_open_date_in: settings.expectedOpenDate || null,
+      expected_open_time_in: settings.expectedOpenTime || null,
+      accepting_orders_in: settings.acceptingOrders ?? true, // ← NEW
+    });
+    if (error) {
+      console.error("upsert_store_settings error:", error);
+      return false;
+    }
+    return true;
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
+  // =========== create tenant ===========
 
-  return {
-    id: row.id,
-    slug: row.slug,
-    displayName: row.display_name,
-    whatsappPhone: row.whatsapp_phone || undefined,
-    isActive: row.is_active,
-    bannerUrl: row.banner_url || undefined,
-    storeTagline: row.store_tagline || undefined,
-    deliveryCharge: row.delivery_charge ?? 0,
-    storewideDiscount: row.storewide_discount ?? 0,
-    ownerPhone: row.owner_phone || undefined,
-  };
-}
+  async createTenantWithOwner(params: {
+    displayName: string;
+    slug: string;
+    ownerPhone: string;
+    ownerName: string;
+    ownerPassword: string;
+    whatsappPhone?: string; // ✅ added
+  }): Promise<Tenant> {
+    const client = this.getClient();
+    if (!client) throw new Error("Supabase not configured");
 
-async resetTenantOwnerPassword(
-  slug: string,
-  ownerPhone: string,
-  newPassword: string,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('reset_tenant_owner_password', {
-    tenant_slug_in: slug,
-    owner_phone_in: ownerPhone,
-    new_password_in: newPassword,
-  });
-  if (error) {
-    console.error('reset_tenant_owner_password error:', error);
-    throw new Error(error.message || 'Failed to reset password');
+    const { data, error } = await client.rpc("create_tenant_with_owner", {
+      display_name_in: params.displayName,
+      slug_in: params.slug,
+      owner_phone_in: params.ownerPhone,
+      owner_name_in: params.ownerName,
+      owner_pw_in: params.ownerPassword,
+      whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone, // ✅ added
+    });
+    if (error) {
+      console.error("create_tenant_with_owner error:", error);
+      throw new Error(error.message || "Failed to create tenant");
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error("Tenant created but no row returned");
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      displayName: row.display_name,
+      whatsappPhone: row.whatsapp_phone || undefined, // ✅ added
+    };
   }
-  return !!data;
-}
 
-async getTenantOwner(slug: string): Promise<{
-  phone: string;
-  name: string;
-} | null> {
-  const client = this.getClient();
-  if (!client) return null;
-
-  const { data, error } = await client.rpc('get_tenant_owner', {
-    tenant_slug_in: slug,
-  });
-  if (error) {
-    console.error('get_tenant_owner error:', error);
-    return null;
+  async getAllTenants(): Promise<Tenant[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data, error } = await client
+      .from("star_veg_tenants")
+      .select("id, slug, display_name, is_active, whatsapp_phone")
+      .order("created_at", { ascending: true });
+    if (error) return [];
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      slug: row.slug,
+      displayName: row.display_name,
+      whatsappPhone: row.whatsapp_phone || undefined,
+      isActive: row.is_active, // ✅
+    }));
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? { phone: row.phone, name: row.name } : null;
-}
 
-async deleteTenant(slug: string): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-
-  const { data, error } = await client.rpc('delete_tenant', {
-    tenant_slug_in: slug,
-  });
-  if (error) {
-    console.error('delete_tenant error:', error);
-    throw new Error(error.message || 'Failed to delete store');
+  async setTenantActive(slug: string, isActive: boolean): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("set_tenant_active", {
+      tenant_slug_in: slug,
+      is_active_in: isActive,
+    });
+    if (error) {
+      console.error("set_tenant_active error:", error);
+      return false;
+    }
+    return !!data;
   }
-  return !!data;
-}
 
-async updateTenantMessageTemplate(
-  slug: string,
-  template: MessageTemplate,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('update_tenant_message_template', {
-    tenant_slug_in: slug,
-    template_in: template,
-  });
-  if (error) {
-    console.error('update_tenant_message_template error:', error);
-    throw new Error(error.message || 'Failed to save template');
+  async updateTenant(
+    slug: string,
+    displayName: string,
+    ownerPhone: string,
+    whatsappPhone?: string, // ✅ added 4th parameter
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("update_tenant", {
+      tenant_slug_in: slug,
+      display_name_in: displayName,
+      owner_phone_in: ownerPhone,
+      whatsapp_phone_in: whatsappPhone ?? ownerPhone, // ✅ pass through
+    });
+    if (error) {
+      console.error("update_tenant error:", error);
+      throw new Error(error.message || "Failed to update tenant");
+    }
+    return true;
   }
-  return true;
-}
+
+  async updateTenantInfo(
+    slug: string,
+    field: string,
+    value: string,
+  ): Promise<Tenant | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    const { data, error } = await client.rpc("update_tenant_info", {
+      tenant_slug_in: slug,
+      field_in: field,
+      value_in: value,
+    });
+
+    if (error) {
+      console.error("update_tenant_info error:", error);
+      throw new Error(error.message || "Failed to update store info");
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      displayName: row.display_name,
+      whatsappPhone: row.whatsapp_phone || undefined,
+      isActive: row.is_active,
+      bannerUrl: row.banner_url || undefined,
+      storeTagline: row.store_tagline || undefined,
+      deliveryCharge: row.delivery_charge ?? 0,
+      storewideDiscount: row.storewide_discount ?? 0,
+      ownerPhone: row.owner_phone || undefined,
+    };
+  }
+
+  async resetTenantOwnerPassword(
+    slug: string,
+    ownerPhone: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("reset_tenant_owner_password", {
+      tenant_slug_in: slug,
+      owner_phone_in: ownerPhone,
+      new_password_in: newPassword,
+    });
+    if (error) {
+      console.error("reset_tenant_owner_password error:", error);
+      throw new Error(error.message || "Failed to reset password");
+    }
+    return !!data;
+  }
+
+  async getTenantOwner(slug: string): Promise<{
+    phone: string;
+    name: string;
+  } | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    const { data, error } = await client.rpc("get_tenant_owner", {
+      tenant_slug_in: slug,
+    });
+    if (error) {
+      console.error("get_tenant_owner error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? { phone: row.phone, name: row.name } : null;
+  }
+
+  async deleteTenant(slug: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { data, error } = await client.rpc("delete_tenant", {
+      tenant_slug_in: slug,
+    });
+    if (error) {
+      console.error("delete_tenant error:", error);
+      throw new Error(error.message || "Failed to delete store");
+    }
+    return !!data;
+  }
+
+  async updateTenantMessageTemplate(
+    slug: string,
+    template: MessageTemplate,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("update_tenant_message_template", {
+      tenant_slug_in: slug,
+      template_in: template,
+    });
+    if (error) {
+      console.error("update_tenant_message_template error:", error);
+      throw new Error(error.message || "Failed to save template");
+    }
+    return true;
+  }
 
   // ============ MAPPERS ============
 
-private mapUser(row: any): User {
-  return {
-    id: row.id,
-    phone: row.phone,
-    name: row.name,
-    password: '',
-    role: row.role,
-    isActive: row.is_active,
-    tenantId: row.tenant_id,
-    createdAt: row.created_at,
-    lastLogin: row.last_login,
-  };
-}
+  private mapUser(row: any): User {
+    return {
+      id: row.id,
+      phone: row.phone,
+      name: row.name,
+      password: "",
+      role: row.role,
+      isActive: row.is_active,
+      tenantId: row.tenant_id,
+      createdAt: row.created_at,
+      lastLogin: row.last_login,
+    };
+  }
 
   private mapMenuItem(item: any): MenuItem {
     return {
@@ -844,9 +872,10 @@ private mapUser(row: any): User {
       price: item.price,
       discount: nonNegativeNum(item.discount) ?? 0,
       img: item.image_url,
-    gallery: Array.isArray(item.gallery) && item.gallery.length > 0
-      ? (item.gallery as string[]).filter((s) => typeof s === 'string')
-      : undefined,
+      gallery:
+        Array.isArray(item.gallery) && item.gallery.length > 0
+          ? (item.gallery as string[]).filter((s) => typeof s === "string")
+          : undefined,
       category: item.category || undefined,
       isVeg: item.is_veg ?? false,
       isSpicy: item.is_spicy ?? false,
@@ -870,20 +899,134 @@ private mapUser(row: any): User {
   }
 
   async updateFormSchema(
+    tenantSlug: string,
+    schema: FormSchema,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("update_tenant_form_schema", {
+      tenant_slug_in: tenantSlug,
+      schema_in: schema,
+    });
+    if (error) {
+      console.error("update_tenant_form_schema error:", error);
+      throw new Error(error.message || "Failed to save form schema");
+    }
+    return !!data;
+  }
+
+  // ============ REVIEWS ============
+
+async submitReview(
   tenantSlug: string,
-  schema: FormSchema,
+  itemId: number,
+  deviceId: string,
+  deviceFingerprint: string,
+  name: string,
+  rating: number,
+  comment: string,
+): Promise<Review | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  const { data, error } = await client.rpc('submit_review', {
+    tenant_slug_in: tenantSlug,
+    item_id_in: itemId,
+    device_id_in: deviceId,
+    device_fp_in: deviceFingerprint,
+    name_in: name,
+    rating_in: rating,
+    comment_in: comment,
+  });
+
+  if (error) {
+    console.error('submit_review error:', error);
+    throw new Error(error.message || 'Failed to submit review');
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? this.mapReviewRow(row, '', '') : null;
+}
+
+async deleteOwnReview(
+  tenantSlug: string,
+  itemId: number,
+  deviceId: string,
 ): Promise<boolean> {
   const client = this.getClient();
   if (!client) return false;
-  const { data, error } = await client.rpc('update_tenant_form_schema', {
+  const { data, error } = await client.rpc('delete_own_review', {
     tenant_slug_in: tenantSlug,
-    schema_in: schema,
+    item_id_in: itemId,
+    device_id_in: deviceId,
   });
   if (error) {
-    console.error('update_tenant_form_schema error:', error);
-    throw new Error(error.message || 'Failed to save form schema');
+    console.error('delete_own_review error:', error);
+    return false;
+  }
+  menuService.refresh().catch(() => {});
+  return !!data;
+}
+
+async getItemReviews(itemId: number): Promise<Review[]> {
+  const client = this.getClient();
+  if (!client) return [];
+  const { data, error } = await client.rpc('get_item_reviews', {
+    item_id_in: itemId,
+  });
+  if (error) {
+    console.error('get_item_reviews error:', error);
+    return [];
+  }
+  return (data || []).map((r: any) => this.mapReviewRow(r, '', ''));
+}
+
+async getTenantReviewsPaged(
+  tenantSlug: string,
+  filter: ReviewFilter,
+  limit = 16,
+  offset = 0,
+): Promise<Review[]> {
+  const client = this.getClient();
+  if (!client) return [];
+  const { data, error } = await client.rpc('get_tenant_reviews_paged', {
+    tenant_slug_in: tenantSlug,
+    filter_in: filter,
+    limit_in: limit,
+    offset_in: offset,
+  });
+  if (error) {
+    console.error('get_tenant_reviews_paged error:', error);
+    return [];
+  }
+  return (data || []).map((r: any) => this.mapReviewRow(r, r.item_name, r.item_category));
+}
+
+async adminDeleteReview(reviewId: string): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data, error } = await client.rpc('admin_delete_review', {
+    review_id_in: reviewId,
+  });
+  if (error) {
+    console.error('admin_delete_review error:', error);
+    return false;
   }
   return !!data;
+}
+
+private mapReviewRow(row: any, itemName: string, itemCategory: string): Review {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    itemName: row.item_name ?? itemName,
+    itemCategory: row.item_category ?? itemCategory,
+    rating: Number(row.rating) || 0,
+    comment: row.comment ?? '',
+    customerName: row.customer_name ?? '',
+    deviceId: row.device_id ?? '',
+    deviceFingerprint: row.device_fingerprint ?? '',
+    createdAt: row.created_at ?? new Date().toISOString(),
+  };
 }
 }
 

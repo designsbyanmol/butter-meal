@@ -81,8 +81,17 @@ const Header: React.FC<HeaderProps> = ({
   // ---------------------------------------------------------
   const isPlatformAdmin = isAdmin && !tenant;
   const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
+
+  // Wishlist only for the customer view
   const showWishlist = !!tenant && !isDeactivated && !isAdminView;
+
+  // Admin avatar — only when logged in and inside a tenant context
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
+
+  // Is the current URL an admin context?
+  //   - ?_smart-admin           → main host admin view
+  //   - ?t=<slug>_admin         → tenant owner view
+  const isAdminContext = isSmartAdminHost || isAdminView;
 
   const handleLogin = () => setIsLoginOpen(true);
 
@@ -101,7 +110,51 @@ const Header: React.FC<HeaderProps> = ({
       ? user.name.trim().charAt(0).toUpperCase()
       : '?';
 
-  const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
+  // ---------------------------------------------------------
+  // Decide what to render on the left (brand text area)
+  // ---------------------------------------------------------
+  const renderBrandText = () => {
+    // 1. Logged-in admin or staff → show their name, regardless of view
+    if (isAuthenticated && user?.name) {
+      return <span className={styles.tagline}>{user.name}</span>;
+    }
+
+    // 2. Not logged in, but on an admin URL:
+    //    - ?t=<slug>_admin  → show the store's owner name (tenant.displayName)
+    //    - ?_smart-admin    → show "Platform Admin" placeholder
+    // Never show the customer greeting here.
+    if (isAdminContext) {
+      if (isSmartAdminHost && !tenant) {
+        return (
+          <span className={styles.companyName}>
+            {companyName} {year}
+          </span>
+        );
+      }
+      return (
+        <span className={styles.companyName}>
+          {tenant ? tenant.displayName : `${companyName} ${year}`}
+        </span>
+      );
+    }
+
+    // 3. Customer view with a saved name → "Hey! {name}"
+    const hasCustomerName = customerName.trim().length > 0;
+    if (hasCustomerName) {
+      return (
+        <span className={styles.customerGreeting}>
+          Hey! <strong>{customerName}</strong>
+        </span>
+      );
+    }
+
+    // 4. Fallback — store name / company name
+    return (
+      <span className={styles.companyName}>
+        {tenant ? tenant.displayName : `${companyName} ${year}`}
+      </span>
+    );
+  };
 
   // Early return AFTER all hooks have been called
   if (shouldHideHeader) return null;
@@ -125,21 +178,15 @@ const Header: React.FC<HeaderProps> = ({
             )}
 
             <span className={styles.brandText}>
-              {isAuthenticated ? (
-                <span className={styles.tagline}>{user?.name}</span>
-              ) : hasCustomerName ? (
-                <span className={styles.customerGreeting}>
-                  Hey! <strong>{customerName}</strong>
-                </span>
-              ) : (
-                <span className={styles.companyName}>
-                  {tenant ? tenant.displayName : `${companyName} ${year}`}
-                </span>
-              )}
+              {renderBrandText()}
             </span>
 
             {isSmartAdminHost && !tenant && (
               <span className={styles.smartAdminBadge}>Smart Admin</span>
+            )}
+
+            {isAdminView && tenant && !isAuthenticated && (
+              <span className={styles.adminViewBadge}>Admin</span>
             )}
           </div>
 

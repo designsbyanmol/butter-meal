@@ -118,6 +118,33 @@ const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className={styles.modalBody}>
+        <div className={styles.settingGroup}>
+  <div className={styles.settingHeader}>
+    <label className={styles.toggleLabel}>
+      <input
+        type="checkbox"
+        checked={localSettings.acceptingOrders !== false}
+        onChange={(e) =>
+          setLocalSettings((prev) => ({
+            ...prev,
+            acceptingOrders: e.target.checked,
+          }))
+        }
+      />
+      <span className={styles.toggleSlider}></span>
+      <span className={styles.toggleText}>
+        {localSettings.acceptingOrders !== false
+          ? 'Ordering Enabled'
+          : 'Ordering Disabled'}
+      </span>
+    </label>
+  </div>
+  <p className={styles.settingDescription}>
+    {localSettings.acceptingOrders !== false
+      ? 'Customers can add items to the cart and place orders.'
+      : 'Customers can view the menu but cannot place orders. The Add button and cart are hidden.'}
+  </p>
+</div>
           <div className={styles.settingGroup}>
             <div className={styles.settingHeader}>
               <label className={styles.toggleLabel}>

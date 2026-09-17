@@ -1,12 +1,12 @@
 // services/database.service.ts
-import { User, MenuItem, StoreSettings } from '../types';
-import { supabaseService } from './supabase.service';
-import { isSupabaseConfigured } from '../config/env';
-import { DEFAULT_ADMIN, SEED_USERS } from '../config/credentials';
-import { TABLES } from '../config/tables';
+import { User, MenuItem, StoreSettings } from "../types";
+import { supabaseService } from "./supabase.service";
+import { isSupabaseConfigured } from "../config/env";
+import { DEFAULT_ADMIN, SEED_USERS } from "../config/credentials";
+import { TABLES } from "../config/tables";
 
 const STORE_SETTINGS_KEY = TABLES.STORE_SETTINGS;
-const TENANT_SLUG_KEY = 'restaurant_tenant_slug';
+const TENANT_SLUG_KEY = "restaurant_tenant_slug";
 
 class DatabaseService {
   private static instance: DatabaseService;
@@ -20,7 +20,7 @@ class DatabaseService {
   private maintenanceInterval: ReturnType<typeof setInterval> | null = null;
 
   private lastTestFailureAt = 0;
-  private lastTestFailureMsg = '';
+  private lastTestFailureMsg = "";
   private static readonly TEST_FAIL_LOG_THROTTLE_MS = 60_000;
 
   private menuErrorLogged = false;
@@ -29,22 +29,11 @@ class DatabaseService {
     this.useSupabase = isSupabaseConfigured;
 
     if (this.useSupabase) {
-      this.isMaintenanceMode = false;
-      this.connectionCheckPromise = this.checkConnectionOnStartup();
-
-      this.maintenanceInterval = setInterval(() => {
-        this.forceConnectionCheck().catch(() => { /* throttled */ });
-      }, 30_000);
-
-      if (typeof window !== 'undefined') {
-        window.addEventListener('focus', () => {
-          this.forceConnectionCheck().catch(() => { /* ignore */ });
-        });
-      }
-    } else {
-      this.isMaintenanceMode = false;
-      this.connectionChecked = true;
-    }
+  this.isMaintenanceMode = false;
+  // Single check on startup. No interval, no focus listener.
+  // Connection state is inferred from actual query results after that.
+  this.connectionCheckPromise = this.checkConnectionOnStartup();
+}
   }
 
   public static getInstance(): DatabaseService {
@@ -73,41 +62,30 @@ class DatabaseService {
   }
 
   private async testConnection(): Promise<boolean> {
-    if (!this.useSupabase) return false;
-
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Connection timeout')), 5000);
-      });
-
-      const slug =
-        (typeof sessionStorage !== 'undefined' &&
-          sessionStorage.getItem(TENANT_SLUG_KEY)) ||
-        'main';
-
-      const itemsPromise = supabaseService.getMenuItems(slug);
-      const items = await Promise.race([itemsPromise, timeoutPromise]) as
-        | MenuItem[]
-        | null;
-
-      this.lastTestFailureAt = 0;
-      this.lastTestFailureMsg = '';
-      return items !== null;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      const now = Date.now();
-
-      if (
-        msg !== this.lastTestFailureMsg ||
-        now - this.lastTestFailureAt > DatabaseService.TEST_FAIL_LOG_THROTTLE_MS
-      ) {
-        console.warn('Supabase unreachable — using cached data:', msg);
-        this.lastTestFailureAt = now;
-        this.lastTestFailureMsg = msg;
-      }
-      return false;
+  if (!this.useSupabase) return false;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Connection timeout')), 5000);
+    });
+    const pingPromise = supabaseService.ping();
+    const ok = await Promise.race([pingPromise, timeoutPromise]);
+    this.lastTestFailureAt = 0;
+    this.lastTestFailureMsg = '';
+    return ok === true;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    const now = Date.now();
+    if (
+      msg !== this.lastTestFailureMsg ||
+      now - this.lastTestFailureAt > DatabaseService.TEST_FAIL_LOG_THROTTLE_MS
+    ) {
+      console.warn('Supabase unreachable — using cached data:', msg);
+      this.lastTestFailureAt = now;
+      this.lastTestFailureMsg = msg;
     }
+    return false;
   }
+}
 
   subscribeToMaintenance(listener: (isActive: boolean) => void): () => void {
     this.maintenanceListeners.push(listener);
@@ -131,8 +109,8 @@ class DatabaseService {
     return {
       isActive: this.isMaintenanceMode,
       message: this.isMaintenanceMode
-        ? 'We are under some problem. Please connect after sometime.'
-        : '',
+        ? "We are under some problem. Please connect after sometime."
+        : "",
     };
   }
 
@@ -174,7 +152,9 @@ class DatabaseService {
     try {
       const key = this.tenantKey(this.localStorageKey, tenantSlug);
       localStorage.setItem(key, JSON.stringify(items));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // ============ LOCAL STORAGE — USERS (per tenant) ============
@@ -193,7 +173,9 @@ class DatabaseService {
     try {
       const key = this.tenantKey(this.localStorageUsersKey, tenantSlug);
       localStorage.setItem(key, JSON.stringify(users));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // ============ LOCAL STORAGE — STORE SETTINGS (per tenant) ============
@@ -216,7 +198,7 @@ class DatabaseService {
           return settings;
         }
       } catch (error) {
-        console.error('getStoreSettings failed, using local:', error);
+        console.error("getStoreSettings failed, using local:", error);
       }
     }
     return this.getStoreSettingsFromLocalStorage(tenantSlug);
@@ -231,14 +213,15 @@ class DatabaseService {
       const parsed = JSON.parse(saved);
 
       return {
-        isOpen: parsed.isOpen ?? true,
-        closedMessage: parsed.closedMessage || '',
-        expectedOpenDate: parsed.expectedOpenDate || '',
-        expectedOpenTime: parsed.expectedOpenTime || '',
-        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-      };
+  isOpen: parsed.isOpen ?? true,
+  closedMessage: parsed.closedMessage || '',
+  expectedOpenDate: parsed.expectedOpenDate || '',
+  expectedOpenTime: parsed.expectedOpenTime || '',
+  acceptingOrders: parsed.acceptingOrders !== false,   // ← NEW
+  lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+};
     } catch (error) {
-      console.error('getStoreSettingsFromLocalStorage failed:', error);
+      console.error("getStoreSettingsFromLocalStorage failed:", error);
       return null;
     }
   }
@@ -259,14 +242,15 @@ class DatabaseService {
             tenantSlug,
             settings,
           );
-          if (!result) console.warn('Supabase updateStoreSettings returned false');
+          if (!result)
+            console.warn("Supabase updateStoreSettings returned false");
         } catch (error) {
-          console.error('Supabase updateStoreSettings threw:', error);
+          console.error("Supabase updateStoreSettings threw:", error);
         }
       }
       return true;
     } catch (error) {
-      console.error('updateStoreSettings failed:', error);
+      console.error("updateStoreSettings failed:", error);
       return false;
     }
   }
@@ -283,11 +267,11 @@ class DatabaseService {
           return items;
         }
       } catch (error) {
-        console.error('getMenuItems (Supabase) threw:', error);
+        console.error("getMenuItems (Supabase) threw:", error);
       }
 
       if (!this.menuErrorLogged) {
-        console.warn('getMenuItems returned null — using local cache');
+        console.warn("getMenuItems returned null — using local cache");
         this.menuErrorLogged = true;
       }
     }
@@ -317,10 +301,10 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          console.error('Supabase addMenuItem returned null — aborting.');
+          console.error("Supabase addMenuItem returned null — aborting.");
           return null;
         } catch (error) {
-          console.error('Supabase addMenuItem threw:', error);
+          console.error("Supabase addMenuItem threw:", error);
           return null;
         }
       }
@@ -330,7 +314,7 @@ class DatabaseService {
       this.saveLocalMenuItems(tenantSlug, localItems);
       return item;
     } catch (error) {
-      console.error('addMenuItem failed:', error);
+      console.error("addMenuItem failed:", error);
       return null;
     }
   }
@@ -347,10 +331,10 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return true;
           }
-          console.error('Supabase deleteMenuItem returned false — aborting.');
+          console.error("Supabase deleteMenuItem returned false — aborting.");
           return false;
         } catch (error) {
-          console.error('Supabase deleteMenuItem threw:', error);
+          console.error("Supabase deleteMenuItem threw:", error);
           return false;
         }
       }
@@ -361,7 +345,7 @@ class DatabaseService {
       this.saveLocalMenuItems(tenantSlug, filtered);
       return true;
     } catch (error) {
-      console.error('deleteMenuItem failed:', error);
+      console.error("deleteMenuItem failed:", error);
       return false;
     }
   }
@@ -387,10 +371,10 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          console.error('Supabase updateMenuItem returned null — aborting.');
+          console.error("Supabase updateMenuItem returned null — aborting.");
           return null;
         } catch (error) {
-          console.error('Supabase updateMenuItem threw:', error);
+          console.error("Supabase updateMenuItem threw:", error);
           return null;
         }
       }
@@ -402,7 +386,7 @@ class DatabaseService {
       this.saveLocalMenuItems(tenantSlug, localItems);
       return localItems[index];
     } catch (error) {
-      console.error('updateMenuItem failed:', error);
+      console.error("updateMenuItem failed:", error);
       return null;
     }
   }
@@ -425,10 +409,12 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          console.error('Supabase toggleMenuItemStock returned null — aborting.');
+          console.error(
+            "Supabase toggleMenuItemStock returned null — aborting.",
+          );
           return null;
         } catch (error) {
-          console.error('Supabase toggleMenuItemStock threw:', error);
+          console.error("Supabase toggleMenuItemStock threw:", error);
           return null;
         }
       }
@@ -440,7 +426,7 @@ class DatabaseService {
       this.saveLocalMenuItems(tenantSlug, localItems);
       return localItems[index];
     } catch (error) {
-      console.error('toggleMenuItemStock failed:', error);
+      console.error("toggleMenuItemStock failed:", error);
       return null;
     }
   }
@@ -464,7 +450,9 @@ class DatabaseService {
         if (ok.length > 0) {
           const localItems = this.getLocalMenuItems(tenantSlug);
           ok.forEach((updated) => {
-            const index = localItems.findIndex((item) => item.id === updated.id);
+            const index = localItems.findIndex(
+              (item) => item.id === updated.id,
+            );
             if (index !== -1) localItems[index] = updated;
             updatedItems.push(updated);
           });
@@ -472,7 +460,7 @@ class DatabaseService {
           return updatedItems;
         }
       } catch (error) {
-        console.error('Supabase bulkUpdateMenuItems threw:', error);
+        console.error("Supabase bulkUpdateMenuItems threw:", error);
       }
     }
 
@@ -502,10 +490,10 @@ class DatabaseService {
           this.saveLocalMenuItems(tenantSlug, result);
           return result;
         }
-        console.error('Supabase reorderMenuItems returned null — aborting.');
+        console.error("Supabase reorderMenuItems returned null — aborting.");
         return null;
       } catch (error) {
-        console.error('Supabase reorderMenuItems threw:', error);
+        console.error("Supabase reorderMenuItems threw:", error);
         return null;
       }
     }
@@ -534,7 +522,7 @@ class DatabaseService {
 
         if (supabaseItems === null) {
           console.warn(
-            'initializeMenuItems: Supabase read failed — skipping seed',
+            "initializeMenuItems: Supabase read failed — skipping seed",
           );
           return;
         }
@@ -546,7 +534,7 @@ class DatabaseService {
         }
         return;
       } catch (error) {
-        console.error('initializeMenuItems (Supabase) failed:', error);
+        console.error("initializeMenuItems (Supabase) failed:", error);
         return;
       }
     }
@@ -566,7 +554,7 @@ class DatabaseService {
         this.saveLocalUsers(tenantSlug, supabaseUsers);
         return supabaseUsers;
       } catch (error) {
-        console.error('getUsers (Supabase) failed, using local:', error);
+        console.error("getUsers (Supabase) failed, using local:", error);
       }
     }
     return this.getLocalUsers(tenantSlug);
@@ -588,7 +576,7 @@ class DatabaseService {
           return user;
         }
       } catch (error) {
-        console.error('getUserByPhone (Supabase) failed:', error);
+        console.error("getUserByPhone (Supabase) failed:", error);
       }
     }
     return (
@@ -597,27 +585,27 @@ class DatabaseService {
   }
 
   async getUserById(tenantSlug: string, id: string): Promise<User | null> {
-  if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
-    try {
-      const user = await supabaseService.getUserById(id);   // ✅ matches the new method
-      if (user) {
-        const localUsers = this.getLocalUsers(tenantSlug).filter(
-          (u) => u.id !== id && u.phone !== user.phone,
-        );
-        localUsers.push(user);
-        this.saveLocalUsers(tenantSlug, localUsers);
-        return user;
+    if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
+      try {
+        const user = await supabaseService.getUserById(id); // ✅ matches the new method
+        if (user) {
+          const localUsers = this.getLocalUsers(tenantSlug).filter(
+            (u) => u.id !== id && u.phone !== user.phone,
+          );
+          localUsers.push(user);
+          this.saveLocalUsers(tenantSlug, localUsers);
+          return user;
+        }
+      } catch (error) {
+        console.error("getUserById (Supabase) failed:", error);
       }
-    } catch (error) {
-      console.error('getUserById (Supabase) failed:', error);
     }
+    return this.getLocalUsers(tenantSlug).find((u) => u.id === id) || null;
   }
-  return this.getLocalUsers(tenantSlug).find((u) => u.id === id) || null;
-}
 
   async createUser(
     tenantSlug: string,
-    userData: Omit<User, 'id' | 'createdAt'>,
+    userData: Omit<User, "id" | "createdAt">,
   ): Promise<User> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode) {
@@ -628,7 +616,10 @@ class DatabaseService {
           this.saveLocalUsers(tenantSlug, localUsers);
           return user;
         } catch (error) {
-          console.error('Supabase createUser threw, falling back to local:', error);
+          console.error(
+            "Supabase createUser threw, falling back to local:",
+            error,
+          );
         }
       }
 
@@ -642,7 +633,7 @@ class DatabaseService {
       this.saveLocalUsers(tenantSlug, localUsers);
       return newUser;
     } catch (error) {
-      console.error('createUser failed:', error);
+      console.error("createUser failed:", error);
       throw error;
     }
   }
@@ -659,9 +650,9 @@ class DatabaseService {
         try {
           const user = await supabaseService.updateUser(id, updates);
           if (user) updatedUser = user;
-          else console.warn('Supabase updateUser returned null');
+          else console.warn("Supabase updateUser returned null");
         } catch (error) {
-          console.error('Supabase updateUser threw:', error);
+          console.error("Supabase updateUser threw:", error);
         }
       }
 
@@ -674,7 +665,7 @@ class DatabaseService {
       }
       return updatedUser;
     } catch (error) {
-      console.error('updateUser failed:', error);
+      console.error("updateUser failed:", error);
       return null;
     }
   }
@@ -691,9 +682,9 @@ class DatabaseService {
             this.saveLocalUsers(tenantSlug, localUsers);
             return true;
           }
-          console.warn('Supabase deleteUser returned false');
+          console.warn("Supabase deleteUser returned false");
         } catch (error) {
-          console.error('Supabase deleteUser threw:', error);
+          console.error("Supabase deleteUser threw:", error);
         }
       }
 
@@ -703,15 +694,12 @@ class DatabaseService {
       this.saveLocalUsers(tenantSlug, filtered);
       return true;
     } catch (error) {
-      console.error('deleteUser failed:', error);
+      console.error("deleteUser failed:", error);
       return false;
     }
   }
 
-  async toggleUserStatus(
-    tenantSlug: string,
-    id: string,
-  ): Promise<User | null> {
+  async toggleUserStatus(tenantSlug: string, id: string): Promise<User | null> {
     try {
       if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
         try {
@@ -725,9 +713,9 @@ class DatabaseService {
             }
             return user;
           }
-          console.warn('Supabase toggleUserStatus returned null');
+          console.warn("Supabase toggleUserStatus returned null");
         } catch (error) {
-          console.error('Supabase toggleUserStatus threw:', error);
+          console.error("Supabase toggleUserStatus threw:", error);
         }
       }
 
@@ -738,7 +726,7 @@ class DatabaseService {
       this.saveLocalUsers(tenantSlug, localUsers);
       return localUsers[index];
     } catch (error) {
-      console.error('toggleUserStatus failed:', error);
+      console.error("toggleUserStatus failed:", error);
       return null;
     }
   }
@@ -764,9 +752,9 @@ class DatabaseService {
             }
             return true;
           }
-          console.warn('Supabase changeUserPassword returned false');
+          console.warn("Supabase changeUserPassword returned false");
         } catch (error) {
-          console.error('Supabase changeUserPassword threw:', error);
+          console.error("Supabase changeUserPassword threw:", error);
         }
       }
 
@@ -777,7 +765,7 @@ class DatabaseService {
       this.saveLocalUsers(tenantSlug, localUsers);
       return true;
     } catch (error) {
-      console.error('changeUserPassword failed:', error);
+      console.error("changeUserPassword failed:", error);
       return false;
     }
   }
@@ -793,11 +781,11 @@ class DatabaseService {
           return;
         }
       } catch (e) {
-        console.warn('initializeDefaultUsers: Supabase check failed', e);
+        console.warn("initializeDefaultUsers: Supabase check failed", e);
       }
     }
 
-    if (tenantSlug === 'main') {
+    if (tenantSlug === "main") {
       const localUsers = this.getLocalUsers(tenantSlug);
       const adminExists = localUsers.some(
         (u) => u.phone === DEFAULT_ADMIN.phone,

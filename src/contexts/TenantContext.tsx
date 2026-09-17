@@ -1,6 +1,7 @@
 // contexts/TenantContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase.client';
+import { supabaseService } from '../services/supabase.service';
 import { authService } from '../services/auth.service';
 import { ShopInfo } from '../config/credentials';
 import {
@@ -118,6 +119,12 @@ const isSmartAdminUrl = (): boolean => {
 // =========================================================
 // Form schema normalization
 // =========================================================
+/**
+ * Merge a stored schema with the current defaults.
+ *  - Built-ins inherit `locked`, `builtin`, `removable`, `type` from defaults.
+ *  - `options` is preserved from the stored schema if present.
+ *  - Any default built-in missing from the stored schema is appended.
+ */
 const normalizeFormSchema = (stored: any): FormSchema => {
   if (!stored || !Array.isArray(stored.fields)) {
     return DEFAULT_FORM_SCHEMA;
@@ -136,17 +143,19 @@ const normalizeFormSchema = (stored: any): FormSchema => {
 
       const def = defaultsByKey.get(storedField.key);
 
+      // Built-in — inherit identity + locking from current defaults
       if (def) {
-        return {
-          ...def,
-          enabled: storedField.enabled ?? def.enabled,
-          label: storedField.label || def.label,
-          options: Array.isArray(storedField.options)
-            ? storedField.options
-            : def.options,
-        };
-      }
+  return {
+    ...def,                             // ← brings platformOnly, locked, type
+    enabled: storedField.enabled ?? def.enabled,
+    label: storedField.label || def.label,
+    options: Array.isArray(storedField.options)
+      ? storedField.options
+      : def.options,
+  };
+}
 
+      // Custom field — pass through
       return {
         key: storedField.key,
         label: storedField.label || storedField.key,
@@ -161,6 +170,7 @@ const normalizeFormSchema = (stored: any): FormSchema => {
     })
     .filter(Boolean) as FormFieldConfig[];
 
+  // Ensure every default built-in exists
   const presentKeys = new Set(merged.map((f) => f.key));
   DEFAULT_FORM_SCHEMA.fields.forEach((def) => {
     if (!presentKeys.has(def.key)) {
@@ -218,6 +228,39 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   const [tenantNotFound, setTenantNotFound] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
 
+  // ---------------------------------------------------------
+  // Build a Tenant object from a raw DB row + normalized schema
+  // ---------------------------------------------------------
+  const buildTenant = (
+    row: any,
+    formSchema: FormSchema,
+    infoDefaults: Tenant['infoDefaults'],
+  ): Tenant => ({
+    id: row.id,
+    slug: row.slug,
+
+    displayName: pickString(row.display_name, ShopInfo.Shop_name),
+    whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
+    bannerUrl: isBlank(row.banner_url)
+      ? ShopInfo.Shop_banner || undefined
+      : String(row.banner_url),
+    storeTagline: pickString(row.store_tagline, ShopInfo.Shop_tagline),
+    deliveryCharge: pickNumber(row.delivery_charge, ShopInfo.Delivery_charge),
+    storewideDiscount: pickNumber(
+      row.storewide_discount,
+      ShopInfo.Storewide_discount,
+    ),
+    ownerPhone: pickString(row.owner_phone, ShopInfo.Owner_phone),
+
+    isActive: row.is_active,
+    formSchema,
+    messageTemplate: normalizeMessageTemplate(row.message_template),
+    infoDefaults,
+  });
+
+  // ---------------------------------------------------------
+  // Fetch a tenant by slug — with auto-seed of category options
+  // ---------------------------------------------------------
   const fetchTenant = async (slug: string): Promise<Tenant | null> => {
     if (!supabase) return null;
 
@@ -241,34 +284,59 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       ownerPhone: isBlank(data.owner_phone),
     };
 
-    return {
-      id: data.id,
-      slug: data.slug,
+    let formSchema = normalizeFormSchema(data.form_schema);
+    const categoryField = formSchema.fields.find((f) => f.key === 'category');
+    const catOptionsEmpty =
+      !categoryField?.options || categoryField.options.length === 0;
 
-      displayName: pickString(data.display_name, ShopInfo.Shop_name),
-      whatsappPhone: pickString(
-        data.whatsapp_phone,
-        ShopInfo.Store_whatsapp,
-      ),
-      bannerUrl: isBlank(data.banner_url)
-        ? ShopInfo.Shop_banner || undefined
-        : String(data.banner_url),
-      storeTagline: pickString(data.store_tagline, ShopInfo.Shop_tagline),
-      deliveryCharge: pickNumber(
-        data.delivery_charge,
-        ShopInfo.Delivery_charge,
-      ),
-      storewideDiscount: pickNumber(
-        data.storewide_discount,
-        ShopInfo.Storewide_discount,
-      ),
-      ownerPhone: pickString(data.owner_phone, ShopInfo.Owner_phone),
+    // ---------- Auto-seed category options from existing items ----------
+    // If the tenant's schema has no category options but the tenant's
+    // menu items DO have categories, we derive the list from the items
+    // and persist it. This heals old tenants and any edge case where
+    // the schema got out of sync with the items.
+    if (catOptionsEmpty) {
+      try {
+        const { data: itemRows } = await supabase
+          .from('star_veg_menu_items')
+          .select('category')
+          .eq('tenant_id', data.id);
 
-      isActive: data.is_active,
-      formSchema: normalizeFormSchema(data.form_schema),
-      messageTemplate: normalizeMessageTemplate(data.message_template),
-      infoDefaults,
-    };
+        if (itemRows && itemRows.length > 0) {
+          const seen = new Set<string>();
+          itemRows.forEach((r: any) => {
+            const c = (r.category ?? '').trim();
+            if (c) seen.add(c);
+          });
+
+          if (seen.size > 0) {
+            const merged = Array.from(seen).sort((a, b) =>
+              a.localeCompare(b),
+            );
+            formSchema = {
+              fields: formSchema.fields.map((f) =>
+                f.key === 'category' ? { ...f, options: merged } : f,
+              ),
+            };
+
+            // Persist in the background so this survives across sessions.
+            // Fire-and-forget — if it fails, the seeded schema still
+            // works for this session and the next visit will retry.
+            supabaseService
+              .updateFormSchema(slug, formSchema)
+              .catch((e) =>
+                console.warn(
+                  'Failed to persist seeded category options:',
+                  e,
+                ),
+              );
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to derive categories from items:', err);
+      }
+    }
+
+    return buildTenant(data, formSchema, infoDefaults);
   };
 
   const refreshTenant = async () => {
@@ -283,6 +351,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ---------------------------------------------------------
+  // Mount: resolve URL context, fetch tenant, enforce auth scope
+  // ---------------------------------------------------------
   useEffect(() => {
     const smartAdmin = isSmartAdminUrl();
     setIsSmartAdminHost(smartAdmin);
@@ -325,6 +396,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       setIsLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

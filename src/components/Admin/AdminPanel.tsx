@@ -427,8 +427,6 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
         isGlutenFree: editForm.isGlutenFree ?? false,
         preparationTime: s(editForm.preparationTime),
         calories: nz(editForm.calories),
-        rating: nz(editForm.rating),
-        reviewCount: nz(editForm.reviewCount),
         ingredients:
           editForm.ingredients && editForm.ingredients.length > 0
             ? editForm.ingredients
@@ -616,8 +614,6 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
         isGlutenFree: newItemForm.isGlutenFree ?? false,
         preparationTime: s(newItemForm.preparationTime),
         calories: nz(newItemForm.calories),
-        rating: nz(newItemForm.rating),
-        reviewCount: nz(newItemForm.reviewCount),
         ingredients:
           newItemForm.ingredients && newItemForm.ingredients.length > 0
             ? newItemForm.ingredients
@@ -735,7 +731,9 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
 
   // ============ RENDER ============
 
-  const enabledFields = schema.fields.filter((f) => f.enabled);
+  const enabledFields = schema.fields.filter(
+  (f) => f.enabled && !f.platformOnly,
+);
 
   const { isAdmin } = useAuth();
 
