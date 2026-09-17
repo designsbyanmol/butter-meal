@@ -1,5 +1,5 @@
 // components/Reviews/ReviewSection.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MenuItem } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabaseService } from '../../services/supabase.service';
@@ -20,8 +20,8 @@ interface ReviewSectionProps {
   item: MenuItem;
 }
 
-const REVIEW_REFRESH_DELAY_MS = 20_000; // 20 seconds
-const SUCCESS_MESSAGE_MS = 2_000;       // 2 seconds
+const REVIEW_REFRESH_DELAY_MS = 20_000;
+const SUCCESS_MESSAGE_MS = 2_000;
 
 const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
   const { tenant } = useTenant();
@@ -37,19 +37,26 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Refs to clean up pending timers on unmount
-  const successTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideFormTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      if (hideFormTimerRef.current) clearTimeout(hideFormTimerRef.current);
     };
   }, []);
 
-  // ---- Detect device + prior review ----
+  // ---- Detect device + prior review + tenant reviews-enabled flag ----
   useEffect(() => {
+    // If reviews are disabled for this tenant, don't even run the checks
+    if (tenant && tenant.reviewsEnabled === false) {
+      setChecking(false);
+      return;
+    }
+
     const slug = tenant?.slug ?? null;
     const id = getEffectiveDeviceId();
     const fp = getDeviceFingerprint();
@@ -71,7 +78,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         const mine = reviews.some(
           (r) =>
             r.deviceId === id ||
-            (fp && (r as any).deviceFingerprint === fp),
+            (fp && r.deviceFingerprint === fp),
         );
         setHasReviewed(mine);
         if (mine) markReviewedLocally(slug, item.id);
@@ -86,9 +93,10 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, tenant?.slug]);
+  }, [item.id, tenant?.slug, tenant?.reviewsEnabled]);
 
   if (!tenant) return null;
+  if (tenant.reviewsEnabled === false) return null;
   if (checking) return null;
   if (hasReviewed) return null;
   if (!customerName || customerName.trim().length === 0) return null;
@@ -118,7 +126,8 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         draftComment.trim(),
       );
 
-      // Remember locally so the form stays hidden from now on
+      // Persist locally so the form stays hidden even if the admin
+      // deletes the review from the dashboard later
       markReviewedLocally(tenant.slug, item.id);
 
       // Show success message immediately
@@ -129,13 +138,15 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         successTimerRef.current = null;
       }, SUCCESS_MESSAGE_MS);
 
-      // Hide the form after a brief moment (so the message is visible)
-      setTimeout(() => {
+      // Hide the form shortly after the message appears
+      if (hideFormTimerRef.current) clearTimeout(hideFormTimerRef.current);
+      hideFormTimerRef.current = setTimeout(() => {
         setHasReviewed(true);
+        hideFormTimerRef.current = null;
       }, SUCCESS_MESSAGE_MS);
 
-      // Delay the menu refetch by 20s so the customer doesn't see their
-      // own rating reflected on the item instantly.
+      // Delay the menu refetch so the customer doesn't see their own
+      // rating reflected on the item instantly
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         menuService.refresh().catch(() => {
@@ -186,9 +197,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
       />
 
       {error && <div className={styles.error}>{error}</div>}
-      {successMsg && (
-        <div className={styles.successBanner}>{successMsg}</div>
-      )}
+      {successMsg && <div className={styles.successBanner}>{successMsg}</div>}
 
       <div className={styles.actions}>
         <button

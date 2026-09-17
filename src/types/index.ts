@@ -26,7 +26,7 @@ export interface StoreSettings {
   closedMessage: string;
   expectedOpenDate: string;
   expectedOpenTime: string;
-  acceptingOrders: boolean;   // ← NEW
+  acceptingOrders: boolean;
   lastUpdated: string;
 }
 
@@ -181,42 +181,29 @@ export interface AuthState {
 }
 
 // =========================================================
-// TENANT (context type — the DB row is mapped from this)
-// =========================================================
-
-export interface Tenant {
-  id: string;
-  slug: string;
-  displayName: string;
-  whatsappPhone?: string;
-  isActive?: boolean;
-  formSchema?: FormSchema;
-}
-
-// =========================================================
 // WHATSAPP MESSAGE TEMPLATE
 // =========================================================
 
 export interface MessageTemplate {
   // ---- Header ----
-  orderLabel: string;          // e.g., "New Order From {customerName}"
-  namePrompt: string;          // shown in the customer-name popup
+  orderLabel: string;             // e.g., "New Order From {customerName}"
+  namePrompt: string;             // shown in the customer-name popup
   namePromptPlaceholder: string;
 
   // ---- Item list ----
-  itemListTitle: string;       // "Item List"
-  itemLineTemplate: string;    // "{name} x {qty}" — order of tokens, not style
-  showItemDiscount: boolean;   // append "(X% off)" when item has a discount
-  showItemAddons: boolean;     // append "[+RsN add-ons]"
+  itemListTitle: string;          // "Item List"
+  itemLineTemplate: string;       // "{name} x {qty}"
+  showItemDiscount: boolean;
+  showItemAddons: boolean;
   showItemCustomizations: boolean;
-  showItemNotes: boolean;      // append the item's special instructions
+  showItemNotes: boolean;
 
   // ---- Pricing ----
   subtotalLabel: string;
   deliveryLabel: string;
   discountLabel: string;
   totalLabel: string;
-  freeDeliveryLabel: string;   // e.g., "(+Rs {fee} Inc. for delivery)"
+  freeDeliveryLabel: string;      // e.g., "(+Rs {fee} Inc. for delivery)"
 
   // ---- Footer ----
   footerNote1: string;
@@ -248,7 +235,56 @@ export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
   footerSignature: '-Butter Meal',
 };
 
-// types/index.ts (append)
+// =========================================================
+// TENANT (context type — the DB row is mapped to this shape)
+// =========================================================
+
+export interface Tenant {
+  id: string;
+  slug: string;
+  displayName: string;
+  whatsappPhone?: string;
+  isActive?: boolean;
+  formSchema?: FormSchema;
+
+  // ---- Store info (all resolved against ShopInfo fallback) ----
+  bannerUrl?: string;
+  storeTagline?: string;
+  deliveryCharge?: number;
+  storewideDiscount?: number;
+  ownerPhone?: string;
+
+  // ---- WhatsApp message template (falls back to DEFAULT_MESSAGE_TEMPLATE) ----
+  messageTemplate?: MessageTemplate;
+
+  /**
+   * Effective reviews flag. TRUE only when BOTH the global flag
+   * (on the `main` tenant row) and this tenant's own flag are on.
+   */
+  reviewsEnabled?: boolean;
+
+  /**
+   * Field name → true if the current value came from ShopInfo,
+   * not from the DB. Used to render the "Using default" pill in
+   * the store InfoPopup.
+   */
+  infoDefaults?: Partial<
+    Record<
+      | 'displayName'
+      | 'whatsappPhone'
+      | 'bannerUrl'
+      | 'storeTagline'
+      | 'deliveryCharge'
+      | 'storewideDiscount'
+      | 'ownerPhone',
+      boolean
+    >
+  >;
+}
+
+// =========================================================
+// REVIEWS
+// =========================================================
 
 export interface Review {
   id: string;

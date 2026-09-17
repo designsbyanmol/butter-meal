@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Review, ReviewFilter, Tenant } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
+import ReviewSettingsPanel from './ReviewSettingsPanel';
 import styles from './ReviewsOverview.module.scss';
 
 const FILTERS: { key: ReviewFilter; label: string }[] = [
@@ -14,13 +15,18 @@ const FILTERS: { key: ReviewFilter; label: string }[] = [
 
 const PAGE_SIZE = 16;
 
-// ---------- Per-tenant section ----------
+// =========================================================
+// Per-tenant section
+// =========================================================
 interface TenantSectionProps {
   tenant: Tenant;
   refreshTick: number;
 }
 
-const TenantSection: React.FC<TenantSectionProps> = ({ tenant, refreshTick }) => {
+const TenantSection: React.FC<TenantSectionProps> = ({
+  tenant,
+  refreshTick,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<ReviewFilter>('all');
@@ -43,17 +49,18 @@ const TenantSection: React.FC<TenantSectionProps> = ({ tenant, refreshTick }) =>
       setHasMore(list.length === PAGE_SIZE);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load';
+      console.error('[Reviews] load failed:', err);
       setError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-useEffect(() => {
-  if (!isOpen) return;
-  loadFirstPage(filter);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isOpen, tenant.slug, refreshTick]);
+  useEffect(() => {
+    if (!isOpen) return;
+    loadFirstPage(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, tenant.slug, refreshTick]);
 
   const handleFilterChange = (f: ReviewFilter) => {
     setFilter(f);
@@ -97,7 +104,8 @@ useEffect(() => {
     }
   };
 
-  const filterLabel = FILTERS.find((f) => f.key === filter)?.label ?? 'All';
+  const filterLabel =
+    FILTERS.find((f) => f.key === filter)?.label ?? 'All';
 
   return (
     <div className={styles.tenantSection}>
@@ -107,7 +115,11 @@ useEffect(() => {
         onClick={() => setIsOpen((s) => !s)}
         aria-expanded={isOpen}
       >
-        <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>
+        <span
+          className={`${styles.chevron} ${
+            isOpen ? styles.chevronOpen : ''
+          }`}
+        >
           ▸
         </span>
         <span className={styles.tenantName}>{tenant.displayName}</span>
@@ -116,7 +128,6 @@ useEffect(() => {
 
       {isOpen && (
         <div className={styles.tenantBody}>
-          {/* Filter row */}
           <div className={styles.filterRow}>
             <span className={styles.filterLabel}>Filter:</span>
             {FILTERS.map((f) => (
@@ -139,7 +150,7 @@ useEffect(() => {
             <div className={styles.emptyRow}>Loading…</div>
           ) : reviews.length === 0 ? (
             <div className={styles.emptyRow}>
-              No reviews match “{filterLabel}”.
+              No reviews match "{filterLabel}".
             </div>
           ) : (
             <>
@@ -167,15 +178,18 @@ useEffect(() => {
   );
 };
 
-// ---------- Single review card ----------
+// =========================================================
+// Single review card
+// =========================================================
 interface ReviewCardProps {
   review: Review;
   onRemove: (r: Review) => void;
 }
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
-  const stars = '★★★★★'.slice(0, Math.round(review.rating));
-  const empty = '☆☆☆☆☆'.slice(0, 5 - Math.round(review.rating));
+  const rounded = Math.round(review.rating);
+  const stars = '★★★★★'.slice(0, rounded);
+  const empty = '☆☆☆☆☆'.slice(0, 5 - rounded);
   const when = new Date(review.createdAt).toLocaleDateString();
 
   return (
@@ -204,18 +218,22 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
       </div>
 
       {review.comment && (
-        <p className={styles.comment}>“{review.comment}”</p>
+        <p className={styles.comment}>"{review.comment}"</p>
       )}
 
       <div className={styles.footer}>
-        <span className={styles.customer}>{review.customerName || 'Customer'}</span>
+        <span className={styles.customer}>
+          {review.customerName || 'Customer'}
+        </span>
         <span className={styles.when}>{when}</span>
       </div>
     </div>
   );
 };
 
-// ---------- Top-level section ----------
+// =========================================================
+// Top-level section
+// =========================================================
 const ReviewsOverview: React.FC = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -223,9 +241,11 @@ const ReviewsOverview: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      setIsLoading(true);
       try {
         const list = await supabaseService.getAllTenants();
-        setTenants(list);
+        // Exclude the platform 'main' row from the per-store list
+        setTenants(list.filter((t) => t.slug !== 'main'));
       } catch (err) {
         console.warn('Failed to load tenants:', err);
       } finally {
@@ -234,8 +254,33 @@ const ReviewsOverview: React.FC = () => {
     })();
   }, [refreshKey]);
 
-  if (isLoading) return <div className={styles.loading}>Loading stores…</div>;
-  if (tenants.length === 0) return <div className={styles.loading}>No stores yet.</div>;
+  if (isLoading) {
+    return <div className={styles.loading}>Loading stores…</div>;
+  }
+
+  if (tenants.length === 0) {
+    return (
+      <div className={styles.wrap}>
+        <div className={styles.header}>
+          <div>
+            <h2>Reviews Overview</h2>
+            <p>All customer reviews across your stores.</p>
+          </div>
+          <button
+            type="button"
+            className={styles.refreshBtn}
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >
+            ↻ Refresh
+          </button>
+        </div>
+
+        <ReviewSettingsPanel />
+
+        <div className={styles.loading}>No stores yet.</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrap}>
@@ -253,9 +298,15 @@ const ReviewsOverview: React.FC = () => {
         </button>
       </div>
 
+      <ReviewSettingsPanel />
+
       <div className={styles.sections}>
         {tenants.map((t) => (
-          <TenantSection key={t.id} tenant={t} refreshTick={refreshKey} />
+          <TenantSection
+            key={t.id}
+            tenant={t}
+            refreshTick={refreshKey}
+          />
         ))}
       </div>
     </div>

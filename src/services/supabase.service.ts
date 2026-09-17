@@ -690,21 +690,22 @@ if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
   }
 
   async getAllTenants(): Promise<Tenant[]> {
-    const client = this.getClient();
-    if (!client) return [];
-    const { data, error } = await client
-      .from("star_veg_tenants")
-      .select("id, slug, display_name, is_active, whatsapp_phone")
-      .order("created_at", { ascending: true });
-    if (error) return [];
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      slug: row.slug,
-      displayName: row.display_name,
-      whatsappPhone: row.whatsapp_phone || undefined,
-      isActive: row.is_active, // ✅
-    }));
-  }
+  const client = this.getClient();
+  if (!client) return [];
+  const { data, error } = await client
+    .from('star_veg_tenants')
+    .select('id, slug, display_name, is_active, whatsapp_phone, reviews_enabled')
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    slug: row.slug,
+    displayName: row.display_name,
+    whatsappPhone: row.whatsapp_phone || undefined,
+    isActive: row.is_active,
+    reviewsEnabled: row.reviews_enabled !== false,
+  }));
+}
 
   async setTenantActive(slug: string, isActive: boolean): Promise<boolean> {
     const client = this.getClient();
@@ -1012,6 +1013,50 @@ async adminDeleteReview(reviewId: string): Promise<boolean> {
     return false;
   }
   return !!data;
+}
+
+// ============ REVIEWS TOGGLE ============
+
+async setGlobalReviewsEnabled(enabled: boolean): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data, error } = await client.rpc('set_global_reviews_enabled', {
+    enabled_in: enabled,
+  });
+  if (error) {
+    console.error('set_global_reviews_enabled error:', error);
+    throw new Error(error.message || 'Failed to update global setting');
+  }
+  return !!data;
+}
+
+async setTenantReviewsEnabled(
+  slug: string,
+  enabled: boolean,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data, error } = await client.rpc('set_tenant_reviews_enabled', {
+    tenant_slug_in: slug,
+    enabled_in: enabled,
+  });
+  if (error) {
+    console.error('set_tenant_reviews_enabled error:', error);
+    throw new Error(error.message || 'Failed to update setting');
+  }
+  return !!data;
+}
+
+async isGlobalReviewsEnabled(): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return true;
+  const { data, error } = await client
+    .from('star_veg_tenants')
+    .select('reviews_enabled')
+    .eq('slug', 'main')
+    .maybeSingle();
+  if (error || !data) return true;
+  return data.reviews_enabled !== false;
 }
 
 private mapReviewRow(row: any, itemName: string, itemCategory: string): Review {

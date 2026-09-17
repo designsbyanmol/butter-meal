@@ -1,15 +1,15 @@
 // components/Menu/MenuItem.tsx
-import React from "react";
-import { MenuItem } from "../../types";
-import { DEFAULT_FORM_SCHEMA } from "../../types";
-import { useTenant } from "../../contexts/TenantContext";
-import { Special, StarIcon } from "../../assets/svgs";
-import WishlistButton from "./WishlistButton";
-import styles from "./Menu.module.scss";
-import NewIcon from "../../assets/svgs/NewIcon";
-import PopularIcon from "../../assets/svgs/PopularIcon";
-import LimitedIcon from "../../assets/svgs/LimitedIcon";
-import { formatCount } from "../../utils/formatCount";
+import React from 'react';
+import { MenuItem } from '../../types';
+import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { useTenant } from '../../contexts/TenantContext';
+import { Special, StarIcon } from '../../assets/svgs';
+import WishlistButton from './WishlistButton';
+import { formatCount } from '../../utils/formatCount';
+import styles from './Menu.module.scss';
+import NewIcon from '../../assets/svgs/NewIcon';
+import PopularIcon from '../../assets/svgs/PopularIcon';
+import LimitedIcon from '../../assets/svgs/LimitedIcon';
 
 interface MenuItemProps {
   item: MenuItem;
@@ -52,14 +52,17 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     onItemClick(item);
   };
 
-  // Show the rating block ONLY when there's at least one review.
+  // ---- Reviews are hidden when the tenant/global flag is off ----
+  const reviewsEnabled = tenant?.reviewsEnabled !== false;
+
   const hasReviews =
-    typeof item.reviewCount === "number" &&
+    reviewsEnabled &&
+    typeof item.reviewCount === 'number' &&
     item.reviewCount > 0 &&
-    typeof item.rating === "number" &&
+    typeof item.rating === 'number' &&
     item.rating > 0;
 
-  const showVegBadge = isFieldEnabled("isVeg") && item.isVeg === true;
+  const showVegBadge = isFieldEnabled('isVeg') && item.isVeg === true;
 
   // ---------- Price display ----------
   const discount = Number(item.discount ?? 0);
@@ -69,20 +72,18 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     ? Math.round(originalPrice * (1 - discount / 100))
     : originalPrice;
 
-  // Strikethrough: prefer costPrice when there's no discount, else original price
   const showCostPrice =
     !hasDiscount &&
-    isFieldEnabled("costPrice") &&
-    typeof item.costPrice === "number" &&
+    isFieldEnabled('costPrice') &&
+    typeof item.costPrice === 'number' &&
     item.costPrice > 0;
 
   const strikethrough = hasDiscount
     ? originalPrice
     : showCostPrice
-      ? item.costPrice!
-      : null;
+    ? item.costPrice!
+    : null;
 
-  // Custom attributes (short pills)
   const simpleCustomEntries = schema.fields
     .filter((f) => !f.builtin && f.enabled)
     .map((field) => ({ field, value: item.attributes?.[field.key] }))
@@ -90,22 +91,24 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
       ({ value }) =>
         value !== undefined &&
         value !== null &&
-        String(value).trim() !== "" &&
+        String(value).trim() !== '' &&
         String(value).length <= 16,
     )
     .slice(0, 2);
 
   return (
     <div
-      className={`${styles.itemCard} ${isOutOfStock ? styles.outOfStock : ""}`}
+      className={`${styles.itemCard} ${
+        isOutOfStock ? styles.outOfStock : ''
+      }`}
     >
       <div
         className={styles.imageWrapper}
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
-        onKeyDown={(e) => e.key === "Enter" && handleClick()}
-        style={{ cursor: isOutOfStock ? "not-allowed" : "pointer" }}
+        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+        style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
         <WishlistButton
           item={item}
@@ -128,20 +131,20 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
             </div>
           )}
 
-          {/* Discount ribbon on the image */}
           {hasDiscount && !isOutOfStock && (
             <span className={styles.discountRibbon}>-{discount}%</span>
           )}
         </div>
 
-{!isOutOfStock && hasReviews && (
-  <span className={styles.rating}>
-    <StarIcon width={12} height={12} fill="#085b1b" /> {item.rating}
-    <span className={styles.reviewCount}>
-      ({formatCount(item.reviewCount)})
-    </span>
-  </span>
-)}
+        {/* ---- Rating badge: hidden when reviews disabled ---- */}
+        {!isOutOfStock && hasReviews && (
+          <span className={styles.rating}>
+            <StarIcon width={12} height={12} fill="#085b1b" /> {item.rating}
+            <span className={styles.reviewCount}>
+              ({formatCount(item.reviewCount)})
+            </span>
+          </span>
+        )}
 
         {!isOutOfStock &&
           (item.attributes?.isPopular ||
@@ -172,8 +175,8 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
-        onKeyDown={(e) => e.key === "Enter" && handleClick()}
-        style={{ cursor: isOutOfStock ? "not-allowed" : "pointer" }}
+        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+        style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
         <div className={styles.itemName}>{item.name}</div>
 
@@ -181,11 +184,11 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           <div className={styles.itemMeta}>
             {simpleCustomEntries.map(({ field, value }) => (
               <span key={field.key} className={styles.prepTime}>
-                {field.label}:{" "}
-                {typeof value === "boolean"
+                {field.label}:{' '}
+                {typeof value === 'boolean'
                   ? value
-                    ? "Yes"
-                    : "No"
+                    ? 'Yes'
+                    : 'No'
                   : String(value)}
               </span>
             ))}
@@ -234,7 +237,7 @@ export default React.memo(MenuItemComponent, (prev, next) => {
     prev.item.img === next.item.img &&
     prev.item.name === next.item.name &&
     prev.item.price === next.item.price &&
-    prev.item.discount === next.item.discount && // ← NEW
+    prev.item.discount === next.item.discount &&
     prev.item.costPrice === next.item.costPrice &&
     prev.item.inStock === next.item.inStock &&
     prev.item.rating === next.item.rating &&

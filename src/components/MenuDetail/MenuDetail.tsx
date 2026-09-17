@@ -264,11 +264,15 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     typeof item.calories === "number" &&
     item.calories > 0;
 
-const hasReviews =
-  typeof item.reviewCount === 'number' &&
-  item.reviewCount > 0 &&
-  typeof item.rating === 'number' &&
-  item.rating > 0;
+  // ---- Reviews are hidden entirely when the tenant/global flag is off ----
+  const reviewsEnabled = tenant?.reviewsEnabled !== false;
+
+  const hasReviews =
+    reviewsEnabled &&
+    typeof item.reviewCount === "number" &&
+    item.reviewCount > 0 &&
+    typeof item.rating === "number" &&
+    item.rating > 0;
 
   const showSpicy = isFieldEnabled("isSpicy") && item.isSpicy === true;
   const showGlutenFree =
