@@ -305,7 +305,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   // =========================================================
-  // Render — SINGLE
+  // Render - SINGLE
   // =========================================================
   if (!multiple) {
     return (
@@ -401,7 +401,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
-            <span className={styles.progressText}>Uploading…</span>
+            <span className={styles.progressText}>Uploading...</span>
           </div>
         )}
 
@@ -420,7 +420,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   }
 
   // =========================================================
-  // Render — MULTI
+  // Render - MULTI
   // =========================================================
   const canAddMore = images.length < maxImages;
 
@@ -464,7 +464,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                   title="Move right"
                   aria-label="Move right"
                 >
-                  →
+                  RightArrowHoga
                 </button>
               )}
               <button
@@ -489,7 +489,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           >
             <span className={styles.addTilePlus}>+</span>
             <span className={styles.addTileLabel}>
-              {uploading ? 'Uploading…' : 'Add'}
+              {uploading ? 'Uploading...' : 'Add'}
             </span>
           </button>
         )}
@@ -552,9 +552,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
           <span className={styles.progressText}>
             {uploadProgress < 30
-              ? 'Processing…'
+              ? 'Processing...'
               : uploadProgress < 90
-              ? 'Uploading…'
+              ? 'Uploading...'
               : 'Done!'}
           </span>
         </div>

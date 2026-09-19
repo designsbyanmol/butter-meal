@@ -55,7 +55,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave }
         
         <div className={styles.warning}>
           <ClockIcon width={14} height={14} fill="#1e1e1e" />
-          <span>Prepaid only · Remind us before 1hr</span>
+          <span>Prepaid only . Remind us before 1hr</span>
         </div>
         
         <div className={styles.actions}>

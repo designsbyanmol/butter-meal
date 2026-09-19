@@ -2,7 +2,7 @@
 import React from 'react';
 import { MenuItem } from '../../types';
 import { useWishlist } from '../../hooks/useWishlist';
-import { CloseIcon } from '../../assets/svgs';
+import { CloseIcon, WishlistIcon } from '../../assets/svgs';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
 import styles from './WishlistPanel.module.scss';
 
@@ -62,7 +62,7 @@ const WishlistPanel: React.FC<WishlistPanelProps> = ({
             <div className={styles.empty}>
               <WishlistFilledIcon width={42} height={42} fill="#e6ded7" />
               <p>Your wishlist is empty</p>
-              <span>Tap the ♡ on any dish to save it here.</span>
+              <span>Tap the <WishlistIcon width={18} height={18} fill="#4d4d4d" /> on any dish to save it here.</span>
             </div>
           ) : (
             <ul className={styles.list}>

@@ -217,7 +217,7 @@ const CartModal: React.FC<CartModalProps> = ({
                     <>
                       <ClockIcon width={12} height={12} fill="#c0392b" />
                       <span>
-                        Scheduled orders: Prepaid only · Non-refundable ·
+                        Scheduled orders: Prepaid only . Non-refundable .
                         Reminder sent 1hr before
                       </span>
                     </>

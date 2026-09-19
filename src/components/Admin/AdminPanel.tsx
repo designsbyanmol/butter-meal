@@ -1,63 +1,62 @@
 // components/Admin/AdminPanel.tsx
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   MenuItem,
   CustomizationOption,
   DEFAULT_FORM_SCHEMA,
-} from "../../types";
-import { useMenu } from "../../hooks/useMenu";
-import { useTenant } from "../../contexts/TenantContext";
-import styles from "./AdminPanel.module.scss";
-import { CloseIcon } from "../../assets/svgs";
-import BadgeSelector from "./BadgeSelector";
-import CustomizationEditor from "./CustomizationEditor";
-import DynamicField from "./DynamicField";
-import FormBuilder from "./FormBuilder";
-import { useAuth } from '../../hooks/useAuth';
+} from '../../types';
+import { useMenu } from '../../hooks/useMenu';
+import { useTenant } from '../../contexts/TenantContext';
+import { usePlan } from '../../hooks/usePlan';
+import styles from './AdminPanel.module.scss';
+import { CloseIcon, RightArrow } from '../../assets/svgs';
+import BadgeSelector from './BadgeSelector';
+import CustomizationEditor from './CustomizationEditor';
+import DynamicField from './DynamicField';
+import FormBuilder from './FormBuilder';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
-const UNCATEGORIZED = "Uncategorized";
+const UNCATEGORIZED = 'Uncategorized';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { tenant } = useTenant();
+  const plan = usePlan();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
 
   const { items, toggleStock, updateItem, addItem, deleteItem, reorderItems } =
     useMenu();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState<"all" | "inStock" | "outOfStock">("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<'all' | 'inStock' | 'outOfStock'>('all');
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editForm, setEditForm] = useState<Partial<MenuItem>>({});
-  const [formError, setFormError] = useState("");
-  const [formSuccess, setFormSuccess] = useState("");
-  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const [customizationOptions, setCustomizationOptions] = useState<
     CustomizationOption[]
   >([]);
-  const [ingredientsInput, setIngredientsInput] = useState("");
+  const [ingredientsInput, setIngredientsInput] = useState('');
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newItemForm, setNewItemForm] = useState<Partial<MenuItem>>({
-    name: "",
-    desc: "",
+    name: '',
+    desc: '',
     price: 0,
     costPrice: 0,
     discount: 0,
-    img: "",
-    category: "",
+    img: '',
+    category: '',
     isVeg: false,
     isSpicy: false,
     isGlutenFree: false,
-    preparationTime: "",
+    preparationTime: '',
     calories: 0,
     rating: 0,
     reviewCount: 0,
@@ -70,13 +69,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [newCustomizationOptions, setNewCustomizationOptions] = useState<
     CustomizationOption[]
   >([]);
-  const [newIngredientsInput, setNewIngredientsInput] = useState("");
+  const [newIngredientsInput, setNewIngredientsInput] = useState('');
 
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [isReordering, setIsReordering] = useState(false);
 
-  // Collapsible categories
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set(),
   );
@@ -84,7 +82,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const [confirmToggle, setConfirmToggle] = useState<{
     itemId: number;
-    action: "in" | "out";
+    action: 'in' | 'out';
     name: string;
   } | null>(null);
 
@@ -93,11 +91,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canReorder = searchTerm === "" && filter === "all";
+  const canReorder = searchTerm === '' && filter === 'all';
 
-  // Schema allow-list for categories
   const schemaCategorySet = useMemo(() => {
-    const catField = schema.fields.find((f) => f.key === "category");
+    const catField = schema.fields.find((f) => f.key === 'category');
     return new Set<string>(
       (catField?.options ?? []).map((s) => s.trim()).filter(Boolean),
     );
@@ -109,13 +106,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.category?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter =
-        filter === "all"
+        filter === 'all'
           ? true
-          : filter === "inStock"
-            ? item.inStock === true
-            : filter === "outOfStock"
-              ? item.inStock === false
-              : true;
+          : filter === 'inStock'
+          ? item.inStock === true
+          : filter === 'outOfStock'
+          ? item.inStock === false
+          : true;
       return matchesSearch && matchesFilter;
     });
   }, [items, searchTerm, filter]);
@@ -123,9 +120,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const inStockCount = items.filter((item) => item.inStock === true).length;
   const outOfStockCount = items.filter((item) => item.inStock === false).length;
 
-  // ---------- Grouped categories (schema-ordered) ----------
   const categoryGroups = useMemo(() => {
-    const catField = schema.fields.find((f) => f.key === "category");
+    const catField = schema.fields.find((f) => f.key === 'category');
     const categoryOrder = (catField?.options ?? [])
       .map((s) => s.trim())
       .filter(Boolean);
@@ -136,7 +132,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
     const groupsMap = new Map<string, MenuItem[]>();
     filteredItems.forEach((item) => {
-      const raw = (item.category ?? "").trim();
+      const raw = (item.category ?? '').trim();
       const key = raw && schemaCategorySet.has(raw) ? raw : UNCATEGORIZED;
       if (!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key)!.push(item);
@@ -151,7 +147,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       });
   }, [filteredItems, schemaCategorySet, schema]);
 
-  // Collapse everything on first load
   useEffect(() => {
     if (didInitCollapse.current) return;
     if (categoryGroups.length === 0) return;
@@ -159,18 +154,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     didInitCollapse.current = true;
   }, [categoryGroups]);
 
-  // ============ HELPERS ============
-
   const prettyField = (key: string): string => {
     const fromSchema = schema.fields.find((f) => f.key === key);
     if (fromSchema) return fromSchema.label;
     switch (key) {
-      case "name":
-        return "Name";
-      case "price":
-        return "Price";
-      case "img":
-        return "Image";
+      case 'name':
+        return 'Name';
+      case 'price':
+        return 'Price';
+      case 'img':
+        return 'Image';
       default:
         return key;
     }
@@ -181,7 +174,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   ): { errors: Record<string, boolean>; message: string } => {
     const errors: Record<string, boolean> = {};
 
-    if (!form.name || form.name.trim() === "") errors.name = true;
+    if (!form.name || form.name.trim() === '') errors.name = true;
 
     if (
       form.price === undefined ||
@@ -192,14 +185,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       errors.price = true;
     }
 
-    const hasImg =
-  Array.isArray(form.img)
-    ? form.img.some((s) => typeof s === 'string' && s.trim() !== '')
-    : !!(form.img && String(form.img).trim() !== '');
-if (!hasImg) errors.img = true;
+    const hasImg = Array.isArray(form.img)
+      ? form.img.some((s) => typeof s === 'string' && s.trim() !== '')
+      : !!(form.img && String(form.img).trim() !== '');
+    if (!hasImg) errors.img = true;
 
     const count = Object.keys(errors).length;
-    let message = "";
+    let message = '';
     if (count === 1) {
       const field = Object.keys(errors)[0];
       message = `Please fill in the required field: ${prettyField(field)}`;
@@ -210,35 +202,24 @@ if (!hasImg) errors.img = true;
   };
 
   const showTemporaryError = (message: string) => {
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    setFormSuccess("");
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setFormSuccess('');
     setFormError(message);
     errorTimeoutRef.current = setTimeout(() => {
-      setFormError("");
+      setFormError('');
       setInvalidFields({});
       errorTimeoutRef.current = null;
     }, 5000);
   };
 
   const showSuccess = (message: string, delayMs = 1200) => {
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    setFormError("");
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setFormError('');
     setInvalidFields({});
     setFormSuccess(message);
-
-    // Auto-clear the success banner after the delay
     successTimeoutRef.current = setTimeout(() => {
-      setFormSuccess("");
+      setFormSuccess('');
       successTimeoutRef.current = null;
     }, delayMs);
   };
@@ -250,14 +231,12 @@ if (!hasImg) errors.img = true;
     };
   }, []);
 
-  // ============ TOGGLE STOCK ============
-
   const handleToggle = (itemId: number) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     setConfirmToggle({
       itemId,
-      action: item.inStock ? "out" : "in",
+      action: item.inStock ? 'out' : 'in',
       name: item.name,
     });
   };
@@ -269,19 +248,18 @@ if (!hasImg) errors.img = true;
     await toggleStock(itemId);
   };
 
-  // ============ EDIT ============
-
+  // ---------- EDIT ----------
   const handleEditClick = (item: MenuItem) => {
     setEditingItem(item);
-    setFormError("");
-    setFormSuccess("");
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
     setIsSaving(false);
 
     const sanitizedCategory =
       item.category && schemaCategorySet.has(item.category.trim())
         ? item.category
-        : "";
+        : '';
 
     const form: Record<string, any> = {
       name: item.name,
@@ -290,18 +268,16 @@ if (!hasImg) errors.img = true;
       costPrice: item.costPrice,
       discount: item.discount ?? 0,
       img: item.gallery && item.gallery.length > 0
-    ? item.gallery
-    : item.img
-    ? [item.img]
-    : [],
+        ? item.gallery
+        : item.img
+        ? [item.img]
+        : [],
       category: sanitizedCategory,
       isVeg: item.isVeg,
       isSpicy: item.isSpicy,
       isGlutenFree: item.isGlutenFree,
       preparationTime: item.preparationTime,
       calories: item.calories,
-      rating: item.rating,
-      reviewCount: item.reviewCount,
       ingredients: item.ingredients,
       nutritionalInfo: item.nutritionalInfo,
       attributes: item.attributes || {},
@@ -311,26 +287,22 @@ if (!hasImg) errors.img = true;
     schema.fields
       .filter((f) => !f.builtin)
       .forEach((f) => {
-        form[f.key] = item.attributes?.[f.key] ?? "";
+        form[f.key] = item.attributes?.[f.key] ?? '';
       });
 
     setEditForm(form as Partial<MenuItem>);
-    setIngredientsInput(item.ingredients?.join(", ") || "");
+    setIngredientsInput(item.ingredients?.join(', ') || '');
     setCustomizationOptions(item.customizationOptions || []);
   };
 
-  /**
-   * Applies the discount ↔ costPrice mutual exclusion to a form patch.
-   * If discount > 0 → costPrice = 0. If costPrice > 0 → discount = 0.
-   */
   const applyDiscountMutex = (
     patch: Record<string, any>,
   ): Record<string, any> => {
-    if ("discount" in patch) {
+    if ('discount' in patch) {
       const d = Number(patch.discount) || 0;
       if (d > 0) patch.costPrice = 0;
     }
-    if ("costPrice" in patch) {
+    if ('costPrice' in patch) {
       const c = Number(patch.costPrice) || 0;
       if (c > 0) patch.discount = 0;
     }
@@ -340,16 +312,10 @@ if (!hasImg) errors.img = true;
   const handleSaveEdit = async () => {
     if (!editingItem || isSaving) return;
 
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    setFormError("");
-    setFormSuccess("");
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
 
     const { errors, message } = validateRequired(editForm);
@@ -358,7 +324,7 @@ if (!hasImg) errors.img = true;
       showTemporaryError(message);
       document
         .querySelector(`.${styles.editForm}`)
-        ?.scrollTo({ top: 0, behavior: "smooth" });
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -366,16 +332,15 @@ if (!hasImg) errors.img = true;
 
     try {
       const nz = (v: any): number | undefined => {
-        if (v === undefined || v === null || v === "" || Number.isNaN(v)) {
+        if (v === undefined || v === null || v === '' || Number.isNaN(v))
           return undefined;
-        }
         const n = Number(v);
         return Number.isFinite(n) && n > 0 ? n : undefined;
       };
       const s = (v: any): string | undefined => {
         if (v === undefined || v === null) return undefined;
         const str = String(v).trim();
-        return str === "" ? undefined : str;
+        return str === '' ? undefined : str;
       };
 
       const customAttributes: Record<string, any> = {
@@ -385,7 +350,7 @@ if (!hasImg) errors.img = true;
         .filter((f) => !f.builtin && f.enabled)
         .forEach((field) => {
           const value = (editForm as any)[field.key];
-          if (value !== undefined && value !== null && value !== "") {
+          if (value !== undefined && value !== null && value !== '') {
             customAttributes[field.key] = value;
           } else {
             delete customAttributes[field.key];
@@ -398,29 +363,30 @@ if (!hasImg) errors.img = true;
           ? String(editForm.category).trim()
           : undefined;
 
-      // ---- discount + costPrice mutual exclusion at save time ----
       const rawDiscount = Number(editForm.discount) || 0;
-      const discount = rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
+      const discount =
+        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
 
-      const costPrice = discount > 0 ? undefined : nz(editForm.costPrice);
+      const costPrice =
+        discount > 0 ? undefined : nz(editForm.costPrice);
 
       const imgArray = Array.isArray(editForm.img)
-  ? (editForm.img as string[]).filter(Boolean)
-  : typeof editForm.img === 'string' && editForm.img
-  ? [editForm.img]
-  : [];
+        ? (editForm.img as string[]).filter(Boolean)
+        : typeof editForm.img === 'string' && editForm.img
+        ? [editForm.img]
+        : [];
 
-const primaryImg = imgArray[0] ?? '';
-const gallery = imgArray.length > 1 ? imgArray : undefined;
+      const primaryImg = imgArray[0] ?? '';
+      const gallery = imgArray.length > 1 ? imgArray : undefined;
 
       const cleaned: Partial<MenuItem> = {
         name: editForm.name!.trim(),
-        desc: editForm.desc ?? "",
+        desc: editForm.desc ?? '',
         price: editForm.price,
         discount,
         costPrice,
         img: primaryImg,
-  gallery,
+        gallery,
         category: cleanedCategory,
         isVeg: editForm.isVeg ?? false,
         isSpicy: editForm.isSpicy ?? false,
@@ -434,7 +400,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
         nutritionalInfo:
           editForm.nutritionalInfo &&
           Object.values(editForm.nutritionalInfo).some(
-            (v) => v !== undefined && v !== null && String(v).trim() !== "",
+            (v) => v !== undefined && v !== null && String(v).trim() !== '',
           )
             ? editForm.nutritionalInfo
             : undefined,
@@ -444,76 +410,74 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
             : undefined,
         customizationOptions:
           customizationOptions.length > 0 ? customizationOptions : undefined,
+        // NOTE: rating and reviewCount intentionally omitted - they are
+        // derived from customer reviews and cannot be set by the owner.
       };
 
       await updateItem(editingItem.id, cleaned);
-      showSuccess("Item updated successfully!");
-
-      // Close the modal and clear edit state so the user sees the refreshed list
+      showSuccess('Item updated successfully!');
       setTimeout(() => {
         setEditingItem(null);
         setEditForm({});
         setCustomizationOptions([]);
-        setIngredientsInput("");
+        setIngredientsInput('');
       }, 900);
     } catch (err) {
-      console.error("Save edit failed:", err);
-      showTemporaryError("Failed to update menu item. Please try again.");
+      console.error('Save edit failed:', err);
+      showTemporaryError('Failed to update menu item. Please try again.');
       setIsSaving(false);
     }
   };
 
   const handleDeleteItem = async () => {
     if (!editingItem) return;
-
     if (
-      window.confirm(
+      !window.confirm(
         `Are you sure you want to delete "${editingItem.name}"? This action cannot be undone.`,
       )
-    ) {
-      try {
-        await deleteItem(editingItem.id);
-        setEditingItem(null);
-        setEditForm({});
-        setCustomizationOptions([]);
-        setIngredientsInput("");
-      } catch {
-        setFormError("Failed to delete menu item");
-      }
+    )
+      return;
+    try {
+      await deleteItem(editingItem.id);
+      setEditingItem(null);
+      setEditForm({});
+      setCustomizationOptions([]);
+      setIngredientsInput('');
+    } catch {
+      setFormError('Failed to delete menu item');
     }
   };
 
   const handleCancelEdit = () => {
     if (isSaving) return;
     setEditingItem(null);
-    setFormError("");
-    setFormSuccess("");
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
     setIsSaving(false);
     setCustomizationOptions([]);
-    setIngredientsInput("");
+    setIngredientsInput('');
   };
 
-  // ============ ADD NEW ============
-
+  // ---------- ADD NEW ----------
   const handleAddNewItem = () => {
     setIsAddingNew(true);
-    setFormError("");
-    setFormSuccess("");
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
     setIsSaving(false);
     setNewItemForm({
-      name: "",
-      desc: "",
+      name: '',
+      desc: '',
       price: 0,
       costPrice: 0,
       discount: 0,
       img: [] as any,
-      category: "",
+      category: '',
       isVeg: false,
       isSpicy: false,
       isGlutenFree: false,
-      preparationTime: "",
+      preparationTime: '',
       calories: 0,
       rating: 0,
       reviewCount: 0,
@@ -523,23 +487,17 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
       customizationOptions: [],
       inStock: true,
     });
-    setNewIngredientsInput("");
+    setNewIngredientsInput('');
     setNewCustomizationOptions([]);
   };
 
   const handleSaveNewItem = async () => {
     if (isSaving) return;
 
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    setFormError("");
-    setFormSuccess("");
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
 
     const { errors, message } = validateRequired(newItemForm);
@@ -548,7 +506,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
       showTemporaryError(message);
       document
         .querySelector(`.${styles.editForm}`)
-        ?.scrollTo({ top: 0, behavior: "smooth" });
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -556,16 +514,15 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
 
     try {
       const nz = (v: any): number | undefined => {
-        if (v === undefined || v === null || v === "" || Number.isNaN(v)) {
+        if (v === undefined || v === null || v === '' || Number.isNaN(v))
           return undefined;
-        }
         const n = Number(v);
         return Number.isFinite(n) && n > 0 ? n : undefined;
       };
       const s = (v: any): string | undefined => {
         if (v === undefined || v === null) return undefined;
         const str = String(v).trim();
-        return str === "" ? undefined : str;
+        return str === '' ? undefined : str;
       };
 
       const customAttributes: Record<string, any> = {
@@ -575,7 +532,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
         .filter((f) => !f.builtin && f.enabled)
         .forEach((field) => {
           const value = (newItemForm as any)[field.key];
-          if (value !== undefined && value !== null && value !== "") {
+          if (value !== undefined && value !== null && value !== '') {
             customAttributes[field.key] = value;
           }
         });
@@ -587,27 +544,28 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           : undefined;
 
       const rawDiscount = Number(newItemForm.discount) || 0;
-      const discount = rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
-
-      const costPrice = discount > 0 ? undefined : nz(newItemForm.costPrice);
+      const discount =
+        rawDiscount > 0 && rawDiscount <= 100 ? rawDiscount : 0;
+      const costPrice =
+        discount > 0 ? undefined : nz(newItemForm.costPrice);
 
       const imgArray = Array.isArray(newItemForm.img)
-  ? (newItemForm.img as string[]).filter(Boolean)
-  : typeof newItemForm.img === 'string' && newItemForm.img
-  ? [newItemForm.img]
-  : [];
+        ? (newItemForm.img as string[]).filter(Boolean)
+        : typeof newItemForm.img === 'string' && newItemForm.img
+        ? [newItemForm.img]
+        : [];
 
-const primaryImg = imgArray[0] ?? '';
-const gallery = imgArray.length > 1 ? imgArray : undefined;
+      const primaryImg = imgArray[0] ?? '';
+      const gallery = imgArray.length > 1 ? imgArray : undefined;
 
-      const newItem: Omit<MenuItem, "id"> = {
+      const newItem: Omit<MenuItem, 'id'> = {
         name: newItemForm.name!.trim(),
-        desc: newItemForm.desc ?? "",
+        desc: newItemForm.desc ?? '',
         price: newItemForm.price!,
         discount,
         costPrice,
         img: primaryImg,
-  gallery,
+        gallery,
         category: cleanedCategory,
         isVeg: newItemForm.isVeg ?? false,
         isSpicy: newItemForm.isSpicy ?? false,
@@ -621,7 +579,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
         nutritionalInfo:
           newItemForm.nutritionalInfo &&
           Object.values(newItemForm.nutritionalInfo).some(
-            (v) => v !== undefined && v !== null && String(v).trim() !== "",
+            (v) => v !== undefined && v !== null && String(v).trim() !== '',
           )
             ? newItemForm.nutritionalInfo
             : undefined,
@@ -633,21 +591,20 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           newCustomizationOptions.length > 0
             ? newCustomizationOptions
             : undefined,
-        inStock: newItemForm.inStock !== undefined ? newItemForm.inStock : true,
+        inStock:
+          newItemForm.inStock !== undefined ? newItemForm.inStock : true,
       };
 
       await addItem(newItem);
-      showSuccess("Item added successfully!");
-
-      // Close the Add modal so the user sees the new item in the list
+      showSuccess('Item added successfully!');
       setTimeout(() => {
         setIsAddingNew(false);
-        setNewIngredientsInput("");
+        setNewIngredientsInput('');
         setNewCustomizationOptions([]);
       }, 900);
     } catch (err) {
-      console.error("Save new item failed:", err);
-      showTemporaryError("Failed to add menu item. Please try again.");
+      console.error('Save new item failed:', err);
+      showTemporaryError('Failed to add menu item. Please try again.');
       setIsSaving(false);
     }
   };
@@ -655,30 +612,26 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
   const handleCancelNewItem = () => {
     if (isSaving) return;
     setIsAddingNew(false);
-    setFormError("");
-    setFormSuccess("");
+    setFormError('');
+    setFormSuccess('');
     setInvalidFields({});
     setIsSaving(false);
-    setNewIngredientsInput("");
+    setNewIngredientsInput('');
     setNewCustomizationOptions([]);
   };
 
-  // ============ DRAG & DROP ============
-
+  // ---------- DRAG & DROP ----------
   const handleDragStart = (e: React.DragEvent, id: number) => {
     setDraggedId(id);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(id));
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
   };
-
   const handleDragOver = (e: React.DragEvent, id: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect = 'move';
     if (id !== dragOverId) setDragOverId(id);
   };
-
   const handleDragLeave = () => setDragOverId(null);
-
   const handleDragEnd = () => {
     setDraggedId(null);
     setDragOverId(null);
@@ -687,38 +640,31 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
   const handleDrop = async (e: React.DragEvent, targetId: number) => {
     e.preventDefault();
     setDragOverId(null);
-
     if (draggedId === null || draggedId === targetId) {
       setDraggedId(null);
       return;
     }
-
     const currentOrder = filteredItems.map((i) => i.id);
     const fromIndex = currentOrder.indexOf(draggedId);
     const toIndex = currentOrder.indexOf(targetId);
-
     if (fromIndex === -1 || toIndex === -1) {
       setDraggedId(null);
       return;
     }
-
     const newOrder = [...currentOrder];
     newOrder.splice(fromIndex, 1);
     newOrder.splice(toIndex, 0, draggedId);
-
     setDraggedId(null);
     setIsReordering(true);
     try {
       await reorderItems(newOrder);
     } catch (err) {
-      console.error("Reorder failed:", err);
-      setFormError("Failed to save the new order. Please try again.");
+      console.error('Reorder failed:', err);
+      setFormError('Failed to save the new order. Please try again.');
     } finally {
       setIsReordering(false);
     }
   };
-
-  // ============ CATEGORY COLLAPSE ============
 
   const toggleCategory = (category: string) => {
     setCollapsedCategories((prev) => {
@@ -729,25 +675,23 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
     });
   };
 
-  // ============ RENDER ============
-
   const enabledFields = schema.fields.filter(
-  (f) => f.enabled && !f.platformOnly,
-);
-
-  const { isAdmin } = useAuth();
+    (f) => f.enabled && !f.platformOnly,
+  );
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>Menu Items</h2>
-          {isAdmin && (
+
+          {plan.canEditFields && (
             <button className={styles.addNewBtn} onClick={handleAddNewItem}>
               + Add New Item
             </button>
           )}
-          {isAdmin && (
+
+          {plan.canEditFields && (
             <button
               className={styles.addNewBtn}
               onClick={() => setIsFormBuilderOpen(true)}
@@ -756,6 +700,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
               Edit Fields
             </button>
           )}
+
           <button className={styles.closeBtn} onClick={onClose}>
             <CloseIcon width={18} height={18} fill="#4d4d4d" />
           </button>
@@ -816,12 +761,10 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
             </div>
           ) : (
             (() => {
-              const forceOpen = searchTerm.trim() !== "";
-
+              const forceOpen = searchTerm.trim() !== '';
               return categoryGroups.map((group) => {
                 const isCollapsed =
                   !forceOpen && collapsedCategories.has(group.category);
-
                 return (
                   <div key={group.category} className={styles.categoryGroup}>
                     <button
@@ -835,11 +778,11 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                     >
                       <span
                         className={`${styles.chevron} ${
-                          isCollapsed ? "" : styles.chevronOpen
+                          isCollapsed ? '' : styles.chevronOpen
                         }`}
                         aria-hidden
                       >
-                        ▸
+                        <RightArrow width={16} height={16} fill="#1e1e1e"/>
                       </span>
                       <span className={styles.categoryGroupName}>
                         {group.category}
@@ -855,17 +798,16 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                           const isDragging = draggedId === item.id;
                           const isDropTarget =
                             dragOverId === item.id && draggedId !== item.id;
-
                           return (
                             <div
                               key={item.id}
                               className={[
                                 styles.itemRow,
-                                isDragging ? styles.dragging : "",
-                                isDropTarget ? styles.dropTarget : "",
+                                isDragging ? styles.dragging : '',
+                                isDropTarget ? styles.dropTarget : '',
                               ]
                                 .filter(Boolean)
-                                .join(" ")}
+                                .join(' ')}
                               draggable={canReorder}
                               onDragStart={
                                 canReorder
@@ -885,14 +827,12 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                                   ? (e) => handleDrop(e, item.id)
                                   : undefined
                               }
-                              onDragEnd={canReorder ? handleDragEnd : undefined}
+                              onDragEnd={
+                                canReorder ? handleDragEnd : undefined
+                              }
                             >
                               {canReorder && (
-                                <div
-                                  className={styles.dragHandle}
-                                  title="Drag to reorder"
-                                  aria-label="Drag to reorder"
-                                >
+                                <div className={styles.dragHandle}>
                                   <span className={styles.dragDots}></span>
                                 </div>
                               )}
@@ -906,11 +846,11 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                                 <div>
                                   <div className={styles.itemName}>
                                     {item.name}
-                                    {item.discount && item.discount > 0 ? (
+                                    {item.discount && item.discount > 0 && (
                                       <span className={styles.discountBadge}>
                                         −{item.discount}%
                                       </span>
-                                    ) : ('')}
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -924,18 +864,20 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                                         : styles.outOfStockBadge
                                     }
                                   >
-                                    {item.inStock ? "In" : "Out"}
+                                    {item.inStock ? 'In' : 'Out'}
                                   </span>
                                 </div>
                                 <button
                                   className={`${styles.toggleBtn} ${
-                                    !item.inStock ? styles.outOfStockBtn : ""
+                                    !item.inStock
+                                      ? styles.outOfStockBtn
+                                      : ''
                                   }`}
                                   onClick={() => handleToggle(item.id)}
                                 >
                                   {item.inStock
-                                    ? "Mark Out of Stock"
-                                    : "Restock"}
+                                    ? 'Mark Out of Stock'
+                                    : 'Restock'}
                                 </button>
                                 <button
                                   className={styles.editBtn}
@@ -956,7 +898,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           )}
         </div>
 
-        {/* ========== ADD NEW ITEM MODAL ========== */}
+        {/* ---------- ADD NEW MODAL ---------- */}
         {isAddingNew && (
           <div className={styles.editModal}>
             <div className={styles.editModalContent}>
@@ -996,17 +938,21 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                     }}
                     invalid={!!invalidFields[field.key]}
                     onImageUploaded={
-                      field.key === "img"
-                        ? (url) => setNewItemForm({ ...newItemForm, img: url })
+                      field.key === 'img'
+                        ? (url) =>
+                            setNewItemForm((prev) => ({
+                              ...prev,
+                              img: url ? [url] : [],
+                            }))
                         : undefined
                     }
                     ingredientsInput={
-                      field.key === "ingredients"
+                      field.key === 'ingredients'
                         ? newIngredientsInput
                         : undefined
                     }
                     onIngredientsInputChange={
-                      field.key === "ingredients"
+                      field.key === 'ingredients'
                         ? setNewIngredientsInput
                         : undefined
                     }
@@ -1044,7 +990,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                     onClick={handleSaveNewItem}
                     disabled={isSaving}
                   >
-                    {isSaving ? "Saving..." : "Add Item"}
+                    {isSaving ? 'Saving...' : 'Add Item'}
                   </button>
                 </div>
               </div>
@@ -1052,13 +998,16 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           </div>
         )}
 
-        {/* ========== EDIT ITEM MODAL ========== */}
+        {/* ---------- EDIT MODAL ---------- */}
         {editingItem && (
           <div className={styles.editModal}>
             <div className={styles.editModalContent}>
               <div className={styles.editModalHeader}>
                 <h3>Edit Menu Item</h3>
-                <button className={styles.closeBtn} onClick={handleCancelEdit}>
+                <button
+                  className={styles.closeBtn}
+                  onClick={handleCancelEdit}
+                >
                   <CloseIcon width={18} height={18} fill="#4d4d4d" />
                 </button>
               </div>
@@ -1089,15 +1038,21 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                     }}
                     invalid={!!invalidFields[field.key]}
                     onImageUploaded={
-                      field.key === "img"
-                        ? (url) => setEditForm({ ...editForm, img: url })
+                      field.key === 'img'
+                        ? (url) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              img: url ? [url] : [],
+                            }))
                         : undefined
                     }
                     ingredientsInput={
-                      field.key === "ingredients" ? ingredientsInput : undefined
+                      field.key === 'ingredients'
+                        ? ingredientsInput
+                        : undefined
                     }
                     onIngredientsInputChange={
-                      field.key === "ingredients"
+                      field.key === 'ingredients'
                         ? setIngredientsInput
                         : undefined
                     }
@@ -1132,7 +1087,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
                     onClick={handleSaveEdit}
                     disabled={isSaving}
                   >
-                    {isSaving ? "Saving..." : "Save Changes"}
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>
@@ -1140,7 +1095,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           </div>
         )}
 
-        {/* ========== CONFIRM TOGGLE STOCK ========== */}
+        {/* ---------- CONFIRM TOGGLE STOCK ---------- */}
         {confirmToggle && (
           <div
             className={styles.confirmOverlay}
@@ -1152,14 +1107,14 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
             >
               <div className={styles.confirmHeader}>
                 <h3>
-                  {confirmToggle.action === "out"
-                    ? "Mark Out of Stock"
-                    : "Restock Item"}
+                  {confirmToggle.action === 'out'
+                    ? 'Mark Out of Stock'
+                    : 'Restock Item'}
                 </h3>
               </div>
               <div className={styles.confirmBody}>
                 <p>
-                  {confirmToggle.action === "out"
+                  {confirmToggle.action === 'out'
                     ? `Mark "${confirmToggle.name}" as Out of Stock?`
                     : `Restock "${confirmToggle.name}"?`}
                 </p>
@@ -1182,7 +1137,7 @@ const gallery = imgArray.length > 1 ? imgArray : undefined;
           </div>
         )}
 
-        {/* ========== FORM BUILDER ========== */}
+        {/* ---------- FORM BUILDER ---------- */}
         {isFormBuilderOpen && (
           <FormBuilder onClose={() => setIsFormBuilderOpen(false)} />
         )}

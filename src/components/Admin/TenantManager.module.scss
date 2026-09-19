@@ -893,8 +893,257 @@ $transition: 0.18s ease;
   }
 }
 
-/* The second tag is "Customer" — different tint */
+/* The second tag is "Customer" - different tint */
 .urlRow:nth-child(2) .urlTag {
   background: #fef4e6;
   color: #92400e;
+}
+
+/* ---------- Plan badge ---------- */
+.planBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  margin-left: 8px;
+  border-radius: 999px;
+  border: none;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+.planBasic {
+  background: #eef1fb;
+  color: #1e40af;
+}
+
+.planDynamic {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.planProfessional {
+  background: #e6f5e9;
+  color: #166534;
+}
+
+/* ---------- Pause bell ---------- */
+.pauseBell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  cursor: pointer;
+  animation: bellPulse 1.6s ease-in-out infinite;
+
+  &:hover {
+    background: #fee2e2;
+  }
+}
+
+@keyframes bellPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0); }
+}
+
+.pendingCount {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+/* ---------- Plan details / pause dialogs ---------- */
+.planDialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.planDialog {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.planDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f0eae5;
+
+  h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+  }
+}
+
+.planDialogBody {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planDialogRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #4d4d4d;
+
+  strong {
+    color: #1e1e1e;
+  }
+}
+
+.statusPill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.statusActive {
+  background: #e6f5e9;
+  color: #166534;
+}
+.statusPaused {
+  background: #fef3c7;
+  color: #92400e;
+}
+.statusExpired {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.featureList {
+  margin-top: 8px;
+  border-top: 1px solid #f0eae5;
+  padding-top: 12px;
+
+  h5 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #a89b92;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    li {
+      font-size: 13px;
+      color: #4d4d4d;
+    }
+  }
+}
+
+.planDialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid #f0eae5;
+}
+
+.primaryBtn,
+.ghostBtn,
+.dangerBtn {
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.primaryBtn {
+  background: #1e7e34;
+  color: #fff;
+}
+
+.ghostBtn {
+  background: #f5f1ec;
+  color: #4d4d4d;
+}
+
+.dangerBtn {
+  background: #dc2626;
+  color: #fff;
+}
+.expiryLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #4d4d4d;
+  flex-wrap: wrap;
+}
+
+.expiryLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #a89b92;
+}
+
+.expiryDate {
+  font-weight: 600;
+  color: #1e1e1e;
+}
+
+.expiryDays {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f5f1ec;
+  color: #7d6b60;
+}
+
+.expirySoon {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.expiryExpired {
+  background: #fef2f2;
+  color: #b91c1c;
 }

@@ -592,7 +592,7 @@
 /* Existing categoryChip input needs a touch more left padding now
    that a handle sits to its left */
 .categoryChip {
-  /* …your existing rules… */
+  /* ...your existing rules... */
   cursor: grab;
 
   &:active {
@@ -601,6 +601,6 @@
 }
 
 .categoryChipInput {
-  /* …existing rules… */
+  /* ...existing rules... */
   cursor: text;
 }

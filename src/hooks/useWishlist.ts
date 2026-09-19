@@ -9,7 +9,7 @@ const EVENT_NAME = 'wishlist:changed';
 /** Per-tenant key so switching stores never mixes wishlists. */
 const keyFor = (slug: string) => `${STORAGE_PREFIX}::${slug}`;
 
-/** id → snapshot of the item at time of saving */
+/** id > snapshot of the item at time of saving */
 type WishlistRecord = Record<number, MenuItem>;
 
 function read(slug: string): WishlistRecord {
@@ -27,7 +27,7 @@ function write(slug: string, data: WishlistRecord): void {
   try {
     localStorage.setItem(keyFor(slug), JSON.stringify(data));
   } catch {
-    /* quota / private mode — ignore */
+    /* quota / private mode - ignore */
   }
 }
 
@@ -76,7 +76,7 @@ export const useWishlist = () => {
 
   // --------------------------------------------------------------
   // toggle uses the FUNCTIONAL form of setState so it always sees
-  // the freshest `record` — no stale-closure bug, even from memoized
+  // the freshest `record` - no stale-closure bug, even from memoized
   // child components that captured an old `toggle` reference.
   // --------------------------------------------------------------
   const toggle = useCallback(
@@ -131,7 +131,7 @@ export const useWishlist = () => {
   }, [slug, commit]);
 
   // --------------------------------------------------------------
-  // Cheap, non-memoized helpers — fine because MenuItem is memoized
+  // Cheap, non-memoized helpers - fine because MenuItem is memoized
   // on `isWishlisted` (a boolean) not on the function identity.
   // --------------------------------------------------------------
   const isWishlisted = (id: number) => record[id] !== undefined;

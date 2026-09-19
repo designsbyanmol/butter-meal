@@ -60,7 +60,7 @@ export const getDeviceId = (): string | null => {
       return stored;
     }
 
-    // Explicitly typed const — no ambiguity, no unions
+    // Explicitly typed const - no ambiguity, no unions
     const generated: string =
       (crypto as any)?.randomUUID?.() ??
       `dev_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;

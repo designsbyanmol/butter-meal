@@ -92,7 +92,7 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
             onChange={(e) => onChange(e.target.value)}
             className={`${styles.defaultSelect} ${errorClass}`}
           >
-            <option value="">— Select —</option>
+            <option value="">- Select -</option>
             {selectOptions.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -101,7 +101,7 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
           </select>
           {field.key === 'category' && selectOptions.length === 0 && (
             <small className={styles.fieldHint}>
-              No categories yet — add some in <strong>Edit Fields</strong>.
+              No categories yet - add some in <strong>Edit Fields</strong>.
             </small>
           )}
         </div>
@@ -158,7 +158,7 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
               placeholder="0"
             />
             <small className={styles.fieldHint}>
-              Enter 0–100. Setting a discount forces Cost Price to 0.
+              Enter 0-100. Setting a discount forces Cost Price to 0.
             </small>
           </div>
         );

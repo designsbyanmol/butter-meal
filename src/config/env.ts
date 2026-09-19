@@ -10,6 +10,11 @@ export const config = {
     storeSettings: 'star_veg_store_settings',
   },
 
+  razorpay: {
+    keyId: 'rzp_test_TdSomk4m8hX0be',   // public, safe in the browser
+    // NOTE: the secret is NOT here. It lives only in Supabase secrets.
+  },
+
   // Third-party API keys
   imgApiKey: '62ab93456c2cb8232f6f216a1475426d',
 };

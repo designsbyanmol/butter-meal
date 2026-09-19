@@ -1,0 +1,87 @@
+.wrap {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid #f0eae5;
+  border-radius: 12px;
+  background: #fdfbf8;
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+
+  img {
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #f0eae5;
+    padding: 6px;
+  }
+}
+
+.qrHint {
+  font-size: 11px;
+  color: #7d6b60;
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+.details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detailLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #a89b92;
+}
+
+.detailValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1e1e1e;
+  word-break: break-all;
+  font-family: 'Menlo', 'Courier New', monospace;
+}
+
+.copyBtn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1ead6;
+  background: #f4fbf5;
+  color: #1e7e34;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+
+  &:hover {
+    background: #e6f5e9;
+  }
+}

@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.log
 src/config/env.ts
+.vscode
+.history
+supabase sql

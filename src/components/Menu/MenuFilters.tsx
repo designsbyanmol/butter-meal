@@ -27,7 +27,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
   const { tenant } = useTenant();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
 
-  // Schema category order — pills follow this exactly
+  // Schema category order - pills follow this exactly
   const categories = useMemo(() => {
     const catField = schema.fields.find((f) => f.key === 'category');
     const options = (catField?.options ?? [])
@@ -63,7 +63,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
           <input
             type="text"
             className={styles.searchInput}
-            placeholder="Search dishes, categories…"
+            placeholder="Search dishes, categories..."
             value={filters.search}
             onChange={(e) =>
               onChange({ ...filters, search: e.target.value })
@@ -96,7 +96,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
         </button>
       </div>
 
-      {/* Category pills — ordered by schema */}
+      {/* Category pills - ordered by schema */}
       {categories.length > 0 && (
         <div className={styles.pillRow}>
           <button

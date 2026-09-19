@@ -54,7 +54,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
   const isFetchingRef = useRef(false);
 
   // ---------------------------------------------------------
-  // Fetch — always hit Supabase for the current tenant
+  // Fetch - always hit Supabase for the current tenant
   // ---------------------------------------------------------
   const fetchLatestSettings = async (
     force = false,
@@ -131,7 +131,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
 // their own screen via the optimistic update in updateStoreSettings.
 
   // ---------------------------------------------------------
-  // Update — writes to the current tenant only
+  // Update - writes to the current tenant only
   // ---------------------------------------------------------
   const updateStoreSettings = (settings: Partial<StoreSettings>) => {
     if (!tenant) return;

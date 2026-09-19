@@ -1,12 +1,15 @@
 // components/Admin/TenantManager.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabaseService } from '../../services/supabase.service';
+import { planService } from '../../services/plan.service';
 import { Tenant } from '../../contexts/TenantContext';
 import { credentialCache } from '../../services/credentialCache';
+import { PauseRequest } from '../../types';
 import { CloseIcon, PlusIcon } from '../../assets/svgs';
+import PlanBadge from './PlanBadge';
+import PauseRequestIcon from './PauseRequestIcon';
+import PlanChangeModal from '../Payments/PlanChangeModal';
 import styles from './TenantManager.module.scss';
-import { menuItems as defaultMenuItems } from "../../data/menuData";
-import { DEFAULT_FORM_SCHEMA } from '../../types';
 
 interface TenantManagerProps {
   onClose: () => void;
@@ -16,6 +19,8 @@ interface TenantRow extends Tenant {
   url: string;
   ownerPhone?: string;
   ownerName?: string;
+  hasPauseRequest?: boolean;
+  pauseRequestId?: string;
 }
 
 const slugify = (s: string): string =>
@@ -25,7 +30,6 @@ const slugify = (s: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-/** Human-friendly random password — skips ambiguous characters. */
 const generateRandomPassword = (length = 8): string => {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let pw = '';
@@ -40,24 +44,22 @@ const formatGeneratedAt = (iso: string): string => {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-
   if (diffMin < 1) return 'just now';
   if (diffMin < 60) return `${diffMin} min ago`;
-
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr} hr ago`;
-
   return d.toLocaleDateString();
 };
 
 const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [pauseRequests, setPauseRequests] = useState<PauseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  // -------- Create modal state --------
+  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [slug, setSlug] = useState('');
@@ -68,7 +70,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [ownerPassword, setOwnerPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // -------- Edit form state --------
+  // Edit
   const [editingTenant, setEditingTenant] = useState<TenantRow | null>(null);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editOwnerName, setEditOwnerName] = useState('');
@@ -78,7 +80,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // -------- Copy-credentials modal state --------
+  // Credentials modal
   const [credentialsModal, setCredentialsModal] = useState<{
     displayName: string;
     adminUrl: string;
@@ -90,54 +92,75 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   } | null>(null);
   const [showCredentialsPassword, setShowCredentialsPassword] = useState(false);
 
-  // Auto-derive slug from display name until user edits it manually
+  // Change Plan modal
+  const [changePlanFor, setChangePlanFor] = useState<TenantRow | null>(null);
+
+  /**
+ * Best-effort guess of the tenant's current subscription cycle length.
+ * Rounds the remaining-days to the nearest allowed duration bucket.
+ * Falls back to 1.
+ */
+const estimateCurrentMonths = (tenant: {
+  daysUntilExpiry?: number;
+}): number => {
+  const days = tenant.daysUntilExpiry;
+  if (typeof days !== 'number' || days === Infinity || days <= 0) return 1;
+  if (days <= 45) return 1;
+  if (days <= 135) return 3;
+  if (days <= 270) return 6;
+  if (days <= 540) return 12;
+  return 24;
+};
+  // Auto-slug
   useEffect(() => {
-    if (!slugTouched) {
-      setSlug(slugify(displayName));
-    }
+    if (!slugTouched) setSlug(slugify(displayName));
   }, [displayName, slugTouched]);
 
-  // ---------- URL builders ----------
-  const buildTenantUrl = (slug: string): string => {
-    const origin = window.location.origin;
-    const path = window.location.pathname;
-    return `${origin}${path}?t=${slug}`;
-  };
+  const buildTenantUrl = (slug: string): string =>
+    `${window.location.origin}${window.location.pathname}?t=${slug}`;
 
-  const buildAdminUrl = (slug: string): string => {
-    const origin = window.location.origin;
-    const path = window.location.pathname;
-    return `${origin}${path}?t=${slug}_admin`;
-  };
+  const buildAdminUrl = (slug: string): string =>
+    `${window.location.origin}${window.location.pathname}?t=${slug}_admin`;
 
-  const loadTenants = async () => {
+  const loadAll = async () => {
     setLoading(true);
-    const list = await supabaseService.getAllTenants();
+    const [list, requests] = await Promise.all([
+      supabaseService.getAllTenants(),
+      planService.getPendingPauseRequests(),
+    ]);
+
+    const byslug: Record<string, PauseRequest> = {};
+    requests.forEach((r) => {
+      byslug[r.tenantSlug] = r;
+    });
 
     const enriched: TenantRow[] = await Promise.all(
       list.map(async (t) => {
         const owner = await supabaseService.getTenantOwner(t.slug);
+        const req = byslug[t.slug];
         return {
           ...t,
           url: buildTenantUrl(t.slug),
           ownerPhone: owner?.phone,
           ownerName: owner?.name,
+          hasPauseRequest: !!req,
+          pauseRequestId: req?.id,
         };
       }),
     );
     setTenants(enriched);
+    setPauseRequests(requests);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadTenants();
+    loadAll();
   }, []);
 
   const flashSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(''), 4000);
   };
-
   const flashError = (msg: string) => {
     setError(msg);
     setTimeout(() => setError(''), 5000);
@@ -162,15 +185,12 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     }
   };
 
-  const openInNewTab = (slug: string) => {
+  const openInNewTab = (slug: string) =>
     window.open(buildTenantUrl(slug), '_blank');
-  };
-
-  const openAdminInNewTab = (slug: string) => {
+  const openAdminInNewTab = (slug: string) =>
     window.open(buildAdminUrl(slug), '_blank');
-  };
 
-  // -------- Create modal open/close --------
+  // ---------- Create flow ----------
   const openCreateModal = () => {
     setDisplayName('');
     setSlug('');
@@ -181,8 +201,6 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     setOwnerPassword('');
     setShowPassword(false);
     setIsCreateOpen(true);
-    setError('');
-    setSuccess('');
   };
 
   const closeCreateModal = () => {
@@ -190,104 +208,19 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     setIsCreateOpen(false);
   };
 
-  // -------- Copy credentials (session-cached) --------
-  const handleCopyCredentials = async (tenant: TenantRow) => {
-    setError('');
-    setSuccess('');
-
-    const cached = credentialCache.get(tenant.slug);
-
-    if (cached) {
-      const owner = await supabaseService.getTenantOwner(tenant.slug);
-      if (!owner) {
-        flashError("Could not find this store's owner account");
-        return;
-      }
-
-      setCredentialsModal({
-        displayName: tenant.displayName,
-        adminUrl: buildAdminUrl(tenant.slug),
-        customerUrl: buildTenantUrl(tenant.slug),
-        phone: owner.phone,
-        password: cached.password,
-        generatedAt: cached.generatedAt,
-        isNew: false,
-      });
-      setShowCredentialsPassword(true);
-      return;
-    }
-
-    const owner = await supabaseService.getTenantOwner(tenant.slug);
-    if (!owner) {
-      flashError("Could not find this store's owner account");
-      return;
-    }
-
-    const newPassword = generateRandomPassword();
-    const resetOk = await supabaseService.resetTenantOwnerPassword(
-      tenant.slug,
-      owner.phone,
-      newPassword,
-    );
-    if (!resetOk) {
-      flashError('Failed to prepare credentials');
-      return;
-    }
-
-    const generatedAt = new Date().toISOString();
-    credentialCache.set(tenant.slug, newPassword);
-
-    setCredentialsModal({
-      displayName: tenant.displayName,
-      adminUrl: buildAdminUrl(tenant.slug),
-      customerUrl: buildTenantUrl(tenant.slug),
-      phone: owner.phone,
-      password: newPassword,
-      generatedAt,
-      isNew: true,
-    });
-    setShowCredentialsPassword(true);
-  };
-
-  const copyCredentialsToClipboard = async () => {
-    if (!credentialsModal) return;
-    const { displayName, adminUrl, customerUrl, phone, password } =
-      credentialsModal;
-    const text =
-      `*${displayName} — Login Details*\n\n` +
-      `Admin URL (owner login):\n${adminUrl}\n\n` +
-      `Customer URL (share with customers):\n${customerUrl}\n\n` +
-      `Phone: ${phone}\n` +
-      `Password: ${password}\n\n` +
-      `Keep these credentials safe.`;
-
-    const ok = await copyToClipboard(text);
-    if (ok) {
-      flashSuccess('Credentials copied to clipboard');
-    } else {
-      flashError('Could not access clipboard');
-    }
-  };
-
-  // -------- Create --------
   const validateCreateForm = (): string | null => {
     if (!displayName.trim()) return 'Store name is required';
     if (!slug.trim()) return 'URL slug is required';
-    if (!/^[a-z0-9-]+$/.test(slug)) {
+    if (!/^[a-z0-9-]+$/.test(slug))
       return 'Slug can only contain lowercase letters, numbers and hyphens';
-    }
-    if (tenants.some((t) => t.slug === slug)) {
+    if (tenants.some((t) => t.slug === slug))
       return 'A tenant with this URL slug already exists';
-    }
-    if (!ownerPhone.trim() || ownerPhone.length < 10) {
+    if (!ownerPhone.trim() || ownerPhone.length < 10)
       return 'Owner phone must be at least 10 digits';
-    }
-    if (whatsappPhone && whatsappPhone.length < 10) {
+    if (whatsappPhone && whatsappPhone.length < 10)
       return 'WhatsApp number must be 10 digits (or leave blank)';
-    }
-    if (!ownerPassword || ownerPassword.length < 6) {
+    if (!ownerPassword || ownerPassword.length < 6)
       return 'Owner password must be at least 6 characters';
-    }
     return null;
   };
 
@@ -295,10 +228,9 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
-    const validationError = validateCreateForm();
-    if (validationError) {
-      flashError(validationError);
+    const v = validateCreateForm();
+    if (v) {
+      flashError(v);
       return;
     }
 
@@ -313,32 +245,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
         whatsappPhone: whatsappPhone.trim() || undefined,
       });
 
-      // After createTenantWithOwner, before showing credentials modal
-try {
-  // Derive the initial category list from the seed menu
-  const initialCats = Array.from(
-    new Set(
-      defaultMenuItems
-        .map((it) => it.category?.trim())
-        .filter((c): c is string => !!c),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
-
-  if (initialCats.length > 0) {
-    const seededSchema = {
-      fields: DEFAULT_FORM_SCHEMA.fields.map((f) =>
-        f.key === 'category' ? { ...f, options: initialCats } : f,
-      ),
-    };
-    await supabaseService.updateFormSchema(tenant.slug, seededSchema);
-  }
-} catch (err) {
-  console.warn('Failed to seed initial categories:', err);
-}
-
-      const generatedAt = new Date().toISOString();
       credentialCache.set(tenant.slug, ownerPassword);
-
       setIsCreateOpen(false);
 
       setCredentialsModal({
@@ -347,68 +254,33 @@ try {
         customerUrl: buildTenantUrl(tenant.slug),
         phone: ownerPhone.trim(),
         password: ownerPassword,
-        generatedAt,
+        generatedAt: new Date().toISOString(),
         isNew: true,
       });
       setShowCredentialsPassword(true);
-
-      await loadTenants();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create store';
-      flashError(msg);
+      await loadAll();
+    } catch (err) {
+      flashError(err instanceof Error ? err.message : 'Failed to create store');
     } finally {
       setIsCreating(false);
     }
   };
 
-  // -------- Edit --------
-  const startEditing = (tenant: TenantRow) => {
-    setEditingTenant(tenant);
-    setEditDisplayName(tenant.displayName);
-    setEditOwnerName(tenant.ownerName ?? '');
-    setEditOwnerPhone(tenant.ownerPhone ?? '');
-    setEditWhatsappPhone(tenant.whatsappPhone ?? '');
-    setEditPassword('');
-    setShowEditPassword(false);
-    setError('');
-    setSuccess('');
-  };
-
-  const cancelEditing = () => {
-    setEditingTenant(null);
-    setEditDisplayName('');
-    setEditOwnerName('');
-    setEditOwnerPhone('');
-    setEditWhatsappPhone('');
+  // ---------- Edit flow ----------
+  const startEditing = (t: TenantRow) => {
+    setEditingTenant(t);
+    setEditDisplayName(t.displayName);
+    setEditOwnerName(t.ownerName ?? '');
+    setEditOwnerPhone(t.ownerPhone ?? '');
+    setEditWhatsappPhone(t.whatsappPhone ?? '');
     setEditPassword('');
     setShowEditPassword(false);
   };
 
-  const validateEditForm = (): string | null => {
-    if (!editDisplayName.trim()) return 'Store name is required';
-    if (!editOwnerPhone.trim() || editOwnerPhone.length < 10) {
-      return 'Owner phone must be at least 10 digits';
-    }
-    if (editWhatsappPhone && editWhatsappPhone.length < 10) {
-      return 'WhatsApp number must be 10 digits (or leave blank)';
-    }
-    if (editPassword && editPassword.length < 6) {
-      return 'New password must be at least 6 characters';
-    }
-    return null;
-  };
+  const cancelEditing = () => setEditingTenant(null);
 
   const handleSaveEdit = async () => {
     if (!editingTenant) return;
-    setError('');
-    setSuccess('');
-
-    const validationError = validateEditForm();
-    if (validationError) {
-      flashError(validationError);
-      return;
-    }
-
     setIsSaving(true);
     try {
       await supabaseService.updateTenant(
@@ -417,97 +289,112 @@ try {
         editOwnerPhone.trim(),
         editWhatsappPhone.trim() || undefined,
       );
-
       if (editPassword.trim()) {
-        const ok = await supabaseService.resetTenantOwnerPassword(
+        await supabaseService.resetTenantOwnerPassword(
           editingTenant.slug,
           editOwnerPhone.trim(),
           editPassword,
         );
-        if (!ok) {
-          throw new Error('Store updated, but password reset failed');
-        }
         credentialCache.set(editingTenant.slug, editPassword);
       }
-
-      flashSuccess(`Store "${editDisplayName}" updated`);
+      flashSuccess('Store updated');
       cancelEditing();
-      await loadTenants();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update store';
-      flashError(msg);
+      await loadAll();
+    } catch (err) {
+      flashError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // -------- Toggle active --------
-  const handleToggleActive = async (tenant: TenantRow) => {
-    if (tenant.slug === 'main') {
-      flashError('The main store cannot be deactivated');
+  // ---------- Toggle active ----------
+  const handleToggleActive = async (t: TenantRow) => {
+    if (t.slug === 'main') return flashError('Main store cannot be changed');
+    const isActive = t.isActive !== false;
+    if (
+      !window.confirm(
+        isActive
+          ? `Deactivate "${t.displayName}"?`
+          : `Reactivate "${t.displayName}"?`,
+      )
+    )
       return;
-    }
-    const isCurrentlyActive = tenant.isActive !== false;
-    const targetState = !isCurrentlyActive;
-    const actionLabel = isCurrentlyActive ? 'Deactivate' : 'Reactivate';
-
-    const confirmed = window.confirm(
-      isCurrentlyActive
-        ? `Deactivate "${tenant.displayName}"? Its URL will stop serving the menu.`
-        : `Reactivate "${tenant.displayName}"? Its URL will start serving the menu again.`,
-    );
-    if (!confirmed) return;
-
-    const ok = await supabaseService.setTenantActive(tenant.slug, targetState);
+    const ok = await supabaseService.setTenantActive(t.slug, !isActive);
     if (ok) {
-      flashSuccess(
-        `Store "${tenant.displayName}" ${actionLabel.toLowerCase()}d`,
-      );
-      await loadTenants();
+      flashSuccess(`Store ${!isActive ? 'reactivated' : 'deactivated'}`);
+      await loadAll();
     } else {
-      flashError(`Failed to ${actionLabel.toLowerCase()} store`);
+      flashError('Failed to update');
     }
   };
 
-  // -------- Delete --------
-  const handleDelete = async (tenant: TenantRow) => {
-    if (tenant.slug === 'main') {
-      flashError('The main store cannot be deleted');
+  // ---------- Delete ----------
+  const handleDelete = async (t: TenantRow) => {
+    if (t.slug === 'main') return flashError('Main store cannot be deleted');
+    if (!window.confirm(`Delete "${t.displayName}" permanently?`)) return;
+    const typed = window.prompt(`Type "${t.slug}" to confirm deletion:`);
+    if (typed !== t.slug) return flashError('Deletion cancelled');
+    const ok = await supabaseService.deleteTenant(t.slug);
+    if (ok) {
+      credentialCache.remove(t.slug);
+      flashSuccess('Store deleted');
+      await loadAll();
+    } else {
+      flashError('Failed to delete');
+    }
+  };
+
+  // ---------- Copy credentials ----------
+  const handleCopyCredentials = async (t: TenantRow) => {
+    const cached = credentialCache.get(t.slug);
+    if (cached) {
+      const owner = await supabaseService.getTenantOwner(t.slug);
+      if (!owner) return flashError('Owner not found');
+      setCredentialsModal({
+        displayName: t.displayName,
+        adminUrl: buildAdminUrl(t.slug),
+        customerUrl: buildTenantUrl(t.slug),
+        phone: owner.phone,
+        password: cached.password,
+        generatedAt: cached.generatedAt,
+        isNew: false,
+      });
+      setShowCredentialsPassword(true);
       return;
     }
 
-    const confirmed = window.confirm(
-      `Permanently delete "${tenant.displayName}"?\n\n` +
-        `This will erase:\n` +
-        `• The store profile\n` +
-        `• All menu items\n` +
-        `• All users for this store\n` +
-        `• All store settings\n\n` +
-        `This cannot be undone.`,
+    const owner = await supabaseService.getTenantOwner(t.slug);
+    if (!owner) return flashError('Owner not found');
+    const newPassword = generateRandomPassword();
+    const ok = await supabaseService.resetTenantOwnerPassword(
+      t.slug,
+      owner.phone,
+      newPassword,
     );
-    if (!confirmed) return;
+    if (!ok) return flashError('Failed');
+    credentialCache.set(t.slug, newPassword);
+    setCredentialsModal({
+      displayName: t.displayName,
+      adminUrl: buildAdminUrl(t.slug),
+      customerUrl: buildTenantUrl(t.slug),
+      phone: owner.phone,
+      password: newPassword,
+      generatedAt: new Date().toISOString(),
+      isNew: true,
+    });
+    setShowCredentialsPassword(true);
+  };
 
-    const typed = window.prompt(
-      `Type the store slug "${tenant.slug}" to confirm deletion:`,
-    );
-    if (typed !== tenant.slug) {
-      flashError('Deletion cancelled — slug did not match');
-      return;
-    }
-
-    try {
-      const ok = await supabaseService.deleteTenant(tenant.slug);
-      if (ok) {
-        credentialCache.remove(tenant.slug);
-        flashSuccess(`Store "${tenant.displayName}" deleted`);
-        await loadTenants();
-      } else {
-        flashError('Failed to delete store');
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete store';
-      flashError(msg);
-    }
+  const copyCredentialsToClipboard = async () => {
+    if (!credentialsModal) return;
+    const text =
+      `*${credentialsModal.displayName} - Login Details*\n\n` +
+      `Admin URL: ${credentialsModal.adminUrl}\n` +
+      `Customer URL: ${credentialsModal.customerUrl}\n` +
+      `Phone: ${credentialsModal.phone}\n` +
+      `Password: ${credentialsModal.password}\n`;
+    const ok = await copyToClipboard(text);
+    flashSuccess(ok ? 'Copied to clipboard' : 'Could not access clipboard');
   };
 
   const shareableRows = useMemo(() => tenants, [tenants]);
@@ -516,12 +403,20 @@ try {
     <>
       <div className={styles.overlay} onClick={onClose}>
         <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-          {/* -------- Header with Add New Store button -------- */}
           <div className={styles.header}>
             <div className={styles.headerTitle}>
               <h2>Manage Stores</h2>
               <span className={styles.headerCount}>
-                {tenants.length} {tenants.length === 1 ? 'store' : 'stores'}
+                {tenants.length} store{tenants.length === 1 ? '' : 's'}
+                {pauseRequests.length > 0 && (
+                  <>
+                    {' . '}
+                    <span className={styles.pendingCount}>
+                      {pauseRequests.length} pause request
+                      {pauseRequests.length === 1 ? '' : 's'}
+                    </span>
+                  </>
+                )}
               </span>
             </div>
             <div className={styles.headerActions}>
@@ -548,21 +443,16 @@ try {
           {error && (
             <div className={styles.errorMessage}>
               <span>{error}</span>
-              <button onClick={() => setError('')} aria-label="Dismiss">
-                <CloseIcon width={14} height={14} fill="#dc3545" />
-              </button>
+              <button onClick={() => setError('')}><CloseIcon width={16} height={16} fill="#4d4d4d" /></button>
             </div>
           )}
           {success && (
             <div className={styles.successMessage}>
               <span>{success}</span>
-              <button onClick={() => setSuccess('')} aria-label="Dismiss">
-                <CloseIcon width={14} height={14} fill="#085b1b" />
-              </button>
+              <button onClick={() => setSuccess('')}><CloseIcon width={16} height={16} fill="#4d4d4d" /></button>
             </div>
           )}
 
-          {/* -------- Existing stores -------- */}
           <div className={styles.itemList}>
             {loading ? (
               <div className={styles.loading}>Loading...</div>
@@ -582,6 +472,7 @@ try {
               shareableRows.map((t) => (
                 <div key={t.id} className={styles.itemRow}>
                   {editingTenant?.slug === t.slug ? (
+                    /* ---------- Edit inline form ---------- */
                     <div className={styles.editInline}>
                       <div className={styles.formRow}>
                         <div className={styles.formGroup}>
@@ -601,7 +492,9 @@ try {
                             value={editOwnerPhone}
                             onChange={(e) =>
                               setEditOwnerPhone(
-                                e.target.value.replace(/\D/g, '').slice(0, 10),
+                                e.target.value
+                                  .replace(/\D/g, '')
+                                  .slice(0, 10),
                               )
                             }
                             maxLength={10}
@@ -615,36 +508,38 @@ try {
                           <input
                             type="text"
                             value={editOwnerName}
-                            onChange={(e) => setEditOwnerName(e.target.value)}
-                            placeholder="Optional"
+                            onChange={(e) =>
+                              setEditOwnerName(e.target.value)
+                            }
                           />
                         </div>
                         <div className={styles.formGroup}>
-                          <label>WhatsApp order number</label>
+                          <label>WhatsApp number</label>
                           <input
                             type="tel"
                             value={editWhatsappPhone}
                             onChange={(e) =>
                               setEditWhatsappPhone(
-                                e.target.value.replace(/\D/g, '').slice(0, 10),
+                                e.target.value
+                                  .replace(/\D/g, '')
+                                  .slice(0, 10),
                               )
                             }
-                            placeholder="Leave blank to use owner phone"
                             maxLength={10}
                           />
                         </div>
                       </div>
 
                       <div className={styles.formGroup}>
-                        <label>
-                          New password (leave blank to keep current)
-                        </label>
+                        <label>New password (optional)</label>
                         <div className={styles.passwordRow}>
                           <input
                             type={showEditPassword ? 'text' : 'password'}
                             value={editPassword}
-                            onChange={(e) => setEditPassword(e.target.value)}
-                            placeholder="Optional"
+                            onChange={(e) =>
+                              setEditPassword(e.target.value)
+                            }
+                            placeholder="Leave blank to keep"
                           />
                           <button
                             type="button"
@@ -652,7 +547,6 @@ try {
                             onClick={() =>
                               setEditPassword(generateRandomPassword())
                             }
-                            title="Generate random password"
                           >
                             🎲
                           </button>
@@ -686,36 +580,83 @@ try {
                       </div>
                     </div>
                   ) : (
+                    /* ---------- Normal row ---------- */
                     <>
                       <div className={styles.itemInfo}>
-                        <div className={styles.itemName}>
-                          {t.displayName}
-                          {t.slug === 'main' && (
-                            <span className={styles.tenantSlugBadge}>main</span>
-                          )}
-                          {t.isActive === false && (
-                            <span
-                              className={`${styles.tenantSlugBadge} ${styles.badgeInactive}`}
-                            >
-                              inactive
-                            </span>
-                          )}
-                        </div>
+  <div className={styles.itemName}>
+    {t.displayName}
+    {t.slug === 'main' && (
+      <span className={styles.tenantSlugBadge}>main</span>
+    )}
+    {t.isActive === false && (
+      <span
+        className={`${styles.tenantSlugBadge} ${styles.badgeInactive}`}
+      >
+        inactive
+      </span>
+    )}
 
-                        {t.whatsappPhone && (
-                          <div className={styles.tenantMeta}>
-                            WhatsApp: +91 {t.whatsappPhone}
-                          </div>
-                        )}
-                      </div>
+    <PlanBadge
+      tenant={t}
+      onChangePlan={() => setChangePlanFor(t)}
+    />
+
+    {t.hasPauseRequest && t.pauseRequestId && (
+      <PauseRequestIcon
+        requestId={t.pauseRequestId}
+        tenantName={t.displayName}
+        onResolved={loadAll}
+      />
+    )}
+  </div>
+
+  {/* Expiry line - replaces the URL block */}
+  {t.subscriptionExpiresAt ? (
+    <div className={styles.expiryLine}>
+      <span className={styles.expiryLabel}>Expires</span>
+      <span className={styles.expiryDate}>
+        {new Date(t.subscriptionExpiresAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })}
+      </span>
+      {typeof t.daysUntilExpiry === 'number' &&
+        t.daysUntilExpiry !== Infinity && (
+          <span
+            className={`${styles.expiryDays} ${
+              t.daysUntilExpiry <= 0
+                ? styles.expiryExpired
+                : t.daysUntilExpiry <= 7
+                ? styles.expirySoon
+                : ''
+            }`}
+          >
+            {t.daysUntilExpiry > 0
+              ? `${t.daysUntilExpiry} day${t.daysUntilExpiry === 1 ? '' : 's'} left`
+              : 'Expired'}
+          </span>
+        )}
+    </div>
+  ) : (
+    <div className={styles.expiryLine}>
+      <span className={styles.expiryLabel}>Expires</span>
+      <span className={styles.expiryDate}>-</span>
+    </div>
+  )}
+
+  {t.whatsappPhone && (
+    <div className={styles.tenantMeta}>WhatsApp: +91 {t.whatsappPhone}</div>
+  )}
+</div>
 
                       <div className={styles.itemStatus}>
                         <button
                           className={styles.editBtn}
                           onClick={() => handleCopyCredentials(t)}
-                          title="Generate or reuse this session's credentials"
+                          title="Generate or reuse credentials"
                         >
-                          Copy all
+                          Copy Credentials
                         </button>
                         <button
                           className={styles.editBtn}
@@ -725,33 +666,41 @@ try {
                         </button>
                         <button
                           className={styles.editBtn}
-                          onClick={() => openAdminInNewTab(t.slug)}
-                          title="Open the admin login URL"
+                          onClick={() => setChangePlanFor(t)}
+                          title="Change plan"
                         >
-                          Admin URL
+                          Change Plan
+                        </button>
+                        <button
+                          className={styles.editBtn}
+                          onClick={() => openAdminInNewTab(t.slug)}
+                        >
+                          Open Admin
                         </button>
                         <button
                           className={styles.editBtn}
                           onClick={() => openInNewTab(t.slug)}
-                          title="Open the customer view"
                         >
-                          Public URL
+                          Open Customer
                         </button>
                         {t.slug !== 'main' && (
                           <button
                             className={`${styles.toggleBtn} ${
-                              t.isActive === false ? '' : styles.outOfStockBtn
+                              t.isActive === false
+                                ? ''
+                                : styles.outOfStockBtn
                             }`}
                             onClick={() => handleToggleActive(t)}
                           >
-                            {t.isActive === false ? 'Reactivate' : 'Deactivate'}
+                            {t.isActive === false
+                              ? 'Reactivate'
+                              : 'Deactivate'}
                           </button>
                         )}
                         {t.slug !== 'main' && (
                           <button
                             className={styles.deleteBtn}
                             onClick={() => handleDelete(t)}
-                            title="Permanently delete this store and all its data"
                           >
                             Delete
                           </button>
@@ -766,7 +715,7 @@ try {
         </div>
       </div>
 
-      {/* -------- Create Store modal -------- */}
+      {/* ---------- Create modal (unchanged from prior) ---------- */}
       {isCreateOpen && (
         <div className={styles.confirmOverlay} onClick={closeCreateModal}>
           <div
@@ -779,7 +728,6 @@ try {
               <button
                 className={styles.confirmCloseBtn}
                 onClick={closeCreateModal}
-                aria-label="Close"
               >
                 <CloseIcon width={18} height={18} fill="#666" />
               </button>
@@ -794,7 +742,6 @@ try {
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g., Soma Electric"
                       required
                       autoFocus
                     />
@@ -812,16 +759,8 @@ try {
                             .replace(/[^a-z0-9-]/g, ''),
                         );
                       }}
-                      placeholder="e.g., soma-electric"
                       required
                     />
-                    <small>
-                      Admin URL:{' '}
-                      <code>{buildAdminUrl(slug || 'your-slug')}</code>
-                      <br />
-                      Customer URL:{' '}
-                      <code>{buildTenantUrl(slug || 'your-slug')}</code>
-                    </small>
                   </div>
                 </div>
 
@@ -832,7 +771,6 @@ try {
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder="e.g., Soma Das"
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -845,16 +783,15 @@ try {
                           e.target.value.replace(/\D/g, '').slice(0, 10),
                         )
                       }
-                      placeholder="10-digit phone number"
-                      required
                       maxLength={10}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label>WhatsApp order number</label>
+                    <label>WhatsApp number</label>
                     <input
                       type="tel"
                       value={whatsappPhone}
@@ -863,10 +800,8 @@ try {
                           e.target.value.replace(/\D/g, '').slice(0, 10),
                         )
                       }
-                      placeholder="Leave blank to use owner phone"
                       maxLength={10}
                     />
-                    <small>Customer orders go to this number</small>
                   </div>
                   <div className={styles.formGroup}>
                     <label>Owner password *</label>
@@ -874,8 +809,9 @@ try {
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={ownerPassword}
-                        onChange={(e) => setOwnerPassword(e.target.value)}
-                        placeholder="Minimum 6 characters"
+                        onChange={(e) =>
+                          setOwnerPassword(e.target.value)
+                        }
                         minLength={6}
                         required
                       />
@@ -885,7 +821,6 @@ try {
                         onClick={() =>
                           setOwnerPassword(generateRandomPassword())
                         }
-                        title="Generate random password"
                       >
                         🎲
                       </button>
@@ -897,9 +832,6 @@ try {
                         {showPassword ? 'Hide' : 'Show'}
                       </button>
                     </div>
-                    <small>
-                      Share this with the store owner along with the Admin URL.
-                    </small>
                   </div>
                 </div>
               </div>
@@ -926,7 +858,7 @@ try {
         </div>
       )}
 
-      {/* -------- Copy-credentials modal -------- */}
+      {/* ---------- Credentials modal (unchanged) ---------- */}
       {credentialsModal && (
         <div
           className={styles.confirmOverlay}
@@ -950,72 +882,51 @@ try {
                 <CloseIcon width={18} height={18} fill="#666" />
               </button>
             </div>
-            <div className={styles.confirmBody}>
-              {credentialsModal.isNew ? (
-                <p style={{ marginBottom: 12 }}>
-                  Send these to the owner of{' '}
-                  <strong>{credentialsModal.displayName}</strong>:
-                </p>
-              ) : (
-                <div className={styles.infoNote}>
-                  <strong>Password from this session.</strong>
-                  <br />
-                  Generated {formatGeneratedAt(credentialsModal.generatedAt)}.
-                  The same password will appear here until you log out.
-                </div>
-              )}
 
+            <div className={styles.confirmBody}>
               <div className={styles.credentialsList}>
                 <div>
-                  <label className={styles.fieldLabel}>
-                    Admin URL (owner login)
-                  </label>
+                  <label className={styles.fieldLabel}>Admin URL</label>
                   <div className={styles.tenantUrl}>
                     {credentialsModal.adminUrl}
                   </div>
                 </div>
-
                 <div>
                   <label className={styles.fieldLabel}>
-                    Customer URL (share with customers)
+                    Customer URL
                   </label>
                   <div className={styles.tenantUrl}>
                     {credentialsModal.customerUrl}
                   </div>
                 </div>
-
                 <div>
                   <label className={styles.fieldLabel}>Phone</label>
                   <div className={styles.tenantUrl}>
                     +91 {credentialsModal.phone}
                   </div>
                 </div>
-
                 <div>
                   <label className={styles.fieldLabel}>Password</label>
                   <div className={styles.passwordDisplay}>
                     <span>
                       {showCredentialsPassword
                         ? credentialsModal.password
-                        : '••••••••'}
+                        : '######'}
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowCredentialsPassword((s) => !s)}
                       className={styles.toggleLink}
+                      onClick={() =>
+                        setShowCredentialsPassword((s) => !s)
+                      }
                     >
                       {showCredentialsPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
                 </div>
               </div>
-
-              <p className={styles.warningNote}>
-                ⚠️ This password will not be shown again after you log out.
-                Copy now and share it with the owner. Ask them to change it
-                after first login.
-              </p>
             </div>
+
             <div className={styles.confirmFooter}>
               <button
                 className={styles.confirmCancelBtn}
@@ -1033,6 +944,23 @@ try {
           </div>
         </div>
       )}
+
+      {/* ---------- Change Plan modal ---------- */}
+      {changePlanFor && (
+  <PlanChangeModal
+    isOpen={true}
+    mode="admin"
+    tenantSlug={changePlanFor.slug}
+    tenantName={changePlanFor.displayName}
+    currentPlanId={changePlanFor.planId}
+    currentMonths={estimateCurrentMonths(changePlanFor)}
+    onClose={() => setChangePlanFor(null)}
+    onComplete={() => {
+      flashSuccess('Plan updated');
+      loadAll();
+    }}
+  />
+)}
     </>
   );
 };

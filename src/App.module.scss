@@ -398,7 +398,7 @@
   cursor: pointer;
   line-height: 1;
 
-  /* Hidden until hover (desktop) — always visible on touch */
+  /* Hidden until hover (desktop) - always visible on touch */
   opacity: 0;
   transform: translateY(-2px);
   transition: opacity 0.15s ease, transform 0.15s ease,

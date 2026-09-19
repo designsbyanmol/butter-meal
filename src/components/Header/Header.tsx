@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../contexts/TenantContext';
 import { useWishlist } from '../../hooks/useWishlist';
 import { useCustomerName } from '../../hooks/useCustomerName';
+import { usePlan } from '../../hooks/usePlan';
 import { MenuItem } from '../../types';
 import LoginModal from '../Auth/LoginModal';
 import UserManagement from '../Admin/UserManagement';
@@ -12,6 +13,7 @@ import StoreModal from '../Store/StoreModal';
 import TenantManager from '../Admin/TenantManager';
 import WishlistPanel from '../Menu/WishlistPanel';
 import InfoPopup from '../Store/InfoPopup';
+import PlanBadgeInline from '../Store/PlanBadgeInline';
 import WishlistIcon from '../../assets/svgs/WishlistIcon';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
 import styles from './Header.module.scss';
@@ -36,6 +38,7 @@ const Header: React.FC<HeaderProps> = ({
   const { tenant, isDeactivated, isAdminView, isSmartAdminHost } = useTenant();
   const { count: wishlistCount } = useWishlist();
   const customerName = useCustomerName();
+  const plan = usePlan();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
@@ -69,29 +72,21 @@ const Header: React.FC<HeaderProps> = ({
   }, []);
 
   // ---------------------------------------------------------
-  // Hide the entire header on the plain main host.
-  // Only shows when:
-  //   - a tenant exists (any ?t= URL), OR
-  //   - the main host has ?_smart-admin
-  // ---------------------------------------------------------
-  const shouldHideHeader = !tenant && !isSmartAdminHost;
-
-  // ---------------------------------------------------------
   // Visibility rules
   // ---------------------------------------------------------
+
+  // Hide the entire header on the plain main host
+  const shouldHideHeader = !tenant && !isSmartAdminHost;
+
   const isPlatformAdmin = isAdmin && !tenant;
   const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
-
-  // Wishlist only for the customer view
   const showWishlist = !!tenant && !isDeactivated && !isAdminView;
-
-  // Admin avatar — only when logged in and inside a tenant context
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
-  // Is the current URL an admin context?
-  //   - ?_smart-admin           → main host admin view
-  //   - ?t=<slug>_admin         → tenant owner view
   const isAdminContext = isSmartAdminHost || isAdminView;
+
+  // Customer name check
+  const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
 
   const handleLogin = () => setIsLoginOpen(true);
 
@@ -111,18 +106,22 @@ const Header: React.FC<HeaderProps> = ({
       : '?';
 
   // ---------------------------------------------------------
-  // Decide what to render on the left (brand text area)
+  // Left-side brand text
   // ---------------------------------------------------------
   const renderBrandText = () => {
-    // 1. Logged-in admin or staff → show their name, regardless of view
+    // 1. Logged-in admin or staff
     if (isAuthenticated && user?.name) {
-      return <span className={styles.tagline}>{user.name}</span>;
+      return (
+        <>
+          <span className={styles.tagline}>{user.name}</span>
+          {tenant && !isPlatformAdmin && (
+            <PlanBadgeInline onClick={() => setIsInfoOpen(true)} />
+          )}
+        </>
+      );
     }
 
-    // 2. Not logged in, but on an admin URL:
-    //    - ?t=<slug>_admin  → show the store's owner name (tenant.displayName)
-    //    - ?_smart-admin    → show "Platform Admin" placeholder
-    // Never show the customer greeting here.
+    // 2. Admin URLs - never show customer greeting
     if (isAdminContext) {
       if (isSmartAdminHost && !tenant) {
         return (
@@ -138,8 +137,7 @@ const Header: React.FC<HeaderProps> = ({
       );
     }
 
-    // 3. Customer view with a saved name → "Hey! {name}"
-    const hasCustomerName = customerName.trim().length > 0;
+    // 3. Customer view with saved name
     if (hasCustomerName) {
       return (
         <span className={styles.customerGreeting}>
@@ -148,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({
       );
     }
 
-    // 4. Fallback — store name / company name
+    // 4. Fallback
     return (
       <span className={styles.companyName}>
         {tenant ? tenant.displayName : `${companyName} ${year}`}
@@ -156,14 +154,12 @@ const Header: React.FC<HeaderProps> = ({
     );
   };
 
-  // Early return AFTER all hooks have been called
   if (shouldHideHeader) return null;
 
   return (
     <>
       <div className={styles.bm_header}>
         <div className={styles.container}>
-          {/* ============ LEFT: avatar + brand ============ */}
           <div className={styles.brand}>
             {showAdminAvatar && isAdmin && (
               <button
@@ -177,9 +173,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <span className={styles.brandText}>
-              {renderBrandText()}
-            </span>
+            <span className={styles.brandText}>{renderBrandText()}</span>
 
             {isSmartAdminHost && !tenant && (
               <span className={styles.smartAdminBadge}>Smart Admin</span>
@@ -190,10 +184,8 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* ============ RIGHT: actions ============ */}
           <div className={styles.actions}>
-            {/* Wishlist (customers only) */}
-            {showWishlist && !isAuthenticated && (
+            {showWishlist && !isAuthenticated && plan.canWishlist && (
               <button
                 type="button"
                 className={styles.wishlistBtn}
@@ -202,7 +194,11 @@ const Header: React.FC<HeaderProps> = ({
                 title="Wishlist"
               >
                 {wishlistCount > 0 ? (
-                  <WishlistFilledIcon width={20} height={20} fill="#e23744" />
+                  <WishlistFilledIcon
+                    width={20}
+                    height={20}
+                    fill="#e23744"
+                  />
                 ) : (
                   <WishlistIcon width={20} height={20} fill="#1e1e1e" />
                 )}
@@ -218,13 +214,15 @@ const Header: React.FC<HeaderProps> = ({
               <>
                 {canManageTenant && (
                   <>
-                    <button
-                      className={styles.adminBtn}
-                      onClick={() => setIsStoreModalOpen(true)}
-                      title="Store Settings"
-                    >
-                      <StoreIcon width={20} height={20} fill="#1e1e1e" />
-                    </button>
+                    {plan.canManageStore && (
+                      <button
+                        className={styles.adminBtn}
+                        onClick={() => setIsStoreModalOpen(true)}
+                        title="Store Settings"
+                      >
+                        <StoreIcon width={20} height={20} fill="#1e1e1e" />
+                      </button>
+                    )}
 
                     <button
                       className={styles.adminBtn}
@@ -234,13 +232,17 @@ const Header: React.FC<HeaderProps> = ({
                       <MenuIcon width={20} height={20} color="#1e1e1e" />
                     </button>
 
-                    {isAdmin && (
+                    {plan.canManageUsers && isAdmin && (
                       <button
                         className={styles.adminBtn}
                         onClick={() => setIsUserManagementOpen(true)}
                         title="User Management"
                       >
-                        <UsersIcon width={20} height={20} color="#1e1e1e" />
+                        <UsersIcon
+                          width={20}
+                          height={20}
+                          color="#1e1e1e"
+                        />
                       </button>
                     )}
                   </>
@@ -274,8 +276,10 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* ============ MODALS ============ */}
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+      />
 
       {isUserManagementOpen && tenant && (
         <UserManagement
@@ -297,17 +301,16 @@ const Header: React.FC<HeaderProps> = ({
         <TenantManager onClose={() => setIsTenantManagerOpen(false)} />
       )}
 
-      <WishlistPanel
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        onItemClick={handleWishlistItemClick}
-      />
+      {plan.canWishlist && (
+        <WishlistPanel
+          isOpen={isWishlistOpen}
+          onClose={() => setIsWishlistOpen(false)}
+          onItemClick={handleWishlistItemClick}
+        />
+      )}
 
       {showAdminAvatar && (
-        <InfoPopup
-          isOpen={isInfoOpen}
-          onClose={() => setIsInfoOpen(false)}
-        />
+        <InfoPopup isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
       )}
     </>
   );

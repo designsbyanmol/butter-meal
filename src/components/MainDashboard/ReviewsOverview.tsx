@@ -4,12 +4,13 @@ import { Review, ReviewFilter, Tenant } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
 import ReviewSettingsPanel from './ReviewSettingsPanel';
 import styles from './ReviewsOverview.module.scss';
+import { CloseIcon, StarIcon, RightArrow } from '../../assets/svgs';
 
 const FILTERS: { key: ReviewFilter; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'lte4', label: '≤ 4 stars' },
-  { key: 'lte3', label: '≤ 3 stars' },
-  { key: 'lte2', label: '≤ 2 stars' },
+  { key: 'lte4', label: '<= 4 stars' },
+  { key: 'lte3', label: '<= 3 stars' },
+  { key: 'lte2', label: '<= 2 stars' },
   { key: 'commented', label: 'With comments' },
 ];
 
@@ -120,7 +121,7 @@ const TenantSection: React.FC<TenantSectionProps> = ({
             isOpen ? styles.chevronOpen : ''
           }`}
         >
-          ▸
+          <RightArrow width={16} height={16} fill="#4d4d4d" />
         </span>
         <span className={styles.tenantName}>{tenant.displayName}</span>
         <span className={styles.tenantSlug}>{tenant.slug}</span>
@@ -147,7 +148,7 @@ const TenantSection: React.FC<TenantSectionProps> = ({
           {error && <div className={styles.error}>{error}</div>}
 
           {isLoading ? (
-            <div className={styles.emptyRow}>Loading…</div>
+            <div className={styles.emptyRow}>Loading...</div>
           ) : reviews.length === 0 ? (
             <div className={styles.emptyRow}>
               No reviews match "{filterLabel}".
@@ -167,7 +168,7 @@ const TenantSection: React.FC<TenantSectionProps> = ({
                   onClick={handleShowMore}
                   disabled={isLoadingMore}
                 >
-                  {isLoadingMore ? 'Loading…' : 'Show more'}
+                  {isLoadingMore ? 'Loading...' : 'Show more'}
                 </button>
               )}
             </>
@@ -188,8 +189,6 @@ interface ReviewCardProps {
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
   const rounded = Math.round(review.rating);
-  const stars = '★★★★★'.slice(0, rounded);
-  const empty = '☆☆☆☆☆'.slice(0, 5 - rounded);
   const when = new Date(review.createdAt).toLocaleDateString();
 
   return (
@@ -203,7 +202,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
           aria-label="Remove review"
           title="Remove review"
         >
-          ✕
+          <CloseIcon width={16} height={16} fill="#4d4d4d" />
         </button>
       </div>
 
@@ -212,8 +211,16 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
       )}
 
       <div className={styles.ratingRow}>
-        <span className={styles.starsFilled}>{stars}</span>
-        <span className={styles.starsEmpty}>{empty}</span>
+        <span className={styles.starsFilled}>
+          {Array.from({ length: rounded }).map((_, i) => (
+            <StarIcon key={i} width={16} height={16} fill="#f5a623" />
+          ))}
+        </span>
+        <span className={styles.starsEmpty}>
+          {Array.from({ length: 5 - rounded }).map((_, i) => (
+            <StarIcon key={i} width={16} height={16} fill="#dcdcdc" />
+          ))}
+        </span>
         <span className={styles.ratingNum}>{review.rating.toFixed(1)}</span>
       </div>
 
@@ -255,7 +262,7 @@ const ReviewsOverview: React.FC = () => {
   }, [refreshKey]);
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading stores…</div>;
+    return <div className={styles.loading}>Loading stores...</div>;
   }
 
   if (tenants.length === 0) {
@@ -271,7 +278,7 @@ const ReviewsOverview: React.FC = () => {
             className={styles.refreshBtn}
             onClick={() => setRefreshKey((k) => k + 1)}
           >
-            ↻ Refresh
+            Refresh
           </button>
         </div>
 
@@ -294,7 +301,7 @@ const ReviewsOverview: React.FC = () => {
           className={styles.refreshBtn}
           onClick={() => setRefreshKey((k) => k + 1)}
         >
-          ↻ Refresh
+          Refresh
         </button>
       </div>
 

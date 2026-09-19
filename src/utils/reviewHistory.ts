@@ -8,7 +8,7 @@ const tenantKey = (slug: string | null | undefined): string => {
   return `${BASE_KEY}::${safe}`;
 };
 
-type ReviewedMap = Record<number, string>; // itemId → ISO timestamp
+type ReviewedMap = Record<number, string>; // itemId > ISO timestamp
 
 const read = (slug: string | null | undefined): ReviewedMap => {
   try {
@@ -25,7 +25,7 @@ const write = (slug: string | null | undefined, data: ReviewedMap): void => {
   try {
     localStorage.setItem(tenantKey(slug), JSON.stringify(data));
   } catch {
-    /* quota / private mode — ignore */
+    /* quota / private mode - ignore */
   }
 };
 
@@ -48,7 +48,7 @@ export const markReviewedLocally = (
   write(slug, map);
 };
 
-/** Optional: forget locally (not used by the app — for debugging only). */
+/** Optional: forget locally (not used by the app - for debugging only). */
 export const forgetReviewedLocally = (
   slug: string | null | undefined,
   itemId: number,

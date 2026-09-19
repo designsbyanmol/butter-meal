@@ -3,6 +3,7 @@ import React from 'react';
 import { MenuItem } from '../../types';
 import { DEFAULT_FORM_SCHEMA } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
+import { usePlan } from '../../hooks/usePlan';
 import { Special, StarIcon } from '../../assets/svgs';
 import WishlistButton from './WishlistButton';
 import { formatCount } from '../../utils/formatCount';
@@ -31,6 +32,7 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   onToggleWishlist,
 }) => {
   const { tenant } = useTenant();
+  const plan = usePlan();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
 
   const isFieldEnabled = (key: string): boolean => {
@@ -52,10 +54,10 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     onItemClick(item);
   };
 
-  // ---- Reviews are hidden when the tenant/global flag is off ----
+  // ---- Reviews are hidden when the tenant flag is off OR plan excludes reviews ----
   const reviewsEnabled = tenant?.reviewsEnabled !== false;
-
   const hasReviews =
+    plan.canReview &&
     reviewsEnabled &&
     typeof item.reviewCount === 'number' &&
     item.reviewCount > 0 &&
@@ -110,11 +112,13 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         onKeyDown={(e) => e.key === 'Enter' && handleClick()}
         style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
-        <WishlistButton
-          item={item}
-          isWishlisted={isWishlisted}
-          onToggle={onToggleWishlist}
-        />
+        {plan.canWishlist && (
+          <WishlistButton
+            item={item}
+            isWishlisted={isWishlisted}
+            onToggle={onToggleWishlist}
+          />
+        )}
 
         <div className={styles.itemImg}>
           <img
@@ -136,7 +140,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           )}
         </div>
 
-        {/* ---- Rating badge: hidden when reviews disabled ---- */}
         {!isOutOfStock && hasReviews && (
           <span className={styles.rating}>
             <StarIcon width={12} height={12} fill="#085b1b" /> {item.rating}
@@ -202,11 +205,12 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           Rs{finalPrice}
         </span>
         <div className={styles.actions}>
-          {!acceptingOrders ? (
-            <button
-              className={`${styles.btnCustomize}`}
-              onClick={handleAddClick}
-            >
+          {!plan.canOrder ? (
+            <button className={styles.btnCustomize} onClick={handleAddClick}>
+              View
+            </button>
+          ) : !acceptingOrders ? (
+            <button className={styles.btnCustomize} onClick={handleAddClick}>
               Preview
             </button>
           ) : isOutOfStock ? (
@@ -231,25 +235,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   );
 };
 
-export default React.memo(MenuItemComponent, (prev, next) => {
-  return (
-    prev.item.id === next.item.id &&
-    prev.item.img === next.item.img &&
-    prev.item.name === next.item.name &&
-    prev.item.price === next.item.price &&
-    prev.item.discount === next.item.discount &&
-    prev.item.costPrice === next.item.costPrice &&
-    prev.item.inStock === next.item.inStock &&
-    prev.item.rating === next.item.rating &&
-    prev.item.reviewCount === next.item.reviewCount &&
-    prev.item.isVeg === next.item.isVeg &&
-    prev.item.attributes?.isPopular === next.item.attributes?.isPopular &&
-    prev.item.attributes?.isNew === next.item.attributes?.isNew &&
-    prev.item.attributes?.isChefSpecial ===
-      next.item.attributes?.isChefSpecial &&
-    prev.item.attributes?.isLimited === next.item.attributes?.isLimited &&
-    prev.quantity === next.quantity &&
-    prev.isWishlisted === next.isWishlisted &&
-    prev.acceptingOrders === next.acceptingOrders
-  );
-});
+// Plain shallow memo - plan flags flow through props so we don't need
+// a custom comparator. Simpler and always correct.
+export default React.memo(MenuItemComponent);

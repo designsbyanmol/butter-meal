@@ -20,7 +20,7 @@ const ReviewSettingsPanel: React.FC = () => {
         supabaseService.getAllTenants(),
       ]);
       setGlobalEnabled(global);
-      // Skip the platform 'main' row — it *is* the global flag
+      // Skip the platform 'main' row - it *is* the global flag
       setTenants(list.filter((t) => t.slug !== 'main'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load';
@@ -67,7 +67,7 @@ const ReviewSettingsPanel: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading review settings…</div>;
+    return <div className={styles.loading}>Loading review settings...</div>;
   }
 
   return (
@@ -106,8 +106,8 @@ const ReviewSettingsPanel: React.FC = () => {
           Per-store overrides
           <span className={styles.perTenantHint}>
             {globalEnabled
-              ? 'Global is ON — toggle individual stores off below.'
-              : 'Global is OFF — all stores are hidden. Turn the master on to enable per-store control.'}
+              ? 'Global is ON - toggle individual stores off below.'
+              : 'Global is OFF - all stores are hidden. Turn the master on to enable per-store control.'}
           </span>
         </div>
 

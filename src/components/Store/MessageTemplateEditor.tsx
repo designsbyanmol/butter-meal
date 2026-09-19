@@ -418,7 +418,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? 'Saving…' : 'Save template'}
+              {isSaving ? 'Saving...' : 'Save template'}
             </button>
           </div>
         </div>

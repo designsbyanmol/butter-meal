@@ -1,13 +1,20 @@
 // services/supabase.service.ts
 import { supabase, isSupabaseConfigured } from "./supabase.client";
-import { MenuItem, MessageTemplate, Review, ReviewFilter, StoreSettings, User } from '../types';
+import {
+  MenuItem,
+  MessageTemplate,
+  Review,
+  ReviewFilter,
+  StoreSettings,
+  User,
+} from "../types";
 import { TABLES } from "../config/tables";
 import { Tenant } from "../contexts/TenantContext";
 import { FormSchema } from "../types";
 import { menuService } from "./menu.service";
 
 // =========================================================
-// Module-level helpers — do not depend on `this`
+// Module-level helpers - do not depend on `this`
 // =========================================================
 
 /**
@@ -325,13 +332,13 @@ class SupabaseService {
     // no-op
   }
 
-  // ============ MENU — READ ============
+  // ============ MENU - READ ============
 
   async getMenuItems(tenantSlug: string): Promise<MenuItem[] | null> {
     const client = this.getClient();
     if (!client) return null;
 
-    // Resolve slug → id in one trip
+    // Resolve slug > id in one trip
     const { data: tenantRow, error: tErr } = await client
       .from("star_veg_tenants")
       .select("id")
@@ -372,7 +379,7 @@ class SupabaseService {
     return (data || []).map((row: any) => this.mapMenuItem(row));
   }
 
-  // ============ MENU — WRITE ============
+  // ============ MENU - WRITE ============
 
   async addMenuItem(
     tenantSlug: string,
@@ -403,10 +410,10 @@ class SupabaseService {
       payload.discount = item.discount;
     if (typeof item.calories === "number" && item.calories > 0)
       payload.calories = item.calories;
-    if (typeof item.rating === 'number' && item.rating > 0)
-  payload.rating = item.rating;
-if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
-  payload.review_count = item.reviewCount;
+    if (typeof item.rating === "number" && item.rating > 0)
+      payload.rating = item.rating;
+    if (typeof item.reviewCount === "number" && item.reviewCount > 0)
+      payload.review_count = item.reviewCount;
     if (item.category?.trim()) payload.category = item.category;
     if (item.preparationTime?.trim())
       payload.preparation_time = item.preparationTime;
@@ -568,33 +575,35 @@ if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
   }
 
   async initializeMenuItems(
-  tenantSlug: string,
-  defaultItems: MenuItem[],
-): Promise<void> {
-  const client = this.getClient();
-  if (!client) return;
+    tenantSlug: string,
+    defaultItems: MenuItem[],
+  ): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
 
-  // Resolve tenant id
-  const { data: tenantRow, error: tErr } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (tErr || !tenantRow) return;
+    // Resolve tenant id
+    const { data: tenantRow, error: tErr } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (tErr || !tenantRow) return;
 
-  const { count, error } = await client
-    .from(TABLES.MENU)
-    .select('*', { count: 'exact', head: true })
-    .eq('tenant_id', tenantRow.id);   // ← THE FIX
-  if (error) throw error;
-  if ((count ?? 0) > 0) return;
+    const { count, error } = await client
+      .from(TABLES.MENU)
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantRow.id); // ← THE FIX
+    if (error) throw error;
+    if ((count ?? 0) > 0) return;
 
-  console.log(`Seeding ${defaultItems.length} items for tenant ${tenantSlug}...`);
+    console.log(
+      `Seeding ${defaultItems.length} items for tenant ${tenantSlug}...`,
+    );
 
-  for (const item of defaultItems) {
-    await this.addMenuItem(tenantSlug, item);
+    for (const item of defaultItems) {
+      await this.addMenuItem(tenantSlug, item);
+    }
   }
-}
 
   // ============ STORE SETTINGS ============
 
@@ -689,14 +698,25 @@ if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
     };
   }
 
-  async getAllTenants(): Promise<Tenant[]> {
+  // services/supabase.service.ts
+// Replace ONLY the getAllTenants method - leave everything else as-is.
+
+async getAllTenants(): Promise<Tenant[]> {
   const client = this.getClient();
   if (!client) return [];
+
   const { data, error } = await client
     .from('star_veg_tenants')
-    .select('id, slug, display_name, is_active, whatsapp_phone, reviews_enabled')
+    .select(
+      'id, slug, display_name, is_active, whatsapp_phone, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at',
+    )
     .order('created_at', { ascending: true });
-  if (error) return [];
+
+  if (error) {
+    console.error('getAllTenants error:', error);
+    return [];
+  }
+
   return (data || []).map((row: any) => ({
     id: row.id,
     slug: row.slug,
@@ -704,6 +724,10 @@ if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
     whatsappPhone: row.whatsapp_phone || undefined,
     isActive: row.is_active,
     reviewsEnabled: row.reviews_enabled !== false,
+    planId: row.plan_id ?? 'professional',
+    subscriptionStatus: row.subscription_status ?? 'active',
+    subscriptionStartedAt: row.subscription_started_at ?? undefined,
+    subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
   }));
 }
 
@@ -918,161 +942,167 @@ if (typeof item.reviewCount === 'number' && item.reviewCount > 0)
 
   // ============ REVIEWS ============
 
-async submitReview(
-  tenantSlug: string,
-  itemId: number,
-  deviceId: string,
-  deviceFingerprint: string,
-  name: string,
-  rating: number,
-  comment: string,
-): Promise<Review | null> {
-  const client = this.getClient();
-  if (!client) return null;
+  async submitReview(
+    tenantSlug: string,
+    itemId: number,
+    deviceId: string,
+    deviceFingerprint: string,
+    name: string,
+    rating: number,
+    comment: string,
+  ): Promise<Review | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  const { data, error } = await client.rpc('submit_review', {
-    tenant_slug_in: tenantSlug,
-    item_id_in: itemId,
-    device_id_in: deviceId,
-    device_fp_in: deviceFingerprint,
-    name_in: name,
-    rating_in: rating,
-    comment_in: comment,
-  });
+    const { data, error } = await client.rpc("submit_review", {
+      tenant_slug_in: tenantSlug,
+      item_id_in: itemId,
+      device_id_in: deviceId,
+      device_fp_in: deviceFingerprint,
+      name_in: name,
+      rating_in: rating,
+      comment_in: comment,
+    });
 
-  if (error) {
-    console.error('submit_review error:', error);
-    throw new Error(error.message || 'Failed to submit review');
+    if (error) {
+      console.error("submit_review error:", error);
+      throw new Error(error.message || "Failed to submit review");
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapReviewRow(row, "", "") : null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? this.mapReviewRow(row, '', '') : null;
-}
 
-async deleteOwnReview(
-  tenantSlug: string,
-  itemId: number,
-  deviceId: string,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('delete_own_review', {
-    tenant_slug_in: tenantSlug,
-    item_id_in: itemId,
-    device_id_in: deviceId,
-  });
-  if (error) {
-    console.error('delete_own_review error:', error);
-    return false;
+  async deleteOwnReview(
+    tenantSlug: string,
+    itemId: number,
+    deviceId: string,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("delete_own_review", {
+      tenant_slug_in: tenantSlug,
+      item_id_in: itemId,
+      device_id_in: deviceId,
+    });
+    if (error) {
+      console.error("delete_own_review error:", error);
+      return false;
+    }
+    menuService.refresh().catch(() => {});
+    return !!data;
   }
-  menuService.refresh().catch(() => {});
-  return !!data;
-}
 
-async getItemReviews(itemId: number): Promise<Review[]> {
-  const client = this.getClient();
-  if (!client) return [];
-  const { data, error } = await client.rpc('get_item_reviews', {
-    item_id_in: itemId,
-  });
-  if (error) {
-    console.error('get_item_reviews error:', error);
-    return [];
+  async getItemReviews(itemId: number): Promise<Review[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data, error } = await client.rpc("get_item_reviews", {
+      item_id_in: itemId,
+    });
+    if (error) {
+      console.error("get_item_reviews error:", error);
+      return [];
+    }
+    return (data || []).map((r: any) => this.mapReviewRow(r, "", ""));
   }
-  return (data || []).map((r: any) => this.mapReviewRow(r, '', ''));
-}
 
-async getTenantReviewsPaged(
-  tenantSlug: string,
-  filter: ReviewFilter,
-  limit = 16,
-  offset = 0,
-): Promise<Review[]> {
-  const client = this.getClient();
-  if (!client) return [];
-  const { data, error } = await client.rpc('get_tenant_reviews_paged', {
-    tenant_slug_in: tenantSlug,
-    filter_in: filter,
-    limit_in: limit,
-    offset_in: offset,
-  });
-  if (error) {
-    console.error('get_tenant_reviews_paged error:', error);
-    return [];
+  async getTenantReviewsPaged(
+    tenantSlug: string,
+    filter: ReviewFilter,
+    limit = 16,
+    offset = 0,
+  ): Promise<Review[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data, error } = await client.rpc("get_tenant_reviews_paged", {
+      tenant_slug_in: tenantSlug,
+      filter_in: filter,
+      limit_in: limit,
+      offset_in: offset,
+    });
+    if (error) {
+      console.error("get_tenant_reviews_paged error:", error);
+      return [];
+    }
+    return (data || []).map((r: any) =>
+      this.mapReviewRow(r, r.item_name, r.item_category),
+    );
   }
-  return (data || []).map((r: any) => this.mapReviewRow(r, r.item_name, r.item_category));
-}
 
-async adminDeleteReview(reviewId: string): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('admin_delete_review', {
-    review_id_in: reviewId,
-  });
-  if (error) {
-    console.error('admin_delete_review error:', error);
-    return false;
+  async adminDeleteReview(reviewId: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("admin_delete_review", {
+      review_id_in: reviewId,
+    });
+    if (error) {
+      console.error("admin_delete_review error:", error);
+      return false;
+    }
+    return !!data;
   }
-  return !!data;
-}
 
-// ============ REVIEWS TOGGLE ============
+  // ============ REVIEWS TOGGLE ============
 
-async setGlobalReviewsEnabled(enabled: boolean): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('set_global_reviews_enabled', {
-    enabled_in: enabled,
-  });
-  if (error) {
-    console.error('set_global_reviews_enabled error:', error);
-    throw new Error(error.message || 'Failed to update global setting');
+  async setGlobalReviewsEnabled(enabled: boolean): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("set_global_reviews_enabled", {
+      enabled_in: enabled,
+    });
+    if (error) {
+      console.error("set_global_reviews_enabled error:", error);
+      throw new Error(error.message || "Failed to update global setting");
+    }
+    return !!data;
   }
-  return !!data;
-}
 
-async setTenantReviewsEnabled(
-  slug: string,
-  enabled: boolean,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data, error } = await client.rpc('set_tenant_reviews_enabled', {
-    tenant_slug_in: slug,
-    enabled_in: enabled,
-  });
-  if (error) {
-    console.error('set_tenant_reviews_enabled error:', error);
-    throw new Error(error.message || 'Failed to update setting');
+  async setTenantReviewsEnabled(
+    slug: string,
+    enabled: boolean,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data, error } = await client.rpc("set_tenant_reviews_enabled", {
+      tenant_slug_in: slug,
+      enabled_in: enabled,
+    });
+    if (error) {
+      console.error("set_tenant_reviews_enabled error:", error);
+      throw new Error(error.message || "Failed to update setting");
+    }
+    return !!data;
   }
-  return !!data;
-}
 
-async isGlobalReviewsEnabled(): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return true;
-  const { data, error } = await client
-    .from('star_veg_tenants')
-    .select('reviews_enabled')
-    .eq('slug', 'main')
-    .maybeSingle();
-  if (error || !data) return true;
-  return data.reviews_enabled !== false;
-}
+  async isGlobalReviewsEnabled(): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return true;
+    const { data, error } = await client
+      .from("star_veg_tenants")
+      .select("reviews_enabled")
+      .eq("slug", "main")
+      .maybeSingle();
+    if (error || !data) return true;
+    return data.reviews_enabled !== false;
+  }
 
-private mapReviewRow(row: any, itemName: string, itemCategory: string): Review {
-  return {
-    id: row.id,
-    itemId: row.item_id,
-    itemName: row.item_name ?? itemName,
-    itemCategory: row.item_category ?? itemCategory,
-    rating: Number(row.rating) || 0,
-    comment: row.comment ?? '',
-    customerName: row.customer_name ?? '',
-    deviceId: row.device_id ?? '',
-    deviceFingerprint: row.device_fingerprint ?? '',
-    createdAt: row.created_at ?? new Date().toISOString(),
-  };
-}
+  private mapReviewRow(
+    row: any,
+    itemName: string,
+    itemCategory: string,
+  ): Review {
+    return {
+      id: row.id,
+      itemId: row.item_id,
+      itemName: row.item_name ?? itemName,
+      itemCategory: row.item_category ?? itemCategory,
+      rating: Number(row.rating) || 0,
+      comment: row.comment ?? "",
+      customerName: row.customer_name ?? "",
+      deviceId: row.device_id ?? "",
+      deviceFingerprint: row.device_fingerprint ?? "",
+      createdAt: row.created_at ?? new Date().toISOString(),
+    };
+  }
 }
 
 export const supabaseService = SupabaseService.getInstance();

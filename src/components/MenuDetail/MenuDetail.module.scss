@@ -515,13 +515,13 @@
   will-change: opacity;
 }
 
-/* The outgoing image — visible at t=0, fades to 0 over 240ms */
+/* The outgoing image - visible at t=0, fades to 0 over 240ms */
 .sliderPrev {
   opacity: 1;
   animation: sliderFadeOut 0.24s ease forwards;
 }
 
-/* The incoming image — starts at opacity 0, fades to 1 over 240ms */
+/* The incoming image - starts at opacity 0, fades to 1 over 240ms */
 .sliderCurrIn {
   opacity: 0;
   animation: sliderFadeIn 0.24s ease forwards;

@@ -38,7 +38,7 @@ class MenuService {
   private async loadMenuItems(force = false): Promise<void> {
   if (!this.tenantSlug) return;
 
-  // Already loaded and not forced → skip (no network call)
+  // Already loaded and not forced > skip (no network call)
   if (this.isInitialized && !force) return;
 
   if (this.isLoading) {
@@ -64,7 +64,7 @@ class MenuService {
 
       if (hadItems && gotEmpty) {
         console.warn(
-          'menu.service: empty response — keeping previous',
+          'menu.service: empty response - keeping previous',
           this.menuItems.length,
           'items.',
         );
@@ -187,7 +187,7 @@ startSync(_options: { pollMs?: number } = {}): () => void {
   }
 
   // =========================================================
-  // WRITE METHODS — every mutation passes the tenant slug
+  // WRITE METHODS - every mutation passes the tenant slug
   // =========================================================
 
   async addItem(newItem: Omit<MenuItem, 'id'>): Promise<MenuItem | null> {

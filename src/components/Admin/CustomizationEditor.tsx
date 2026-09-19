@@ -184,7 +184,7 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
                   onChange={(e) => setDefault(optIdx, e.target.value)}
                   className={styles.defaultSelect}
                 >
-                  <option value="">— None —</option>
+                  <option value="">- None -</option>
                   {option.choices
                     .filter((c) => c.name.trim() !== '')
                     .map((c) => (

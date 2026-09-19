@@ -25,7 +25,7 @@ const slugifyKey = (s: string): string =>
     .replace(/^_|_$/g, '');
 
 // =========================================================
-// CategoryChip — inline-editable + draggable pill
+// CategoryChip - inline-editable + draggable pill
 // =========================================================
 interface CategoryChipProps {
   value: string;
@@ -98,7 +98,7 @@ const CategoryChip: React.FC<CategoryChipProps> = ({
       onDragEnd={onDragEnd}
     >
       <span className={styles.chipDragHandle} title="Drag to reorder">
-        ⋮⋮
+        ::
       </span>
       <input
         type="text"
@@ -156,7 +156,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
   const [draggedChipIndex, setDraggedChipIndex] = useState<number | null>(null);
   const [dragOverChipIndex, setDragOverChipIndex] = useState<number | null>(null);
 
-  // Snapshot of the schema at modal open — used to diff removed categories
+  // Snapshot of the schema at modal open - used to diff removed categories
   const initialSchemaRef = useRef<FormSchema | null>(null);
 
   // Auto-seed must run at most once per modal lifetime
@@ -187,7 +187,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     const hasCustomFields = schema.fields.some((f) => !f.builtin);
 
     if (catOpts.length > 0 || hasCustomFields) {
-      // Owner has already customized — do not seed
+      // Owner has already customized - do not seed
       seedRanRef.current = true;
       return;
     }
@@ -480,13 +480,13 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       // ---------------- 3. Persist the schema ----------------
       await supabaseService.updateFormSchema(tenant.slug, schema);
 
-      // Background refresh — do not await so this modal doesn't re-render
+      // Background refresh - do not await so this modal doesn't re-render
       // mid-close with a stale snapshot.
       Promise.allSettled([
         refreshTenant(),
         menuService.refresh(),
       ]).catch(() => {
-        /* silently ignore — errors already logged inside each */
+        /* silently ignore - errors already logged inside each */
       });
 
       flashSuccess(
@@ -587,7 +587,7 @@ const customFields = schema.fields.filter((f) => !f.builtin);
                       <div className={styles.categoryChips}>
                         {(field.options ?? []).length === 0 && (
                           <span className={styles.emptyCategories}>
-                            No categories yet — add one below.
+                            No categories yet - add one below.
                           </span>
                         )}
 

@@ -10,6 +10,8 @@ import {
   DEFAULT_FORM_SCHEMA,
   MessageTemplate,
   DEFAULT_MESSAGE_TEMPLATE,
+  PlanFeatures,
+  SubscriptionStatus,
 } from '../types';
 
 // =========================================================
@@ -23,20 +25,28 @@ export interface Tenant {
   isActive?: boolean;
   formSchema?: FormSchema;
 
-  // Store info (resolved against ShopInfo fallback)
   bannerUrl?: string;
   storeTagline?: string;
   deliveryCharge?: number;
   storewideDiscount?: number;
   ownerPhone?: string;
 
-  // WhatsApp message template
   messageTemplate?: MessageTemplate;
 
   /** Effective reviews flag: TRUE only when global + tenant are both on. */
   reviewsEnabled?: boolean;
 
-  /** Field → true if the current value came from ShopInfo, not the DB. */
+  // ---- Subscription / Plan ----
+  planId?: string;
+  planName?: string;
+  planFeatures?: PlanFeatures;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionStartedAt?: string;
+  subscriptionExpiresAt?: string;
+  pauseRequested?: boolean;
+  pauseRequestedAt?: string;
+  daysUntilExpiry?: number;
+
   infoDefaults?: Partial<
     Record<
       | 'displayName'
@@ -209,6 +219,25 @@ const pickNumber = (v: any, fallback: number): number => {
 };
 
 // =========================================================
+// Plan cache
+// =========================================================
+let plansCache: Record<string, any> | null = null;
+
+const loadPlansMap = async (): Promise<Record<string, any>> => {
+  if (plansCache) return plansCache;
+  if (!supabase) return {};
+  const { data } = await supabase
+    .from('star_veg_plans')
+    .select('id, name, features');
+  const map: Record<string, any> = {};
+  (data || []).forEach((p: any) => {
+    map[p.id] = p;
+  });
+  plansCache = map;
+  return map;
+};
+
+// =========================================================
 // Build tenant object from a DB row
 // =========================================================
 const buildTenant = (
@@ -216,29 +245,50 @@ const buildTenant = (
   formSchema: FormSchema,
   infoDefaults: Tenant['infoDefaults'],
   effectiveReviews: boolean,
-): Tenant => ({
-  id: row.id,
-  slug: row.slug,
+  planRow: any | null,
+): Tenant => {
+  const expiresAt = row.subscription_expires_at;
+  const days = expiresAt
+    ? Math.ceil(
+        (new Date(expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+      )
+    : Infinity;
 
-  displayName: pickString(row.display_name, ShopInfo.Shop_name),
-  whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
-  bannerUrl: isBlank(row.banner_url)
-    ? ShopInfo.Shop_banner || undefined
-    : String(row.banner_url),
-  storeTagline: pickString(row.store_tagline, ShopInfo.Shop_tagline),
-  deliveryCharge: pickNumber(row.delivery_charge, ShopInfo.Delivery_charge),
-  storewideDiscount: pickNumber(
-    row.storewide_discount,
-    ShopInfo.Storewide_discount,
-  ),
-  ownerPhone: pickString(row.owner_phone, ShopInfo.Owner_phone),
+  return {
+    id: row.id,
+    slug: row.slug,
 
-  isActive: row.is_active,
-  formSchema,
-  messageTemplate: normalizeMessageTemplate(row.message_template),
-  reviewsEnabled: effectiveReviews,
-  infoDefaults,
-});
+    displayName: pickString(row.display_name, ShopInfo.Shop_name),
+    whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
+    bannerUrl: isBlank(row.banner_url)
+      ? ShopInfo.Shop_banner || undefined
+      : String(row.banner_url),
+    storeTagline: pickString(row.store_tagline, ShopInfo.Shop_tagline),
+    deliveryCharge: pickNumber(row.delivery_charge, ShopInfo.Delivery_charge),
+    storewideDiscount: pickNumber(
+      row.storewide_discount,
+      ShopInfo.Storewide_discount,
+    ),
+    ownerPhone: pickString(row.owner_phone, ShopInfo.Owner_phone),
+
+    isActive: row.is_active,
+    formSchema,
+    messageTemplate: normalizeMessageTemplate(row.message_template),
+    reviewsEnabled: effectiveReviews,
+    infoDefaults,
+
+    planId: row.plan_id ?? 'professional',
+    planName: planRow?.name ?? 'Professional',
+    planFeatures: (planRow?.features ?? {}) as PlanFeatures,
+    subscriptionStatus: (row.subscription_status ??
+      'active') as SubscriptionStatus,
+    subscriptionStartedAt: row.subscription_started_at ?? undefined,
+    subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
+    pauseRequested: row.pause_requested === true,
+    pauseRequestedAt: row.pause_requested_at ?? undefined,
+    daysUntilExpiry: days,
+  };
+};
 
 // =========================================================
 // Provider
@@ -257,12 +307,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchTenant = async (slug: string): Promise<Tenant | null> => {
     if (!supabase) return null;
 
-    // Fetch the tenant row + the global ('main') row in parallel
     const [tenantRes, mainRes] = await Promise.all([
       supabase
         .from('star_veg_tenants')
         .select(
-          'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled',
+          'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at',
         )
         .eq('slug', slug)
         .maybeSingle(),
@@ -287,17 +336,18 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       ownerPhone: isBlank(data.owner_phone),
     };
 
-    // ---- Effective reviews flag ----
     const globalOn = mainRes.data?.reviews_enabled !== false;
     const tenantOn = data.reviews_enabled !== false;
     const effectiveReviews = globalOn && tenantOn;
+
+    const plansMap = await loadPlansMap();
+    const planRow = plansMap[data.plan_id] ?? null;
 
     const formSchema = normalizeFormSchema(data.form_schema);
     const categoryField = formSchema.fields.find((f) => f.key === 'category');
     const catOptionsEmpty =
       !categoryField?.options || categoryField.options.length === 0;
 
-    // ---- Auto-seed categories from existing items when missing ----
     if (catOptionsEmpty) {
       try {
         const { data: itemRows } = await supabase
@@ -322,14 +372,19 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
               ),
             };
 
-            // Persist in the background so it survives next load
-            supabaseService
-              .updateFormSchema(slug, seeded)
-              .catch((e) =>
-                console.warn('Failed to persist seeded categories:', e),
-              );
+            // Use Promise.resolve to safely chain .catch on the
+            // Supabase builder (it's a thenable, not a full Promise).
+            Promise.resolve(supabaseService.updateFormSchema(slug, seeded)).catch(
+              (e) => console.warn('Failed to persist seeded categories:', e),
+            );
 
-            return buildTenant(data, seeded, infoDefaults, effectiveReviews);
+            return buildTenant(
+              data,
+              seeded,
+              infoDefaults,
+              effectiveReviews,
+              planRow,
+            );
           }
         }
       } catch (err) {
@@ -337,7 +392,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
-    return buildTenant(data, formSchema, infoDefaults, effectiveReviews);
+    return buildTenant(
+      data,
+      formSchema,
+      infoDefaults,
+      effectiveReviews,
+      planRow,
+    );
   };
 
   const refreshTenant = async () => {
@@ -352,6 +413,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ---- Auto-expire stale subscriptions on mount ----
+  // NOTE: Supabase's query builder is a thenable, not a full Promise,
+  // so we must wrap it with Promise.resolve(...) before calling .catch.
+  useEffect(() => {
+    if (!supabase) return;
+    Promise.resolve(supabase.rpc('expire_stale_subscriptions')).catch(() => {
+      /* ignore */
+    });
+  }, []);
+
   useEffect(() => {
     const smartAdmin = isSmartAdminUrl();
     setIsSmartAdminHost(smartAdmin);
@@ -359,7 +430,6 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     const { slug, isAdminView: adminView } = resolveSlugFromUrl();
     setIsAdminView(adminView);
 
-    // No slug → main host
     if (!slug) {
       setIsAdminHost(true);
       setTenantNotFound(false);
@@ -370,7 +440,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (async () => {
       if (!supabase) {
-        console.warn('Supabase not configured — cannot resolve tenant');
+        console.warn('Supabase not configured - cannot resolve tenant');
         setTenant(null);
         setTenantNotFound(true);
         setIsLoading(false);

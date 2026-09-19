@@ -206,7 +206,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
           onClick={handleSubmit}
           disabled={isSubmitting || draftRating < 1}
         >
-          {isSubmitting ? 'Saving…' : 'Submit Review'}
+          {isSubmitting ? 'Saving...' : 'Submit Review'}
         </button>
       </div>
     </div>

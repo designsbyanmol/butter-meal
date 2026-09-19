@@ -1,8 +1,9 @@
 // components/MenuDetail/MenuDetail.tsx
-import React, { useState, useEffect, useRef } from "react";
-import { MenuItem } from "../../types";
-import { DEFAULT_FORM_SCHEMA } from "../../types";
-import { useTenant } from "../../contexts/TenantContext";
+import React, { useState, useEffect, useRef } from 'react';
+import { MenuItem } from '../../types';
+import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { useTenant } from '../../contexts/TenantContext';
+import { usePlan } from '../../hooks/usePlan';
 import {
   MinusIcon,
   CheckIcon,
@@ -11,15 +12,15 @@ import {
   StarIcon,
   PlusIcon,
   Special,
-} from "../../assets/svgs";
-import styles from "./MenuDetail.module.scss";
-import PopularIcon from "../../assets/svgs/PopularIcon";
-import NewIcon from "../../assets/svgs/NewIcon";
-import LimitedIcon from "../../assets/svgs/LimitedIcon";
-import ImagePreview from "../ImagePreview/ImagePreview";
-import ExpandIcon from "../../assets/svgs/ExpandIcon";
-import { formatCount } from "../../utils/formatCount";
-import ReviewSection from "../Reviews/ReviewSection";
+} from '../../assets/svgs';
+import styles from './MenuDetail.module.scss';
+import PopularIcon from '../../assets/svgs/PopularIcon';
+import NewIcon from '../../assets/svgs/NewIcon';
+import LimitedIcon from '../../assets/svgs/LimitedIcon';
+import ImagePreview from '../ImagePreview/ImagePreview';
+import ExpandIcon from '../../assets/svgs/ExpandIcon';
+import ReviewSection from '../Reviews/ReviewSection';
+import { formatCount } from '../../utils/formatCount';
 
 interface MenuDetailProps {
   isOpen: boolean;
@@ -41,20 +42,19 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   acceptingOrders = true,
 }) => {
   const { tenant } = useTenant();
+  const plan = usePlan();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
 
   const [selectedCustomizations, setSelectedCustomizations] = useState<
     Record<string, string>
   >({});
   const [quantity, setQuantity] = useState(1);
-  const [customMessage, setCustomMessage] = useState("");
-
+  const [customMessage, setCustomMessage] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // ---- Slider state ----
+  // Slider state
   const [slideIndex, setSlideIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState<number | null>(null);
-  const [isFading, setIsFading] = useState(false);
   const dragStartXRef = useRef<number | null>(null);
   const dragDeltaRef = useRef<number>(0);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -66,24 +66,21 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     if (!item) return;
 
     setQuantity(1);
-    setCustomMessage("");
+    setCustomMessage('');
 
-    // Reset slider
     setSlideIndex(0);
     setPrevIndex(null);
-    setIsFading(false);
     dragStartXRef.current = null;
     dragDeltaRef.current = 0;
 
     const defaults: Record<string, string> = {};
     item.customizationOptions?.forEach((option) => {
       if (!option || !Array.isArray(option.choices)) return;
-
       if (option.default) {
         const trimmedDefault = String(option.default).trim();
         const choice = option.choices.find(
           (c) =>
-            c && typeof c.name === "string" && c.name.trim() === trimmedDefault,
+            c && typeof c.name === 'string' && c.name.trim() === trimmedDefault,
         );
         if (choice) {
           defaults[option.name] =
@@ -103,63 +100,52 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   if (!isOpen || !item) return null;
 
-  // ============ SCHEMA HELPERS ============
-
   const isFieldEnabled = (key: string): boolean => {
     const field = schema.fields.find((f) => f.key === key);
     return field ? field.enabled : false;
   };
 
-  // ============ DISCOUNT + PRICE ============
-
+  // ---------- Discount + price ----------
   const discount = Number(item.discount ?? 0);
   const hasDiscount = discount > 0 && discount <= 100;
   const effectiveUnitPrice = hasDiscount
     ? Math.round(item.price * (1 - discount / 100))
     : item.price;
 
-  // ============ GALLERY / SLIDER ============
-
+  // ---------- Gallery ----------
   const galleryImages: string[] =
     item.gallery && item.gallery.length > 0
       ? item.gallery
       : item.img
-        ? [item.img]
-        : [];
-
+      ? [item.img]
+      : [];
   const hasMultipleImages = galleryImages.length > 1;
-  const currentImage = galleryImages[slideIndex] ?? item.img ?? "";
+  const currentImage = galleryImages[slideIndex] ?? item.img ?? '';
 
   const swipeThreshold = () => {
     const w = sliderRef.current?.offsetWidth ?? 320;
     return Math.max(40, w * 0.12);
   };
 
-  /** Fade to a new index — smooth cross-fade, no bouncy translate. */
   const goToSlide = (nextIndex: number) => {
     if (nextIndex === slideIndex) return;
     if (nextIndex < 0 || nextIndex >= galleryImages.length) return;
-
     if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
 
     setPrevIndex(slideIndex);
     setSlideIndex(nextIndex);
-    setIsFading(true);
 
     fadeTimeoutRef.current = setTimeout(() => {
       setPrevIndex(null);
-      setIsFading(false);
       fadeTimeoutRef.current = null;
     }, 260);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!hasMultipleImages) return;
-
-    // Ignore clicks on the dots or the expand icon
     const target = e.target as HTMLElement;
-    if (target.closest("[data-slider-dot]")) return;
-    if (target.closest("[data-slider-icon]")) return;
+    if (target.closest('[data-slider-dot]')) return;
+    if (target.closest('[data-slider-icon]')) return;
 
     dragStartXRef.current = e.clientX;
     dragDeltaRef.current = 0;
@@ -177,10 +163,8 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragStartXRef.current === null) return;
-
     const delta = dragDeltaRef.current;
     const threshold = swipeThreshold();
-
     dragStartXRef.current = null;
     dragDeltaRef.current = 0;
 
@@ -207,8 +191,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     }
   };
 
-  // ============ HANDLERS ============
-
   const handleCustomizationChange = (optionName: string, value: string) => {
     setSelectedCustomizations((prev) => ({
       ...prev,
@@ -217,12 +199,10 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   };
 
   const handleAddToCart = () => {
-    if (!acceptingOrders) return;
+    if (!plan.canOrder || !acceptingOrders) return;
     onAddToCart(item, selectedCustomizations, customMessage);
     onClose();
   };
-
-  // ============ DERIVED VALUES ============
 
   const getAddonPrice = (): number => {
     let total = 0;
@@ -233,64 +213,55 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     return total;
   };
 
-  const getTotalPrice = (): number => {
-    return (effectiveUnitPrice + getAddonPrice()) * quantity;
-  };
+  const getTotalPrice = (): number =>
+    (effectiveUnitPrice + getAddonPrice()) * quantity;
 
   const getCustomizationSummary = (): string => {
     const selected = Object.entries(selectedCustomizations)
       .filter(([_, value]) => value)
       .map(([key, value]) => `${key}: ${value}`);
-    return selected.length > 0 ? selected.join(" | ") : "No customizations";
+    return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
 
-  // ============ FIELD PRESENCE FLAGS (schema-aware) ============
-
-  const hasDesc =
-    isFieldEnabled("desc") && !!item.desc && item.desc.trim() !== "";
-
+  // ---------- Field presence flags ----------
+  const hasDesc = isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
   const hasCategory =
-    isFieldEnabled("category") &&
-    !!item.category &&
-    item.category.trim() !== "";
-
+    isFieldEnabled('category') && !!item.category && item.category.trim() !== '';
   const hasPrepTime =
-    isFieldEnabled("preparationTime") &&
+    isFieldEnabled('preparationTime') &&
     !!item.preparationTime &&
-    item.preparationTime.trim() !== "";
-
+    item.preparationTime.trim() !== '';
   const hasCalories =
-    isFieldEnabled("calories") &&
-    typeof item.calories === "number" &&
+    isFieldEnabled('calories') &&
+    typeof item.calories === 'number' &&
     item.calories > 0;
 
-  // ---- Reviews are hidden entirely when the tenant/global flag is off ----
   const reviewsEnabled = tenant?.reviewsEnabled !== false;
-
   const hasReviews =
+    plan.canReview &&
     reviewsEnabled &&
-    typeof item.reviewCount === "number" &&
+    typeof item.reviewCount === 'number' &&
     item.reviewCount > 0 &&
-    typeof item.rating === "number" &&
+    typeof item.rating === 'number' &&
     item.rating > 0;
 
-  const showSpicy = isFieldEnabled("isSpicy") && item.isSpicy === true;
+  const showSpicy = isFieldEnabled('isSpicy') && item.isSpicy === true;
   const showGlutenFree =
-    isFieldEnabled("isGlutenFree") && item.isGlutenFree === true;
+    isFieldEnabled('isGlutenFree') && item.isGlutenFree === true;
 
   const hasAnyTag =
     hasCategory || showSpicy || showGlutenFree || hasPrepTime || hasCalories;
 
   const nutritionEntries =
-    item.nutritionalInfo && typeof item.nutritionalInfo === "object"
+    item.nutritionalInfo && typeof item.nutritionalInfo === 'object'
       ? Object.entries(item.nutritionalInfo).filter(
-          ([_, v]) => v !== undefined && v !== null && String(v).trim() !== "",
+          ([_, v]) => v !== undefined && v !== null && String(v).trim() !== '',
         )
       : [];
   const hasNutrition = nutritionEntries.length > 0;
 
   const hasIngredients =
-    isFieldEnabled("ingredients") &&
+    isFieldEnabled('ingredients') &&
     Array.isArray(item.ingredients) &&
     item.ingredients.length > 0;
 
@@ -303,24 +274,16 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const customFieldEntries = schema.fields
     .filter((f) => !f.builtin && f.enabled)
-    .map((field) => {
-      const value = item.attributes?.[field.key];
-      return { field, value };
-    })
+    .map((field) => ({ field, value: item.attributes?.[field.key] }))
     .filter(
       ({ value }) =>
-        value !== undefined && value !== null && String(value).trim() !== "",
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== '',
     );
 
-  // ============ RENDER ============
-
   return (
-    <div
-      className={`${styles.modalOverlay} ${
-        acceptingOrders ? styles.accepting : styles.not_accepting
-      }`}
-      onClick={onClose}
-    >
+    <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
         {/* ============ Image / Cross-fade Slider ============ */}
         <div
@@ -331,11 +294,10 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           onPointerUp={endDrag}
           onPointerCancel={handlePointerCancel}
           style={{
-            cursor: hasMultipleImages ? "grab" : "default",
-            touchAction: hasMultipleImages ? "pan-y" : "auto",
+            cursor: hasMultipleImages ? 'grab' : 'default',
+            touchAction: hasMultipleImages ? 'pan-y' : 'auto',
           }}
         >
-          {/* Previous image — fades out */}
           {prevIndex !== null && (
             <img
               key={`prev-${prevIndex}`}
@@ -346,7 +308,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             />
           )}
 
-          {/* Current image — fades in */}
           <img
             key={`curr-${slideIndex}`}
             src={currentImage}
@@ -355,7 +316,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
               prevIndex !== null ? styles.sliderCurrIn : styles.sliderCurrIdle
             }`}
             draggable={false}
-            style={{ pointerEvents: "auto" }}
+            style={{ pointerEvents: 'auto' }}
           />
 
           {hasMultipleImages && (
@@ -366,7 +327,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                   type="button"
                   data-slider-dot
                   className={`${styles.sliderDot} ${
-                    i === slideIndex ? styles.sliderDotActive : ""
+                    i === slideIndex ? styles.sliderDotActive : ''
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -390,7 +351,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             item.attributes?.isNew ||
             item.attributes?.isChefSpecial ||
             item.attributes?.isLimited ||
-            (isFieldEnabled("isVeg") && item?.isVeg)) && (
+            (isFieldEnabled('isVeg') && item?.isVeg)) && (
             <div className={styles.badgesWrapper}>
               {item.attributes?.isPopular && (
                 <PopularIcon width={32} height={32} />
@@ -402,12 +363,12 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
               {item.attributes?.isLimited && (
                 <LimitedIcon width={32} height={32} />
               )}
-              {isFieldEnabled("isVeg") && item.isVeg && (
+              {isFieldEnabled('isVeg') && item.isVeg && (
                 <span className={`${styles.badge} ${styles.veg}`}>Veg</span>
               )}
             </div>
           )}
-          {/* Fullscreen preview icon — bottom-right */}
+
           <button
             type="button"
             className={styles.expandBtn}
@@ -425,23 +386,21 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
         {/* ============ Content ============ */}
         <div className={styles.content}>
-          {/* Header */}
           <div className={styles.header}>
-  <h2>{item.name}</h2>
-  {hasReviews && (
-    <div className={styles.rating}>
-      <span className={styles.stars}>
-        <StarIcon width={14} height={14} fill="#3caa46" />
-      </span>
-      <span>{item.rating}</span>
-      <span className={styles.reviewCount}>
-        ({formatCount(item.reviewCount)})
-      </span>
-    </div>
-  )}
-</div>
+            <h2>{item.name}</h2>
+            {hasReviews && (
+              <div className={styles.rating}>
+                <span className={styles.stars}>
+                  <StarIcon width={14} height={14} fill="#3caa46" />
+                </span>
+                <span>{item.rating}</span>
+                <span className={styles.reviewCount}>
+                  ({formatCount(item.reviewCount)})
+                </span>
+              </div>
+            )}
+          </div>
 
-          {/* Discount line */}
           {hasDiscount && (
             <div className={styles.discountLine}>
               <del>Rs{item.price}</del>
@@ -449,10 +408,8 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Description */}
           {hasDesc && <p className={styles.description}>{item.desc}</p>}
 
-          {/* Tags */}
           {hasAnyTag && (
             <div className={styles.tags}>
               {hasCategory && (
@@ -480,7 +437,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Custom fields */}
           {customFieldEntries.length > 0 && (
             <div className={styles.section}>
               <h4>Additional Information</h4>
@@ -489,10 +445,10 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                   <div key={field.key} className={styles.nutritionItem}>
                     <span>{field.label}</span>
                     <span>
-                      {typeof value === "boolean"
+                      {typeof value === 'boolean'
                         ? value
-                          ? "Yes"
-                          : "No"
+                          ? 'Yes'
+                          : 'No'
                         : String(value)}
                     </span>
                   </div>
@@ -501,7 +457,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Ingredients */}
           {hasIngredients && (
             <div className={styles.section}>
               <h4>Ingredients</h4>
@@ -516,14 +471,15 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Nutritional Info */}
           {hasNutrition && (
             <div className={styles.section}>
               <h4>Nutritional Information</h4>
               <div className={styles.nutritionalInfo}>
                 {nutritionEntries.map(([key, value]) => (
                   <div key={key} className={styles.nutritionItem}>
-                    <span>{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                    <span>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </span>
                     <span>{value}g</span>
                   </div>
                 ))}
@@ -531,7 +487,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Customizations */}
           {hasCustomizations && (
             <div className={styles.section}>
               <h4>Customize Your Order</h4>
@@ -570,7 +525,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                             {choice.name}
                             {choice.price > 0 && (
                               <em className={styles.choicePrice}>
-                                {" "}
+                                {' '}
                                 +Rs{choice.price}
                               </em>
                             )}
@@ -584,7 +539,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Customization Summary */}
           {hasAnyCustomizationSelected && (
             <div className={styles.customizationSummary}>
               <span className={styles.summaryLabel}>
@@ -601,30 +555,34 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             </div>
           )}
 
-          {/* Special Instructions */}
-          <div className={styles.section}>
-            <h4>Add Customized Message</h4>
-            <div className={styles.customMessageWrapper}>
-              <textarea
-                className={styles.customMessageInput}
-                placeholder="Add any special instructions for the restaurant (e.g., extra sauce, less spice, etc.)"
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                rows={3}
-                maxLength={500}
-              />
-              {customMessage && (
-                <div className={styles.messageCharCount}>
-                  {customMessage.length}/500
-                </div>
-              )}
+          {/* Custom message - only when the plan allows it */}
+          {plan.canAddCustomMessage && (
+            <div className={styles.section}>
+              <h4>Add Customized Message</h4>
+              <div className={styles.customMessageWrapper}>
+                <textarea
+                  className={styles.customMessageInput}
+                  placeholder="Add any special instructions for the restaurant (e.g., extra sauce, less spice, etc.)"
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                />
+                {customMessage && (
+                  <div className={styles.messageCharCount}>
+                    {customMessage.length}/500
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Reviews */}
-          <ReviewSection item={item} />
+          {/* Reviews - only when the plan allows it AND tenant flag is on */}
+          {plan.canReview && reviewsEnabled && (
+            <ReviewSection item={item} />
+          )}
 
-          {/* Footer — Price & Add to Cart */}
+          {/* Footer */}
           <div className={styles.footer}>
             <div className={styles.priceSection}>
               <div>
@@ -632,7 +590,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                   Rs{getTotalPrice()}
                   {quantity > 1 && (
                     <span className={styles.pricePerItem}>
-                      (Rs{effectiveUnitPrice + getAddonPrice()} × {quantity})
+                      (Rs{effectiveUnitPrice + getAddonPrice()} x {quantity})
                     </span>
                   )}
                 </div>
@@ -643,7 +601,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                   </div>
                 )}
               </div>
-              {acceptingOrders && (
+              {plan.canOrder && acceptingOrders && (
                 <div className={styles.quantityControls}>
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -663,11 +621,12 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
                 </div>
               )}
             </div>
+
             <div className={styles.btnWrap}>
               <button className={styles.closeBtn} onClick={onClose}>
                 Close
               </button>
-              {acceptingOrders && (
+              {plan.canOrder && acceptingOrders && (
                 <button
                   className={styles.addToCartBtn}
                   onClick={handleAddToCart}
@@ -679,6 +638,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           </div>
         </div>
       </div>
+
       <ImagePreview
         isOpen={isPreviewOpen}
         images={galleryImages}

@@ -31,7 +31,7 @@ export interface StoreSettings {
 }
 
 // =========================================================
-// MENU — CUSTOMIZATION
+// MENU - CUSTOMIZATION
 // =========================================================
 
 /** A single choice within a customization group. */
@@ -48,7 +48,7 @@ export interface CustomizationOption {
 }
 
 // =========================================================
-// MENU — FORM SCHEMA (per-tenant form builder)
+// MENU - FORM SCHEMA (per-tenant form builder)
 // =========================================================
 
 export type FormFieldType =
@@ -66,7 +66,7 @@ export interface FormFieldConfig {
   builtin: boolean;
   removable: boolean;
   locked?: boolean;
-  /** Field is managed by the platform admin only — hidden for tenants. */
+  /** Field is managed by the platform admin only - hidden for tenants. */
   platformOnly?: boolean;
   options?: string[];
 }
@@ -85,7 +85,7 @@ export const DEFAULT_FORM_SCHEMA: FormSchema = {
     { key: 'desc',        label: 'Description',  type: 'textarea', enabled: true, builtin: true, removable: false, locked: true },
     { key: 'costPrice',   label: 'Cost Price',   type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
 
-    // Platform-managed — hidden from tenant item form / edit fields
+    // Platform-managed - hidden from tenant item form / edit fields
     { key: 'rating',      label: 'Rating',       type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
     { key: 'reviewCount', label: 'Review Count', type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
 
@@ -103,7 +103,7 @@ export const DEFAULT_FORM_SCHEMA: FormSchema = {
 };
 
 // =========================================================
-// MENU — ITEMS
+// MENU - ITEMS
 // =========================================================
 
 export type MenuItemAttributes = {
@@ -236,7 +236,7 @@ export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
 };
 
 // =========================================================
-// TENANT (context type — the DB row is mapped to this shape)
+// TENANT (context type - the DB row is mapped to this shape)
 // =========================================================
 
 export interface Tenant {
@@ -253,21 +253,8 @@ export interface Tenant {
   deliveryCharge?: number;
   storewideDiscount?: number;
   ownerPhone?: string;
-
-  // ---- WhatsApp message template (falls back to DEFAULT_MESSAGE_TEMPLATE) ----
   messageTemplate?: MessageTemplate;
-
-  /**
-   * Effective reviews flag. TRUE only when BOTH the global flag
-   * (on the `main` tenant row) and this tenant's own flag are on.
-   */
   reviewsEnabled?: boolean;
-
-  /**
-   * Field name → true if the current value came from ShopInfo,
-   * not from the DB. Used to render the "Using default" pill in
-   * the store InfoPopup.
-   */
   infoDefaults?: Partial<
     Record<
       | 'displayName'
@@ -280,6 +267,15 @@ export interface Tenant {
       boolean
     >
   >;
+  planId?: string;
+  planName?: string;
+  planFeatures?: PlanFeatures;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionStartedAt?: string;
+  subscriptionExpiresAt?: string;
+  pauseRequested?: boolean;
+  pauseRequestedAt?: string;
+  daysUntilExpiry?: number;
 }
 
 // =========================================================
@@ -300,3 +296,74 @@ export interface Review {
 }
 
 export type ReviewFilter = 'all' | 'lte4' | 'lte3' | 'lte2' | 'commented';
+
+// =========================================================
+// PLANS / SUBSCRIPTION / INVOICES
+// =========================================================
+
+export interface PlanFeatures {
+  canOrder?: boolean;
+  canEditFields?: boolean;
+  canManageStore?: boolean;
+  canManageUsers?: boolean;
+  canWishlist?: boolean;
+  canReview?: boolean;
+  canAddCustomMessage?: boolean;
+  canEditProfileFields?: string[];
+  [key: string]: any;
+}
+
+export interface Plan {
+  id: string;            // 'basic' | 'dynamic' | 'professional'
+  name: string;
+  monthlyPrice: number;
+  description: string;
+  features: PlanFeatures;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type DurationMonths = 1 | 3 | 6 | 12 | 24;
+
+export interface DurationOption {
+  months: DurationMonths;
+  discountPct: number;
+  label: string;
+}
+
+export const DURATION_OPTIONS: DurationOption[] = [
+  { months: 1,  discountPct: 0,  label: '1 month' },
+  { months: 3,  discountPct: 10, label: '3 months' },
+  { months: 6,  discountPct: 15, label: '6 months' },
+  { months: 12, discountPct: 20, label: '1 year' },
+  { months: 24, discountPct: 25, label: '2 years' },
+];
+
+export type SubscriptionStatus = 'active' | 'paused' | 'expired';
+
+export interface Invoice {
+  id: string;
+  tenantSlug: string;
+  planId: string;
+  months: number;
+  baseAmount: number;
+  discountPct: number;
+  finalAmount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  paidAt?: string;
+  markedPaidBy?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PauseRequest {
+  id: string;
+  tenantSlug: string;
+  tenantName?: string;
+  requestedAt: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  resolvedAt?: string;
+  resolvedBy?: string;
+}

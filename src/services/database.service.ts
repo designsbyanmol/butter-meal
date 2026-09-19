@@ -25,16 +25,24 @@ class DatabaseService {
 
   private menuErrorLogged = false;
 
-  private constructor() {
-    this.useSupabase = isSupabaseConfigured;
+private constructor() {
+  this.useSupabase = isSupabaseConfigured;
 
-    if (this.useSupabase) {
-  this.isMaintenanceMode = false;
-  // Single check on startup. No interval, no focus listener.
-  // Connection state is inferred from actual query results after that.
-  this.connectionCheckPromise = this.checkConnectionOnStartup();
-}
+  if (this.useSupabase) {
+    this.isMaintenanceMode = false;
   }
+}
+
+public startConnectionCheck(): Promise<boolean> {
+  if (!this.useSupabase) {
+    this.connectionChecked = true;
+    return Promise.resolve(false);
+  }
+  if (!this.connectionCheckPromise) {
+    this.connectionCheckPromise = this.checkConnectionOnStartup();
+  }
+  return this.connectionCheckPromise;
+}
 
   public static getInstance(): DatabaseService {
     if (!DatabaseService.instance) {
@@ -62,30 +70,30 @@ class DatabaseService {
   }
 
   private async testConnection(): Promise<boolean> {
-  if (!this.useSupabase) return false;
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Connection timeout')), 5000);
-    });
-    const pingPromise = supabaseService.ping();
-    const ok = await Promise.race([pingPromise, timeoutPromise]);
-    this.lastTestFailureAt = 0;
-    this.lastTestFailureMsg = '';
-    return ok === true;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const now = Date.now();
-    if (
-      msg !== this.lastTestFailureMsg ||
-      now - this.lastTestFailureAt > DatabaseService.TEST_FAIL_LOG_THROTTLE_MS
-    ) {
-      console.warn('Supabase unreachable — using cached data:', msg);
-      this.lastTestFailureAt = now;
-      this.lastTestFailureMsg = msg;
+    if (!this.useSupabase) return false;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Connection timeout")), 5000);
+      });
+      const pingPromise = supabaseService.ping();
+      const ok = await Promise.race([pingPromise, timeoutPromise]);
+      this.lastTestFailureAt = 0;
+      this.lastTestFailureMsg = "";
+      return ok === true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const now = Date.now();
+      if (
+        msg !== this.lastTestFailureMsg ||
+        now - this.lastTestFailureAt > DatabaseService.TEST_FAIL_LOG_THROTTLE_MS
+      ) {
+        console.warn("Supabase unreachable - using cached data:", msg);
+        this.lastTestFailureAt = now;
+        this.lastTestFailureMsg = msg;
+      }
+      return false;
     }
-    return false;
   }
-}
 
   subscribeToMaintenance(listener: (isActive: boolean) => void): () => void {
     this.maintenanceListeners.push(listener);
@@ -123,10 +131,13 @@ class DatabaseService {
     return isConnected;
   }
 
-  async waitForConnectionCheck(): Promise<boolean> {
-    if (this.connectionCheckPromise) return await this.connectionCheckPromise;
-    return !this.isMaintenanceMode;
+async waitForConnectionCheck(): Promise<boolean> {
+  if (!this.connectionCheckPromise) {
+    // First caller triggers the check
+    this.connectionCheckPromise = this.checkConnectionOnStartup();
   }
+  return await this.connectionCheckPromise;
+}
 
   // ============ HELPERS ============
 
@@ -136,7 +147,7 @@ class DatabaseService {
     );
   }
 
-  // ============ LOCAL STORAGE — MENU (per tenant) ============
+  // ============ LOCAL STORAGE - MENU (per tenant) ============
 
   private getLocalMenuItems(tenantSlug: string): MenuItem[] {
     try {
@@ -157,7 +168,7 @@ class DatabaseService {
     }
   }
 
-  // ============ LOCAL STORAGE — USERS (per tenant) ============
+  // ============ LOCAL STORAGE - USERS (per tenant) ============
 
   private getLocalUsers(tenantSlug: string): User[] {
     try {
@@ -178,7 +189,7 @@ class DatabaseService {
     }
   }
 
-  // ============ LOCAL STORAGE — STORE SETTINGS (per tenant) ============
+  // ============ LOCAL STORAGE - STORE SETTINGS (per tenant) ============
 
   private getStoreSettingsKey(tenantSlug: string): string {
     return this.tenantKey(STORE_SETTINGS_KEY, tenantSlug);
@@ -213,13 +224,13 @@ class DatabaseService {
       const parsed = JSON.parse(saved);
 
       return {
-  isOpen: parsed.isOpen ?? true,
-  closedMessage: parsed.closedMessage || '',
-  expectedOpenDate: parsed.expectedOpenDate || '',
-  expectedOpenTime: parsed.expectedOpenTime || '',
-  acceptingOrders: parsed.acceptingOrders !== false,   // ← NEW
-  lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-};
+        isOpen: parsed.isOpen ?? true,
+        closedMessage: parsed.closedMessage || "",
+        expectedOpenDate: parsed.expectedOpenDate || "",
+        expectedOpenTime: parsed.expectedOpenTime || "",
+        acceptingOrders: parsed.acceptingOrders !== false, // ← NEW
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+      };
     } catch (error) {
       console.error("getStoreSettingsFromLocalStorage failed:", error);
       return null;
@@ -271,7 +282,7 @@ class DatabaseService {
       }
 
       if (!this.menuErrorLogged) {
-        console.warn("getMenuItems returned null — using local cache");
+        console.warn("getMenuItems returned null - using local cache");
         this.menuErrorLogged = true;
       }
     }
@@ -301,7 +312,7 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          console.error("Supabase addMenuItem returned null — aborting.");
+          console.error("Supabase addMenuItem returned null - aborting.");
           return null;
         } catch (error) {
           console.error("Supabase addMenuItem threw:", error);
@@ -331,7 +342,7 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return true;
           }
-          console.error("Supabase deleteMenuItem returned false — aborting.");
+          console.error("Supabase deleteMenuItem returned false - aborting.");
           return false;
         } catch (error) {
           console.error("Supabase deleteMenuItem threw:", error);
@@ -371,7 +382,7 @@ class DatabaseService {
             this.saveLocalMenuItems(tenantSlug, localItems);
             return result;
           }
-          console.error("Supabase updateMenuItem returned null — aborting.");
+          console.error("Supabase updateMenuItem returned null - aborting.");
           return null;
         } catch (error) {
           console.error("Supabase updateMenuItem threw:", error);
@@ -410,7 +421,7 @@ class DatabaseService {
             return result;
           }
           console.error(
-            "Supabase toggleMenuItemStock returned null — aborting.",
+            "Supabase toggleMenuItemStock returned null - aborting.",
           );
           return null;
         } catch (error) {
@@ -490,7 +501,7 @@ class DatabaseService {
           this.saveLocalMenuItems(tenantSlug, result);
           return result;
         }
-        console.error("Supabase reorderMenuItems returned null — aborting.");
+        console.error("Supabase reorderMenuItems returned null - aborting.");
         return null;
       } catch (error) {
         console.error("Supabase reorderMenuItems threw:", error);
@@ -522,7 +533,7 @@ class DatabaseService {
 
         if (supabaseItems === null) {
           console.warn(
-            "initializeMenuItems: Supabase read failed — skipping seed",
+            "initializeMenuItems: Supabase read failed - skipping seed",
           );
           return;
         }

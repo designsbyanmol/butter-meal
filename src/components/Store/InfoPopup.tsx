@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabaseService } from '../../services/supabase.service';
-import { CloseIcon } from '../../assets/svgs';
+import { CloseIcon, CopyIcon } from '../../assets/svgs';
 import EditIcon from '../../assets/svgs/EditIcon';
 import ImageUpload from '../Admin/ImageUpload';
-import styles from './InfoPopup.module.scss';
-import { ShopInfo } from '../../config/credentials';
 import MessageTemplateEditor from './MessageTemplateEditor';
+import PlanChangeModal from '../Payments/PlanChangeModal';
+import { ShopInfo } from '../../config/credentials';
+import { usePlan } from '../../hooks/usePlan';
+import styles from './InfoPopup.module.scss';
 
 interface InfoPopupProps {
   isOpen: boolean;
@@ -26,7 +28,7 @@ type EditableField =
 interface FieldDef {
   key: EditableField;
   label: string;
-  getValue: (tenant: any) => string;
+  getValue: (t: any) => string;
   type: 'text' | 'tel' | 'number' | 'image';
   placeholder?: string;
   hint?: string;
@@ -38,7 +40,7 @@ const FIELDS: FieldDef[] = [
     label: 'Store Offer Banner',
     type: 'image',
     getValue: (t) => t?.bannerUrl || ShopInfo.Shop_banner || '',
-    hint: 'Shown at the top of the menu page. Image Dimension 1200x630px preferred.',
+    hint: 'Shown at the top of the menu page. Recommended 1200x630px.',
   },
   {
     key: 'display_name',
@@ -51,21 +53,18 @@ const FIELDS: FieldDef[] = [
     label: 'Store Tagline',
     type: 'text',
     getValue: (t) => t?.storeTagline || ShopInfo.Shop_tagline,
-    placeholder: 'e.g., Green . Fresh . Healthy',
   },
   {
     key: 'owner_phone',
     label: 'Owner Phone',
     type: 'tel',
     getValue: (t) => t?.ownerPhone || ShopInfo.Owner_phone,
-    placeholder: '10-digit phone',
   },
   {
     key: 'whatsapp_phone',
     label: 'Store WhatsApp Number',
     type: 'tel',
     getValue: (t) => t?.whatsappPhone || ShopInfo.Store_whatsapp,
-    placeholder: '10-digit phone',
     hint: 'Customer orders arrive here.',
   },
   {
@@ -74,7 +73,9 @@ const FIELDS: FieldDef[] = [
     type: 'number',
     getValue: (t) => {
       const n = Number(t?.deliveryCharge);
-      return Number.isFinite(n) ? String(n) : String(ShopInfo.Delivery_charge);
+      return Number.isFinite(n)
+        ? String(n)
+        : String(ShopInfo.Delivery_charge);
     },
   },
   {
@@ -87,12 +88,13 @@ const FIELDS: FieldDef[] = [
         ? String(n)
         : String(ShopInfo.Storewide_discount);
     },
-    hint: '0–100. Applied on Online payment.',
+    hint: '0-100. Applied on Online payment.',
   },
 ];
 
 const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
   const { tenant, refreshTenant } = useTenant();
+  const plan = usePlan();
 
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [draftValue, setDraftValue] = useState('');
@@ -100,8 +102,8 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+  const [isPlanChangeOpen, setIsPlanChangeOpen] = useState(false);
 
-  // Reset when popup opens
   useEffect(() => {
     if (isOpen) {
       setEditingField(null);
@@ -112,26 +114,26 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Esc closes any open editor, or the whole popup.
-  // Note: if the template editor is open, it handles its own Esc,
-  // so we bail out here to avoid closing both at once.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (isTemplateEditorOpen) return;   // template editor handles its own Esc
+      if (isTemplateEditorOpen || isPlanChangeOpen) return;
       if (editingField) setEditingField(null);
       else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, editingField, isTemplateEditorOpen, onClose]);
+  }, [isOpen, editingField, isTemplateEditorOpen, isPlanChangeOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !tenant) return null;
 
-  // ---------- Which fields are still running on ShopInfo fallback? ----------
+  const origin = window.location.origin + window.location.pathname;
+  const adminUrl = `${origin}?t=${tenant.slug}_admin`;
+  const publicUrl = `${origin}?t=${tenant.slug}`;
+
   const isDefault = (key: EditableField): boolean => {
-    if (!tenant?.infoDefaults) return false;
+    if (!tenant.infoDefaults) return false;
     switch (key) {
       case 'display_name':
         return !!tenant.infoDefaults.displayName;
@@ -152,6 +154,14 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const openEditor = (field: FieldDef) => {
     setEditingField(field.key);
     setDraftValue(field.getValue(tenant));
@@ -167,10 +177,9 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
   };
 
   const saveEdit = async (overrideValue?: string) => {
-    if (!tenant || !editingField) return;
+    if (!editingField) return;
     const value = (overrideValue ?? draftValue).trim();
 
-    // ---- validation ----
     if (editingField === 'display_name' && !value) {
       setError('Store name cannot be empty.');
       return;
@@ -201,7 +210,11 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
 
     setIsSaving(true);
     try {
-      await supabaseService.updateTenantInfo(tenant.slug, editingField, value);
+      await supabaseService.updateTenantInfo(
+        tenant.slug,
+        editingField,
+        value,
+      );
       await refreshTenant();
       setSuccess('Saved');
       setTimeout(() => {
@@ -210,14 +223,22 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         setSuccess('');
       }, 500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setIsSaving(false);
     }
   };
 
   const activeFieldDef = FIELDS.find((f) => f.key === editingField) || null;
+
+  const planStatus = tenant.subscriptionStatus ?? 'active';
+  const planExpires = tenant.subscriptionExpiresAt
+    ? new Date(tenant.subscriptionExpiresAt).toLocaleDateString(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '-';
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -226,7 +247,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Store informations"
       >
         <div className={styles.header}>
           <h2>Informations</h2>
@@ -240,7 +260,65 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className={styles.body}>
+          {/* ---- Plan row ---- */}
+          <div className={styles.row}>
+            <div className={styles.rowMain}>
+              <div className={styles.labelRow}>
+                <span className={styles.label}>Plan</span>
+                <span className={styles.defaultPill}>
+                  {tenant.planName ?? 'Professional'} .{' '}
+                  {planStatus.toUpperCase()}
+                </span>
+              </div>
+              <div className={styles.value}>Expires on {planExpires}</div>
+            </div>
+            <button
+              className={styles.editBtn}
+              onClick={() => setIsPlanChangeOpen(true)}
+              title="Change plan"
+            >
+              <EditIcon width={16} height={16} fill="#1e7e34" />
+            </button>
+          </div>
+
+          {/* ---- URLs ---- */}
+          <div className={styles.row}>
+            <div className={styles.rowMain}>
+              <div className={styles.labelRow}>
+                <span className={styles.label}>Public Store URL</span>
+              </div>
+              <div className={styles.value}>{publicUrl}</div>
+            </div>
+            <button
+              className={styles.editBtn}
+              onClick={() => copyToClipboard(publicUrl)}
+              title="Copy public URL"
+            >
+              <CopyIcon width={16} height={16} fill="#4d4d4d" />
+            </button>
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowMain}>
+              <div className={styles.labelRow}>
+                <span className={styles.label}>Admin Store URL</span>
+              </div>
+              <div className={styles.value}>{adminUrl}</div>
+            </div>
+            <button
+              className={styles.editBtn}
+              onClick={() => copyToClipboard(adminUrl)}
+              title="Copy admin URL"
+            >
+              <CopyIcon width={16} height={16} fill="#4d4d4d" />
+            </button>
+          </div>
+
+          {/* ---- Editable fields (hidden entirely when the plan doesn't allow) ---- */}
           {FIELDS.map((field) => {
+            const canEdit = plan.canEditProfileField(field.key);
+            if (!canEdit) return null;
+
             const value = field.getValue(tenant);
             const isImage = field.type === 'image';
             const usingDefault = isDefault(field.key);
@@ -250,6 +328,11 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                 <div className={styles.rowMain}>
                   <div className={styles.labelRow}>
                     <span className={styles.label}>{field.label}</span>
+                    {usingDefault && (
+                      <span className={styles.defaultPill}>
+                        Using default
+                      </span>
+                    )}
                   </div>
 
                   {isImage ? (
@@ -267,7 +350,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                   ) : (
                     <div className={styles.value}>
                       {value || (
-                        <span className={styles.empty}>— Not set —</span>
+                        <span className={styles.empty}>- Not set -</span>
                       )}
                     </div>
                   )}
@@ -280,7 +363,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                 <button
                   className={styles.editBtn}
                   onClick={() => openEditor(field)}
-                  aria-label={`Edit ${field.label}`}
                   title={`Edit ${field.label}`}
                 >
                   <EditIcon width={16} height={16} fill="#1e7e34" />
@@ -289,31 +371,32 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
             );
           })}
 
-          {/* ---- WhatsApp Message Template row ---- */}
-          <div className={styles.row}>
-            <div className={styles.rowMain}>
-              <div className={styles.labelRow}>
-                <span className={styles.label}>
-                  WhatsApp Message Template
-                </span>
+          {/* ---- Message template row (hidden when the plan doesn't allow) ---- */}
+          {plan.canEditProfileField('message_template') && (
+            <div className={styles.row}>
+              <div className={styles.rowMain}>
+                <div className={styles.labelRow}>
+                  <span className={styles.label}>
+                    WhatsApp Message Template
+                  </span>
+                </div>
+                <div className={styles.value}>
+                  Customize the exact text customers send to your WhatsApp.
+                </div>
               </div>
-              <div className={styles.value}>
-                Customize the exact text customers send to your WhatsApp.
-              </div>
+              <button
+                className={styles.editBtn}
+                onClick={() => setIsTemplateEditorOpen(true)}
+                title="Edit template"
+              >
+                <EditIcon width={16} height={16} fill="#1e7e34" />
+              </button>
             </div>
-            <button
-              className={styles.editBtn}
-              onClick={() => setIsTemplateEditorOpen(true)}
-              aria-label="Edit message template"
-              title="Edit message template"
-            >
-              <EditIcon width={16} height={16} fill="#1e7e34" />
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ============ EDITOR MODAL ============ */}
+      {/* Editor modal */}
       {activeFieldDef && (
         <div
           className={styles.editorOverlay}
@@ -331,7 +414,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
               <button
                 className={styles.closeBtn}
                 onClick={closeEditor}
-                aria-label="Close"
               >
                 <CloseIcon width={18} height={18} fill="#4d4d4d" />
               </button>
@@ -372,12 +454,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                     }}
                     placeholder={activeFieldDef.placeholder}
                     autoFocus
-                    min={activeFieldDef.type === 'number' ? '0' : undefined}
-                    max={
-                      activeFieldDef.key === 'storewide_discount'
-                        ? '100'
-                        : undefined
-                    }
                   />
                   {activeFieldDef.hint && (
                     <small className={styles.fieldHint}>
@@ -405,7 +481,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                   onClick={() => saveEdit()}
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Saving…' : 'Save'}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             )}
@@ -413,10 +489,22 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         </div>
       )}
 
-      {/* ============ MESSAGE TEMPLATE EDITOR ============ */}
       <MessageTemplateEditor
         isOpen={isTemplateEditorOpen}
         onClose={() => setIsTemplateEditorOpen(false)}
+      />
+
+      <PlanChangeModal
+        isOpen={isPlanChangeOpen}
+        mode="tenant"
+        tenantSlug={tenant.slug}
+        tenantName={tenant.displayName}
+        currentPlanId={tenant.planId}
+        onClose={() => setIsPlanChangeOpen(false)}
+        onComplete={() => {
+          refreshTenant();
+          setIsPlanChangeOpen(false);
+        }}
       />
     </div>
   );

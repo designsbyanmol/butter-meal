@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { User } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
 import styles from './UserManagement.module.scss';
-import { CloseIcon, CheckIcon } from '../../assets/svgs';
+import { CloseIcon, CheckIcon, PlusIcon, TrashIcon, UsersIcon } from '../../assets/svgs';
 
 interface UserManagementProps {
   onClose: () => void;
@@ -301,7 +301,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           })
                         }
                       >
-                        🎲 Generate
+                        Generate
                       </button>
                     </div>
                     <div className={styles.formGroup}>
@@ -377,7 +377,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </div>
                     <div className={styles.row}>
                       <label>Password</label>
-                      <span className={styles.passwordHint}>••••••••</span>
+                      <span className={styles.passwordHint}>######</span>
                     </div>
                     <div className={styles.row}>
                       <div className={styles.actionButtons}>
@@ -451,7 +451,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             className={styles.createBtn}
             onClick={() => setShowCreateForm(true)}
           >
-            + Add User
+            <PlusIcon width={18} height={18} fill="#fff" /> Add User
           </button>
         </div>
       </div>

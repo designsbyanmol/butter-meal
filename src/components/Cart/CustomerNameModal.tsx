@@ -67,7 +67,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
 
   // ---------- Actions ----------
 
-  /** First-time submission OR after clicking "Change Name" → Continue */
+  /** First-time submission OR after clicking "Change Name" > Continue */
   function handleSubmitEdit() {
     const trimmed = draft.trim();
     if (!trimmed) {
@@ -95,7 +95,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
     setError('');
   }
 
-  /** Cancel edit — go back to greeting mode if a name exists */
+  /** Cancel edit - go back to greeting mode if a name exists */
   function handleCancelEdit() {
     if (savedName) {
       setDraft(savedName);
@@ -172,7 +172,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
               </button>
             </>
           ) : savedName ? (
-            /* Edit mode + we came from a greeting — offer back-out */
+            /* Edit mode + we came from a greeting - offer back-out */
             <>
               <button
                 type="button"
@@ -190,7 +190,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
               </button>
             </>
           ) : (
-            /* First-time user — no saved name */
+            /* First-time user - no saved name */
             <>
               <button
                 type="button"

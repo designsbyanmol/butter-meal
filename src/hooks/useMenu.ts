@@ -11,7 +11,7 @@ export const useMenu = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // No tenant → no menu (admin host fallback)
+    // No tenant > no menu (admin host fallback)
     if (!tenant) {
       setItems([]);
       setVisibleItems([]);

@@ -14,10 +14,10 @@ const ADMIN_SUFFIX = '_admin';
 
 /**
  * Session key resolution:
- *   - No slug + no smart-admin  → ::platform
- *   - No slug + smart-admin     → ::smart_admin
- *   - Slug + customer view      → ::<slug>
- *   - Slug + admin view         → ::<slug>_admin
+ *   - No slug + no smart-admin  > ::platform
+ *   - No slug + smart-admin     > ::smart_admin
+ *   - Slug + customer view      > ::<slug>
+ *   - Slug + admin view         > ::<slug>_admin
  */
 const keyFor = (
   slug: string | null,

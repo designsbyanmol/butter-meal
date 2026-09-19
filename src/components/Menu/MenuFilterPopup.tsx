@@ -23,10 +23,10 @@ interface MenuFilterPopupProps {
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'default',       label: 'Recommended' },
-  { key: 'priceAsc',      label: 'Price: Low → High' },
-  { key: 'priceDesc',     label: 'Price: High → Low' },
-  { key: 'ratingDesc',    label: 'Rating: High → Low' },
-  { key: 'ratingAsc',     label: 'Rating: Low → High' },
+  { key: 'priceAsc',      label: 'Price: Low > High' },
+  { key: 'priceDesc',     label: 'Price: High > Low' },
+  { key: 'ratingDesc',    label: 'Rating: High > Low' },
+  { key: 'ratingAsc',     label: 'Rating: Low > High' },
   { key: 'healthiest',    label: 'Healthiest First' },
   { key: 'discountDesc',  label: 'Most Discount' },
   { key: 'discountLeast', label: 'Least Discount' },
@@ -53,7 +53,7 @@ const MenuFilterPopup: React.FC<MenuFilterPopupProps> = ({
     return f ? f.enabled : false;
   };
 
-  // Local draft — user edits this, then taps "Apply"
+  // Local draft - user edits this, then taps "Apply"
   const [draft, setDraft] = useState<MenuFilterState>(filters);
 
   // Reset draft every time popup opens
