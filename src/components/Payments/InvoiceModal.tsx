@@ -147,7 +147,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <div className={styles.summaryRow}>
               <span>Tenant</span>
               <span>
-                {tenantName} <code>{tenantSlug}</code>
+                {tenantName}
               </span>
             </div>
             <div className={styles.summaryRow}>
