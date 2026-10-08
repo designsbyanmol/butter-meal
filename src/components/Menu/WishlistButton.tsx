@@ -1,9 +1,10 @@
 // components/Menu/WishlistButton.tsx
 import React from 'react';
 import { MenuItem } from '../../types';
+import { IconButton } from '../ui';
 import WishlistIcon from '../../assets/svgs/WishlistIcon';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
-import styles from './WishlistButton.module.scss';
+import local from './WishlistButton.module.scss';
 
 interface WishlistButtonProps {
   item: MenuItem;
@@ -31,19 +32,21 @@ const WishlistButton: React.FC<WishlistButtonProps> = ({
   };
 
   return (
-    <button
-      type="button"
-      className={`${styles.btn} ${isWishlisted ? styles.active : ''}`}
-      onClick={handleClick}
+    <IconButton
+      variant="ghost"
+      size="md"
+      shape="circle"
+      className={`${local.btn} ${isWishlisted ? local.active : ''}`}
       aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-      title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+      tooltip={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+      onClick={handleClick}
     >
       {isWishlisted ? (
         <WishlistFilledIcon width={18} height={18} fill="#e23744" />
       ) : (
         <WishlistIcon width={18} height={18} fill="#4d4d4d" />
       )}
-    </button>
+    </IconButton>
   );
 };
 

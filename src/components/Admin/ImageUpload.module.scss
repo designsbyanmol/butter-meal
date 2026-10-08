@@ -1,9 +1,12 @@
 // components/Admin/ImageUpload.module.scss
-@use './tokens' as *;
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
-.imageUploadContainer { margin-bottom: 12px; }
+.container {
+  margin-bottom: 12px;
+}
 
-.imageUploadLabel {
+.label {
   display: block;
   font-size: 13px;
   font-weight: 600;
@@ -11,7 +14,7 @@
   margin-bottom: 6px;
 }
 
-.imageUploadArea {
+.area {
   border: 1.5px dashed $border;
   border-radius: $radius;
   padding: 20px;
@@ -19,15 +22,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color $t-fast, background $t-fast;
   background: $bg-subtle;
+  transition: border-color $t-fast, background $t-fast;
 
-  &:hover { border-color: $primary; background: $primary-tint; }
+  &:hover {
+    border-color: $primary;
+    background: $primary-tint;
+  }
 }
 
-.hiddenFileInput { display: none; }
+.hiddenFile { display: none; }
 
-.uploadPlaceholder {
+.placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,95 +41,55 @@
   width: 100%;
 }
 
-.uploadIcon {
-  font-size: 28px;
-  line-height: 1;
-}
-
-.uploadOptions {
+.placeholderActions {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.uploadBtn {
-  padding: 9px 20px;
-  background: $primary;
-  color: #fff;
-  border: none;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background $t-fast, box-shadow $t-fast;
-
-  &:hover { background: $primary-dark; box-shadow: 0 4px 10px rgba(60, 170, 70, 0.25); }
-  &:disabled { opacity: 0.6; cursor: not-allowed; }
-}
-
-.uploadDivider {
+.divider {
   color: $text-faint;
   font-size: 12px;
 }
 
-.urlBtn {
-  padding: 9px 20px;
-  background: #fff;
-  color: $text;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background $t-fast, border-color $t-fast;
-
-  &:hover { background: $bg-subtle; border-color: $border-strong; }
-}
-
-.uploadHint {
+.hintText {
   font-size: 12px;
   color: $text-faint;
 }
 
-.imagePreviewWrapper {
+// ---------- Single preview ----------
+.singlePreview {
   position: relative;
   width: 100%;
   max-width: 220px;
   margin: 0 auto;
 }
 
-.imagePreview {
+.singlePreviewImg {
   width: 100%;
   height: auto;
   max-height: 170px;
   object-fit: cover;
   border-radius: $radius;
   border: 2px solid $primary;
-  box-shadow: 0 4px 12px rgba(60, 170, 70, 0.15);
+  box-shadow: 0 4px 12px rgba($primary, 0.15);
 }
 
-.removeImageBtn {
-  position: absolute;
+.singleRemoveBtn {
+  position: absolute !important;
   top: -10px;
   right: -10px;
-  width: 30px;
-  height: 30px;
-  background: $danger;
+  background: $danger !important;
   color: #fff;
   border: 2px solid #fff;
-  border-radius: 50%;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform $t-fast, background $t-fast;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: $shadow-md;
 
-  &:hover { background: $danger-dark; transform: scale(1.1); }
+  &:hover {
+    background: $danger-dark !important;
+  }
 }
 
+// ---------- URL input ----------
 .urlInputContainer {
   width: 100%;
   display: flex;
@@ -137,13 +103,10 @@
   border: 1.5px solid $border;
   border-radius: $radius-sm;
   font-size: 14px;
+  font-family: inherit;
   transition: border-color $t-fast, box-shadow $t-fast;
 
-  &:focus {
-    outline: none;
-    border-color: $primary;
-    box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
-  }
+  &:focus { @include focus-ring; }
 }
 
 .urlActions {
@@ -152,42 +115,8 @@
   justify-content: center;
 }
 
-.urlSubmitBtn {
-  padding: 9px 22px;
-  background: $primary;
-  color: #fff;
-  border: none;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background $t-fast;
-
-  &:hover { background: $primary-dark; }
-}
-
-.urlCancelBtn {
-  padding: 9px 22px;
-  background: #fff;
-  color: $text;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background $t-fast, border-color $t-fast;
-
-  &:hover { background: $bg-subtle; border-color: $border-strong; }
-}
-
-.errorText {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: $danger;
-}
-
-.progressContainer {
+// ---------- Progress ----------
+.progressWrap {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
@@ -200,14 +129,14 @@
   max-width: 320px;
   height: 6px;
   background: $border-soft;
-  border-radius: 999px;
+  border-radius: $radius-pill;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, $primary, $primary-medium);
-  border-radius: 999px;
+  border-radius: $radius-pill;
   transition: width $t-slow;
 }
 
@@ -217,11 +146,11 @@
   font-weight: 500;
 }
 
-/* ---------- Multi-image mode ---------- */
+// ---------- Multi-image grid ----------
 .multiCount {
   font-size: 12px;
   font-weight: 600;
-  color: #7d6b60;
+  color: $text-muted;
   margin-left: 4px;
 }
 
@@ -232,13 +161,13 @@
   margin-top: 8px;
 }
 
-.multiTile {
+.tile {
   position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 10px;
+  border-radius: $radius-md;
   overflow: hidden;
-  background: #f5f1ec;
-  border: 1px solid #e6ded7;
+  background: $bg-muted;
+  border: 1px solid $border;
 
   img {
     width: 100%;
@@ -252,16 +181,16 @@
   position: absolute;
   top: 6px;
   left: 6px;
-  background: #1e7e34;
+  background: $primary-dark;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: $radius-xs;
   letter-spacing: 0.3px;
 }
 
-.multiTileActions {
+.tileActions {
   position: absolute;
   bottom: 6px;
   left: 6px;
@@ -270,77 +199,68 @@
   justify-content: space-between;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity $t-fast;
 }
 
-.multiTile:hover .multiTileActions {
-  opacity: 1;
+.tile:hover .tileActions { opacity: 1; }
+
+.tileBtn {
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: #fff !important;
+  width: 24px !important;
+  height: 24px !important;
+
+  &:hover { background: rgba(0, 0, 0, 0.75) !important; }
 }
 
-.tileMoveBtn,
-.tileRemoveBtn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 12px;
+.tileArrow {
+  font-size: 14px;
   font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.75);
-  }
+  line-height: 1;
+  color: #fff;
 }
 
 .tileRemoveBtn {
-  background: rgba(166, 45, 45, 0.85);
+  background: rgba(166, 45, 45, 0.85) !important;
+  width: 24px !important;
+  height: 24px !important;
   margin-left: auto;
 
-  &:hover {
-    background: #a62d2d;
-  }
+  &:hover { background: $red-700 !important; }
 }
 
 .addTile {
   aspect-ratio: 1 / 1;
-  border: 2px dashed #d1c8bf;
-  border-radius: 10px;
-  background: #fdfbf8;
+  border: 2px dashed $border-strong;
+  border-radius: $radius-md;
+  background: $bg-subtle;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color $t-fast, background $t-fast;
+  font-family: inherit;
 
   &:hover:not(:disabled) {
-    border-color: #3caa46;
-    background: #f4fbf5;
+    border-color: $primary;
+    background: $primary-tint;
   }
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
-.addTilePlus {
+.addPlus {
   font-size: 22px;
-  color: #1e7e34;
+  color: $primary-dark;
   font-weight: 300;
   line-height: 1;
 }
 
-.addTileLabel {
+.addLabel {
   font-size: 12px;
-  color: #7d6b60;
+  color: $text-muted;
 }
 
 .multiActions {
@@ -349,30 +269,14 @@
   margin-top: 10px;
 }
 
-.urlBtnSmall {
-  padding: 6px 12px;
-  border: 1px solid #e6ded7;
-  background: #fff;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #4d4d4d;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    border-color: #3caa46;
-    color: #1e7e34;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
 .multiHint {
   display: block;
   margin-top: 6px;
   font-size: 11px;
-  color: #a89b92;
+  color: $text-faint;
+}
+
+@include mobile {
+  .singlePreview { max-width: 180px; }
+  .multiGrid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
 }

@@ -1,3 +1,5 @@
+// components/Store/PlanBadgeInline.module.scss
+
 .wrap {
   display: inline-flex;
   align-items: center;
@@ -6,46 +8,10 @@
   border: none;
   cursor: pointer;
   padding: 0 4px;
+  transition: transform 0.15s ease;
+  font-family: inherit;
 
   &:hover {
     transform: translateY(-1px);
   }
-}
-
-.planChip,
-.statusChip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.planBasic {
-  background: #eef1fb;
-  color: #1e40af;
-}
-.planDynamic {
-  background: #fef3c7;
-  color: #92400e;
-}
-.planProfessional {
-  background: #e6f5e9;
-  color: #166534;
-}
-
-.statusActive {
-  background: #d1fae5;
-  color: #065f46;
-}
-.statusPaused {
-  background: #fef3c7;
-  color: #92400e;
-}
-.statusExpired {
-  background: #fee2e2;
-  color: #991b1b;
 }

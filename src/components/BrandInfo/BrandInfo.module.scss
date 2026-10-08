@@ -1,25 +1,28 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
 .brandWrap {
     position: relative;
-    padding: 40px 15px 32px;
+    padding: 20px 0;
+    h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e1e1e;
+        letter-spacing: 1px;
+        line-height: 1.25;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 12px;
+        margin: 0 0 10px;
+    
+      svg {
+        flex-shrink: 0;
+      }
+    }
 }
 
-h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1e1e1e;
-    letter-spacing: 1px;
-    line-height: 1.25;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 12px;
-    margin: 0 0 10px;
-
-  svg {
-    flex-shrink: 0;
-  }
-}
 
 .subhead {
     color: #4d4d4d;
@@ -30,6 +33,7 @@ h1 {
     justify-content: center;
     text-align: center;
     gap: 6px;
+    margin: $space-4 0;
 
   svg {
     flex-shrink: 0;

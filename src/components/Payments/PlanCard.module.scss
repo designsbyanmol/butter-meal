@@ -1,0 +1,228 @@
+// src/components/Payments/PlanCard.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* ---------- Card shell ---------- */
+.pcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: $white;
+  border: 1px solid $border;
+  border-radius: $radius;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform $t-fast,
+    border-color $t-fast,
+    box-shadow $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: $primary-dark;
+    box-shadow: $shadow-focus;
+  }
+}
+
+.pcardSelected {
+  border-color: $primary-dark;
+  box-shadow: 0 8px 24px rgba($gray-500, 0.18);
+  border-color: $gray-900;
+  .pcardCtaLabel {
+    background: $amber-600;
+    color: $white;
+    &:hover {
+      background: $primary-dark;
+      color: $white;
+    }
+  }
+
+  &.pcardDynamic {
+    .pcardCtaLabel {
+      background: $blue-900;
+    }
+  }
+
+  &.pcardFeatured {
+    .pcardCtaLabel {
+      background: $primary-dark;
+    }
+  }
+}
+
+/* ---------- Header band ---------- */
+.pcardHeader {
+  padding: $space-4;
+  background: $amber-600;
+  color: $text-invert;
+}
+
+.pcardDynamic {
+  .pcardHeader {
+    background: $blue-900;
+    color: $text-invert;
+  }
+}
+
+.pcardHeaderFeatured {
+  background: linear-gradient(135deg, $primary-dark 0%, $primary 100%);
+}
+
+.pcardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  margin-bottom: $space-3;
+}
+
+.pcardName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  letter-spacing: 0.5px;
+  line-height: $line-height-snug;
+}
+
+.pcardPopularTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px $space-2;
+  border-radius: $radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: $text-invert;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pcardPrice {
+  display: flex;
+  align-items: baseline;
+  gap: $space-2;
+  line-height: 1;
+}
+
+.pcardPriceAmount {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-extrabold;
+  letter-spacing: 1px;
+  color: $text-invert;
+}
+
+.pcardPriceUnit {
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.pcardBilledYearly {
+  margin-top: $space-2;
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ---------- Feature list ---------- */
+.pcardFeatures {
+  list-style: none;
+  margin: 0 !important;
+  padding: $space-4 $space-2 $space-2 !important;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  flex: 1;
+}
+
+.pcardFeature {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  font-size: $font-size-md;
+  color: $text;
+  line-height: $line-height-snug;
+
+  span {
+    font-size: $font-size-sm;
+  }
+}
+
+.pcardFeatureIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid $primary;
+  color: $primary;
+  background: transparent;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pcardFeatureIconFeatured {
+  border-color: $primary-dark;
+  background: $primary-dark;
+  color: $text-invert;
+}
+
+.pcardFeatureOff {
+  color: $text-faint;
+}
+
+.pcardFeatureIconOff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid $border;
+  color: $text-faint;
+  background: transparent;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ---------- Bottom CTA ---------- */
+.pcardCta {
+  padding: 0 $space-4 $space-4;
+}
+
+.pcardCtaLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: $space-3 $space-4;
+  border-radius: $radius;
+  background: $gray-100;
+  color: $gray-600;
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  transition: background $t-fast, color $t-fast;
+}
+
+/* ---------- Optional corner tag (e.g. "Current") ---------- */
+.cornerTag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: $radius-pill;
+  backdrop-filter: blur(4px);
+}

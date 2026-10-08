@@ -1,16 +1,18 @@
-// components/Menu/MenuItem.tsx
+// src/components/Menu/MenuItem.tsx
 import React from 'react';
 import { MenuItem } from '../../types';
 import { DEFAULT_FORM_SCHEMA } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { usePlan } from '../../hooks/usePlan';
+import { Badge } from '../ui';
 import { Special, StarIcon } from '../../assets/svgs';
 import WishlistButton from './WishlistButton';
 import { formatCount } from '../../utils/formatCount';
-import styles from './Menu.module.scss';
+import { formatRupees } from '../../utils/subscription';
 import NewIcon from '../../assets/svgs/NewIcon';
 import PopularIcon from '../../assets/svgs/PopularIcon';
 import LimitedIcon from '../../assets/svgs/LimitedIcon';
+import local from './Menu.module.scss';
 
 interface MenuItemProps {
   item: MenuItem;
@@ -22,6 +24,16 @@ interface MenuItemProps {
   acceptingOrders: boolean;
   onToggleWishlist: (item: MenuItem) => void;
 }
+
+const BUILTIN_BADGE_ICONS: Record<
+  string,
+  React.FC<{ width: number; height: number }>
+> = {
+  isPopular: (props) => <PopularIcon {...props} />,
+  isNew: (props) => <NewIcon {...props} />,
+  isChefSpecial: (props) => <Special {...props} />,
+  isLimited: (props) => <LimitedIcon {...props} />,
+};
 
 const MenuItemComponent: React.FC<MenuItemProps> = ({
   item,
@@ -54,7 +66,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     onItemClick(item);
   };
 
-  // ---- Reviews are hidden when the tenant flag is off OR plan excludes reviews ----
   const reviewsEnabled = tenant?.reviewsEnabled !== false;
   const hasReviews =
     plan.canReview &&
@@ -66,7 +77,11 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
 
   const showVegBadge = isFieldEnabled('isVeg') && item.isVeg === true;
 
-  // ---------- Price display ----------
+  const activeBadges = (schema.badges ?? []).filter(
+    (b) => b.enabled && item.attributes?.[b.key],
+  );
+  const hasBadgeGroup = activeBadges.length > 0 || showVegBadge;
+
   const discount = Number(item.discount ?? 0);
   const hasDiscount = discount > 0 && discount <= 100;
   const originalPrice = Number(item.price);
@@ -86,26 +101,14 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
     ? item.costPrice!
     : null;
 
-  const simpleCustomEntries = schema.fields
-    .filter((f) => !f.builtin && f.enabled)
-    .map((field) => ({ field, value: item.attributes?.[field.key] }))
-    .filter(
-      ({ value }) =>
-        value !== undefined &&
-        value !== null &&
-        String(value).trim() !== '' &&
-        String(value).length <= 16,
-    )
-    .slice(0, 2);
-
   return (
     <div
-      className={`${styles.itemCard} ${
-        isOutOfStock ? styles.outOfStock : ''
+      className={`${local.itemCard} ${
+        isOutOfStock ? local.outOfStock : ''
       }`}
     >
       <div
-        className={styles.imageWrapper}
+        className={local.imageWrapper}
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
@@ -120,7 +123,7 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           />
         )}
 
-        <div className={styles.itemImg}>
+        <div className={local.itemImg}>
           <img
             src={item.img}
             alt={item.name}
@@ -130,102 +133,111 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
             height={240}
           />
           {isOutOfStock && (
-            <div className={styles.outOfStockOverlay}>
-              <span className={styles.outOfStockBadge}>Out of Stock</span>
+            <div className={local.outOfStockOverlay}>
+              <span className={local.outOfStockBadge}>Out of Stock</span>
             </div>
           )}
 
           {hasDiscount && !isOutOfStock && (
-            <span className={styles.discountRibbon}>-{discount}%</span>
+            <Badge tone="danger" size="sm" className={local.discountRibbon}>
+              -{discount}%
+            </Badge>
           )}
         </div>
 
         {!isOutOfStock && hasReviews && (
-          <span className={styles.rating}>
+          <span className={local.rating}>
             <StarIcon width={12} height={12} fill="#085b1b" /> {item.rating}
-            <span className={styles.reviewCount}>
+            <span className={local.reviewCount}>
               ({formatCount(item.reviewCount)})
             </span>
           </span>
         )}
 
-        {!isOutOfStock &&
-          (item.attributes?.isPopular ||
-            item.attributes?.isNew ||
-            item.attributes?.isChefSpecial ||
-            item.attributes?.isLimited ||
-            showVegBadge) && (
-            <div className={styles.badgeGroup}>
-              {item.attributes?.isPopular && (
-                <PopularIcon width={32} height={32} />
-              )}
-              {item.attributes?.isNew && <NewIcon width={32} height={32} />}
-              {item.attributes?.isChefSpecial && (
-                <Special width={32} height={32} />
-              )}
-              {item.attributes?.isLimited && (
-                <LimitedIcon width={32} height={32} />
-              )}
-              {showVegBadge && (
-                <span className={`${styles.badge} ${styles.veg}`} />
-              )}
-            </div>
-          )}
+        {!isOutOfStock && hasBadgeGroup && (
+          <div className={local.badgeGroup}>
+            {activeBadges.map((badge) => {
+              if (badge.image) {
+                return (
+                  <img
+                    key={badge.key}
+                    src={badge.image}
+                    alt={badge.label}
+                    className={local.badgeImg}
+                    title={badge.label}
+                  />
+                );
+              }
+              const FallbackIcon = BUILTIN_BADGE_ICONS[badge.key];
+              if (FallbackIcon) {
+                return (
+                  <span
+                    key={badge.key}
+                    className={local.badgeSvgWrap}
+                    title={badge.label}
+                  >
+                    <FallbackIcon width={24} height={24} />
+                  </span>
+                );
+              }
+              return (
+                <span
+                  key={badge.key}
+                  className={local.badgeTextChip}
+                  title={badge.label}
+                >
+                  {badge.label}
+                </span>
+              );
+            })}
+
+            {showVegBadge && (
+              <span className={`${local.badge} ${local.veg}`} />
+            )}
+          </div>
+        )}
       </div>
 
       <div
-        className={styles.itemInfo}
+        className={local.itemInfo}
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
         onKeyDown={(e) => e.key === 'Enter' && handleClick()}
         style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
       >
-        <div className={styles.itemName}>{item.name}</div>
-
-        {simpleCustomEntries.length > 0 && (
-          <div className={styles.itemMeta}>
-            {simpleCustomEntries.map(({ field, value }) => (
-              <span key={field.key} className={styles.prepTime}>
-                {field.label}:{' '}
-                {typeof value === 'boolean'
-                  ? value
-                    ? 'Yes'
-                    : 'No'
-                  : String(value)}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className={local.itemName}>{item.name}</div>
       </div>
 
-      <div className={styles.itemFooter}>
-        <span className={styles.price}>
-          {strikethrough !== null && <del>Rs{strikethrough}</del>}
-          Rs{finalPrice}
+      <div className={local.itemFooter}>
+        <span className={local.price}>
+          {strikethrough !== null && (
+            <del>{formatRupees(strikethrough)}</del>
+          )}
+          {formatRupees(finalPrice)}
         </span>
-        <div className={styles.actions}>
+        <div className={local.actions}>
           {!plan.canOrder ? (
-            <button className={styles.btnCustomize} onClick={handleAddClick}>
+            <button className={local.btnCustomize} onClick={handleAddClick}>
               View
             </button>
           ) : !acceptingOrders ? (
-            <button className={styles.btnCustomize} onClick={handleAddClick}>
+            <button className={local.btnCustomize} onClick={handleAddClick}>
               Preview
             </button>
           ) : isOutOfStock ? (
             <button
-              className={`${styles.btnCustomize} ${styles.btnOutOfStock}`}
+              className={`${local.btnCustomize} ${local.btnOutOfStock}`}
               disabled
             >
               Out of Stock
             </button>
           ) : isAdded ? (
-            <button className={styles.btnCustomize} onClick={handleAddClick}>
+            <button className={local.btnCustomize} onClick={handleAddClick}>
               {quantity} Added
             </button>
           ) : (
-            <button className={styles.btnCustomize} onClick={handleAddClick}>
+            <button className={local.btnCustomize} onClick={handleAddClick}>
               Add
             </button>
           )}
@@ -235,6 +247,4 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   );
 };
 
-// Plain shallow memo - plan flags flow through props so we don't need
-// a custom comparator. Simpler and always correct.
 export default React.memo(MenuItemComponent);

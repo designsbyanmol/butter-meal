@@ -1,0 +1,56 @@
+// src/components/Payments/DurationChips.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.durationGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+
+  @include mobile {
+    gap: 6px;
+  }
+}
+
+.durationChip {
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  min-width: 92px;
+  align-items: center;
+
+  @include mobile {
+    min-width: 78px;
+    padding: 8px 10px;
+  }
+}
+
+.durationMonths {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+
+  @include mobile {
+    font-size: 11px;
+  }
+}
+
+.durationDiscount {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: $primary-soft;
+  color: $primary-dark;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* When its own chip is active, invert to white-on-green */
+.durationDiscountActive {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}

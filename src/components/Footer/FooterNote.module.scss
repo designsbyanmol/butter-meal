@@ -1,5 +1,8 @@
+// components/FooterNote/FooterNote.module.scss
+@use '../styles/tokens' as *;
+
 .bm_footer {
-    background: #f6f6f6;
-    padding: 24px 20px;
-    border-top: 2px solid #dcdcdc;
+  background: $bg-subtle;
+  padding: 24px 20px;
+  border-top: 2px solid $border;
 }

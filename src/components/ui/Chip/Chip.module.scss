@@ -1,0 +1,107 @@
+// src/components/ui/Chip/Chip.module.scss
+@use '../../../styles/tokens' as *;
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  border-radius: $radius-pill;
+  border: 1px solid $border;
+  background: #fff;
+  color: $text-muted;
+  cursor: pointer;
+  transition: border-color $t-fast, background $t-fast, color $t-fast,
+    transform $t-fast;
+  white-space: nowrap;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    border-color: currentColor;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ---------- TONES ----------
+.neutral { color: $text-muted; }
+.neutral.active {
+  background: $gray-900;
+  border-color: $gray-900;
+  color: #fff;
+}
+
+.primary { color: $text-muted; }
+.primary.active {
+  background: $primary;
+  border-color: $primary;
+  color: #fff;
+}
+
+.popular { color: $amber-600; }
+.popular.active {
+  background: $amber-600;
+  border-color: $amber-600;
+  color: #fff;
+}
+
+.new { color: $blue-500; }
+.new.active {
+  background: $blue-500;
+  border-color: $blue-500;
+  color: #fff;
+}
+
+.chef { color: $purple-500; }
+.chef.active {
+  background: $purple-500;
+  border-color: $purple-500;
+  color: #fff;
+}
+
+.limited { color: $red-500; }
+.limited.active {
+  background: $red-500;
+  border-color: $red-500;
+  color: #fff;
+}
+
+.veg { color: $green-700; }
+.veg.active {
+  background: $green-700;
+  border-color: $green-700;
+  color: #fff;
+}
+
+.nonVeg { color: $red-800; }
+.nonVeg.active {
+  background: $red-800;
+  border-color: $red-800;
+  color: #fff;
+}
+
+.warning { color: $amber-700; }
+.warning.active {
+  background: $amber-700;
+  border-color: $amber-700;
+  color: #fff;
+}
+
+.danger { color: $red-700; }
+.danger.active {
+  background: $red-700;
+  border-color: $red-700;
+  color: #fff;
+}
+
+.info { color: $blue-600; }
+.info.active {
+  background: $blue-600;
+  border-color: $blue-600;
+  color: #fff;
+}

@@ -3,18 +3,84 @@ import React, { useEffect, useState } from 'react';
 import { Review, ReviewFilter, Tenant } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
 import ReviewSettingsPanel from './ReviewSettingsPanel';
-import styles from './ReviewsOverview.module.scss';
-import { CloseIcon, StarIcon, RightArrow } from '../../assets/svgs';
+import {
+  Accordion,
+  Button,
+  Chip,
+  Card,
+  EmptyState,
+} from '../ui';
+import { CloseIcon, StarIcon } from '../../assets/svgs';
+import local from './ReviewsOverview.module.scss';
 
 const FILTERS: { key: ReviewFilter; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'lte4', label: '<= 4 stars' },
-  { key: 'lte3', label: '<= 3 stars' },
-  { key: 'lte2', label: '<= 2 stars' },
+  { key: 'lte4', label: '< 4 stars' },
+  { key: 'lte3', label: '< 3 stars' },
+  { key: 'lte2', label: '< 2 stars' },
   { key: 'commented', label: 'With comments' },
 ];
 
 const PAGE_SIZE = 16;
+
+// =========================================================
+// Review card
+// =========================================================
+interface ReviewCardProps {
+  review: Review;
+  onRemove: (r: Review) => void;
+}
+
+const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
+  const rounded = Math.round(review.rating);
+  const when = new Date(review.createdAt).toLocaleDateString();
+
+  return (
+    <Card padding="sm" className={local.card}>
+      <div className={local.cardHeader}>
+        <div className={local.itemName}>{review.itemName}</div>
+        <button
+          type="button"
+          className={local.removeBtn}
+          onClick={() => onRemove(review)}
+          aria-label="Remove review"
+          title="Remove review"
+        >
+          <CloseIcon width={16} height={16} fill="#4d4d4d" />
+        </button>
+      </div>
+
+      {review.itemCategory && (
+        <div className={local.category}>{review.itemCategory}</div>
+      )}
+
+      <div className={local.ratingRow}>
+        <span className={local.starsFilled}>
+          {Array.from({ length: rounded }).map((_, i) => (
+            <StarIcon key={i} width={16} height={16} fill="#f5a623" />
+          ))}
+        </span>
+        <span className={local.starsEmpty}>
+          {Array.from({ length: 5 - rounded }).map((_, i) => (
+            <StarIcon key={i} width={16} height={16} fill="#dcdcdc" />
+          ))}
+        </span>
+        <span className={local.ratingNum}>{review.rating.toFixed(1)}</span>
+      </div>
+
+      {review.comment && (
+        <p className={local.comment}>"{review.comment}"</p>
+      )}
+
+      <div className={local.footer}>
+        <span className={local.customer}>
+          {review.customerName || 'Customer'}
+        </span>
+        <span className={local.when}>{when}</span>
+      </div>
+    </Card>
+  );
+};
 
 // =========================================================
 // Per-tenant section
@@ -28,7 +94,6 @@ const TenantSection: React.FC<TenantSectionProps> = ({
   tenant,
   refreshTick,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<ReviewFilter>('all');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,10 +123,9 @@ const TenantSection: React.FC<TenantSectionProps> = ({
   };
 
   useEffect(() => {
-    if (!isOpen) return;
     loadFirstPage(filter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, tenant.slug, refreshTick]);
+  }, [tenant.slug, refreshTick]);
 
   const handleFilterChange = (f: ReviewFilter) => {
     setFilter(f);
@@ -109,137 +173,59 @@ const TenantSection: React.FC<TenantSectionProps> = ({
     FILTERS.find((f) => f.key === filter)?.label ?? 'All';
 
   return (
-    <div className={styles.tenantSection}>
-      <button
-        type="button"
-        className={styles.tenantHeader}
-        onClick={() => setIsOpen((s) => !s)}
-        aria-expanded={isOpen}
-      >
-        <span
-          className={`${styles.chevron} ${
-            isOpen ? styles.chevronOpen : ''
-          }`}
-        >
-          <RightArrow width={16} height={16} fill="#4d4d4d" />
-        </span>
-        <span className={styles.tenantName}>{tenant.displayName}</span>
-        <span className={styles.tenantSlug}>{tenant.slug}</span>
-      </button>
+    <Accordion
+      title={tenant.displayName}
+      meta={<span className={local.tenantSlug}>{tenant.slug}</span>}
+      className={local.tenantSection}
+    >
+      <div className={local.filterRow}>
+        <span className={local.filterLabel}>Filter:</span>
+        {FILTERS.map((f) => (
+          <Chip
+            key={f.key}
+            tone="neutral"
+            active={filter === f.key}
+            onClick={() => handleFilterChange(f.key)}
+          >
+            {f.label}
+          </Chip>
+        ))}
+      </div>
 
-      {isOpen && (
-        <div className={styles.tenantBody}>
-          <div className={styles.filterRow}>
-            <span className={styles.filterLabel}>Filter:</span>
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`${styles.filterPill} ${
-                  filter === f.key ? styles.filterPillActive : ''
-                }`}
-                onClick={() => handleFilterChange(f.key)}
-              >
-                {f.label}
-              </button>
+      {error && <div className={local.error}>{error}</div>}
+
+      {isLoading ? (
+        <div className={local.emptyRow}>Loading...</div>
+      ) : reviews.length === 0 ? (
+        <div className={local.emptyRow}>
+          No reviews match "{filterLabel}".
+        </div>
+      ) : (
+        <>
+          <div className={local.grid}>
+            {reviews.map((r) => (
+              <ReviewCard key={r.id} review={r} onRemove={handleRemove} />
             ))}
           </div>
 
-          {error && <div className={styles.error}>{error}</div>}
-
-          {isLoading ? (
-            <div className={styles.emptyRow}>Loading...</div>
-          ) : reviews.length === 0 ? (
-            <div className={styles.emptyRow}>
-              No reviews match "{filterLabel}".
-            </div>
-          ) : (
-            <>
-              <div className={styles.grid}>
-                {reviews.map((r) => (
-                  <ReviewCard key={r.id} review={r} onRemove={handleRemove} />
-                ))}
-              </div>
-
-              {hasMore && (
-                <button
-                  type="button"
-                  className={styles.showMoreBtn}
-                  onClick={handleShowMore}
-                  disabled={isLoadingMore}
-                >
-                  {isLoadingMore ? 'Loading...' : 'Show more'}
-                </button>
-              )}
-            </>
+          {hasMore && (
+            <Button
+              variant="secondary"
+              onClick={handleShowMore}
+              loading={isLoadingMore}
+              className={local.showMoreBtn}
+            >
+              Show more
+            </Button>
           )}
-        </div>
+        </>
       )}
-    </div>
+    </Accordion>
   );
 };
 
 // =========================================================
-// Single review card
-// =========================================================
-interface ReviewCardProps {
-  review: Review;
-  onRemove: (r: Review) => void;
-}
-
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
-  const rounded = Math.round(review.rating);
-  const when = new Date(review.createdAt).toLocaleDateString();
-
-  return (
-    <div className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.itemName}>{review.itemName}</div>
-        <button
-          type="button"
-          className={styles.removeBtn}
-          onClick={() => onRemove(review)}
-          aria-label="Remove review"
-          title="Remove review"
-        >
-          <CloseIcon width={16} height={16} fill="#4d4d4d" />
-        </button>
-      </div>
-
-      {review.itemCategory && (
-        <div className={styles.category}>{review.itemCategory}</div>
-      )}
-
-      <div className={styles.ratingRow}>
-        <span className={styles.starsFilled}>
-          {Array.from({ length: rounded }).map((_, i) => (
-            <StarIcon key={i} width={16} height={16} fill="#f5a623" />
-          ))}
-        </span>
-        <span className={styles.starsEmpty}>
-          {Array.from({ length: 5 - rounded }).map((_, i) => (
-            <StarIcon key={i} width={16} height={16} fill="#dcdcdc" />
-          ))}
-        </span>
-        <span className={styles.ratingNum}>{review.rating.toFixed(1)}</span>
-      </div>
-
-      {review.comment && (
-        <p className={styles.comment}>"{review.comment}"</p>
-      )}
-
-      <div className={styles.footer}>
-        <span className={styles.customer}>
-          {review.customerName || 'Customer'}
-        </span>
-        <span className={styles.when}>{when}</span>
-      </div>
-    </div>
-  );
-};
-
-// =========================================================
-// Top-level section
+// Top-level
 // =========================================================
 const ReviewsOverview: React.FC = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -251,7 +237,6 @@ const ReviewsOverview: React.FC = () => {
       setIsLoading(true);
       try {
         const list = await supabaseService.getAllTenants();
-        // Exclude the platform 'main' row from the per-store list
         setTenants(list.filter((t) => t.slug !== 'main'));
       } catch (err) {
         console.warn('Failed to load tenants:', err);
@@ -261,59 +246,47 @@ const ReviewsOverview: React.FC = () => {
     })();
   }, [refreshKey]);
 
+  const Header = (
+    <div className={local.header}>
+      <div>
+        <h2>Reviews Overview</h2>
+        <p>All customer reviews across your stores.</p>
+      </div>
+      <Button
+        variant="secondary"
+        onClick={() => setRefreshKey((k) => k + 1)}
+      >
+        Refresh
+      </Button>
+    </div>
+  );
+
   if (isLoading) {
-    return <div className={styles.loading}>Loading stores...</div>;
+    return (
+      <div className={local.wrap}>
+        {Header}
+        <EmptyState title="Loading stores..." />
+      </div>
+    );
   }
 
   if (tenants.length === 0) {
     return (
-      <div className={styles.wrap}>
-        <div className={styles.header}>
-          <div>
-            <h2>Reviews Overview</h2>
-            <p>All customer reviews across your stores.</p>
-          </div>
-          <button
-            type="button"
-            className={styles.refreshBtn}
-            onClick={() => setRefreshKey((k) => k + 1)}
-          >
-            Refresh
-          </button>
-        </div>
-
+      <div className={local.wrap}>
+        {Header}
         <ReviewSettingsPanel />
-
-        <div className={styles.loading}>No stores yet.</div>
+        <EmptyState title="No stores yet." />
       </div>
     );
   }
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <h2>Reviews Overview</h2>
-          <p>All customer reviews across your stores.</p>
-        </div>
-        <button
-          type="button"
-          className={styles.refreshBtn}
-          onClick={() => setRefreshKey((k) => k + 1)}
-        >
-          Refresh
-        </button>
-      </div>
-
+    <div className={local.wrap}>
+      {Header}
       <ReviewSettingsPanel />
-
-      <div className={styles.sections}>
+      <div className={local.sections}>
         {tenants.map((t) => (
-          <TenantSection
-            key={t.id}
-            tenant={t}
-            refreshTick={refreshKey}
-          />
+          <TenantSection key={t.id} tenant={t} refreshTick={refreshKey} />
         ))}
       </div>
     </div>

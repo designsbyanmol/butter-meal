@@ -1,7 +1,8 @@
 // components/ImagePreview/ImagePreview.tsx
 import React, { useEffect, useRef, useState } from 'react';
+import { IconButton } from '../ui';
 import { CloseIcon } from '../../assets/svgs';
-import styles from './ImagePreview.module.scss';
+import local from './ImagePreview.module.scss';
 
 interface ImagePreviewProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     }
   }, [isOpen, initialIndex, images.length]);
 
-  // Esc closes
+  // Esc + arrow keys
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -102,28 +103,34 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
+  const goPrev = () =>
+    setIndex((i) => (i - 1 + images.length) % images.length);
+  const goNext = () => setIndex((i) => (i + 1) % images.length);
+
   return (
     <div
-      className={styles.overlay}
+      className={local.overlay}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Image preview"
     >
-      <button
-        type="button"
-        className={styles.closeBtn}
+      <IconButton
+        variant="ghost"
+        size="md"
+        shape="circle"
+        className={local.closeBtn}
+        aria-label="Close preview"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
-        aria-label="Close preview"
       >
         <CloseIcon width={22} height={22} fill="#fff" />
-      </button>
+      </IconButton>
 
       <div
-        className={styles.stage}
+        className={local.stage}
         onClick={stop}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -138,37 +145,42 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
           key={currentImage}
           src={currentImage}
           alt={`Image ${index + 1}`}
-          className={styles.image}
+          className={local.image}
           draggable={false}
         />
       </div>
 
       {hasMultiple && (
         <>
-          <button
-            type="button"
-            className={`${styles.arrow} ${styles.arrowLeft}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIndex((i) => (i - 1 + images.length) % images.length);
-            }}
+          <IconButton
+            variant="ghost"
+            size="lg"
+            shape="circle"
+            className={`${local.arrow} ${local.arrowLeft}`}
             aria-label="Previous image"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className={`${styles.arrow} ${styles.arrowRight}`}
             onClick={(e) => {
               e.stopPropagation();
-              setIndex((i) => (i + 1) % images.length);
+              goPrev();
             }}
-            aria-label="Next image"
           >
-            ›
-          </button>
+            <span className={local.arrowGlyph}>‹</span>
+          </IconButton>
 
-          <div className={styles.counter} onClick={stop}>
+          <IconButton
+            variant="ghost"
+            size="lg"
+            shape="circle"
+            className={`${local.arrow} ${local.arrowRight}`}
+            aria-label="Next image"
+            onClick={(e) => {
+              e.stopPropagation();
+              goNext();
+            }}
+          >
+            <span className={local.arrowGlyph}>›</span>
+          </IconButton>
+
+          <div className={local.counter} onClick={stop}>
             {index + 1} / {images.length}
           </div>
         </>

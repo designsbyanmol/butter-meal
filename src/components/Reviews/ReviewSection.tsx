@@ -13,8 +13,9 @@ import {
   hasReviewedLocally,
   markReviewedLocally,
 } from '../../utils/reviewHistory';
+import { Button, Textarea, Banner } from '../ui';
 import { StarIcon } from '../../assets/svgs';
-import styles from './ReviewSection.module.scss';
+import local from './ReviewSection.module.scss';
 
 interface ReviewSectionProps {
   item: MenuItem;
@@ -51,7 +52,6 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
 
   // ---- Detect device + prior review + tenant reviews-enabled flag ----
   useEffect(() => {
-    // If reviews are disabled for this tenant, don't even run the checks
     if (tenant && tenant.reviewsEnabled === false) {
       setChecking(false);
       return;
@@ -76,9 +76,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         if (cancelled) return;
 
         const mine = reviews.some(
-          (r) =>
-            r.deviceId === id ||
-            (fp && r.deviceFingerprint === fp),
+          (r) => r.deviceId === id || (fp && r.deviceFingerprint === fp),
         );
         setHasReviewed(mine);
         if (mine) markReviewedLocally(slug, item.id);
@@ -126,11 +124,8 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         draftComment.trim(),
       );
 
-      // Persist locally so the form stays hidden even if the admin
-      // deletes the review from the dashboard later
       markReviewedLocally(tenant.slug, item.id);
 
-      // Show success message immediately
       setSuccessMsg('Your review submitted successfully!');
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => {
@@ -138,15 +133,12 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         successTimerRef.current = null;
       }, SUCCESS_MESSAGE_MS);
 
-      // Hide the form shortly after the message appears
       if (hideFormTimerRef.current) clearTimeout(hideFormTimerRef.current);
       hideFormTimerRef.current = setTimeout(() => {
         setHasReviewed(true);
         hideFormTimerRef.current = null;
       }, SUCCESS_MESSAGE_MS);
 
-      // Delay the menu refetch so the customer doesn't see their own
-      // rating reflected on the item instantly
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         menuService.refresh().catch(() => {
@@ -162,16 +154,16 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
   };
 
   return (
-    <div className={styles.section}>
-      <h4>Rate this item</h4>
+    <div className={local.section}>
+      <h4 className={local.heading}>Rate this item</h4>
 
-      <div className={styles.stars}>
+      <div className={local.stars}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
-            className={`${styles.starBtn} ${
-              n <= draftRating ? styles.starActive : ''
+            className={`${local.starBtn} ${
+              n <= draftRating ? local.starActive : ''
             }`}
             onClick={() => handleStarClick(n)}
             disabled={isSubmitting}
@@ -186,8 +178,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         ))}
       </div>
 
-      <textarea
-        className={styles.commentInput}
+      <Textarea
         placeholder="Add a comment (optional)"
         value={draftComment}
         onChange={(e) => setDraftComment(e.target.value)}
@@ -196,18 +187,26 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
         disabled={isSubmitting}
       />
 
-      {error && <div className={styles.error}>{error}</div>}
-      {successMsg && <div className={styles.successBanner}>{successMsg}</div>}
+      {error && (
+        <Banner variant="error" inline onDismiss={() => setError('')}>
+          {error}
+        </Banner>
+      )}
 
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.submitBtn}
+      {successMsg && (
+        <Banner variant="success" inline>
+          {successMsg}
+        </Banner>
+      )}
+
+      <div className={local.actions}>
+        <Button
           onClick={handleSubmit}
           disabled={isSubmitting || draftRating < 1}
+          loading={isSubmitting}
         >
-          {isSubmitting ? 'Saving...' : 'Submit Review'}
-        </button>
+          Submit Review
+        </Button>
       </div>
     </div>
   );

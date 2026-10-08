@@ -1,8 +1,9 @@
 // components/Admin/CustomizationEditor.tsx
 import React from 'react';
 import { CustomizationOption } from '../../types';
-import styles from './CustomizationEditor.module.scss';
+import { Button, IconButton, Input, FormField, Select } from '../ui';
 import { CloseIcon } from '../../assets/svgs';
+import local from './CustomizationEditor.module.scss';
 
 interface CustomizationEditorProps {
   options: CustomizationOption[];
@@ -79,55 +80,59 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
     onChange(next);
   };
 
+  // -------- Default option picker --------
+  const buildDefaultOptions = (option: CustomizationOption) => [
+    { value: '', label: '- None -' },
+    ...option.choices
+      .filter((c) => c.name.trim() !== '')
+      .map((c) => ({
+        value: c.name,
+        label: c.price > 0 ? `${c.name} (+Rs${c.price})` : c.name,
+      })),
+  ];
+
   return (
-    <div className={styles.customizationSection}>
-      <div className={styles.sectionHeader}>
+    <div className={local.section}>
+      <div className={local.header}>
         <h4>Customization</h4>
-        <button
-          type="button"
-          className={styles.addCustomizationBtn}
-          onClick={addOption}
-        >
+        <Button size="sm" variant="secondary" onClick={addOption}>
           + Add
-        </button>
+        </Button>
       </div>
 
       {options.length === 0 ? (
-        <p className={styles.emptyCustomization}>
+        <p className={local.empty}>
           No customization options yet. Click "+ Add" to create one.
         </p>
       ) : (
-        <div className={styles.customizationList}>
+        <div className={local.list}>
           {options.map((option, optIdx) => (
-            <div key={optIdx} className={styles.customizationItem}>
-              <div className={styles.customizationHeader}>
-                <button
-                  type="button"
-                  className={styles.removeCustomizationBtn}
-                  onClick={() => removeOption(optIdx)}
+            <div key={optIdx} className={local.item}>
+              <div className={local.itemHeader}>
+                <IconButton
+                  variant="ghost"
+                  size="sm"
                   aria-label="Remove option"
+                  onClick={() => removeOption(optIdx)}
                 >
                   <CloseIcon width={18} height={18} fill="#4d4d4d" />
-                </button>
+                </IconButton>
               </div>
 
-              <div className={styles.formGroup}>
-                <label>Option #{optIdx + 1} Name</label>
-                <input
-                  type="text"
+              <FormField label={`Option #${optIdx + 1} Name`}>
+                <Input
                   value={option.name}
                   onChange={(e) => updateOptionName(optIdx, e.target.value)}
                   placeholder="e.g., Sauce, Size, Add-ons"
+                  inputSize="sm"
                 />
-              </div>
+              </FormField>
 
-              <div className={styles.formGroup}>
-                <label>Choices</label>
-                <div className={styles.choicesList}>
+              <FormField label="Choices">
+                <div className={local.choices}>
                   {option.choices.map((choice, choiceIdx) => (
-                    <div key={choiceIdx} className={styles.choiceRow}>
-                      <input
-                        type="text"
+                    <div key={choiceIdx} className={local.choiceRow}>
+                      <Input
                         value={choice.name}
                         onChange={(e) =>
                           updateChoice(
@@ -138,11 +143,24 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
                           )
                         }
                         placeholder={`Option ${choiceIdx + 1} name`}
-                        className={styles.choiceNameInput}
+                        inputSize="sm"
                       />
-                      <input
+                      <Input
                         type="number"
                         value={choice.price || ''}
+                        onFocus={(e) => {
+                          // Blank the visible "0" so the user can type
+                          // straight in. Model value stays 0 until typing.
+                          if (choice.price === 0) {
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // If left empty, snap back to 0 in the model.
+                          if (e.currentTarget.value.trim() === '') {
+                            updateChoice(optIdx, choiceIdx, 'price', 0);
+                          }
+                        }}
                         onChange={(e) =>
                           updateChoice(
                             optIdx,
@@ -152,49 +170,42 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
                           )
                         }
                         placeholder="+Rs"
-                        min="0"
-                        step="1"
-                        className={styles.choicePriceInput}
+                        min={0}
+                        step={1}
+                        inputSize="sm"
+                        className={local.priceInput}
                       />
-                      <button
-                        type="button"
-                        className={styles.removeChoiceBtn}
-                        onClick={() => removeChoice(optIdx, choiceIdx)}
-                        disabled={option.choices.length <= 1}
+                      <IconButton
+                        variant="danger"
+                        size="sm"
                         aria-label="Remove choice"
+                        disabled={option.choices.length <= 1}
+                        onClick={() => removeChoice(optIdx, choiceIdx)}
                       >
-                        <CloseIcon width={18} height={18} fill="#a62d2d" />
-                      </button>
+                        <CloseIcon width={16} height={16} fill="#a62d2d" />
+                      </IconButton>
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className={styles.addChoiceBtn}
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  block
                   onClick={() => addChoice(optIdx)}
+                  style={{ marginTop: 8 }}
                 >
                   + Add Option
-                </button>
-              </div>
+                </Button>
+              </FormField>
 
-              <div className={styles.formGroup}>
-                <label>Default Option</label>
-                <select
+              <FormField label="Default Option">
+                <Select
                   value={option.default || ''}
                   onChange={(e) => setDefault(optIdx, e.target.value)}
-                  className={styles.defaultSelect}
-                >
-                  <option value="">- None -</option>
-                  {option.choices
-                    .filter((c) => c.name.trim() !== '')
-                    .map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                        {c.price > 0 ? ` (+Rs${c.price})` : ''}
-                      </option>
-                    ))}
-                </select>
-              </div>
+                  options={buildDefaultOptions(option)}
+                />
+              </FormField>
             </div>
           ))}
         </div>

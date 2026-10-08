@@ -1,0 +1,73 @@
+// components/Admin/PlanBadge.module.scss
+@use '../../styles/tokens' as *;
+
+.badgeBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform $t-fast;
+
+  &:hover { transform: scale(1.05); }
+
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.rowLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: $text-faint;
+}
+
+.features {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid $border-soft;
+
+  h5 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: $text-faint;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    li {
+      font-size: 13px;
+      color: $text-muted;
+      line-height: 1.4;
+    }
+  }
+}

@@ -1,18 +1,22 @@
-// contexts/TenantContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../services/supabase.client';
-import { supabaseService } from '../services/supabase.service';
-import { authService } from '../services/auth.service';
-import { ShopInfo } from '../config/credentials';
+// src/contexts/TenantContext.tsx
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../services/supabase.client";
+import { supabaseService } from "../services/supabase.service";
+import { authService } from "../services/auth.service";
+import { ShopInfo } from "../config/credentials";
 import {
   FormSchema,
   FormFieldConfig,
+  FormFieldOption,
+  BadgeDefinition,
   DEFAULT_FORM_SCHEMA,
   MessageTemplate,
   DEFAULT_MESSAGE_TEMPLATE,
   PlanFeatures,
   SubscriptionStatus,
-} from '../types';
+  StoreCategory
+} from "../types";
+import { getCategoryLabel } from '../data/storeCategories';
 
 // =========================================================
 // Tenant shape
@@ -24,7 +28,7 @@ export interface Tenant {
   whatsappPhone?: string;
   isActive?: boolean;
   formSchema?: FormSchema;
-
+storeCategory?: StoreCategory;
   bannerUrl?: string;
   storeTagline?: string;
   deliveryCharge?: number;
@@ -33,10 +37,8 @@ export interface Tenant {
 
   messageTemplate?: MessageTemplate;
 
-  /** Effective reviews flag: TRUE only when global + tenant are both on. */
   reviewsEnabled?: boolean;
 
-  // ---- Subscription / Plan ----
   planId?: string;
   planName?: string;
   planFeatures?: PlanFeatures;
@@ -49,13 +51,13 @@ export interface Tenant {
 
   infoDefaults?: Partial<
     Record<
-      | 'displayName'
-      | 'whatsappPhone'
-      | 'bannerUrl'
-      | 'storeTagline'
-      | 'deliveryCharge'
-      | 'storewideDiscount'
-      | 'ownerPhone',
+      | "displayName"
+      | "whatsappPhone"
+      | "bannerUrl"
+      | "storeTagline"
+      | "deliveryCharge"
+      | "storewideDiscount"
+      | "ownerPhone",
       boolean
     >
   >;
@@ -69,7 +71,7 @@ interface TenantContextType {
   isDeactivated: boolean;
   tenantNotFound: boolean;
   isAdminView: boolean;
-  refreshTenant: () => Promise<void>;
+  refreshTenant: (opts?: { expectBanner?: string }) => Promise<void>;
 }
 
 const TenantContext = createContext<TenantContextType>({
@@ -88,9 +90,9 @@ export const useTenant = () => useContext(TenantContext);
 // =========================================================
 // URL parsing
 // =========================================================
-const SLUG_STORAGE_KEY = 'restaurant_tenant_slug';
-const ADMIN_SUFFIX = '_admin';
-const SMART_ADMIN_FLAG = '_smart-admin';
+const SLUG_STORAGE_KEY = "restaurant_tenant_slug";
+const ADMIN_SUFFIX = "_admin";
+const SMART_ADMIN_FLAG = "_smart-admin";
 
 interface ResolvedSlug {
   slug: string | null;
@@ -99,7 +101,7 @@ interface ResolvedSlug {
 
 const resolveSlugFromUrl = (): ResolvedSlug => {
   const params = new URLSearchParams(window.location.search);
-  const qp = params.get('t');
+  const qp = params.get("t");
 
   if (!qp) {
     sessionStorage.removeItem(SLUG_STORAGE_KEY);
@@ -120,7 +122,7 @@ const resolveSlugFromUrl = (): ResolvedSlug => {
 };
 
 const isSmartAdminUrl = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   try {
     const url = new URL(window.location.href);
     return url.searchParams.has(SMART_ADMIN_FLAG);
@@ -132,6 +134,59 @@ const isSmartAdminUrl = (): boolean => {
 // =========================================================
 // Form schema normalization
 // =========================================================
+
+/** Normalize a stored options array (strings OR objects) to a stable shape. */
+const normalizeStoredOptions = (
+  raw: any,
+): Array<string | FormFieldOption> | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const out: Array<string | FormFieldOption> = [];
+  raw.forEach((o) => {
+    if (typeof o === "string") {
+      out.push(o);
+    } else if (o && typeof o === "object" && typeof o.name === "string") {
+      out.push({
+        name: o.name,
+        ...(typeof o.value === "string" ? { value: o.value } : {}),
+      });
+    }
+  });
+  return out.length > 0 ? out : undefined;
+};
+
+/** Normalize a stored badges array. */
+const normalizeStoredBadges = (raw: any): BadgeDefinition[] => {
+  if (!Array.isArray(raw)) {
+    // First-ever load - seed the defaults
+    return DEFAULT_FORM_SCHEMA.badges ?? [];
+  }
+
+  const defaults = DEFAULT_FORM_SCHEMA.badges ?? [];
+  const defaultByKey = new Map(defaults.map((b) => [b.key, b]));
+
+  const out: BadgeDefinition[] = [];
+  raw.forEach((b) => {
+    if (!b || typeof b !== "object" || typeof b.key !== "string") return;
+    const def = defaultByKey.get(b.key);
+    out.push({
+      key: b.key,
+      label:
+        typeof b.label === "string" && b.label
+          ? b.label
+          : (def?.label ?? b.key),
+      enabled: b.enabled !== false,
+      image: typeof b.image === "string" && b.image ? b.image : undefined,
+      removable: b.removable !== false, // default true now
+    });
+  });
+
+  // NOTE: Do NOT re-add missing built-in badges - the owner may have
+  // intentionally deleted them. Only the very first load (empty array
+  // is treated as "never configured" - seed defaults). An existing
+  // array that's missing a badge key means it was deleted on purpose.
+  return out;
+};
+
 const normalizeFormSchema = (stored: any): FormSchema => {
   if (!stored || !Array.isArray(stored.fields)) {
     return DEFAULT_FORM_SCHEMA;
@@ -143,34 +198,47 @@ const normalizeFormSchema = (stored: any): FormSchema => {
 
   const merged: FormFieldConfig[] = stored.fields
     .map((storedField: any) => {
-      if (!storedField || typeof storedField !== 'object') return null;
-      if (typeof storedField.key !== 'string' || storedField.key === '') {
+      if (!storedField || typeof storedField !== "object") return null;
+      if (typeof storedField.key !== "string" || storedField.key === "") {
         return null;
       }
 
       const def = defaultsByKey.get(storedField.key);
 
       if (def) {
+        const storedOptions = normalizeStoredOptions(storedField.options);
+        const defOptions = normalizeStoredOptions(def.options);
+        // Use stored options if they exist and are non-empty; else fall back to
+        // the default options (e.g. seeded nutrition headings).
+        const options =
+          storedOptions && storedOptions.length > 0
+            ? storedOptions
+            : defOptions;
+
         return {
           ...def,
           enabled: storedField.enabled ?? def.enabled,
           label: storedField.label || def.label,
-          options: Array.isArray(storedField.options)
-            ? storedField.options
-            : def.options,
+          options,
+          image:
+            typeof storedField.image === "string" && storedField.image
+              ? storedField.image
+              : undefined,
         };
       }
 
       return {
         key: storedField.key,
         label: storedField.label || storedField.key,
-        type: storedField.type || 'text',
+        type: storedField.type || "text",
         enabled: storedField.enabled ?? true,
         builtin: false,
         removable: true,
-        options: Array.isArray(storedField.options)
-          ? storedField.options
-          : undefined,
+        options: normalizeStoredOptions(storedField.options),
+        image:
+          typeof storedField.image === "string" && storedField.image
+            ? storedField.image
+            : undefined,
       } as FormFieldConfig;
     })
     .filter(Boolean) as FormFieldConfig[];
@@ -182,14 +250,21 @@ const normalizeFormSchema = (stored: any): FormSchema => {
     }
   });
 
-  return { fields: merged };
+  return {
+    fields: merged,
+    badges: normalizeStoredBadges(stored.badges),
+    badgesLabel:
+      typeof stored.badgesLabel === 'string' && stored.badgesLabel
+        ? stored.badgesLabel
+        : DEFAULT_FORM_SCHEMA.badgesLabel,
+  };
 };
 
 // =========================================================
 // Message template normalization
 // =========================================================
 const normalizeMessageTemplate = (raw: any): MessageTemplate => {
-  if (!raw || typeof raw !== 'object') return DEFAULT_MESSAGE_TEMPLATE;
+  if (!raw || typeof raw !== "object") return DEFAULT_MESSAGE_TEMPLATE;
   return {
     ...DEFAULT_MESSAGE_TEMPLATE,
     ...raw,
@@ -204,16 +279,16 @@ const normalizeMessageTemplate = (raw: any): MessageTemplate => {
 // ShopInfo fallback helpers
 // =========================================================
 const isBlank = (v: any): boolean =>
-  v === null || v === undefined || String(v).trim() === '';
+  v === null || v === undefined || String(v).trim() === "";
 
 const isBlankNum = (v: any): boolean =>
-  v === null || v === undefined || v === '';
+  v === null || v === undefined || v === "";
 
 const pickString = (v: any, fallback: string): string =>
   isBlank(v) ? fallback : String(v);
 
 const pickNumber = (v: any, fallback: number): number => {
-  if (v === null || v === undefined || v === '') return fallback;
+  if (v === null || v === undefined || v === "") return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 };
@@ -227,8 +302,8 @@ const loadPlansMap = async (): Promise<Record<string, any>> => {
   if (plansCache) return plansCache;
   if (!supabase) return {};
   const { data } = await supabase
-    .from('star_veg_plans')
-    .select('id, name, features');
+    .from("star_veg_plans")
+    .select("id, name, features");
   const map: Record<string, any> = {};
   (data || []).forEach((p: any) => {
     map[p.id] = p;
@@ -243,7 +318,7 @@ const loadPlansMap = async (): Promise<Record<string, any>> => {
 const buildTenant = (
   row: any,
   formSchema: FormSchema,
-  infoDefaults: Tenant['infoDefaults'],
+  infoDefaults: Tenant["infoDefaults"],
   effectiveReviews: boolean,
   planRow: any | null,
 ): Tenant => {
@@ -259,11 +334,17 @@ const buildTenant = (
     slug: row.slug,
 
     displayName: pickString(row.display_name, ShopInfo.Shop_name),
+    storeCategory: (row.store_category ?? 'restaurant') as StoreCategory,
     whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
     bannerUrl: isBlank(row.banner_url)
       ? ShopInfo.Shop_banner || undefined
       : String(row.banner_url),
-    storeTagline: pickString(row.store_tagline, ShopInfo.Shop_tagline),
+    storeTagline: pickString(
+  row.store_tagline,
+  row.store_category
+    ? getCategoryLabel(row.store_category as StoreCategory)
+    : ShopInfo.Shop_tagline,
+),
     deliveryCharge: pickNumber(row.delivery_charge, ShopInfo.Delivery_charge),
     storewideDiscount: pickNumber(
       row.storewide_discount,
@@ -277,11 +358,11 @@ const buildTenant = (
     reviewsEnabled: effectiveReviews,
     infoDefaults,
 
-    planId: row.plan_id ?? 'professional',
-    planName: planRow?.name ?? 'Professional',
+    planId: row.plan_id ?? "professional",
+    planName: planRow?.name ?? "Professional",
     planFeatures: (planRow?.features ?? {}) as PlanFeatures,
     subscriptionStatus: (row.subscription_status ??
-      'active') as SubscriptionStatus,
+      "active") as SubscriptionStatus,
     subscriptionStartedAt: row.subscription_started_at ?? undefined,
     subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
     pauseRequested: row.pause_requested === true,
@@ -309,16 +390,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const [tenantRes, mainRes] = await Promise.all([
       supabase
-        .from('star_veg_tenants')
-        .select(
-          'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at',
-        )
-        .eq('slug', slug)
+  .from('star_veg_tenants')
+  .select(
+    'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category',
+  )
+        .eq("slug", slug)
         .maybeSingle(),
       supabase
-        .from('star_veg_tenants')
-        .select('reviews_enabled')
-        .eq('slug', 'main')
+        .from("star_veg_tenants")
+        .select("reviews_enabled")
+        .eq("slug", "main")
         .maybeSingle(),
     ]);
 
@@ -344,38 +425,39 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     const planRow = plansMap[data.plan_id] ?? null;
 
     const formSchema = normalizeFormSchema(data.form_schema);
-    const categoryField = formSchema.fields.find((f) => f.key === 'category');
-    const catOptionsEmpty =
-      !categoryField?.options || categoryField.options.length === 0;
+    const categoryField = formSchema.fields.find((f) => f.key === "category");
+
+    // Seed categories from items if the schema has none
+    const catOptions = categoryField?.options ?? [];
+    const catOptionsEmpty = catOptions.length === 0;
 
     if (catOptionsEmpty) {
       try {
         const { data: itemRows } = await supabase
-          .from('star_veg_menu_items')
-          .select('category')
-          .eq('tenant_id', data.id);
+          .from("star_veg_menu_items")
+          .select("category")
+          .eq("tenant_id", data.id);
 
         if (itemRows && itemRows.length > 0) {
           const seen = new Set<string>();
           itemRows.forEach((r: any) => {
-            const c = (r.category ?? '').trim();
+            const c = (r.category ?? "").trim();
             if (c) seen.add(c);
           });
 
           if (seen.size > 0) {
-            const merged = Array.from(seen).sort((a, b) =>
-              a.localeCompare(b),
-            );
+            const merged = Array.from(seen).sort((a, b) => a.localeCompare(b));
             const seeded: FormSchema = {
+              ...formSchema,
               fields: formSchema.fields.map((f) =>
-                f.key === 'category' ? { ...f, options: merged } : f,
+                f.key === "category" ? { ...f, options: merged } : f,
               ),
             };
 
-            // Use Promise.resolve to safely chain .catch on the
-            // Supabase builder (it's a thenable, not a full Promise).
-            Promise.resolve(supabaseService.updateFormSchema(slug, seeded)).catch(
-              (e) => console.warn('Failed to persist seeded categories:', e),
+            Promise.resolve(
+              supabaseService.updateFormSchema(slug, seeded),
+            ).catch((e) =>
+              console.warn("Failed to persist seeded categories:", e),
             );
 
             return buildTenant(
@@ -388,7 +470,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       } catch (err) {
-        console.warn('Failed to derive categories from items:', err);
+        console.warn("Failed to derive categories from items:", err);
       }
     }
 
@@ -401,11 +483,26 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const refreshTenant = async () => {
+    const refreshTenant = async (opts?: { expectBanner?: string }) => {
     const { slug } = resolveSlugFromUrl();
     if (!slug) return;
 
-    const fresh = await fetchTenant(slug);
+    let fresh: Tenant | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      fresh = await fetchTenant(slug);
+
+      if (fresh && opts?.expectBanner) {
+        if (fresh.bannerUrl === opts.expectBanner) break;
+        // Not yet propagated - wait and retry.
+        fresh = null;
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
+      }
+
+      if (fresh) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
     if (fresh) {
       setTenant(fresh);
       setIsDeactivated(fresh.isActive === false);
@@ -413,12 +510,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // ---- Auto-expire stale subscriptions on mount ----
-  // NOTE: Supabase's query builder is a thenable, not a full Promise,
-  // so we must wrap it with Promise.resolve(...) before calling .catch.
+  // Auto-expire stale subscriptions on mount
   useEffect(() => {
     if (!supabase) return;
-    Promise.resolve(supabase.rpc('expire_stale_subscriptions')).catch(() => {
+    Promise.resolve(supabase.rpc("expire_stale_subscriptions")).catch(() => {
       /* ignore */
     });
   }, []);
@@ -440,7 +535,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (async () => {
       if (!supabase) {
-        console.warn('Supabase not configured - cannot resolve tenant');
+        console.warn("Supabase not configured - cannot resolve tenant");
         setTenant(null);
         setTenantNotFound(true);
         setIsLoading(false);
@@ -451,7 +546,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       const resolved = await fetchTenant(slug);
 
       if (!resolved) {
-        console.warn('Tenant not found:', slug);
+        console.warn("Tenant not found:", slug);
         setTenant(null);
         setIsDeactivated(false);
         setTenantNotFound(true);

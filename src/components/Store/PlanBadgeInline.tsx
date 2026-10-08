@@ -1,11 +1,21 @@
 // components/Store/PlanBadgeInline.tsx
 import React from 'react';
 import { useTenant } from '../../contexts/TenantContext';
-import styles from './PlanBadgeInline.module.scss';
+import { Badge } from '../ui';
+import local from './PlanBadgeInline.module.scss';
 
 interface PlanBadgeInlineProps {
   onClick?: () => void;
 }
+
+type PlanTone = 'info' | 'warning' | 'success';
+type StatusTone = 'success' | 'warning' | 'danger';
+
+const planTone = (planId?: string): PlanTone => {
+  if (planId === 'basic') return 'info';
+  if (planId === 'dynamic') return 'warning';
+  return 'success';
+};
 
 const PlanBadgeInline: React.FC<PlanBadgeInlineProps> = ({ onClick }) => {
   const { tenant } = useTenant();
@@ -15,20 +25,6 @@ const PlanBadgeInline: React.FC<PlanBadgeInlineProps> = ({ onClick }) => {
   const status = tenant.subscriptionStatus ?? 'active';
   const days = tenant.daysUntilExpiry ?? Infinity;
 
-  const planClass =
-    tenant.planId === 'basic'
-      ? styles.planBasic
-      : tenant.planId === 'dynamic'
-      ? styles.planDynamic
-      : styles.planProfessional;
-
-  const statusClass =
-    status === 'paused'
-      ? styles.statusPaused
-      : status === 'expired' || (typeof days === 'number' && days < 0)
-      ? styles.statusExpired
-      : styles.statusActive;
-
   const statusLabel =
     status === 'paused'
       ? 'Paused'
@@ -36,17 +32,26 @@ const PlanBadgeInline: React.FC<PlanBadgeInlineProps> = ({ onClick }) => {
       ? 'Expired'
       : 'Active';
 
+  const statusTone: StatusTone =
+    status === 'paused'
+      ? 'warning'
+      : status === 'expired' || (typeof days === 'number' && days < 0)
+      ? 'danger'
+      : 'success';
+
   return (
     <button
       type="button"
-      className={styles.wrap}
+      className={local.wrap}
       onClick={onClick}
       title={`${planName} . ${statusLabel}`}
     >
-      <span className={`${styles.planChip} ${planClass}`}>{planName}</span>
-      <span className={`${styles.statusChip} ${statusClass}`}>
+      <Badge tone={planTone(tenant.planId)} size="sm">
+        {planName}
+      </Badge>
+      <Badge tone={statusTone} size="sm">
         {statusLabel}
-      </span>
+      </Badge>
     </button>
   );
 };

@@ -1,10 +1,10 @@
-// components/Admin/PlanBadge.tsx - full file (only the parts that changed are marked)
-
+// components/Admin/PlanBadge.tsx
 import React, { useState } from 'react';
 import { Tenant } from '../../contexts/TenantContext';
 import { formatRupees } from '../../utils/subscription';
-import { CloseIcon } from '../../assets/svgs';
-import styles from './TenantManager.module.scss';
+import { Modal, Button, Badge } from '../ui';
+import local from './PlanBadge.module.scss';
+import { CheckIcon } from '../../assets/svgs';
 
 interface PlanBadgeProps {
   tenant: Tenant;
@@ -18,9 +18,17 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const PLAN_MONTHLY: Record<string, number> = {
-  basic: 99,
-  dynamic: 199,
-  professional: 499,
+  basic: 49,
+  dynamic: 99,
+  professional: 199,
+};
+
+type PlanTone = 'info' | 'warning' | 'success';
+
+const toneForPlan = (planId: string): PlanTone => {
+  if (planId === 'basic') return 'info';
+  if (planId === 'dynamic') return 'warning';
+  return 'success';
 };
 
 const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
@@ -29,133 +37,142 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
   const planId = tenant.planId ?? 'professional';
   const planName = tenant.planName ?? PLAN_LABELS[planId] ?? planId;
   const status = tenant.subscriptionStatus ?? 'active';
+  const tone = toneForPlan(planId);
 
-  const badgeClass =
-    {
-      basic: styles.planBasic,
-      dynamic: styles.planDynamic,
-      professional: styles.planProfessional,
-    }[planId] ?? styles.planBasic;
-
-  const statusClass =
+  const statusTone =
     status === 'active'
-      ? styles.statusActive
+      ? 'success'
       : status === 'paused'
-      ? styles.statusPaused
-      : styles.statusExpired;
+      ? 'warning'
+      : 'danger';
 
   return (
     <>
       <button
         type="button"
-        className={`${styles.planBadge} ${badgeClass}`}
+        className={local.badgeBtn}
         onClick={() => setIsOpen(true)}
         title={`${planName} . ${status}`}
       >
-        {planName}
+        <Badge tone={tone} size="sm">
+          {planName}
+        </Badge>
       </button>
 
-      {isOpen && (
-        <div
-          className={styles.planDialogOverlay}
-          onClick={() => setIsOpen(false)}
-        >
-          <div
-            className={styles.planDialog}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.planDialogHeader}>
-              <h4>Plan Details</h4>
-              <button
-                type="button"
-                className={styles.confirmCloseBtn}
-                onClick={() => setIsOpen(false)}
-              >
-                <CloseIcon width={16} height={16} fill="#4d4d4d" />
-              </button>
-            </div>
+      <Modal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Plan Details"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setIsOpen(false);
+                onChangePlan();
+              }}
+            >
+              Change Plan
+            </Button>
+          </>
+        }
+      >
+        <div className={local.rows}>
+          <div className={local.row}>
+            <span className={local.rowLabel}>Plan</span>
+            <strong>
+              {planName} - {formatRupees(PLAN_MONTHLY[planId] ?? 0)}/mo
+            </strong>
+          </div>
 
-            <div className={styles.planDialogBody}>
-              <div className={styles.planDialogRow}>
-                <span>Plan</span>
-                <strong>
-                  {planName} - {formatRupees(PLAN_MONTHLY[planId] ?? 0)}/mo
-                </strong>
-              </div>
-              <div className={styles.planDialogRow}>
-                <span>Status</span>
-                <span className={`${styles.statusPill} ${statusClass}`}>
-                  {status.toUpperCase()}
-                </span>
-              </div>
-              <div className={styles.planDialogRow}>
-                <span>Started</span>
+          <div className={local.row}>
+            <span className={local.rowLabel}>Status</span>
+            <Badge tone={statusTone} size="sm">
+              {status.toUpperCase()}
+            </Badge>
+          </div>
+
+          <div className={local.row}>
+            <span className={local.rowLabel}>Started</span>
+            <span>
+              {tenant.subscriptionStartedAt
+                ? new Date(tenant.subscriptionStartedAt).toLocaleDateString()
+                : '-'}
+            </span>
+          </div>
+
+          <div className={local.row}>
+            <span className={local.rowLabel}>Expires</span>
+            <span>
+              {tenant.subscriptionExpiresAt
+                ? new Date(tenant.subscriptionExpiresAt).toLocaleDateString()
+                : '-'}
+            </span>
+          </div>
+
+          {typeof tenant.daysUntilExpiry === 'number' &&
+            tenant.daysUntilExpiry !== Infinity && (
+              <div className={local.row}>
+                <span className={local.rowLabel}>Days left</span>
                 <span>
-                  {tenant.subscriptionStartedAt
-                    ? new Date(
-                        tenant.subscriptionStartedAt,
-                      ).toLocaleDateString()
-                    : '-'}
+                  {tenant.daysUntilExpiry > 0
+                    ? tenant.daysUntilExpiry
+                    : 'Expired'}
                 </span>
               </div>
-              <div className={styles.planDialogRow}>
-                <span>Expires</span>
-                <span>
-                  {tenant.subscriptionExpiresAt
-                    ? new Date(
-                        tenant.subscriptionExpiresAt,
-                      ).toLocaleDateString()
-                    : '-'}
-                </span>
-              </div>
-              {typeof tenant.daysUntilExpiry === 'number' &&
-                tenant.daysUntilExpiry !== Infinity && (
-                  <div className={styles.planDialogRow}>
-                    <span>Days left</span>
-                    <span>
-                      {tenant.daysUntilExpiry > 0
-                        ? tenant.daysUntilExpiry
-                        : 'Expired'}
-                    </span>
-                  </div>
-                )}
+            )}
 
-              <div className={styles.featureList}>
-                <h5>Features</h5>
-                <ul>
-                  {tenant.planFeatures?.canOrder && <li>✅ Ordering</li>}
-                  {tenant.planFeatures?.canEditFields && <li>✅ Edit Fields</li>}
-                  {tenant.planFeatures?.canManageStore && <li>✅ Store Manager</li>}
-                  {tenant.planFeatures?.canManageUsers && <li>✅ User Management</li>}
-                  {tenant.planFeatures?.canWishlist && <li>✅ Wishlist</li>}
-                  {tenant.planFeatures?.canReview && <li>✅ Reviews</li>}
-                  {tenant.planFeatures?.canAddCustomMessage && <li>✅ Custom Message</li>}
-                </ul>
-              </div>
-            </div>
-
-            <div className={styles.planDialogFooter}>
-              <button
-                type="button"
-                className={styles.ghostBtn}
-                onClick={() => setIsOpen(false)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                onClick={() => {
-                  setIsOpen(false);
-                  onChangePlan();
-                }}
-              >
-                Change Plan
-              </button>
-            </div>
+          <div className={local.features}>
+            <h5>Features</h5>
+            <ul>
+              {tenant.planFeatures?.canOrder && <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Ordering</li>}
+              {tenant.planFeatures?.canEditFields && <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Edit Fields</li>}
+              {tenant.planFeatures?.canManageStore && (
+                <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Store Manager</li>
+              )}
+              {tenant.planFeatures?.canManageUsers && (
+                <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> User Management</li>
+              )}
+              {tenant.planFeatures?.canWishlist && <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Wishlist</li>}
+              {tenant.planFeatures?.canReview && <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Reviews</li>}
+              {tenant.planFeatures?.canAddCustomMessage && (
+                <li><CheckIcon
+                              width={14}
+                              height={14}
+                              fill="#1e7e34"
+                            /> Custom Message</li>
+              )}
+            </ul>
           </div>
         </div>
-      )}
+      </Modal>
     </>
   );
 };

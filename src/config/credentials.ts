@@ -31,7 +31,7 @@ export const SEED_USERS: AdminCredentials[] = [
 export const ShopInfo = {
   Shop_name: 'exomenu',
   Shop_tagline: 'Fast . Easy . Trusted',
-  Shop_banner: '',
+  Shop_banner: 'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/banners/Default%20Banner.webp',
   Owner_phone: '8004608951',
   Store_whatsapp: '8004608951',
   Delivery_charge: 20,

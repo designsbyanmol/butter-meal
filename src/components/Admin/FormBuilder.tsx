@@ -1,4 +1,4 @@
-// components/Admin/FormBuilder.tsx
+// src/components/Admin/FormBuilder.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useMenu } from '../../hooks/useMenu';
@@ -8,10 +8,26 @@ import {
   FormFieldConfig,
   FormFieldType,
   FormSchema,
+  FormFieldOption,
+  BadgeDefinition,
   DEFAULT_FORM_SCHEMA,
+  normalizeOptions,
 } from '../../types';
+import {
+  Modal,
+  Button,
+  IconButton,
+  Input,
+  Select,
+  FormField,
+  Toggle,
+  Banner,
+  Chip,
+  EmptyState,
+} from '../ui';
 import { CloseIcon } from '../../assets/svgs';
-import styles from './FormBuilder.module.scss';
+import ImageUpload from './ImageUpload';
+import local from './FormBuilder.module.scss';
 
 interface FormBuilderProps {
   onClose: () => void;
@@ -25,7 +41,7 @@ const slugifyKey = (s: string): string =>
     .replace(/^_|_$/g, '');
 
 // =========================================================
-// CategoryChip - inline-editable + draggable pill
+// CategoryChip
 // =========================================================
 interface CategoryChipProps {
   value: string;
@@ -65,44 +81,38 @@ const CategoryChip: React.FC<CategoryChipProps> = ({
     if (v !== value) onCommit(v);
   };
 
-  const handleDragStart = (e: React.DragEvent<HTMLSpanElement>) => {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-    onDragStart(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLSpanElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    onDragOver(index);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLSpanElement>) => {
-    e.preventDefault();
-    onDrop(index);
-  };
-
   return (
     <span
       className={[
-        styles.categoryChip,
-        isDragging ? styles.chipDragging : '',
-        isDropTarget ? styles.chipDropTarget : '',
+        local.chip,
+        isDragging ? local.chipDragging : '',
+        isDropTarget ? local.chipDropTarget : '',
       ]
         .filter(Boolean)
         .join(' ')}
       draggable
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+        onDragStart(index);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        onDragOver(index);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop(index);
+      }}
       onDragEnd={onDragEnd}
     >
-      <span className={styles.chipDragHandle} title="Drag to reorder">
+      <span className={local.chipHandle} title="Drag to reorder">
         ::
       </span>
       <input
         type="text"
-        className={styles.categoryChipInput}
+        className={local.chipInput}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -116,18 +126,206 @@ const CategoryChip: React.FC<CategoryChipProps> = ({
             (e.target as HTMLInputElement).blur();
           }
         }}
-        aria-label={`Rename category ${value}`}
+        aria-label={`Rename ${value}`}
         onDragStart={(e) => e.stopPropagation()}
       />
-      <button
-        type="button"
-        className={styles.categoryChipRemove}
-        onClick={onRemove}
+      <IconButton
+        variant="danger"
+        size="sm"
         aria-label={`Remove ${value}`}
+        onClick={onRemove}
       >
         <CloseIcon width={12} height={12} fill="#a62d2d" />
-      </button>
+      </IconButton>
     </span>
+  );
+};
+
+// =========================================================
+// NutritionRow
+// =========================================================
+interface NutritionRowProps {
+  option: FormFieldOption;
+  index: number;
+  isDragging: boolean;
+  isDropTarget: boolean;
+  onChange: (next: FormFieldOption) => void;
+  onRemove: () => void;
+  onDragStart: (index: number) => void;
+  onDragOver: (index: number) => void;
+  onDrop: (index: number) => void;
+  onDragEnd: () => void;
+}
+
+const NutritionRow: React.FC<NutritionRowProps> = ({
+  option,
+  index,
+  isDragging,
+  isDropTarget,
+  onChange,
+  onRemove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}) => {
+  const [name, setName] = useState(option.name);
+  const [value, setValue] = useState(option.value ?? '');
+
+  useEffect(() => setName(option.name), [option.name]);
+  useEffect(() => setValue(option.value ?? ''), [option.value]);
+
+  const commit = () => {
+    const n = name.trim();
+    if (!n) {
+      onRemove();
+      return;
+    }
+    if (n !== option.name || value !== (option.value ?? '')) {
+      onChange({ name: n, value: value.trim() });
+    }
+  };
+
+  return (
+    <div
+      className={[
+        local.nutritionRow,
+        isDragging ? local.chipDragging : '',
+        isDropTarget ? local.chipDropTarget : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+        onDragStart(index);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        onDragOver(index);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop(index);
+      }}
+      onDragEnd={onDragEnd}
+    >
+      <span className={local.chipHandle} title="Drag to reorder">
+        ::
+      </span>
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        placeholder="Heading (e.g. Protein)"
+        inputSize="sm"
+        className={local.nutritionName}
+      />
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        placeholder="Value (e.g. 12g)"
+        inputSize="sm"
+        className={local.nutritionValue}
+      />
+      <IconButton
+        variant="danger"
+        size="sm"
+        aria-label={`Remove ${option.name}`}
+        onClick={onRemove}
+      >
+        <CloseIcon width={12} height={12} fill="#a62d2d" />
+      </IconButton>
+    </div>
+  );
+};
+
+// =========================================================
+// BadgeRow
+// =========================================================
+interface BadgeRowProps {
+  badge: BadgeDefinition;
+  onChange: (next: BadgeDefinition) => void;
+  onRemove: () => void;
+}
+
+const BadgeRow: React.FC<BadgeRowProps> = ({
+  badge,
+  onChange,
+  onRemove,
+}) => {
+  const [label, setLabel] = useState(badge.label);
+
+  useEffect(() => setLabel(badge.label), [badge.label]);
+
+  const commitLabel = () => {
+    const v = label.trim();
+    if (!v || v === badge.label) return;
+    onChange({ ...badge, label: v });
+  };
+
+  return (
+    <div className={local.badgeRow}>
+      <div className={local.badgeRowHeader}>
+        <Toggle
+          checked={badge.enabled}
+          onChange={(e) =>
+            onChange({ ...badge, enabled: e.target.checked })
+          }
+          label={<span className={local.fieldName}>{badge.label}</span>}
+        />
+
+        <IconButton
+          variant="danger"
+          size="sm"
+          aria-label={`Remove badge ${badge.label}`}
+          onClick={onRemove}
+        >
+          <CloseIcon width={14} height={14} fill="#a62d2d" />
+        </IconButton>
+      </div>
+
+      <FormField label="Display label">
+        <Input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={commitLabel}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          inputSize="sm"
+        />
+      </FormField>
+
+      <div className={local.badgeImageRow}>
+        <ImageUpload
+          currentImage={badge.image ?? ''}
+          onImageUploaded={(url) => onChange({ ...badge, image: url })}
+          label="Icon (optional, 128x128 recommended)"
+          folder="badges"
+          maxDimension={128}
+          maxFileSizeMB={1}
+        />
+      </div>
+    </div>
   );
 };
 
@@ -138,56 +336,59 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
   const { tenant, refreshTenant } = useTenant();
   const { items: allMenuItems } = useMenu();
 
-  const [schema, setSchema] = useState<FormSchema>(
-    tenant?.formSchema ?? DEFAULT_FORM_SCHEMA,
-  );
+  const [schema, setSchema] = useState<FormSchema>(() => {
+    const incoming = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+    return {
+      fields: incoming.fields,
+      badges: incoming.badges ?? DEFAULT_FORM_SCHEMA.badges,
+      badgesLabel:
+        incoming.badgesLabel ?? DEFAULT_FORM_SCHEMA.badgesLabel ?? 'Badges',
+    };
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
   const [customType, setCustomType] = useState<FormFieldType>('text');
   const [customOptionsInput, setCustomOptionsInput] = useState('');
 
-  // Category manager input
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
-  // Drag state for category reordering
   const [draggedChipIndex, setDraggedChipIndex] = useState<number | null>(null);
   const [dragOverChipIndex, setDragOverChipIndex] = useState<number | null>(null);
 
-  // Snapshot of the schema at modal open - used to diff removed categories
-  const initialSchemaRef = useRef<FormSchema | null>(null);
+  const [draggedNutIdx, setDraggedNutIdx] = useState<number | null>(null);
+  const [dragOverNutIdx, setDragOverNutIdx] = useState<number | null>(null);
 
-  // Auto-seed must run at most once per modal lifetime
+  const initialSchemaRef = useRef<FormSchema | null>(null);
   const seedRanRef = useRef(false);
 
-  // -------- Initialize schema from the tenant ONCE on mount --------
   useEffect(() => {
     const incoming = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
-    setSchema(incoming);
-    initialSchemaRef.current = incoming;
+    const normalized: FormSchema = {
+      fields: incoming.fields,
+      badges: incoming.badges ?? DEFAULT_FORM_SCHEMA.badges,
+      badgesLabel:
+        incoming.badgesLabel ?? DEFAULT_FORM_SCHEMA.badgesLabel ?? 'Badges',
+    };
+    setSchema(normalized);
+    initialSchemaRef.current = normalized;
     seedRanRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------- Auto-seed categories from existing items (ONE TIME ONLY) --------
-  //
-  // Only seeds when the owner has NEVER customized the schema:
-  //   • category field has 0 options
-  //   • no custom fields exist
-  //
-  // This keeps a removed category from creeping back after a save.
+  // One-time category seed
   useEffect(() => {
     if (seedRanRef.current) return;
     if (!allMenuItems.length) return;
 
     const catField = schema.fields.find((f) => f.key === 'category');
-    const catOpts = catField?.options ?? [];
+    const catOpts = normalizeOptions(catField?.options);
     const hasCustomFields = schema.fields.some((f) => !f.builtin);
 
     if (catOpts.length > 0 || hasCustomFields) {
-      // Owner has already customized - do not seed
       seedRanRef.current = true;
       return;
     }
@@ -214,7 +415,6 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMenuItems.length]);
 
-  // -------- Flash helpers --------
   const flashSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(''), 3000);
@@ -224,9 +424,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     setTimeout(() => setError(''), 4000);
   };
 
-  // =========================================================
-  // FIELD TOGGLES / RENAME
-  // =========================================================
+  // ---------- Field mutations ----------
   const toggleField = (key: string) => {
     setSchema((prev) => ({
       ...prev,
@@ -245,13 +443,21 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     }));
   };
 
-  // =========================================================
-  // CUSTOM FIELD OPTIONS
-  // =========================================================
+  const updateFieldImage = (key: string, image: string) => {
+    setSchema((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f) =>
+        f.key === key ? { ...f, image } : f,
+      ),
+    }));
+  };
+
   const updateCustomOptions = (key: string, options: string[]) => {
     setSchema((prev) => ({
       ...prev,
-      fields: prev.fields.map((f) => (f.key === key ? { ...f, options } : f)),
+      fields: prev.fields.map((f) =>
+        f.key === key ? { ...f, options } : f,
+      ),
     }));
   };
 
@@ -302,18 +508,15 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     setShowAddCustom(false);
   };
 
-  // =========================================================
-  // CATEGORY MANAGER
-  // =========================================================
+  // ---------- Category manager ----------
   const addCategoryOption = (fieldKey: string, value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
-
     setSchema((prev) => ({
       ...prev,
       fields: prev.fields.map((f) => {
         if (f.key !== fieldKey) return f;
-        const existing = f.options ?? [];
+        const existing = normalizeOptions(f.options).map((o) => o.name);
         if (existing.includes(trimmed)) return f;
         return { ...f, options: [...existing, trimmed] };
       }),
@@ -326,16 +529,17 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       ...prev,
       fields: prev.fields.map((f) =>
         f.key === fieldKey
-          ? { ...f, options: (f.options ?? []).filter((o) => o !== option) }
+          ? {
+              ...f,
+              options: normalizeOptions(f.options)
+                .filter((o) => o.name !== option)
+                .map((o) => o.name),
+            }
           : f,
       ),
     }));
   };
 
-  /**
-   * Rename a category option. Cascades to any items currently in the old
-   * category so they follow the rename immediately (before Save).
-   */
   const renameCategoryOption = async (
     fieldKey: string,
     oldName: string,
@@ -344,19 +548,18 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) return;
 
-    // 1. Update schema locally
     setSchema((prev) => ({
       ...prev,
       fields: prev.fields.map((f) => {
         if (f.key !== fieldKey) return f;
-        const opts = (f.options ?? []).map((o) =>
-          o === oldName ? trimmed : o,
-        );
-        return { ...f, options: Array.from(new Set(opts)) };
+        const names = normalizeOptions(f.options).map((o) => o.name);
+        const renamed = names.map((n) => (n === oldName ? trimmed : n));
+        return { ...f, options: Array.from(new Set(renamed)) };
       }),
     }));
 
-    // 2. Cascade to any item currently in that category
+    if (fieldKey !== 'category') return;
+
     const affected = allMenuItems.filter(
       (it) => (it.category ?? '').trim() === oldName,
     );
@@ -374,29 +577,17 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     }
   };
 
-  // ---------- Category reorder (drag-and-drop) ----------
-  const handleChipDragStart = (index: number) => {
-    setDraggedChipIndex(index);
-  };
-
-  const handleChipDragOver = (index: number) => {
-    if (index !== dragOverChipIndex) setDragOverChipIndex(index);
-  };
-
-  const handleChipDragEnd = () => {
-    setDraggedChipIndex(null);
-    setDragOverChipIndex(null);
-  };
-
-  const reorderCategories = (fromIndex: number, toIndex: number) => {
+  const reorderCategories = (
+    fieldKey: string,
+    fromIndex: number,
+    toIndex: number,
+  ) => {
     if (fromIndex === toIndex) return;
-
     setSchema((prev) => ({
       ...prev,
       fields: prev.fields.map((f) => {
-        if (f.key !== 'category') return f;
-
-        const opts = [...(f.options ?? [])];
+        if (f.key !== fieldKey) return f;
+        const opts = [...normalizeOptions(f.options)];
         if (
           fromIndex < 0 ||
           fromIndex >= opts.length ||
@@ -405,28 +596,117 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
         ) {
           return f;
         }
-
         const [moved] = opts.splice(fromIndex, 1);
         opts.splice(toIndex, 0, moved);
-        return { ...f, options: opts };
+        return {
+          ...f,
+          options: opts.map((o) => o.name),
+        };
       }),
     }));
   };
 
-  const handleChipDrop = (targetIndex: number) => {
-    if (draggedChipIndex === null) return;
-    reorderCategories(draggedChipIndex, targetIndex);
-    setDraggedChipIndex(null);
-    setDragOverChipIndex(null);
+  // ---------- Nutrition manager ----------
+  const getNutritionOptions = (fieldKey: string): FormFieldOption[] => {
+    const f = schema.fields.find((x) => x.key === fieldKey);
+    return normalizeOptions(f?.options);
   };
 
-  // =========================================================
-  // RESET / SAVE
-  // =========================================================
+  const setNutritionOptions = (
+    fieldKey: string,
+    options: FormFieldOption[],
+  ) => {
+    setSchema((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f) =>
+        f.key === fieldKey ? { ...f, options } : f,
+      ),
+    }));
+  };
+
+  const addNutritionRow = (fieldKey: string) => {
+    const current = getNutritionOptions(fieldKey);
+    setNutritionOptions(fieldKey, [...current, { name: '', value: '' }]);
+  };
+
+  const updateNutritionRow = (
+    fieldKey: string,
+    index: number,
+    next: FormFieldOption,
+  ) => {
+    const current = getNutritionOptions(fieldKey);
+    const updated = [...current];
+    updated[index] = next;
+    setNutritionOptions(fieldKey, updated);
+  };
+
+  const removeNutritionRow = (fieldKey: string, index: number) => {
+    const current = getNutritionOptions(fieldKey);
+    setNutritionOptions(
+      fieldKey,
+      current.filter((_, i) => i !== index),
+    );
+  };
+
+  const reorderNutrition = (
+    fieldKey: string,
+    fromIndex: number,
+    toIndex: number,
+  ) => {
+    if (fromIndex === toIndex) return;
+    const current = getNutritionOptions(fieldKey);
+    if (
+      fromIndex < 0 ||
+      fromIndex >= current.length ||
+      toIndex < 0 ||
+      toIndex >= current.length
+    )
+      return;
+    const next = [...current];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    setNutritionOptions(fieldKey, next);
+  };
+
+  // ---------- Badge manager ----------
+  const updateBadge = (index: number, next: BadgeDefinition) => {
+    setSchema((prev) => ({
+      ...prev,
+      badges: (prev.badges ?? []).map((b, i) => (i === index ? next : b)),
+    }));
+  };
+
+  const removeBadge = (index: number) => {
+    setSchema((prev) => ({
+      ...prev,
+      badges: (prev.badges ?? []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const addBadge = () => {
+    const badges = schema.badges ?? [];
+    const newKey = `custom_${slugifyKey(
+      `badge_${badges.length + 1}`,
+    )}_${Date.now().toString(36).slice(-4)}`;
+    setSchema((prev) => ({
+      ...prev,
+      badges: [
+        ...(prev.badges ?? []),
+        {
+          key: newKey,
+          label: 'New Badge',
+          enabled: true,
+          removable: true,
+        },
+      ],
+    }));
+  };
+
+  // ---------- Reset / save ----------
   const resetToDefault = () => {
     if (
       !window.confirm(
-        'Reset the form to the default field layout? Your custom fields and category list will be lost.',
+        'Reset the form to the default field layout? Your custom fields, categories, badges and nutrition setup will be lost.',
       )
     )
       return;
@@ -443,31 +723,26 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     setError('');
 
     try {
-      // ---------------- 1. Diff category lists ----------------
+      // 1. Diff categories
       const oldCatField = baseline.fields.find((f) => f.key === 'category');
       const newCatField = schema.fields.find((f) => f.key === 'category');
-
       const oldCats = new Set<string>(
-        (oldCatField?.options ?? []).map((s) => s.trim()),
+        normalizeOptions(oldCatField?.options).map((o) => o.name.trim()),
       );
       const newCats = new Set<string>(
-        (newCatField?.options ?? []).map((s) => s.trim()),
+        normalizeOptions(newCatField?.options).map((o) => o.name.trim()),
       );
-
       const removedCats: string[] = [];
       oldCats.forEach((c) => {
         if (c && !newCats.has(c)) removedCats.push(c);
       });
 
-      // ---------------- 2. Reassign items under removed categories ----------------
       if (removedCats.length > 0) {
         const removedSet = new Set(removedCats);
-
         const affected = allMenuItems.filter((it) => {
           const c = (it.category ?? '').trim();
           return c && removedSet.has(c);
         });
-
         if (affected.length > 0) {
           await Promise.all(
             affected.map((it) =>
@@ -477,21 +752,56 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
         }
       }
 
-      // ---------------- 3. Persist the schema ----------------
-      await supabaseService.updateFormSchema(tenant.slug, schema);
-
-      // Background refresh - do not await so this modal doesn't re-render
-      // mid-close with a stale snapshot.
-      Promise.allSettled([
-        refreshTenant(),
-        menuService.refresh(),
-      ]).catch(() => {
-        /* silently ignore - errors already logged inside each */
+      // 2. Diff badges and strip attributes from items
+      const oldBadgeKeys = new Set((baseline.badges ?? []).map((b) => b.key));
+      const newBadgeKeys = new Set((schema.badges ?? []).map((b) => b.key));
+      const removedBadgeKeys: string[] = [];
+      oldBadgeKeys.forEach((k) => {
+        if (!newBadgeKeys.has(k)) removedBadgeKeys.push(k);
       });
 
+      if (removedBadgeKeys.length > 0) {
+        const affected = allMenuItems.filter((it) => {
+          const attrs = it.attributes ?? {};
+          return removedBadgeKeys.some((k) => attrs[k]);
+        });
+        if (affected.length > 0) {
+          await Promise.all(
+            affected.map((it) => {
+              const nextAttrs = { ...(it.attributes ?? {}) };
+              removedBadgeKeys.forEach((k) => delete nextAttrs[k]);
+              return menuService.updateItem(it.id, {
+                attributes: nextAttrs,
+              });
+            }),
+          );
+        }
+      }
+
+      // 3. Persist the schema
+      await supabaseService.updateFormSchema(tenant.slug, schema);
+
+      // 4. Await tenant refresh BEFORE closing
+      await refreshTenant();
+
+      menuService.refresh().catch(() => {
+        /* ignore */
+      });
+
+      const msgParts: string[] = [];
+      if (removedCats.length > 0) {
+        msgParts.push(
+          `${removedCats.length} category(ies) removed; affected items moved to Uncategorized.`,
+        );
+      }
+      if (removedBadgeKeys.length > 0) {
+        msgParts.push(
+          `${removedBadgeKeys.length} badge(s) removed from all items.`,
+        );
+      }
       flashSuccess(
-        removedCats.length > 0
-          ? `Saved. ${removedCats.length} category(ies) removed; affected items moved to Uncategorized.`
+        msgParts.length > 0
+          ? `Saved. ${msgParts.join(' ')}`
           : 'Form fields saved',
       );
 
@@ -503,324 +813,440 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
     }
   };
 
-const builtinFields = schema.fields.filter(
-  (f) => f.builtin && !f.platformOnly,
-);
-const customFields = schema.fields.filter((f) => !f.builtin);
+  const builtinFields = schema.fields.filter(
+    (f) => f.builtin && !f.platformOnly,
+  );
+  const customFields = schema.fields.filter((f) => !f.builtin);
+  const badges = schema.badges ?? [];
 
-  // =========================================================
-  // RENDER
-  // =========================================================
+  const IMAGE_ENABLED_FIELDS = new Set([
+    'category',
+    'preparationTime',
+    'calories',
+  ]);
+
+  // ---------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2>Customize Item Form</h2>
-          <button className={styles.closeBtn} onClick={onClose}>
-            <CloseIcon width={18} height={18} fill="#4d4d4d" />
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Customize Item Form"
+      size="lg"
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            onClick={resetToDefault}
+            disabled={isSaving}
+            style={{ marginRight: 'auto' }}
+          >
+            Reset to default
+          </Button>
+          <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} loading={isSaving}>
+            Save fields
+          </Button>
+        </>
+      }
+    >
+      {error && (
+        <Banner variant="error" onDismiss={() => setError('')}>
+          {error}
+        </Banner>
+      )}
+      {success && <Banner variant="success">{success}</Banner>}
 
-        {error && (
-          <div className={styles.errorMessage}>
-            <span>{error}</span>
-            <button onClick={() => setError('')} aria-label="Dismiss">
-              <CloseIcon width={14} height={14} fill="#dc3545" />
-            </button>
-          </div>
-        )}
-        {success && (
-          <div className={styles.successMessage}>
-            <span>{success}</span>
-          </div>
-        )}
+      {/* ============ Standard fields ============ */}
+      <h3 className={local.sectionTitle}>Standard fields</h3>
+      <p className={local.sectionHint}>
+        Locked fields (marked with *) cannot be disabled or renamed.
+      </p>
 
-        <div className={styles.itemList}>
-          <h3 className={styles.sectionTitle}>Standard fields</h3>
-          <p className={styles.sectionHint}>
-            Locked fields (marked with *) cannot be disabled or renamed.
-          </p>
+      <div className={local.fieldList}>
+        {builtinFields.map((field) => {
+          const isCategory = field.key === 'category';
+          const isNutrition = field.key === 'nutritionalInfo';
+          const supportsImage = IMAGE_ENABLED_FIELDS.has(field.key);
 
-          {builtinFields.map((field) => (
-            <div key={field.key} className={styles.itemRow}>
-              <div className={styles.itemInfo}>
-                <div className={styles.fieldStack}>
-                  <div className={styles.fieldHeader}>
-                    <label className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={field.enabled}
-                        onChange={() => toggleField(field.key)}
-                        disabled={field.locked}
-                      />
-                      <span className={styles.fieldName}>
-                        {field.label}
-                        {field.locked && (
-                          <span
-                            className={styles.lockedMark}
-                            title="This field is required and cannot be changed"
-                          >
-                            *
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                    <span className={styles.fieldType}>{field.type}</span>
-                  </div>
-
-                  <input
-                    type="text"
-                    className={styles.fieldInput}
-                    value={field.label}
-                    onChange={(e) => renameField(field.key, e.target.value)}
-                    placeholder="Display label"
-                    disabled={field.locked}
-                  />
-
-                  {/* ============ CATEGORY MANAGER ============ */}
-                  {field.key === 'category' && (
-                    <div className={styles.categoryManager}>
-                      <label className={styles.fieldHintLabel}>
-                        Categories ({field.options?.length ?? 0})
-                      </label>
-
-                      <div className={styles.categoryChips}>
-                        {(field.options ?? []).length === 0 && (
-                          <span className={styles.emptyCategories}>
-                            No categories yet - add one below.
-                          </span>
-                        )}
-
-                        {(field.options ?? []).map((cat, idx) => (
-                          <CategoryChip
-                            key={`${idx}-${cat}`}
-                            value={cat}
-                            index={idx}
-                            isDragging={draggedChipIndex === idx}
-                            isDropTarget={
-                              dragOverChipIndex === idx &&
-                              draggedChipIndex !== null &&
-                              draggedChipIndex !== idx
-                            }
-                            onCommit={(next) =>
-                              renameCategoryOption(field.key, cat, next)
-                            }
-                            onRemove={() =>
-                              removeCategoryOption(field.key, cat)
-                            }
-                            onDragStart={handleChipDragStart}
-                            onDragOver={handleChipDragOver}
-                            onDrop={handleChipDrop}
-                            onDragEnd={handleChipDragEnd}
-                          />
-                        ))}
-                      </div>
-
-                      <div className={styles.categoryAddRow}>
-                        <input
-                          type="text"
-                          className={styles.fieldInput}
-                          value={newCategoryInput}
-                          onChange={(e) =>
-                            setNewCategoryInput(e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              addCategoryOption(
-                                field.key,
-                                newCategoryInput,
-                              );
-                            }
-                          }}
-                          placeholder="Add a category and press Enter"
-                        />
-                        <button
-                          type="button"
-                          className={styles.addCategoryBtn}
-                          onClick={() =>
-                            addCategoryOption(field.key, newCategoryInput)
-                          }
-                          disabled={!newCategoryInput.trim()}
+          return (
+            <div key={field.key} className={local.fieldCard}>
+              <div className={local.fieldHeader}>
+                <Toggle
+                  checked={field.enabled}
+                  disabled={field.locked}
+                  onChange={() => toggleField(field.key)}
+                  label={
+                    <span className={local.fieldName}>
+                      {field.label}
+                      {field.locked && (
+                        <span
+                          className={local.lockedMark}
+                          title="This field is required and cannot be changed"
                         >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                          *
+                        </span>
+                      )}
+                    </span>
+                  }
+                />
+                <span className={local.fieldType}>{field.type}</span>
               </div>
-            </div>
-          ))}
 
-          <h3 className={styles.customHeader}>
-            Custom fields
-            <button
-              type="button"
-              className={styles.addCustomizationBtn}
-              onClick={() => setShowAddCustom((s) => !s)}
-            >
-              + Add field
-            </button>
-          </h3>
+              <FormField label="Display label">
+                <Input
+                  value={field.label}
+                  onChange={(e) => renameField(field.key, e.target.value)}
+                  disabled={field.locked}
+                  inputSize="sm"
+                />
+              </FormField>
 
-          {showAddCustom && (
-            <div className={styles.addFieldCard}>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Field label</label>
-                  <input
-                    type="text"
-                    value={customLabel}
-                    onChange={(e) => setCustomLabel(e.target.value)}
-                    placeholder="e.g., Spice Level, Size"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Field type</label>
-                  <select
-                    value={customType}
-                    onChange={(e) =>
-                      setCustomType(e.target.value as FormFieldType)
+              {supportsImage && (
+                <div className={local.imageFieldWrap}>
+                  <ImageUpload
+                    currentImage={field.image ?? ''}
+                    onImageUploaded={(url) =>
+                      updateFieldImage(field.key, url)
                     }
-                  >
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="textarea">Long text</option>
-                    <option value="checkbox">Yes/No</option>
-                    <option value="select">Dropdown (Select)</option>
-                  </select>
-                </div>
-              </div>
-
-              {customType === 'select' && (
-                <div className={styles.formGroup}>
-                  <label>Options (comma separated)</label>
-                  <input
-                    type="text"
-                    value={customOptionsInput}
-                    onChange={(e) => setCustomOptionsInput(e.target.value)}
-                    placeholder="e.g., Small, Medium, Large"
+                    label="Field icon (optional, 128x128 recommended)"
+                    folder="field-icons"
+                    maxDimension={128}
+                    maxFileSizeMB={1}
                   />
-                  <small className={styles.fieldHint}>
-                    These will be shown as a dropdown on the item form.
-                  </small>
                 </div>
               )}
 
-              <div className={styles.formActions}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => {
-                    setShowAddCustom(false);
-                    setCustomOptionsInput('');
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={styles.saveBtn}
-                  onClick={addCustomField}
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          )}
+              {isCategory && (
+                <div className={local.categoryManager}>
+                  <label className={local.fieldHintLabel}>
+                    Categories ({normalizeOptions(field.options).length})
+                  </label>
 
-          {customFields.length === 0 ? (
-            <p className={styles.emptyCustom}>No custom fields yet.</p>
-          ) : (
-            customFields.map((field) => (
-              <div key={field.key} className={styles.itemRow}>
-                <div className={styles.itemInfo}>
-                  <div className={styles.fieldStack}>
-                    <div className={styles.fieldHeader}>
-                      <label className={styles.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={field.enabled}
-                          onChange={() => toggleField(field.key)}
-                        />
-                        <span className={styles.fieldName}>{field.label}</span>
-                      </label>
-                      <span className={styles.fieldType}>{field.type}</span>
-                    </div>
-                    <input
-                      type="text"
-                      className={styles.fieldInput}
-                      value={field.label}
-                      onChange={(e) => renameField(field.key, e.target.value)}
-                      placeholder="Display label"
-                    />
-
-                    {field.type === 'select' && (
-                      <div className={styles.selectOptionsWrap}>
-                        <label className={styles.fieldHintLabel}>
-                          Options (comma separated)
-                        </label>
-                        <input
-                          type="text"
-                          className={styles.fieldInput}
-                          value={(field.options ?? []).join(', ')}
-                          onChange={(e) =>
-                            updateCustomOptions(
-                              field.key,
-                              e.target.value
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter(Boolean),
-                            )
-                          }
-                          placeholder="e.g., Small, Medium, Large"
-                        />
-                      </div>
+                  <div className={local.chipGrid}>
+                    {normalizeOptions(field.options).length === 0 && (
+                      <span className={local.emptyCategories}>
+                        No categories yet - add one below.
+                      </span>
                     )}
+
+                    {normalizeOptions(field.options).map((cat, idx) => (
+                      <CategoryChip
+                        key={`${idx}-${cat.name}`}
+                        value={cat.name}
+                        index={idx}
+                        isDragging={draggedChipIndex === idx}
+                        isDropTarget={
+                          dragOverChipIndex === idx &&
+                          draggedChipIndex !== null &&
+                          draggedChipIndex !== idx
+                        }
+                        onCommit={(next) =>
+                          renameCategoryOption(field.key, cat.name, next)
+                        }
+                        onRemove={() =>
+                          removeCategoryOption(field.key, cat.name)
+                        }
+                        onDragStart={setDraggedChipIndex}
+                        onDragOver={(i) => {
+                          if (i !== dragOverChipIndex)
+                            setDragOverChipIndex(i);
+                        }}
+                        onDrop={(targetIdx) => {
+                          if (draggedChipIndex === null) return;
+                          reorderCategories(
+                            field.key,
+                            draggedChipIndex,
+                            targetIdx,
+                          );
+                          setDraggedChipIndex(null);
+                          setDragOverChipIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedChipIndex(null);
+                          setDragOverChipIndex(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className={local.categoryAddRow}>
+                    <Input
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addCategoryOption(field.key, newCategoryInput);
+                        }
+                      }}
+                      placeholder="Add a category and press Enter"
+                      inputSize="sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        addCategoryOption(field.key, newCategoryInput)
+                      }
+                      disabled={!newCategoryInput.trim()}
+                    >
+                      Add
+                    </Button>
                   </div>
                 </div>
-                <div className={styles.itemStatus}>
-                  <button
-                    className={styles.deleteBtn}
-                    onClick={() => removeCustomField(field.key)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+              )}
 
-        <div className={styles.formActions}>
-          <button
-            type="button"
-            className={styles.cancelBtn}
-            onClick={resetToDefault}
-            disabled={isSaving}
-          >
-            Reset to default
-          </button>
-          <button
-            type="button"
-            className={styles.cancelBtn}
-            onClick={onClose}
-            disabled={isSaving}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={styles.saveBtn}
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save fields'}
-          </button>
-        </div>
+              {isNutrition && (
+                <div className={local.categoryManager}>
+                  <label className={local.fieldHintLabel}>
+                    Entries ({getNutritionOptions(field.key).length})
+                  </label>
+
+                  <div className={local.nutritionList}>
+                    {getNutritionOptions(field.key).length === 0 && (
+                      <span className={local.emptyCategories}>
+                        No nutrition entries yet - add one below.
+                      </span>
+                    )}
+
+                    {getNutritionOptions(field.key).map((opt, idx) => (
+                      <NutritionRow
+                        key={`${idx}-${opt.name}`}
+                        option={opt}
+                        index={idx}
+                        isDragging={draggedNutIdx === idx}
+                        isDropTarget={
+                          dragOverNutIdx === idx &&
+                          draggedNutIdx !== null &&
+                          draggedNutIdx !== idx
+                        }
+                        onChange={(next) =>
+                          updateNutritionRow(field.key, idx, next)
+                        }
+                        onRemove={() =>
+                          removeNutritionRow(field.key, idx)
+                        }
+                        onDragStart={setDraggedNutIdx}
+                        onDragOver={(i) => {
+                          if (i !== dragOverNutIdx) setDragOverNutIdx(i);
+                        }}
+                        onDrop={(targetIdx) => {
+                          if (draggedNutIdx === null) return;
+                          reorderNutrition(
+                            field.key,
+                            draggedNutIdx,
+                            targetIdx,
+                          );
+                          setDraggedNutIdx(null);
+                          setDragOverNutIdx(null);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedNutIdx(null);
+                          setDragOverNutIdx(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className={local.categoryAddRow}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => addNutritionRow(field.key)}
+                    >
+                      + Add entry
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-    </div>
+
+      {/* ============ Badges ============ */}
+      <div className={local.customHeader}>
+        {/* Section heading mirrors the editable label live */}
+        <h3 className={local.sectionTitle}>
+          {schema.badgesLabel?.trim() || 'Badges'}
+        </h3>
+        <Button size="sm" variant="secondary" onClick={addBadge}>
+          + Add
+        </Button>
+      </div>
+      <p className={local.sectionHint}>
+        Rename badges, upload custom icons, or delete ones you don't use.
+        Deleting a badge also removes it from all items.
+      </p>
+
+      <FormField
+        label="Section label"
+        hint="This is the heading shown above the badge toggles inside Add / Edit Item."
+      >
+        <Input
+          value={schema.badgesLabel ?? 'Badges'}
+          onChange={(e) =>
+            setSchema((prev) => ({
+              ...prev,
+              badgesLabel: e.target.value,
+            }))
+          }
+          inputSize="sm"
+          placeholder="Badges"
+        />
+      </FormField>
+
+      {badges.length === 0 ? (
+        <EmptyState
+          title="No badges configured"
+          description="Add a badge to highlight items on the menu."
+        />
+      ) : (
+        <div className={local.fieldList}>
+          {badges.map((badge, idx) => (
+            <BadgeRow
+              key={badge.key}
+              badge={badge}
+              onChange={(next) => updateBadge(idx, next)}
+              onRemove={() => removeBadge(idx)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ============ Custom fields ============ */}
+      <div className={local.customHeader}>
+        <h3 className={local.sectionTitle}>Custom fields</h3>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setShowAddCustom((s) => !s)}
+        >
+          + Add field
+        </Button>
+      </div>
+
+      {showAddCustom && (
+        <div className={local.addFieldCard}>
+          <FormField label="Field label">
+            <Input
+              value={customLabel}
+              onChange={(e) => setCustomLabel(e.target.value)}
+              placeholder="e.g., Spice Level, Size"
+            />
+          </FormField>
+
+          <FormField label="Field type">
+            <Select
+              value={customType}
+              onChange={(e) =>
+                setCustomType(e.target.value as FormFieldType)
+              }
+              options={[
+                { value: 'text', label: 'Text' },
+                { value: 'number', label: 'Number' },
+                { value: 'textarea', label: 'Long text' },
+                { value: 'checkbox', label: 'Yes/No' },
+                { value: 'select', label: 'Dropdown (Select)' },
+              ]}
+            />
+          </FormField>
+
+          {customType === 'select' && (
+            <FormField
+              label="Options (comma separated)"
+              hint="These will be shown as a dropdown on the item form."
+            >
+              <Input
+                value={customOptionsInput}
+                onChange={(e) => setCustomOptionsInput(e.target.value)}
+                placeholder="e.g., Small, Medium, Large"
+              />
+            </FormField>
+          )}
+
+          <div className={local.addFieldActions}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowAddCustom(false);
+                setCustomOptionsInput('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" onClick={addCustomField}>
+              Add
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {customFields.length === 0 ? (
+        <EmptyState
+          title="No custom fields yet"
+          description="Add a field to capture extra info on each item."
+        />
+      ) : (
+        <div className={local.fieldList}>
+          {customFields.map((field) => (
+            <div key={field.key} className={local.fieldCard}>
+              <div className={local.fieldHeader}>
+                <Toggle
+                  checked={field.enabled}
+                  onChange={() => toggleField(field.key)}
+                  label={
+                    <span className={local.fieldName}>{field.label}</span>
+                  }
+                />
+                <span className={local.fieldType}>{field.type}</span>
+                <IconButton
+                  variant="danger"
+                  size="sm"
+                  aria-label={`Remove ${field.label}`}
+                  onClick={() => removeCustomField(field.key)}
+                >
+                  <CloseIcon width={14} height={14} fill="#a62d2d" />
+                </IconButton>
+              </div>
+
+              <FormField label="Display label">
+                <Input
+                  value={field.label}
+                  onChange={(e) => renameField(field.key, e.target.value)}
+                  inputSize="sm"
+                />
+              </FormField>
+
+              {field.type === 'select' && (
+                <FormField label="Options (comma separated)">
+                  <Input
+                    value={normalizeOptions(field.options)
+                      .map((o) => o.name)
+                      .join(', ')}
+                    onChange={(e) =>
+                      updateCustomOptions(
+                        field.key,
+                        e.target.value
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      )
+                    }
+                    placeholder="e.g., Small, Medium, Large"
+                    inputSize="sm"
+                  />
+                </FormField>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
   );
 };
 

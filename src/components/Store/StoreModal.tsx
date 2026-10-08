@@ -2,245 +2,256 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../contexts/StoreContext';
 import { StoreSettings } from '../../types';
-import { CloseIcon, CheckIcon } from '../../assets/svgs';
-import styles from './Store.module.scss';
+import {
+  Modal,
+  Button,
+  Toggle,
+  FormField,
+  Input,
+  Textarea,
+  Banner,
+} from '../ui';
+import local from './Store.module.scss';
 
 interface StoreModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface FieldErrors {
+  closedMessage?: string;
+  expectedOpenDate?: string;
+  expectedOpenTime?: string;
+  expectedOpen?: string;
+}
+
 const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
   const { storeSettings, updateStoreSettings, setPollingPaused } = useStore();
-  
-  const [localSettings, setLocalSettings] = useState<StoreSettings>(storeSettings);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const [localSettings, setLocalSettings] =
+    useState<StoreSettings>(storeSettings);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync draft on open + manage polling pause
   useEffect(() => {
     if (isOpen) {
       setPollingPaused(true);
-      setLocalSettings({
-        ...storeSettings,
-      });
+      setLocalSettings({ ...storeSettings });
+      setErrors({});
+      setIsSaving(false);
     } else {
       setPollingPaused(false);
     }
-
-    return () => {
-      setPollingPaused(false);
-    };
+    return () => setPollingPaused(false);
   }, [isOpen, storeSettings, setPollingPaused]);
 
-  useEffect(() => {
-    if (isOpen && !isSaving) {
-      setLocalSettings({
-        ...storeSettings,
-      });
-    }
-  }, [storeSettings, isOpen, isSaving]);
-
-  if (!isOpen) return null;
-
-  const validateSettings = (): boolean => {
-    const newErrors: { [key: string]: string } = {};
+  const validate = (): boolean => {
+    const next: FieldErrors = {};
     const now = new Date();
 
     if (!localSettings.isOpen) {
-      if (!localSettings.closedMessage || localSettings.closedMessage.trim() === '') {
-        newErrors.closedMessage = 'Please enter a message for customers';
+      if (!localSettings.closedMessage?.trim()) {
+        next.closedMessage = 'Please enter a message for customers';
       }
       if (!localSettings.expectedOpenDate) {
-        newErrors.expectedOpenDate = 'Please select an expected open date';
+        next.expectedOpenDate = 'Please select an expected open date';
       }
       if (!localSettings.expectedOpenTime) {
-        newErrors.expectedOpenTime = 'Please select an expected open time';
+        next.expectedOpenTime = 'Please select an expected open time';
       }
-      
-      if (localSettings.expectedOpenDate && localSettings.expectedOpenTime) {
-        const expectedOpen = new Date(`${localSettings.expectedOpenDate}T${localSettings.expectedOpenTime}`);
-        if (expectedOpen <= now) {
-          newErrors.expectedOpen = 'Expected open time must be in the future';
+      if (
+        localSettings.expectedOpenDate &&
+        localSettings.expectedOpenTime
+      ) {
+        const expected = new Date(
+          `${localSettings.expectedOpenDate}T${localSettings.expectedOpenTime}`,
+        );
+        if (expected <= now) {
+          next.expectedOpen = 'Expected open time must be in the future';
         }
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleSave = () => {
-    if (validateSettings()) {
-      setIsSaving(true);
-      updateStoreSettings(localSettings);
-      setTimeout(() => {
-        setIsSaving(false);
-        onClose();
-      }, 300);
-    }
+    if (!validate()) return;
+    setIsSaving(true);
+    updateStoreSettings(localSettings);
+    setTimeout(() => {
+      setIsSaving(false);
+      onClose();
+    }, 300);
   };
 
   const handleCancel = () => {
-    setLocalSettings({
-      ...storeSettings,
-    });
+    setLocalSettings({ ...storeSettings });
     setErrors({});
     onClose();
   };
 
   const getMinDateTime = () => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const pad = (n: number) => String(n).padStart(2, '0');
     return {
-      date: `${year}-${month}-${day}`,
-      time: `${hours}:${minutes}`
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+        now.getDate(),
+      )}`,
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
     };
   };
 
-  const minDateTime = getMinDateTime();
+  const min = getMinDateTime();
 
   return (
-    <div className={styles.modalOverlay} onClick={handleCancel}>
-      <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2>Store Management
-            <span className={`${styles.statusValue} ${localSettings.isOpen ? styles.open : styles.closed}`}>
-                {localSettings.isOpen ? 'Open' : 'Closed'}
-              </span>
-            </h2>
-          <button className={styles.closeBtn} onClick={handleCancel}>
-            <CloseIcon width={20} height={20} fill="#1e1e1e" />
-          </button>
-        </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleCancel}
+      title={
+        <>
+          Store Management
+          <span
+            className={`${local.statusPill} ${
+              localSettings.isOpen ? local.open : local.closed
+            }`}
+          >
+            {localSettings.isOpen ? 'Open' : 'Closed'}
+          </span>
+        </>
+      }
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={handleCancel} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} loading={isSaving}>
+            Save Settings
+          </Button>
+        </>
+      }
+    >
+      {/* ---- Accepting orders ---- */}
+      <section className={local.settingGroup}>
+        <Toggle
+          checked={localSettings.acceptingOrders !== false}
+          onChange={(e) =>
+            setLocalSettings((prev) => ({
+              ...prev,
+              acceptingOrders: e.target.checked,
+            }))
+          }
+          label={
+            localSettings.acceptingOrders !== false
+              ? 'Ordering Enabled'
+              : 'Ordering Disabled'
+          }
+        />
+        <p className={local.settingDescription}>
+          {localSettings.acceptingOrders !== false
+            ? 'Customers can add items to the cart and place orders.'
+            : 'Customers can view the menu but cannot place orders. The Add button and cart are hidden.'}
+        </p>
+      </section>
 
-        <div className={styles.modalBody}>
-        <div className={styles.settingGroup}>
-  <div className={styles.settingHeader}>
-    <label className={styles.toggleLabel}>
-      <input
-        type="checkbox"
-        checked={localSettings.acceptingOrders !== false}
-        onChange={(e) =>
-          setLocalSettings((prev) => ({
-            ...prev,
-            acceptingOrders: e.target.checked,
-          }))
-        }
-      />
-      <span className={styles.toggleSlider}></span>
-      <span className={styles.toggleText}>
-        {localSettings.acceptingOrders !== false
-          ? 'Ordering Enabled'
-          : 'Ordering Disabled'}
-      </span>
-    </label>
-  </div>
-  <p className={styles.settingDescription}>
-    {localSettings.acceptingOrders !== false
-      ? 'Customers can add items to the cart and place orders.'
-      : 'Customers can view the menu but cannot place orders. The Add button and cart are hidden.'}
-  </p>
-</div>
-          <div className={styles.settingGroup}>
-            <div className={styles.settingHeader}>
-              <label className={styles.toggleLabel}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.isOpen}
-                  onChange={(e) => setLocalSettings(prev => ({ 
-                    ...prev, 
-                    isOpen: e.target.checked,
-                    ...(e.target.checked ? {
-                      closedMessage: '',
-                      expectedOpenDate: '',
-                      expectedOpenTime: '',
-                    } : {})
-                  }))}
-                />
-                <span className={styles.toggleSlider}></span>
-                <span className={styles.toggleText}>
-                  {localSettings.isOpen ? 'Store is Open' : 'Store is Closed'}
-                </span>
-              </label>
-            </div>
-            <p className={styles.settingDescription}>
-              {localSettings.isOpen 
-                ? 'Customers can place orders as Store is open' 
-                : 'Customers will see your custom closed message'}
-            </p>
+      {/* ---- Open / closed ---- */}
+      <section className={local.settingGroup}>
+        <Toggle
+          checked={localSettings.isOpen}
+          onChange={(e) =>
+            setLocalSettings((prev) => ({
+              ...prev,
+              isOpen: e.target.checked,
+              ...(e.target.checked
+                ? {
+                    closedMessage: '',
+                    expectedOpenDate: '',
+                    expectedOpenTime: '',
+                  }
+                : {}),
+            }))
+          }
+          label={localSettings.isOpen ? 'Store is Open' : 'Store is Closed'}
+        />
+        <p className={local.settingDescription}>
+          {localSettings.isOpen
+            ? 'Customers can place orders as Store is open'
+            : 'Customers will see your custom closed message'}
+        </p>
+      </section>
+
+      {/* ---- Closed-store message ---- */}
+      {!localSettings.isOpen && (
+        <div className={local.closedSection}>
+          <h4>Closed Store Message</h4>
+
+          <FormField
+            label="Message to Customers"
+            error={errors.closedMessage}
+          >
+            <Textarea
+              value={localSettings.closedMessage}
+              onChange={(e) =>
+                setLocalSettings((prev) => ({
+                  ...prev,
+                  closedMessage: e.target.value,
+                }))
+              }
+              placeholder="e.g., We're renovating and will be back soon!"
+              invalid={!!errors.closedMessage}
+              rows={3}
+            />
+          </FormField>
+
+          <div className={local.dateTimeRow}>
+            <FormField
+              label="Expected Open Date"
+              error={errors.expectedOpenDate}
+            >
+              <Input
+                type="date"
+                value={localSettings.expectedOpenDate || ''}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    expectedOpenDate: e.target.value,
+                  }))
+                }
+                min={min.date}
+                invalid={!!errors.expectedOpenDate}
+              />
+            </FormField>
+
+            <FormField
+              label="Expected Open Time"
+              error={errors.expectedOpenTime}
+            >
+              <Input
+                type="time"
+                value={localSettings.expectedOpenTime || ''}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    expectedOpenTime: e.target.value,
+                  }))
+                }
+                min={min.time}
+                invalid={!!errors.expectedOpenTime}
+              />
+            </FormField>
           </div>
 
-          {!localSettings.isOpen && (
-            <div className={styles.settingGroup}>
-              <div className={styles.closedMessageSection}>
-                <h4>Closed Store Message</h4>
-                
-                <div className={styles.messageInput}>
-                  <label>Message to Customers</label>
-                  <textarea
-                    value={localSettings.closedMessage}
-                    onChange={(e) => setLocalSettings(prev => ({
-                      ...prev,
-                      closedMessage: e.target.value
-                    }))}
-                    placeholder="e.g., We're renovating and will be back soon!"
-                    rows={3}
-                    className={errors.closedMessage ? styles.error : ''}
-                  />
-                  {errors.closedMessage && <span className={styles.errorText}>{errors.closedMessage}</span>}
-                </div>
-
-                <div className={styles.dateTimeGroup}>
-                  <div className={styles.dateTimeInput}>
-                    <label>Expected Open Date</label>
-                    <input
-                      type="date"
-                      value={localSettings.expectedOpenDate || ''}
-                      onChange={(e) => setLocalSettings(prev => ({
-                        ...prev,
-                        expectedOpenDate: e.target.value
-                      }))}
-                      min={minDateTime.date}
-                      className={errors.expectedOpenDate ? styles.error : ''}
-                    />
-                    {errors.expectedOpenDate && <span className={styles.errorText}>{errors.expectedOpenDate}</span>}
-                  </div>
-                  <div className={styles.dateTimeInput}>
-                    <label>Expected Open Time</label>
-                    <input
-                      type="time"
-                      value={localSettings.expectedOpenTime || ''}
-                      onChange={(e) => setLocalSettings(prev => ({
-                        ...prev,
-                        expectedOpenTime: e.target.value
-                      }))}
-                      min={minDateTime.time}
-                      className={errors.expectedOpenTime ? styles.error : ''}
-                    />
-                    {errors.expectedOpenTime && <span className={styles.errorText}>{errors.expectedOpenTime}</span>}
-                  </div>
-                </div>
-                {errors.expectedOpen && <span className={styles.errorText}>{errors.expectedOpen}</span>}
-              </div>
-            </div>
+          {errors.expectedOpen && (
+            <Banner variant="warning" inline>
+              {errors.expectedOpen}
+            </Banner>
           )}
         </div>
-
-        <div className={styles.modalFooter}>
-          <button className={styles.cancelBtn} onClick={handleCancel} disabled={isSaving}>
-            Cancel
-          </button>
-          <button className={styles.saveBtn} onClick={handleSave} disabled={isSaving}>
-            <CheckIcon width={16} height={16} fill="white" />
-            {isSaving ? 'Saving...' : 'Save Settings'}
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 };
 

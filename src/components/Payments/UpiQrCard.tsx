@@ -1,16 +1,14 @@
 // components/Payments/UpiQrCard.tsx
 import React, { useMemo } from 'react';
-import {
-  buildUpiQrUrl,
-  DEFAULT_UPI,
-} from '../../utils/upiQr';
-import styles from './UpiQrCard.module.scss';
+import { Card, Button } from '../ui';
+import { buildUpiQrUrl, DEFAULT_UPI } from '../../utils/upiQr';
+import local from './UpiQrCard.module.scss';
 
 interface UpiQrCardProps {
   amount: number;
-  note?: string;         // e.g., "Dynamic plan . 3 months"
-  txnRef?: string;       // invoice short id
-  size?: number;         // QR pixel size, default 220
+  note?: string;
+  txnRef?: string;
+  size?: number;
 }
 
 const UpiQrCard: React.FC<UpiQrCardProps> = ({
@@ -43,58 +41,58 @@ const UpiQrCard: React.FC<UpiQrCardProps> = ({
   };
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.qrBox}>
+    <Card padding="md" className={local.wrap}>
+      <div className={local.qrBox}>
         <img src={qrUrl} alt="UPI QR code" width={size} height={size} />
-        <div className={styles.qrHint}>
+        <div className={local.qrHint}>
           Scan with any UPI app to pay Rs{amount.toFixed(2)}
         </div>
       </div>
 
-      <div className={styles.details}>
-        <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Amount</span>
-          <span className={styles.detailValue}>Rs{amount.toFixed(2)}</span>
+      <div className={local.details}>
+        <div className={local.detailRow}>
+          <span className={local.detailLabel}>Amount</span>
+          <span className={local.detailValue}>Rs{amount.toFixed(2)}</span>
         </div>
 
-        <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>UPI ID</span>
-          <span className={styles.detailValue}>
+        <div className={local.detailRow}>
+          <span className={local.detailLabel}>UPI ID</span>
+          <span className={local.detailValue}>
             {DEFAULT_UPI.payeeVpa}
-            <button
-              type="button"
-              className={styles.copyBtn}
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => copy(DEFAULT_UPI.payeeVpa)}
               aria-label="Copy UPI ID"
             >
               Copy
-            </button>
+            </Button>
           </span>
         </div>
 
-        <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Account No.</span>
-          <span className={styles.detailValue}>
+        <div className={local.detailRow}>
+          <span className={local.detailLabel}>Account No.</span>
+          <span className={local.detailValue}>
             {DEFAULT_UPI.bankAccount}
-            <button
-              type="button"
-              className={styles.copyBtn}
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => copy(DEFAULT_UPI.bankAccount)}
               aria-label="Copy account number"
             >
               Copy
-            </button>
+            </Button>
           </span>
         </div>
 
         {note && (
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>For</span>
-            <span className={styles.detailValue}>{note}</span>
+          <div className={local.detailRow}>
+            <span className={local.detailLabel}>For</span>
+            <span className={local.detailValue}>{note}</span>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };
 

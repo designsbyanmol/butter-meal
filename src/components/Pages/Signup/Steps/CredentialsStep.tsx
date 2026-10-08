@@ -1,8 +1,9 @@
-// pages/Signup/Steps/CredentialsStep.tsx
-import React from 'react';
-import { downloadCredentials } from '../../../../utils/credentialsDownload';
-import styles from '../Signup.module.scss';
+// Components/Pages/Signup/Steps/CredentialsStep.tsx
+import React, { useState } from 'react';
+import { downloadCredentialsPdf } from '../../../../utils/credentialsPdf';
+import { Card, Button } from '../../../ui';
 import { DownloadIcon } from '../../../../assets/svgs';
+import local from '../Signup.module.scss';
 
 interface CredentialsStepProps {
   storeName: string;
@@ -13,6 +14,7 @@ interface CredentialsStepProps {
   planName: string;
   months: number;
   expiresAtIso: string;
+  onDone?: () => void;
 }
 
 const CredentialsStep: React.FC<CredentialsStepProps> = ({
@@ -24,20 +26,35 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
   planName,
   months,
   expiresAtIso,
+  onDone,
 }) => {
-  const expiresDisplay = new Date(expiresAtIso).toLocaleDateString();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const expiresDisplay = new Date(expiresAtIso).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
-  const handleDownload = () => {
-    downloadCredentials({
-      storeName,
-      publicUrl,
-      adminUrl,
-      phone,
-      password,
-      planName,
-      months,
-      expiresAt: expiresDisplay,
-    });
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      await downloadCredentialsPdf({
+        storeName,
+        publicUrl,
+        adminUrl,
+        phone,
+        password,
+        planName,
+        months,
+        expiresAt: expiresDisplay,
+      });
+    } catch (err) {
+      console.error('[CredentialsStep] PDF generation failed:', err);
+      // Non-fatal - the credentials are visible on screen anyway.
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const openUrl = (url: string) => {
@@ -45,80 +62,80 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
   };
 
   return (
-    <div className={styles.stepWrap}>
-      <div className={styles.stepHeader}>
-        <h2>Your store is ready 🎉</h2>
+    <div className={local.stepWrap}>
+      <div className={local.stepHeader}>
+        <h2>Hurrey! Your store is ready</h2>
         <p>Save these credentials. You won't see the password again.</p>
       </div>
 
-      <div className={styles.credCard}>
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Store Name</div>
-          <div className={styles.credValue}>{storeName}</div>
+      <Card padding="lg" className={local.credCard}>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Store Name</div>
+          <div className={local.credValue}>{storeName}</div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Plan</div>
-          <div className={styles.credValue}>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Plan</div>
+          <div className={local.credValue}>
             {planName} . {months} month{months > 1 ? 's' : ''}
           </div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Valid till</div>
-          <div className={styles.credValue}>{expiresDisplay}</div>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Valid till</div>
+          <div className={local.credValue}>{expiresDisplay}</div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Public Store URL</div>
-          <div className={styles.credValue}>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Public Store URL</div>
+          <div className={local.credValue}>
             <code>{publicUrl}</code>
           </div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Admin Store URL</div>
-          <div className={styles.credValue}>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Admin Store URL</div>
+          <div className={local.credValue}>
             <code>{adminUrl}</code>
           </div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Phone</div>
-          <div className={styles.credValue}>{phone}</div>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Phone</div>
+          <div className={local.credValue}>{phone}</div>
         </div>
 
-        <div className={styles.credRow}>
-          <div className={styles.credLabel}>Password</div>
-          <div className={styles.credValue}>
-            <span className={styles.monoPassword}>{password}</span>
+        <div className={local.credRow}>
+          <div className={local.credLabel}>Password</div>
+          <div className={local.credValue}>
+            <span className={local.monoPassword}>{password}</span>
           </div>
         </div>
+      </Card>
+
+      <div className={local.credActions}>
+        <Button
+          variant="ghost"
+          onClick={handleDownload}
+          loading={isDownloading}
+          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
+        >
+          {isDownloading ? 'Preparing PDF…' : 'Download credentials'}
+        </Button>
+        <Button variant="secondary" onClick={() => openUrl(publicUrl)}>
+          Open Public Store
+        </Button>
+        <Button onClick={() => openUrl(adminUrl)}>Open Admin Store</Button>
       </div>
 
-      <div className={styles.credActions}>
-        <button
-          type="button"
-          className={styles.ghostBtn}
-          onClick={handleDownload}
+      {onDone && (
+        <div
+          className={local.credActions}
+          style={{ marginTop: 12, justifyContent: 'center' }}
         >
-          <DownloadIcon width={18} height={18} fill="#4d4d4d" /> Download credentials
-        </button>
-        <button
-          type="button"
-          className={styles.secondaryBtn}
-          onClick={() => openUrl(publicUrl)}
-        >
-          Open Public Store
-        </button>
-        <button
-          type="button"
-          className={styles.primaryBtn}
-          onClick={() => openUrl(adminUrl)}
-        >
-          Open Admin Store
-        </button>
-      </div>
+          <Button onClick={onDone}>Done - I've saved these</Button>
+        </div>
+      )}
     </div>
   );
 };

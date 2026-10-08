@@ -1,410 +1,433 @@
-// pages/Signup/Signup.module.scss
+// components/Pages/Signup/Signup.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
 
+/* =========================================================
+   PAGE WRAPPER
+   ========================================================= */
 .page {
-  min-height: 100vh;
-  background: #fdfbf8;
-  padding: 24px 16px 48px;
+  background: $bg;
+  padding: $space-10 $space-6;
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  @include mobile {
+    padding: $space-5 $space-3 $space-10;
+  }
 }
 
-.header {
+/* =========================================================
+   PAGE HEADER
+   ========================================================= */
+.pageHeader {
   width: 100%;
-  max-width: 880px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
-  flex-wrap: wrap;
+  max-width: $container-xl;
+  margin: 0 0 $space-8;
+
+  @include tablet($bp-lg) {
+    margin-bottom: $space-5;
+  }
+}
+
+.pageTitle {
+  margin: 0 0 $space-2;
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-extrabold;
+  color: $text;
+  letter-spacing: $letter-spacing-tight;
+  line-height: $line-height-tight;
+
+  @include mobile {
+    font-size: $font-size-2xl;
+  }
+}
+
+.pageSubtitle {
+  margin: 0;
+  font-size: $font-size-md;
+  color: $text-muted;
+  line-height: $line-height-normal;
+
+  @include mobile {
+    font-size: $font-size-base;
+  }
+}
+
+/* =========================================================
+   TWO-COLUMN SHELL
+   ========================================================= */
+.shell {
+  width: 100%;
+  max-width: $container-xl;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: $space-6;
+  align-items: flex-start;
+
+  @include tablet($bp-lg) {
+    grid-template-columns: 1fr;
+    gap: $space-6;
+  }
+}
+
+/* =========================================================
+   LEFT - VERTICAL STEPPER
+   ========================================================= */
+.stepper {
+  position: sticky;
+  top: $space-10;
+  padding: $space-6;
+  background: $gray-100;
+  height: 100%;
+  border-radius: $radius;
+
+  @include tablet($bp-lg) {
+    position: static;
+    padding: $space-4;
+  }
 }
 
 .brand {
-  font-weight: 800;
-  color: #1e7e34;
-  font-size: 16px;
-  letter-spacing: 0.3px;
-}
+  font-weight: $font-weight-extrabold;
+  color: $primary-dark;
+  font-size: $font-size-md;
+  letter-spacing: $letter-spacing-normal;
+  margin-bottom: $space-8;
 
-.stageBar {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.stageDot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #a89b92;
-  font-size: 13px;
-  font-weight: 600;
-
-  span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #e6ded7;
-    color: #7d6b60;
-    font-size: 12px;
-    font-weight: 800;
+  @include tablet($bp-lg) {
+    margin-bottom: $space-4;
+    text-align: center;
   }
 }
 
-.stageDotActive {
-  color: #1e7e34;
-
-  span {
-    background: #1e7e34;
-    color: #fff;
-  }
-}
-
-.body {
-  width: 100%;
-  max-width: 880px;
-}
-
-/* ---------- Step shell ---------- */
-.stepWrap {
-  background: #fff;
-  border: 1px solid #f0eae5;
-  border-radius: 16px;
-  padding: 24px;
-}
-
-.stepHeader {
-  margin-bottom: 24px;
-  text-align: center;
-
-  h2 {
-    margin: 0 0 6px;
-    font-size: 22px;
-    font-weight: 800;
-    color: #1e1e1e;
-  }
-
-  p {
-    margin: 0;
-    font-size: 14px;
-    color: #7d6b60;
-  }
-}
-
-/* ---------- Forms ---------- */
-.grid2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-@media (max-width: 640px) {
-  .grid2 {
-    grid-template-columns: 1fr;
-  }
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4d4d4d;
-  }
-
-  input {
-    padding: 11px 14px;
-    font-size: 15px;
-    border: 1px solid #e6ded7;
-    border-radius: 10px;
-    outline: none;
-    background: #fff;
-
-    &:focus {
-      border-color: #3caa46;
-    }
-  }
-}
-
-.fieldError {
-  font-size: 12px;
-  color: #a62d2d;
-  font-weight: 600;
-}
-
-.passwordRow {
-  display: flex;
-  gap: 8px;
-
-  input {
-    flex: 1;
-  }
-}
-
-.iconBtn {
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid #e6ded7;
-  background: #f5f1ec;
-  cursor: pointer;
-  font-size: 16px;
-
-  &:hover {
-    background: #ede4da;
-  }
-}
-
-/* ---------- Actions ---------- */
-.stepActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 24px;
-  flex-wrap: wrap;
-}
-
-.primaryBtn,
-.secondaryBtn,
-.ghostBtn {
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.primaryBtn {
-  background: #1e7e34;
-  color: #fff;
-}
-
-.secondaryBtn {
-  background: #f4fbf5;
-  color: #1e7e34;
-  border: 1px solid #d1ead6;
-}
-
-.ghostBtn {
-  background: transparent;
-  color: #4d4d4d;
-}
-
-/* ---------- Plan step ---------- */
-.planGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-@media (max-width: 800px) {
-  .planGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.planCard {
-  position: relative;
-  border: 1.5px solid #e6ded7;
-  border-radius: 14px;
-  padding: 20px 18px;
-  background: #fff;
-  cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease,
-    box-shadow 0.15s ease;
-
-  &:hover {
-    border-color: #c8e6c9;
-    transform: translateY(-2px);
-  }
-
-  h3 {
-    margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 800;
-    color: #1e1e1e;
-  }
-}
-
-.planCardSelected {
-  border-color: #1e7e34;
-  box-shadow: 0 6px 20px rgba(30, 126, 52, 0.15);
-}
-
-.planCardFeatured {
-  background: #f4fbf5;
-}
-
-.featuredTag {
-  position: absolute;
-  top: -10px;
-  right: 12px;
-  background: #1e7e34;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 3px 10px;
-  border-radius: 999px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-}
-
-.planPrice {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1e7e34;
-  margin-bottom: 8px;
-
-  span {
-    font-size: 13px;
-    font-weight: 500;
-    color: #7d6b60;
-  }
-}
-
-.planDesc {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #7d6b60;
-}
-
-.planFeatures {
+.stepperList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: $space-3;
+  position: relative;
 
-  li {
-    font-size: 13px;
-    color: #4d4d4d;
+  @include tablet($bp-lg) {
+    gap: $space-2;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 $space-2;
   }
 }
 
-.selectedIndicator {
-  margin-top: 12px;
-  text-align: center;
-  color: #1e7e34;
-  font-weight: 700;
-  font-size: 13px;
-}
+.stepperItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  padding: $space-2 0;
+  position: relative;
+  transition: opacity $t-fast;
 
-/* ---------- Duration picker ---------- */
-.durationGrid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
+  &:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 40px;
+    bottom: -4px;
+    width: 2px;
+    background: $border;
+    border-radius: $border-width-thin;
+    transition: background $t-fast;
+  }
 
-@media (max-width: 720px) {
-  .durationGrid {
-    grid-template-columns: repeat(2, 1fr);
+  &.stepCompleted::before {
+    background: $primary;
+  }
+
+  @include tablet($bp-lg) {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: $space-2;
+    padding: 0;
+
+    &:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 70%;
+      top: 15px;
+      width: 70%;
+      height: 2px;
+      background: $border;
+      border-radius: $border-width-thin;
+      transition: background $t-fast;
+    }
+
+    &:last-child::before {
+      display: none;
+    }
   }
 }
 
-.durationCard {
+.stepDot {
+  width: $input-height-sm;
+  height: $input-height-sm;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  background: $white;
+  color: $text-faint;
+  border: $border-width-thin solid $border;
+  transition:
+    background $t-fast,
+    border-color $t-fast,
+    color $t-fast,
+    transform $t-fast,
+    box-shadow $t-fast;
+
+  @include tablet($bp-lg) {
+    width: 28px;
+    height: 28px;
+    font-size: $font-size-sm;
+  }
+}
+
+.stepText {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 8px;
-  border: 1.5px solid #e6ded7;
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  gap: 2px;
+  padding-top: 5px;
+  min-width: 0;
 
-  &:hover {
-    border-color: #c8e6c9;
+  @include tablet($bp-lg) {
+    padding-top: 0;
+    align-items: center;
   }
 }
 
-.durationActive {
-  border-color: #1e7e34;
-  background: #f4fbf5;
+.stepLabel {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: $text-faint;
+  letter-spacing: -0.1px;
+  line-height: $line-height-tight;
+  transition: color $t-fast;
+
+  @include tablet($bp-lg) {
+    font-size: $font-size-sm;
+  }
 }
 
-.durationMonths {
-  font-size: 12px;
-  font-weight: 700;
-  color: #7d6b60;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+.stepSub {
+  font-size: $font-size-sm;
+  color: $text-faint;
+  line-height: 1.4;
+  transition: color $t-fast;
+
+  @include tablet($bp-lg) {
+    display: none;
+  }
 }
 
-.durationPrice {
-  font-size: 15px;
-  font-weight: 800;
-  color: #1e1e1e;
+.stepCompleted {
+  .stepDot {
+    background: $white;
+    border-color: $primary;
+    color: $primary;
+  }
+  .stepLabel {
+    color: $text;
+  }
 }
 
-.durationDiscount {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1e7e34;
-  background: #e6f5e9;
-  padding: 1px 8px;
-  border-radius: 999px;
+.stepActive {
+  .stepDot {
+    background: $primary;
+    border-color: $primary-dark;
+    color: $text-invert;
+    animation: stepPulse 1.8s $ease-in-out infinite;
+  }
+  .stepLabel {
+    color: $gray-900;
+  }
+  .stepSub {
+    color: $gray-900;
+    opacity: $opacity-muted;
+  }
 }
 
-/* ---------- Price summary ---------- */
+@keyframes stepPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba($primary-dark, 0.45);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba($primary-dark, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba($primary-dark, 0);
+  }
+}
+
+/* =========================================================
+   RIGHT - STEP PANEL
+   ========================================================= */
+.stepPanel {
+  min-width: 0;
+}
+
+.stepWrap {
+  background: $white;
+  padding: 0 $space-3;
+  position: relative;
+
+  @include mobile {
+    padding: 0 0 $space-4;
+  }
+}
+
+.stepHeader {
+  margin-bottom: $space-6;
+
+  h2 {
+    margin: 0 0 $space-2;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-extrabold;
+    color: $text;
+    letter-spacing: -0.2px;
+    line-height: $line-height-snug;
+    text-align: center;
+  }
+
+  p {
+    margin: 0;
+    font-size: $font-size-md;
+    color: $text-muted;
+    line-height: $line-height-normal;
+    text-align: center;
+  }
+}
+
+/* =========================================================
+   FORM GRIDS
+   ========================================================= */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $space-4;
+  margin-bottom: $space-2;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.passwordRow {
+  display: flex;
+  gap: $space-2;
+  align-items: stretch;
+
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.stepActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $space-3;
+  margin-top: $space-6;
+  flex-wrap: wrap;
+
+  button {
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+
+  @include mobile {
+    flex-direction: column-reverse;
+    position: unset;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+/* =========================================================
+   PLAN CARDS
+   ========================================================= */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-4;
+  align-items: stretch;
+
+  @include tablet($bp-lg) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Skeleton ---------- */
+.planSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  cursor: default;
+
+  &:hover {
+    transform: none;
+    border-color: $border;
+    box-shadow: $shadow-xs;
+  }
+}
+
+/* =========================================================
+   SUMMARY + ERROR
+   ========================================================= */
 .summaryCard {
-  background: #fdfbf8;
-  border: 1px solid #f0eae5;
-  border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 16px;
+  margin-top: $space-5;
+  margin-bottom: $space-4;
 }
 
 .summaryRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
-  color: #4d4d4d;
-  padding: 6px 0;
+  font-size: $font-size-md;
+  color: $text-muted;
+  padding: $space-1 + 2px 0;
 }
 
 .summaryDiscount {
-  color: #1e7e34;
+  color: $primary-dark;
 }
 
 .summaryTotal {
-  border-top: 1px solid #f0eae5;
-  margin-top: 6px;
-  padding-top: 12px;
-  font-weight: 800;
-  font-size: 16px;
-  color: #1e1e1e;
+  border-top: $border-width-thin solid $border-soft;
+  margin-top: $space-1 + 2px;
+  padding-top: $space-3;
+  font-weight: $font-weight-extrabold;
+  font-size: $font-size-lg;
+  color: $text;
 }
 
 .errorBanner {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #fff5f5;
-  color: #a62d2d;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: $space-3;
 }
 
-/* ---------- Building step ---------- */
+/* =========================================================
+   BUILDING STEP
+   ========================================================= */
 .buildingWrap {
   display: flex;
   align-items: center;
@@ -413,20 +436,20 @@
 }
 
 .buildingCard {
-  background: #fff;
-  border: 1px solid #f0eae5;
-  border-radius: 16px;
-  padding: 40px 32px;
+  background: $white;
+  border: $border-width-thin solid $border-soft;
+  border-radius: $radius-lg;
+  padding: $space-10 $space-8;
   text-align: center;
-  max-width: 480px;
+  max-width: $container-sm;
   width: 100%;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.04);
 
   h2 {
-    margin: 16px 0 8px;
-    font-size: 24px;
-    font-weight: 800;
-    color: #1e1e1e;
+    margin: $space-4 0 $space-2;
+    font-size: $font-size-2xl + 2px;
+    font-weight: $font-weight-extrabold;
+    color: $text;
   }
 }
 
@@ -436,95 +459,98 @@
 }
 
 .buildingLead {
-  margin: 0 0 8px;
-  font-size: 15px;
-  color: #4d4d4d;
+  margin: 0 0 $space-2;
+  font-size: $font-size-lg - 1px;
+  color: $text-muted;
+  line-height: $line-height-normal;
 
   strong {
-    color: #1e7e34;
+    color: $primary-dark;
   }
 }
 
 .buildingSub {
-  margin: 0 0 24px;
-  font-size: 13px;
-  color: #7d6b60;
-  line-height: 1.5;
+  margin: 0 0 $space-6;
+  font-size: $font-size-base;
+  color: $text-muted;
+  line-height: $line-height-normal;
 }
 
-.progressTrack {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: #f0eae5;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.progressBar {
-  height: 100%;
-  background: linear-gradient(90deg, #1e7e34, #3caa46);
-  transition: width 0.9s linear;
-}
-
-.progressLabel {
-  font-size: 12px;
-  color: #7d6b60;
-  font-weight: 600;
-}
-
-/* ---------- Credentials step ---------- */
+/* =========================================================
+   CREDENTIALS STEP
+   ========================================================= */
 .credCard {
-  background: #fdfbf8;
-  border: 1px solid #f0eae5;
-  border-radius: 14px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  margin-bottom: $space-1;
+  gap: $space-3;
 }
 
 .credRow {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: $space-1;
 }
 
 .credLabel {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #a89b92;
+  letter-spacing: $letter-spacing-normal;
+  color: $text-faint;
 }
 
 .credValue {
-  font-size: 14px;
-  color: #1e1e1e;
+  font-size: $font-size-md;
+  color: $text;
   word-break: break-all;
+  line-height: $line-height-normal;
 
   code {
-    font-family: 'Menlo', 'Courier New', monospace;
-    font-size: 13px;
-    color: #1e7e34;
-    background: #e6f5e9;
+    font-family: $font-family-mono;
+    font-size: $font-size-base;
+    color: $primary-dark;
+    background: $primary-soft;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: $radius-xs;
   }
 }
 
 .monoPassword {
-  font-family: 'Menlo', 'Courier New', monospace;
-  font-size: 15px;
-  font-weight: 700;
-  color: #1e7e34;
+  font-family: $font-family-mono;
+  font-size: $font-size-lg - 1px;
+  font-weight: $font-weight-bold;
+  color: $primary-dark;
   letter-spacing: 0.5px;
 }
 
 .credActions {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  gap: $space-3;
+  margin-top: $space-5;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+/* =========================================================
+   SLUG STATUS (used by DetailsStep)
+   ========================================================= */
+.slugError {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  color: $danger;
+  line-height: $line-height-snug;
+}
+
+.slugOk {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  color: $primary-dark;
+  line-height: $line-height-snug;
+}
+
+.slugInfo {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  color: $text-muted;
+  line-height: $line-height-snug;
 }

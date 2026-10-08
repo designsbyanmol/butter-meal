@@ -1,0 +1,75 @@
+// src/components/ui/Banner/Banner.module.scss
+@use '../../../styles/tokens' as *;
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-left: 4px solid transparent;
+  animation: ui-slide-down 0.2s ease-out;
+}
+
+.inline {
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+
+.error {
+  background: $danger-soft;
+  color: $red-800;
+  border-left-color: $danger;
+}
+
+.success {
+  background: $success-soft;
+  color: $green-800;
+  border-left-color: $success;
+}
+
+.warning {
+  background: $warning-soft;
+  color: $amber-800;
+  border-left-color: $amber-500;
+}
+
+.info {
+  background: $info-soft;
+  color: $blue-700;
+  border-left-color: $info;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+
+  strong { color: $text; }
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: $radius-xs;
+  color: inherit;
+  opacity: 0.7;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover { opacity: 1; background: rgba(0, 0, 0, 0.05); }
+}

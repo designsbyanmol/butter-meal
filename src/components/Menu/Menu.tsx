@@ -1,11 +1,12 @@
-// components/Menu/Menu.tsx
+// src/components/Menu/Menu.tsx
 import React, { useMemo } from 'react';
 import { MenuItem as MenuItemType, CartItem } from '../../types';
-import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { DEFAULT_FORM_SCHEMA, normalizeOptions } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { useWishlist } from '../../hooks/useWishlist';
+import { getStoreLabels } from '../../utils/storeLabels';
 import MenuItemComponent from './MenuItem';
-import styles from './Menu.module.scss';
+import local from './Menu.module.scss';
 
 interface MenuProps {
   items: MenuItemType[];
@@ -29,16 +30,18 @@ const Menu: React.FC<MenuProps> = ({
   onAddItem,
   onRemoveItem,
   onItemClick,
-  acceptingOrders
+  acceptingOrders,
 }) => {
   const { tenant } = useTenant();
   const { isWishlisted, toggle } = useWishlist();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+  const labels = getStoreLabels(tenant?.storeCategory);
 
-  // Schema category order
   const categoryOrder = useMemo<string[]>(() => {
     const catField = schema.fields.find((f) => f.key === 'category');
-    return (catField?.options ?? []).map((s) => s.trim()).filter(Boolean);
+    return normalizeOptions(catField?.options)
+      .map((o) => o.name.trim())
+      .filter(Boolean);
   }, [schema]);
 
   const schemaCategorySet = useMemo(
@@ -46,7 +49,6 @@ const Menu: React.FC<MenuProps> = ({
     [categoryOrder],
   );
 
-  // Group by category, bucket unknowns into "More", then sort by schema order
   const groups = useMemo<CategoryGroup[]>(() => {
     const map = new Map<string, MenuItemType[]>();
 
@@ -73,26 +75,26 @@ const Menu: React.FC<MenuProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className={styles.emptyState}>
-        <p>No items available right now.</p>
+      <div className={local.emptyState}>
+        <p>No {labels.items.toLowerCase()} available right now.</p>
       </div>
     );
   }
 
   return (
-    <div className={styles.menuWrap}>
+    <div className={local.menuWrap}>
       {groups.map((group) => (
         <section
           key={group.category}
-          className={styles.categorySection}
+          className={local.categorySection}
           id={`category-${slugify(group.category)}`}
         >
-          <h2 className={styles.categoryHeading}>
-            <span className={styles.categoryTitle}>{group.category}</span>
-            <span className={styles.categoryCount}>{group.items.length}</span>
+          <h2 className={local.categoryHeading}>
+            <span className={local.categoryTitle}>{group.category}</span>
+            <span className={local.categoryCount}>{group.items.length}</span>
           </h2>
 
-          <div className={styles.menuGrid}>
+          <div className={local.menuGrid}>
             {group.items.map((item) => {
               const quantity = cart
                 .filter((c) => c.id === item.id)

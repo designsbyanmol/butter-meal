@@ -15,13 +15,13 @@ const BrandInfo: React.FC<BrandInfoProps> = ({ brandName, brandDesc }) => {
 
   return (
     <div className={styles.brandWrap}>
-      <StoreBannerImage />
       <h1>{brandName}</h1>
       {tagline && (
         <div className={styles.subhead}>
           <span>{tagline}</span>
         </div>
       )}
+      <StoreBannerImage />
     </div>
   );
 };

@@ -2,12 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabaseService } from '../../services/supabase.service';
-import { CloseIcon } from '../../assets/svgs';
-import {
-  MessageTemplate,
-  DEFAULT_MESSAGE_TEMPLATE,
-} from '../../types';
-import styles from './MessageTemplateEditor.module.scss';
+import { Modal, Button, FormField, Input, Checkbox, Banner } from '../ui';
+import { MessageTemplate, DEFAULT_MESSAGE_TEMPLATE } from '../../types';
+import local from './MessageTemplateEditor.module.scss';
 
 interface MessageTemplateEditorProps {
   isOpen: boolean;
@@ -36,26 +33,6 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
     }
   }, [isOpen, tenant?.messageTemplate]);
 
-  // Esc closes
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
-
-  // Lock body scroll
-  useEffect(() => {
-    if (!isOpen) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = original;
-    };
-  }, [isOpen]);
-
   const update = <K extends keyof MessageTemplate>(
     key: K,
     value: MessageTemplate[K],
@@ -71,10 +48,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
     const tagline = tenant?.storeTagline ?? '';
     const customerName = 'Anmol';
 
-    const header = draft.orderLabel.replace(
-      '{customerName}',
-      customerName,
-    );
+    const header = draft.orderLabel.replace('{customerName}', customerName);
 
     const sampleItems = [
       {
@@ -117,7 +91,10 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
         .replace('{name}', item.name)
         .replace('{qty}', String(item.qty));
 
-      if (draft.showItemCustomizations && Object.keys(item.customizations).length > 0) {
+      if (
+        draft.showItemCustomizations &&
+        Object.keys(item.customizations).length > 0
+      ) {
         const cs = Object.entries(item.customizations)
           .map(([k, v]) => `${k}: ${v}`)
           .join(', ');
@@ -180,250 +157,195 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
     setSuccess('');
   };
 
-  if (!isOpen) return null;
+  // -------- Footer --------
+  const footerContent = (
+    <>
+      <Button
+        variant="ghost"
+        onClick={handleReset}
+        disabled={isSaving}
+        style={{ marginRight: 'auto' }}
+      >
+        Reset to default
+      </Button>
+      <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+        Cancel
+      </Button>
+      <Button onClick={handleSave} loading={isSaving}>
+        Save template
+      </Button>
+    </>
+  );
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2>WhatsApp Message Template</h2>
-          <button
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <CloseIcon width={18} height={18} fill="#4d4d4d" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="WhatsApp Message Template"
+      size="xl"
+      footer={footerContent}
+    >
+      {error && (
+        <Banner variant="error" onDismiss={() => setError('')}>
+          {error}
+        </Banner>
+      )}
+      {success && <Banner variant="success">{success}</Banner>}
+
+      <div className={local.layout}>
+        {/* ---------- Editor column ---------- */}
+        <div className={local.editorCol}>
+          {/* Header */}
+          <section className={local.group}>
+            <h3>Header</h3>
+            <FormField
+              label="Order label"
+              hint={<>Use {'{customerName}'} where the name should go.</>}
+            >
+              <Input
+                value={draft.orderLabel}
+                onChange={(e) => update('orderLabel', e.target.value)}
+                placeholder="New Order From {customerName}"
+              />
+            </FormField>
+            <FormField label="Name prompt (shown to the customer)">
+              <Input
+                value={draft.namePrompt}
+                onChange={(e) => update('namePrompt', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Name placeholder">
+              <Input
+                value={draft.namePromptPlaceholder}
+                onChange={(e) =>
+                  update('namePromptPlaceholder', e.target.value)
+                }
+              />
+            </FormField>
+          </section>
+
+          {/* Item list */}
+          <section className={local.group}>
+            <h3>Item List</h3>
+            <FormField label="Section title">
+              <Input
+                value={draft.itemListTitle}
+                onChange={(e) => update('itemListTitle', e.target.value)}
+              />
+            </FormField>
+            <FormField
+              label="Item line template"
+              hint={
+                <>
+                  Tokens: {'{name}'}, {'{qty}'}
+                </>
+              }
+            >
+              <Input
+                value={draft.itemLineTemplate}
+                onChange={(e) => update('itemLineTemplate', e.target.value)}
+              />
+            </FormField>
+
+            <div className={local.checkboxGrid}>
+              <Checkbox
+                checked={draft.showItemDiscount}
+                onChange={(e) =>
+                  update('showItemDiscount', e.target.checked)
+                }
+                label="Show item discount"
+              />
+              <Checkbox
+                checked={draft.showItemAddons}
+                onChange={(e) => update('showItemAddons', e.target.checked)}
+                label="Show add-ons"
+              />
+              <Checkbox
+                checked={draft.showItemCustomizations}
+                onChange={(e) =>
+                  update('showItemCustomizations', e.target.checked)
+                }
+                label="Show customizations"
+              />
+              <Checkbox
+                checked={draft.showItemNotes}
+                onChange={(e) => update('showItemNotes', e.target.checked)}
+                label="Show special instructions"
+              />
+            </div>
+          </section>
+
+          {/* Pricing */}
+          <section className={local.group}>
+            <h3>Pricing labels</h3>
+            <FormField label="Subtotal label">
+              <Input
+                value={draft.subtotalLabel}
+                onChange={(e) => update('subtotalLabel', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Delivery label">
+              <Input
+                value={draft.deliveryLabel}
+                onChange={(e) => update('deliveryLabel', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Discount label">
+              <Input
+                value={draft.discountLabel}
+                onChange={(e) => update('discountLabel', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Total label">
+              <Input
+                value={draft.totalLabel}
+                onChange={(e) => update('totalLabel', e.target.value)}
+              />
+            </FormField>
+            <FormField
+              label="Free-delivery note"
+              hint={<>Use {'{fee}'} for the delivery charge.</>}
+            >
+              <Input
+                value={draft.freeDeliveryLabel}
+                onChange={(e) =>
+                  update('freeDeliveryLabel', e.target.value)
+                }
+              />
+            </FormField>
+          </section>
+
+          {/* Footer */}
+          <section className={local.group}>
+            <h3>Footer</h3>
+            <FormField label="Footer note 1">
+              <Input
+                value={draft.footerNote1}
+                onChange={(e) => update('footerNote1', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Footer note 2">
+              <Input
+                value={draft.footerNote2}
+                onChange={(e) => update('footerNote2', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Signature">
+              <Input
+                value={draft.footerSignature}
+                onChange={(e) => update('footerSignature', e.target.value)}
+              />
+            </FormField>
+          </section>
         </div>
 
-        {error && (
-          <div className={styles.errorMessage}>{error}</div>
-        )}
-        {success && (
-          <div className={styles.successMessage}>{success}</div>
-        )}
-
-        <div className={styles.body}>
-          {/* -------- Editor column -------- */}
-          <div className={styles.editorCol}>
-            {/* Header */}
-            <section className={styles.group}>
-              <h3>Header</h3>
-              <label className={styles.field}>
-                <span>Order label</span>
-                <input
-                  type="text"
-                  value={draft.orderLabel}
-                  onChange={(e) => update('orderLabel', e.target.value)}
-                  placeholder="New Order From {customerName}"
-                />
-                <small>
-                  Use <code>{'{customerName}'}</code> where the name should go.
-                </small>
-              </label>
-              <label className={styles.field}>
-                <span>Name prompt (shown to the customer)</span>
-                <input
-                  type="text"
-                  value={draft.namePrompt}
-                  onChange={(e) => update('namePrompt', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Name placeholder</span>
-                <input
-                  type="text"
-                  value={draft.namePromptPlaceholder}
-                  onChange={(e) =>
-                    update('namePromptPlaceholder', e.target.value)
-                  }
-                />
-              </label>
-            </section>
-
-            {/* Item list */}
-            <section className={styles.group}>
-              <h3>Item List</h3>
-              <label className={styles.field}>
-                <span>Section title</span>
-                <input
-                  type="text"
-                  value={draft.itemListTitle}
-                  onChange={(e) => update('itemListTitle', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Item line template</span>
-                <input
-                  type="text"
-                  value={draft.itemLineTemplate}
-                  onChange={(e) =>
-                    update('itemLineTemplate', e.target.value)
-                  }
-                />
-                <small>
-                  Tokens: <code>{'{name}'}</code>, <code>{'{qty}'}</code>
-                </small>
-              </label>
-              <div className={styles.checkboxGrid}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.showItemDiscount}
-                    onChange={(e) =>
-                      update('showItemDiscount', e.target.checked)
-                    }
-                  />
-                  Show item discount
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.showItemAddons}
-                    onChange={(e) =>
-                      update('showItemAddons', e.target.checked)
-                    }
-                  />
-                  Show add-ons
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.showItemCustomizations}
-                    onChange={(e) =>
-                      update('showItemCustomizations', e.target.checked)
-                    }
-                  />
-                  Show customizations
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.showItemNotes}
-                    onChange={(e) => update('showItemNotes', e.target.checked)}
-                  />
-                  Show special instructions
-                </label>
-              </div>
-            </section>
-
-            {/* Pricing */}
-            <section className={styles.group}>
-              <h3>Pricing labels</h3>
-              <label className={styles.field}>
-                <span>Subtotal label</span>
-                <input
-                  type="text"
-                  value={draft.subtotalLabel}
-                  onChange={(e) => update('subtotalLabel', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Delivery label</span>
-                <input
-                  type="text"
-                  value={draft.deliveryLabel}
-                  onChange={(e) => update('deliveryLabel', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Discount label</span>
-                <input
-                  type="text"
-                  value={draft.discountLabel}
-                  onChange={(e) => update('discountLabel', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Total label</span>
-                <input
-                  type="text"
-                  value={draft.totalLabel}
-                  onChange={(e) => update('totalLabel', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Free-delivery note</span>
-                <input
-                  type="text"
-                  value={draft.freeDeliveryLabel}
-                  onChange={(e) =>
-                    update('freeDeliveryLabel', e.target.value)
-                  }
-                />
-                <small>
-                  Use <code>{'{fee}'}</code> for the delivery charge.
-                </small>
-              </label>
-            </section>
-
-            {/* Footer */}
-            <section className={styles.group}>
-              <h3>Footer</h3>
-              <label className={styles.field}>
-                <span>Footer note 1</span>
-                <input
-                  type="text"
-                  value={draft.footerNote1}
-                  onChange={(e) => update('footerNote1', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Footer note 2</span>
-                <input
-                  type="text"
-                  value={draft.footerNote2}
-                  onChange={(e) => update('footerNote2', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Signature</span>
-                <input
-                  type="text"
-                  value={draft.footerSignature}
-                  onChange={(e) => update('footerSignature', e.target.value)}
-                />
-              </label>
-            </section>
-          </div>
-
-          {/* -------- Preview column -------- */}
-          <div className={styles.previewCol}>
-            <div className={styles.previewHeader}>Live Preview</div>
-            <pre className={styles.previewBox}>{previewText}</pre>
-          </div>
-        </div>
-
-        <div className={styles.footer}>
-          <button
-            type="button"
-            className={styles.resetBtn}
-            onClick={handleReset}
-            disabled={isSaving}
-          >
-            Reset to default
-          </button>
-          <div className={styles.footerRight}>
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.saveBtn}
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save template'}
-            </button>
-          </div>
+        {/* ---------- Preview column ---------- */}
+        <div className={local.previewCol}>
+          <div className={local.previewHeader}>Live Preview</div>
+          <pre className={local.previewBox}>{previewText}</pre>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

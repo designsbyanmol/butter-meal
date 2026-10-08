@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Tenant } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
-import styles from './ReviewSettingsPanel.module.scss';
+import { Toggle, Banner, Card, EmptyState } from '../ui';
+import local from './ReviewSettingsPanel.module.scss';
 
 const ReviewSettingsPanel: React.FC = () => {
   const [globalEnabled, setGlobalEnabled] = useState(true);
@@ -20,11 +21,9 @@ const ReviewSettingsPanel: React.FC = () => {
         supabaseService.getAllTenants(),
       ]);
       setGlobalEnabled(global);
-      // Skip the platform 'main' row - it *is* the global flag
       setTenants(list.filter((t) => t.slug !== 'main'));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +40,7 @@ const ReviewSettingsPanel: React.FC = () => {
       await supabaseService.setGlobalReviewsEnabled(next);
       setGlobalEnabled(next);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSavingKey(null);
     }
@@ -59,52 +57,60 @@ const ReviewSettingsPanel: React.FC = () => {
         ),
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSavingKey(null);
     }
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading review settings...</div>;
+    return (
+      <Card className={local.panel}>
+        <EmptyState title="Loading review settings..." />
+      </Card>
+    );
   }
 
   return (
-    <div className={styles.settingsPanel}>
-      <div className={styles.settingsHeader}>
+    <Card className={local.panel}>
+      <div className={local.header}>
         <div>
           <h3>Review Settings</h3>
           <p>Control whether customers can rate and comment on items.</p>
         </div>
       </div>
 
-      {error && <div className={styles.error}>{error}</div>}
+      {error && (
+        <Banner
+          variant="error"
+          inline
+          onDismiss={() => setError('')}
+          className={local.errorBanner}
+        >
+          {error}
+        </Banner>
+      )}
 
       {/* ---- Global toggle ---- */}
-      <div className={styles.settingRow}>
-        <div className={styles.settingLabel}>
+      <div className={local.row}>
+        <div className={local.rowLabel}>
           <strong>Reviews enabled globally</strong>
           <span>
             Master switch. When off, no store shows the review section.
           </span>
         </div>
-        <label className={styles.switch}>
-          <input
-            type="checkbox"
-            checked={globalEnabled}
-            disabled={savingKey === '__global__'}
-            onChange={(e) => handleToggleGlobal(e.target.checked)}
-          />
-          <span className={styles.slider}></span>
-        </label>
+        <Toggle
+          checked={globalEnabled}
+          disabled={savingKey === '__global__'}
+          onChange={(e) => handleToggleGlobal(e.target.checked)}
+        />
       </div>
 
-      {/* ---- Per-tenant toggles ---- */}
-      <div className={styles.perTenantList}>
-        <div className={styles.perTenantHeader}>
+      {/* ---- Per-tenant overrides ---- */}
+      <div className={local.perTenant}>
+        <div className={local.perTenantHeader}>
           Per-store overrides
-          <span className={styles.perTenantHint}>
+          <span className={local.perTenantHint}>
             {globalEnabled
               ? 'Global is ON - toggle individual stores off below.'
               : 'Global is OFF - all stores are hidden. Turn the master on to enable per-store control.'}
@@ -112,36 +118,32 @@ const ReviewSettingsPanel: React.FC = () => {
         </div>
 
         {tenants.length === 0 ? (
-          <div className={styles.emptyRow}>No stores yet.</div>
+          <div className={local.empty}>No stores yet.</div>
         ) : (
           tenants.map((t) => {
             const effective = globalEnabled && t.reviewsEnabled !== false;
             return (
-              <div key={t.id} className={styles.settingRow}>
-                <div className={styles.settingLabel}>
+              <div key={t.id} className={local.row}>
+                <div className={local.rowLabel}>
                   <strong>{t.displayName}</strong>
-                  <span className={styles.slug}>{t.slug}</span>
+                  <span className={local.slug}>{t.slug}</span>
                   {!effective && (
-                    <span className={styles.offPill}>Reviews hidden</span>
+                    <span className={local.offPill}>Reviews hidden</span>
                   )}
                 </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={t.reviewsEnabled !== false}
-                    disabled={savingKey === t.slug}
-                    onChange={(e) =>
-                      handleToggleTenant(t.slug, e.target.checked)
-                    }
-                  />
-                  <span className={styles.slider}></span>
-                </label>
+                <Toggle
+                  checked={t.reviewsEnabled !== false}
+                  disabled={savingKey === t.slug}
+                  onChange={(e) =>
+                    handleToggleTenant(t.slug, e.target.checked)
+                  }
+                />
               </div>
             );
           })
         )}
       </div>
-    </div>
+    </Card>
   );
 };
 

@@ -1,0 +1,67 @@
+// src/components/ui/Badge/Badge.module.scss
+@use '../../../styles/tokens' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: $radius-pill;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.sm {
+  font-size: 9px;
+  padding: 3px 8px;
+}
+
+.md {
+  font-size: 10px;
+  padding: 4px 10px;
+}
+
+// ---------- TONES ----------
+.neutral {
+  background: $bg-muted;
+  color: $text-muted;
+}
+
+.success {
+  background: $primary-soft;
+  color: $primary-dark;
+  border: 1px solid rgba($primary, 0.2);
+}
+
+.danger {
+  background: $danger-soft;
+  color: $danger-dark;
+  border: 1px solid rgba($danger, 0.2);
+}
+
+.warning {
+  background: $warning-soft;
+  color: $warning-dark;
+  border: 1px solid rgba($amber-500, 0.25);
+}
+
+.info {
+  background: $info-soft;
+  color: $blue-700;
+  border: 1px solid rgba($blue-500, 0.2);
+}
+
+.primary {
+  background: $primary;
+  color: #fff;
+}
+
+.pill {
+  background: $gray-900;
+  color: #fff;
+  border-radius: $radius-pill;
+  text-transform: none;
+  letter-spacing: 0;
+}

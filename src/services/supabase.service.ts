@@ -272,6 +272,34 @@ class SupabaseService {
     };
   }
 
+  /**
+ * Returns true if no tenant currently uses this slug.
+ * Safe to call from unauthenticated clients - the tenants table has
+ * public read access, so this doesn't leak anything beyond what
+ * signup already reveals (which slugs exist).
+ */
+async isTenantSlugAvailable(slug: string): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) return false;
+
+  const { data, error } = await client
+    .from('star_veg_tenants')
+    .select('slug')
+    .eq('slug', normalized)
+    .maybeSingle();
+
+  if (error) {
+    console.error('isTenantSlugAvailable error:', error);
+    // Fail closed - treat the slug as taken if we can't confirm availability
+    return false;
+  }
+
+  return !data;
+}
+
   async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
     const client = this.getClient();
     if (!client) throw new Error("Supabase not configured");
@@ -469,6 +497,7 @@ class SupabaseService {
     if ("costPrice" in updates) payload.cost_price = updates.costPrice ?? null;
     if ("discount" in updates) payload.discount = updates.discount ?? 0;
     if ("price" in updates) payload.price = updates.price;
+    if ("img" in updates) payload.image_url = updates.img ?? null;
     if ("gallery" in updates) payload.gallery = updates.gallery ?? null;
     if ("category" in updates) payload.category = updates.category ?? null;
     if ("isVeg" in updates) payload.is_veg = updates.isVeg;
@@ -592,7 +621,7 @@ class SupabaseService {
     const { count, error } = await client
       .from(TABLES.MENU)
       .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantRow.id); // ← THE FIX
+      .eq("tenant_id", tenantRow.id); // - THE FIX
     if (error) throw error;
     if ((count ?? 0) > 0) return;
 
@@ -635,7 +664,7 @@ class SupabaseService {
       closedMessage: data.closed_message || "",
       expectedOpenDate: data.expected_open_date || "",
       expectedOpenTime: data.expected_open_time || "",
-      acceptingOrders: data.accepting_orders !== false, // ← NEW
+      acceptingOrders: data.accepting_orders !== false, // - NEW
       lastUpdated: data.last_updated || new Date().toISOString(),
     };
   }
@@ -652,7 +681,7 @@ class SupabaseService {
       closed_message_in: settings.closedMessage || "",
       expected_open_date_in: settings.expectedOpenDate || null,
       expected_open_time_in: settings.expectedOpenTime || null,
-      accepting_orders_in: settings.acceptingOrders ?? true, // ← NEW
+      accepting_orders_in: settings.acceptingOrders ?? true, // - NEW
     });
     if (error) {
       console.error("upsert_store_settings error:", error);
@@ -664,39 +693,42 @@ class SupabaseService {
   // =========== create tenant ===========
 
   async createTenantWithOwner(params: {
-    displayName: string;
-    slug: string;
-    ownerPhone: string;
-    ownerName: string;
-    ownerPassword: string;
-    whatsappPhone?: string; // ✅ added
-  }): Promise<Tenant> {
-    const client = this.getClient();
-    if (!client) throw new Error("Supabase not configured");
+  displayName: string;
+  slug: string;
+  ownerPhone: string;
+  ownerName: string;
+  ownerPassword: string;
+  whatsappPhone?: string;
+  storeCategory?: string;
+}): Promise<Tenant> {
+  const client = this.getClient();
+  if (!client) throw new Error('Supabase not configured');
 
-    const { data, error } = await client.rpc("create_tenant_with_owner", {
-      display_name_in: params.displayName,
-      slug_in: params.slug,
-      owner_phone_in: params.ownerPhone,
-      owner_name_in: params.ownerName,
-      owner_pw_in: params.ownerPassword,
-      whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone, // ✅ added
-    });
-    if (error) {
-      console.error("create_tenant_with_owner error:", error);
-      throw new Error(error.message || "Failed to create tenant");
-    }
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) throw new Error("Tenant created but no row returned");
-
-    return {
-      id: row.id,
-      slug: row.slug,
-      displayName: row.display_name,
-      whatsappPhone: row.whatsapp_phone || undefined, // ✅ added
-    };
+  const { data, error } = await client.rpc('create_tenant_with_owner', {
+    display_name_in: params.displayName,
+    slug_in: params.slug,
+    owner_phone_in: params.ownerPhone,
+    owner_name_in: params.ownerName,
+    owner_pw_in: params.ownerPassword,
+    whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,
+    store_category_in: params.storeCategory ?? 'restaurant',
+  });
+  if (error) {
+    console.error('create_tenant_with_owner error:', error);
+    throw new Error(error.message || 'Failed to create tenant');
   }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('Tenant created but no row returned');
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    displayName: row.display_name,
+    whatsappPhone: row.whatsapp_phone || undefined,
+    storeCategory: row.store_category ?? 'restaurant',
+  };
+}
 
   // services/supabase.service.ts
 // Replace ONLY the getAllTenants method - leave everything else as-is.
@@ -749,7 +781,7 @@ async getAllTenants(): Promise<Tenant[]> {
     slug: string,
     displayName: string,
     ownerPhone: string,
-    whatsappPhone?: string, // ✅ added 4th parameter
+    whatsappPhone?: string, //  added 4th parameter
   ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
@@ -757,7 +789,7 @@ async getAllTenants(): Promise<Tenant[]> {
       tenant_slug_in: slug,
       display_name_in: displayName,
       owner_phone_in: ownerPhone,
-      whatsapp_phone_in: whatsappPhone ?? ownerPhone, // ✅ pass through
+      whatsapp_phone_in: whatsappPhone ?? ownerPhone, //  pass through
     });
     if (error) {
       console.error("update_tenant error:", error);

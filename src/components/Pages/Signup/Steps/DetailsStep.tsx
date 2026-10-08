@@ -1,11 +1,16 @@
-// pages/Signup/Steps/DetailsStep.tsx
-import React, { useEffect, useState } from 'react';
-import { CloseIcon } from '../../../../../assets/svgs';
-import styles from '../Signup.module.scss';
+// components/Pages/Signup/Steps/DetailsStep.tsx
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { StoreCategory } from '../../../../types';
+import { STORE_CATEGORIES } from '../../../../data/storeCategories';
+import { FormField, Input, Button, Banner, Select } from '../../../ui';
+import { RightArrow } from '../../../../assets/svgs';
+import { supabase } from '../../../../services/supabase.client';
+import local from '../Signup.module.scss';
 
 export interface SignupDetails {
   storeName: string;
   slug: string;
+  storeCategory: StoreCategory | '';
   ownerName: string;
   ownerPhone: string;
   ownerPassword: string;
@@ -15,12 +20,18 @@ export interface SignupDetails {
 interface DetailsStepProps {
   initial: SignupDetails;
   onContinue: (details: SignupDetails) => void;
+  /**
+   * Fires on every keystroke so the parent can mirror the form
+   * into localStorage (survives reload).
+   */
+  onFieldChange?: (partial: Partial<SignupDetails>) => void;
   onBack?: () => void;
 }
 
+type SlugStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
+
 const generatePassword = (length = 10): string => {
-  const chars =
-    'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out = '';
   for (let i = 0; i < length; i++) {
     out += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -38,23 +49,107 @@ const slugify = (s: string): string =>
 const DetailsStep: React.FC<DetailsStepProps> = ({
   initial,
   onContinue,
+  onFieldChange,
 }) => {
   const [form, setForm] = useState<SignupDetails>(initial);
-  const [slugTouched, setSlugTouched] = useState(initial.slug.length > 0);
+  // Starts false on every mount. Only flips to true when the USER
+  // physically types in the slug field.
+  const [slugTouched, setSlugTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>('idle');
+  const slugCheckRef = useRef<number | null>(null);
+  const skipInitialCheckRef = useRef(true);
+
+  // Re-hydrate if the parent hands us a different `initial`
+  // (e.g. after a reset or a cross-tab storage event).
+  // NOTE: do NOT touch slugTouched here.
   useEffect(() => {
-    if (!slugTouched) {
-      setForm((f) => ({ ...f, slug: slugify(f.storeName) }));
+    setForm(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
+
+  // Auto-generate slug from store name (only while the user hasn't
+  // manually touched the slug field).
+  useEffect(() => {
+    if (slugTouched) return;
+    const next = slugify(form.storeName);
+    if (next !== form.slug) {
+      setForm((f) => ({ ...f, slug: next }));
+      onFieldChange?.({ slug: next });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.storeName]);
+  }, [form.storeName, slugTouched]);
+
+  // Debounced slug uniqueness check.
+  useEffect(() => {
+    if (skipInitialCheckRef.current) {
+      skipInitialCheckRef.current = false;
+      return;
+    }
+
+    const slug = form.slug.trim();
+
+    if (slugCheckRef.current !== null) {
+      window.clearTimeout(slugCheckRef.current);
+      slugCheckRef.current = null;
+    }
+
+    if (!slug) {
+      setSlugStatus('idle');
+      return;
+    }
+
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      setSlugStatus('idle');
+      return;
+    }
+
+    setSlugStatus('checking');
+
+    slugCheckRef.current = window.setTimeout(async () => {
+      try {
+        if (!supabase) {
+          setSlugStatus('error');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('star_veg_tenants')
+          .select('slug')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[Signup] slug check failed:', error.message);
+          setSlugStatus('error');
+          return;
+        }
+
+        setSlugStatus(data ? 'taken' : 'available');
+      } catch (err) {
+        console.warn('[Signup] slug check threw:', err);
+        setSlugStatus('error');
+      } finally {
+        slugCheckRef.current = null;
+      }
+    }, 400);
+
+    return () => {
+      if (slugCheckRef.current !== null) {
+        window.clearTimeout(slugCheckRef.current);
+        slugCheckRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.slug]);
 
   const update = <K extends keyof SignupDetails>(
     key: K,
     value: SignupDetails[K],
   ) => {
     setForm((f) => ({ ...f, [key]: value }));
+    onFieldChange?.({ [key]: value } as Partial<SignupDetails>);
     setErrors((prev) => {
       if (!prev[key as string]) return prev;
       const next = { ...prev };
@@ -69,6 +164,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
     if (!form.slug.trim()) e.slug = 'URL slug is required';
     if (!/^[a-z0-9-]+$/.test(form.slug))
       e.slug = 'Only lowercase letters, numbers and hyphens';
+    if (!form.storeCategory) e.storeCategory = 'Store type is required';
     if (!form.ownerName.trim()) e.ownerName = 'Owner name is required';
     if (!/^\d{10}$/.test(form.ownerPhone))
       e.ownerPhone = 'Enter a 10-digit phone number';
@@ -81,64 +177,122 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
   };
 
   const handleContinue = () => {
+    if (slugStatus === 'taken') return;
     if (validate()) onContinue(form);
   };
 
+  const allFieldsFilled = useMemo(() => {
+    return (
+      form.storeName.trim() !== '' &&
+      form.slug.trim() !== '' &&
+      form.storeCategory !== '' &&
+      form.ownerName.trim() !== '' &&
+      /^\d{10}$/.test(form.ownerPhone) &&
+      form.ownerPassword.length >= 6 &&
+      form.ownerPassword === form.confirmPassword
+    );
+  }, [
+    form.storeName,
+    form.slug,
+    form.storeCategory,
+    form.ownerName,
+    form.ownerPhone,
+    form.ownerPassword,
+    form.confirmPassword,
+  ]);
+
+  const canContinue =
+    allFieldsFilled && slugStatus !== 'taken' && slugStatus !== 'checking';
+
+  const slugError =
+    slugStatus === 'taken'
+      ? 'Domain already present, please change the slug'
+      : errors.slug;
+
+  const categoryOptions = useMemo(
+    () =>
+      STORE_CATEGORIES.map((c) => ({
+        value: c.value,
+        label: `${c.label} - ${c.hint}`,
+      })),
+    [],
+  );
+
   return (
-    <div className={styles.stepWrap}>
-      <div className={styles.stepHeader}>
+    <div className={local.stepWrap}>
+      <div className={local.stepHeader}>
         <h2>Create your store</h2>
         <p>Let's start with the basics.</p>
       </div>
 
-      <div className={styles.grid2}>
-        <div className={styles.field}>
-          <label>Store Name *</label>
-          <input
-            type="text"
+      <div className={local.grid2}>
+        <FormField label="Store Name" required error={errors.storeName}>
+          <Input
             value={form.storeName}
             onChange={(e) => update('storeName', e.target.value)}
             placeholder="e.g., Soma Electric"
+            invalid={!!errors.storeName}
           />
-          {errors.storeName && (
-            <span className={styles.fieldError}>{errors.storeName}</span>
-          )}
-        </div>
+        </FormField>
 
-        <div className={styles.field}>
-          <label>URL Slug *</label>
-          <input
-            type="text"
+        <FormField
+          label="URL Slug"
+          required
+          error={slugError}
+          hint={
+            slugStatus === 'checking'
+              ? 'Checking availability...'
+              : slugStatus === 'available'
+              ? 'Yes! This slug is available'
+              : 'Your store URL will end with this'
+          }
+        >
+          <Input
             value={form.slug}
             onChange={(e) => {
-              setSlugTouched(true);
-              update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+              setSlugTouched(true); // manual edit - stop auto-sync
+              update(
+                'slug',
+                e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+              );
             }}
             placeholder="e.g., soma-electric"
+            invalid={!!errors.slug || slugStatus === 'taken'}
           />
-          {errors.slug && (
-            <span className={styles.fieldError}>{errors.slug}</span>
-          )}
-        </div>
+        </FormField>
       </div>
 
-      <div className={styles.grid2}>
-        <div className={styles.field}>
-          <label>Owner Name *</label>
-          <input
-            type="text"
+      <div className={local.grid2}>
+        <FormField
+          label="Store Type"
+          required
+          error={errors.storeCategory}
+          hint="This decides the default catalog layout."
+        >
+          <Select
+            value={form.storeCategory}
+            onChange={(e) =>
+              update('storeCategory', e.target.value as StoreCategory)
+            }
+            placeholder="- Select your store type -"
+            options={categoryOptions}
+            invalid={!!errors.storeCategory}
+          />
+        </FormField>
+
+        <FormField label="Owner Name" required error={errors.ownerName}>
+          <Input
             value={form.ownerName}
             onChange={(e) => update('ownerName', e.target.value)}
             placeholder="e.g., Soma Das"
+            invalid={!!errors.ownerName}
           />
-          {errors.ownerName && (
-            <span className={styles.fieldError}>{errors.ownerName}</span>
-          )}
-        </div>
+        </FormField>
+      </div>
 
-        <div className={styles.field}>
-          <label>Phone Number *</label>
-          <input
+      <div className={local.grid2}>
+        <FormField label="Phone Number" required error={errors.ownerPhone}>
+          <Input
             type="tel"
             value={form.ownerPhone}
             onChange={(e) =>
@@ -149,63 +303,57 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
             }
             placeholder="10-digit phone"
             maxLength={10}
+            invalid={!!errors.ownerPhone}
           />
-          {errors.ownerPhone && (
-            <span className={styles.fieldError}>{errors.ownerPhone}</span>
-          )}
-        </div>
-      </div>
+        </FormField>
 
-      <div className={styles.grid2}>
-        <div className={styles.field}>
-          <label>Password *</label>
-          <div className={styles.passwordRow}>
-            <input
+        <FormField label="Password" required error={errors.ownerPassword}>
+          <div className={local.passwordRow}>
+            <Input
               type="text"
               value={form.ownerPassword}
               onChange={(e) => update('ownerPassword', e.target.value)}
               placeholder="Min 6 characters"
+              invalid={!!errors.ownerPassword}
             />
-            <button
-              type="button"
-              className={styles.iconBtn}
+            <Button
+              variant="ghost"
               onClick={() => {
                 const pw = generatePassword(10);
                 update('ownerPassword', pw);
                 update('confirmPassword', pw);
               }}
               title="Generate password"
+              aria-label="Generate password"
             >
               🎲
-            </button>
+            </Button>
           </div>
-          {errors.ownerPassword && (
-            <span className={styles.fieldError}>{errors.ownerPassword}</span>
-          )}
-        </div>
-
-        <div className={styles.field}>
-          <label>Confirm Password *</label>
-          <input
-            type="text"
-            value={form.confirmPassword}
-            onChange={(e) => update('confirmPassword', e.target.value)}
-            placeholder="Repeat password"
-          />
-          {errors.confirmPassword && (
-            <span className={styles.fieldError}>{errors.confirmPassword}</span>
-          )}
-        </div>
+        </FormField>
       </div>
 
-      <div className={styles.stepActions}>
-        <button
-          type="button"
-          className={styles.primaryBtn}
+      <FormField
+        label="Confirm Password"
+        required
+        error={errors.confirmPassword}
+      >
+        <Input
+          type="text"
+          value={form.confirmPassword}
+          onChange={(e) => update('confirmPassword', e.target.value)}
+          placeholder="Repeat password"
+          invalid={!!errors.confirmPassword}
+        />
+      </FormField>
+
+      <div className={local.stepActions}>
+        <Button
           onClick={handleContinue}
+          disabled={!canContinue}
+          rightIcon={<RightArrow width={16} height={16} fill="#fff" />}
         >
-          Continue RightArrowHoga
-        </button>
+          Continue
+        </Button>
       </div>
     </div>
   );

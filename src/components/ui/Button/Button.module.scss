@@ -1,0 +1,213 @@
+// src/components/ui/Button/Button.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background $t-fast,
+    border-color $t-fast,
+    color $t-fast,
+    box-shadow $t-fast,
+    transform 0.05s ease;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled,
+  &.loading {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* ---------- SIZES (base padding) ---------- */
+.xs {
+  padding: 2px 8px;
+  font-size: 9px;
+  min-height: 16px;
+}
+
+.s {
+  padding: 4px 10px;
+  font-size: 10px;
+  min-height: 20px;
+}
+
+.sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.md {
+  padding: 9px 16px;
+  font-size: 14px;
+  min-height: 38px;
+}
+
+.lg {
+  padding: 12px 22px;
+  font-size: 16px;
+  min-height: 44px;
+}
+
+/* ---------- SHAPES ---------- */
+.rounded {
+  border-radius: $radius-sm;
+}
+
+.pill {
+  border-radius: $radius-pill;
+}
+
+/* Pill padding overrides per size (compound selectors beat single-class). */
+.sm.pill { padding-left: 14px; padding-right: 14px; }
+.md.pill { padding-left: 20px; padding-right: 20px; }
+.lg.pill { padding-left: 26px; padding-right: 26px; }
+
+.block {
+  width: 100%;
+}
+
+/* ---------- VARIANTS ---------- */
+.primary {
+  background: $primary;
+  color: #fff;
+  border-color: $primary;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark;
+    border-color: $primary-dark;
+    box-shadow: 0 4px 12px rgba($primary, 0.3);
+  }
+}
+
+.secondary {
+  background: $green-50;
+  color: $green-950;
+  border-color: $green-950;
+
+  &:hover:not(:disabled) {
+    background: $primary-soft;
+    border-color: rgba($primary, 0.4);
+  }
+}
+
+.ghost {
+  background: transparent;
+  color: $text-muted;
+  border-color: $border;
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &:hover:not(:disabled) {
+    background: $bg-subtle;
+    border-color: $border-strong;
+    color: $text;
+  }
+}
+
+.info {
+  background: transparent;
+  color: $blue-900;
+  border-color: $blue-200;
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &:hover:not(:disabled) {
+    background: $blue-200;
+    border-color: $border-strong;
+    color: $blue-400;
+  }
+}
+
+.danger {
+  background: $danger;
+  color: #fff;
+  border-color: $danger;
+
+  &:hover:not(:disabled) {
+    background: $danger-dark;
+    border-color: $danger-dark;
+    box-shadow: 0 4px 12px rgba($danger, 0.3);
+  }
+}
+
+.success {
+  background: $success;
+  color: #fff;
+  border-color: $success;
+
+  &:hover:not(:disabled) {
+    background: $green-800;
+    border-color: $green-800;
+  }
+}
+
+.warning {
+  background: $warning;
+  color: #fff;
+  border-color: $warning;
+
+  &:hover:not(:disabled) {
+    background: $warning-dark;
+    border-color: $warning-dark;
+  }
+}
+
+.link {
+  background: transparent;
+  color: $primary-dark;
+  border-color: transparent;
+  padding-left: 4px;
+  padding-right: 4px;
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
+/* ---------- PARTS ---------- */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.label {
+  display: inline-block;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: ui-btn-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ui-btn-spin {
+  to { transform: rotate(360deg); }
+}

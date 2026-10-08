@@ -1,29 +1,18 @@
 // components/Menu/WishlistButton.module.scss
-
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 .btn {
-  position: absolute;
+  position: absolute !important;
   top: 10px;
-  right: 10px;
+  left: 10px;
   z-index: 3;
 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.92) !important;
   backdrop-filter: blur(4px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-
-  transition: transform 0.15s ease, background 0.15s ease;
 
   &:hover {
-    background: #fff;
+    background: #fff !important;
     transform: scale(1.06);
   }
 
@@ -33,5 +22,5 @@
 }
 
 .active {
-  background: #fff;
+  background: #fff !important;
 }

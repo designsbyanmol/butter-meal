@@ -1,7 +1,7 @@
-// components/MenuDetail/MenuDetail.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { MenuItem } from '../../types';
-import { DEFAULT_FORM_SCHEMA } from '../../types';
+// src/components/MenuDetail/MenuDetail.tsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { MenuItem, CartItem, BadgeDefinition } from '../../types';
+import { DEFAULT_FORM_SCHEMA, normalizeOptions } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { usePlan } from '../../hooks/usePlan';
 import {
@@ -13,37 +13,88 @@ import {
   PlusIcon,
   Special,
 } from '../../assets/svgs';
-import styles from './MenuDetail.module.scss';
+import { formatRupees } from '../../utils/subscription';
+import { Sheet, Modal, Button, IconButton, Chip } from '../ui';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import PopularIcon from '../../assets/svgs/PopularIcon';
 import NewIcon from '../../assets/svgs/NewIcon';
 import LimitedIcon from '../../assets/svgs/LimitedIcon';
-import ImagePreview from '../ImagePreview/ImagePreview';
 import ExpandIcon from '../../assets/svgs/ExpandIcon';
+import ImagePreview from '../ImagePreview/ImagePreview';
 import ReviewSection from '../Reviews/ReviewSection';
 import { formatCount } from '../../utils/formatCount';
+import local from './MenuDetail.module.scss';
 
 interface MenuDetailProps {
   isOpen: boolean;
   item: MenuItem | null;
   onClose: () => void;
+  /**
+   * Adds the picked quantity to the cart (or to the matching cart line).
+   */
   onAddToCart: (
     item: MenuItem,
     customizations?: Record<string, string>,
     customMessage?: string,
+    quantity?: number,
+  ) => void;
+  /**
+   * Sets the matching cart line to exactly the picked quantity.
+   * Used when a matching line already exists.
+   */
+  onUpdateCart?: (
+    item: MenuItem,
+    customizations?: Record<string, string>,
+    customMessage?: string,
+    quantity?: number,
   ) => void;
   acceptingOrders?: boolean;
+  /**
+   * The full cart. Used to find the matching line (same item id + same
+   * customizations) so the stepper can seed from it and the CTA can
+   * toggle between Add and Update.
+   */
+  cart?: CartItem[];
 }
+
+/**
+ * Fallback SVG per built-in badge key.
+ */
+const BUILTIN_BADGE_ICONS: Record<
+  string,
+  React.FC<{ width: number; height: number }>
+> = {
+  isPopular: (props) => <PopularIcon {...props} />,
+  isNew: (props) => <NewIcon {...props} />,
+  isChefSpecial: (props) => <Special {...props} />,
+  isLimited: (props) => <LimitedIcon {...props} />,
+};
+
+/** Deep-equal for customization records (order-independent). */
+const sameCustomizations = (
+  a?: Record<string, string>,
+  b?: Record<string, string>,
+): boolean => {
+  const aEmpty = !a || Object.keys(a).length === 0;
+  const bEmpty = !b || Object.keys(b).length === 0;
+  if (aEmpty && bEmpty) return true;
+  if (aEmpty !== bEmpty) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+};
 
 const MenuDetail: React.FC<MenuDetailProps> = ({
   isOpen,
   item,
   onClose,
   onAddToCart,
+  onUpdateCart,
   acceptingOrders = true,
+  cart = [],
 }) => {
   const { tenant } = useTenant();
   const plan = usePlan();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+  const isMobile = useIsMobile();
 
   const [selectedCustomizations, setSelectedCustomizations] = useState<
     Record<string, string>
@@ -62,12 +113,14 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const itemId = item?.id;
 
+  // ---------------------------------------------------------
+  // Reset state when the item changes or the modal opens.
+  // (Quantity is seeded below, once customizations are resolved.)
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!item) return;
 
-    setQuantity(1);
     setCustomMessage('');
-
     setSlideIndex(0);
     setPrevIndex(null);
     dragStartXRef.current = null;
@@ -80,7 +133,9 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         const trimmedDefault = String(option.default).trim();
         const choice = option.choices.find(
           (c) =>
-            c && typeof c.name === 'string' && c.name.trim() === trimmedDefault,
+            c &&
+            typeof c.name === 'string' &&
+            c.name.trim() === trimmedDefault,
         );
         if (choice) {
           defaults[option.name] =
@@ -96,7 +151,35 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
       if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId]);
+  }, [itemId, isOpen]);
+
+  // ---------------------------------------------------------
+  // Find the matching cart line for the CURRENT selection.
+  // Recomputes whenever customizations change, so:
+  //   - Default selection matches a cart line - show that line's qty, CTA = Update
+  //   - User picks a different addon - no match - qty = 1, CTA = Add to Cart
+  // ---------------------------------------------------------
+  const matchedLine = useMemo(() => {
+    if (!item) return undefined;
+    return cart.find(
+      (c) => c.id === item.id && sameCustomizations(c.customizations, selectedCustomizations),
+    );
+  }, [cart, item, selectedCustomizations]);
+
+  const matchedQuantity = matchedLine?.quantity ?? 0;
+  const isInCart = matchedQuantity > 0;
+
+  // ---------------------------------------------------------
+  // Seed the stepper.
+  // Runs when:
+  //   - the modal opens for a new item (matchedLine undetermined at reset)
+  //   - the current selection's match changes (addon added/removed)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!isOpen || !item) return;
+    setQuantity(matchedQuantity > 0 ? matchedQuantity : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedQuantity, itemId, isOpen]);
 
   if (!isOpen || !item) return null;
 
@@ -198,9 +281,14 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     }));
   };
 
-  const handleAddToCart = () => {
+  const handleSubmit = () => {
     if (!plan.canOrder || !acceptingOrders) return;
-    onAddToCart(item, selectedCustomizations, customMessage);
+
+    if (isInCart && onUpdateCart) {
+      onUpdateCart(item, selectedCustomizations, customMessage, quantity);
+    } else {
+      onAddToCart(item, selectedCustomizations, customMessage, quantity);
+    }
     onClose();
   };
 
@@ -218,15 +306,18 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const getCustomizationSummary = (): string => {
     const selected = Object.entries(selectedCustomizations)
-      .filter(([_, value]) => value)
+      .filter(([, value]) => value)
       .map(([key, value]) => `${key}: ${value}`);
     return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
 
   // ---------- Field presence flags ----------
-  const hasDesc = isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
+  const hasDesc =
+    isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
   const hasCategory =
-    isFieldEnabled('category') && !!item.category && item.category.trim() !== '';
+    isFieldEnabled('category') &&
+    !!item.category &&
+    item.category.trim() !== '';
   const hasPrepTime =
     isFieldEnabled('preparationTime') &&
     !!item.preparationTime &&
@@ -255,7 +346,8 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const nutritionEntries =
     item.nutritionalInfo && typeof item.nutritionalInfo === 'object'
       ? Object.entries(item.nutritionalInfo).filter(
-          ([_, v]) => v !== undefined && v !== null && String(v).trim() !== '',
+          ([, v]) =>
+            v !== undefined && v !== null && String(v).trim() !== '',
         )
       : [];
   const hasNutrition = nutritionEntries.length > 0;
@@ -272,7 +364,8 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const hasAnyCustomizationSelected =
     Object.keys(selectedCustomizations).length > 0;
 
-  const customFieldEntries = schema.fields
+  // ---------- Custom (owner-defined) fields ----------
+  const customFields = schema.fields
     .filter((f) => !f.builtin && f.enabled)
     .map((field) => ({ field, value: item.attributes?.[field.key] }))
     .filter(
@@ -282,362 +375,466 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         String(value).trim() !== '',
     );
 
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        {/* ============ Image / Cross-fade Slider ============ */}
-        <div
-          className={styles.imageWrapper}
-          ref={sliderRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={handlePointerCancel}
-          style={{
-            cursor: hasMultipleImages ? 'grab' : 'default',
-            touchAction: hasMultipleImages ? 'pan-y' : 'auto',
-          }}
+  const customTags = customFields.filter(
+    ({ field, value }) =>
+      field.type === 'checkbox' ||
+      (field.type === 'text' && String(value).length <= 24),
+  );
+
+  const customLongText = customFields.filter(
+    ({ field, value }) =>
+      field.type === 'textarea' ||
+      (field.type === 'text' && String(value).length > 24),
+  );
+
+  const customNumbers = customFields.filter(
+    ({ field, value }) =>
+      field.type === 'number' && String(value).trim() !== '',
+  );
+
+  const customSelects = customFields.filter(
+    ({ field }) => field.type === 'select',
+  );
+
+  // ---------- Badges ----------
+  const activeBadges: BadgeDefinition[] = (schema.badges ?? [])
+    .filter((b) => b.enabled && item.attributes?.[b.key])
+    .slice();
+
+  const renderBadge = (badge: BadgeDefinition) => {
+    if (badge.image) {
+      return (
+        <img
+          key={badge.key}
+          src={badge.image}
+          alt={badge.label}
+          className={local.badgeImage}
+          title={badge.label}
+        />
+      );
+    }
+    const FallbackIcon = BUILTIN_BADGE_ICONS[badge.key];
+    if (FallbackIcon) {
+      return (
+        <span
+          key={badge.key}
+          className={local.badgeSvgWrap}
+          title={badge.label}
         >
-          {prevIndex !== null && (
-            <img
-              key={`prev-${prevIndex}`}
-              src={galleryImages[prevIndex]}
-              alt=""
-              className={`${styles.sliderLayer} ${styles.sliderPrev}`}
-              draggable={false}
-            />
-          )}
+          <FallbackIcon width={32} height={32} />
+        </span>
+      );
+    }
+    return (
+      <span key={badge.key} className={local.badgeTextChip}>
+        {badge.label}
+      </span>
+    );
+  };
 
+  const hasBadges = activeBadges.length > 0;
+  const showVegBadge = isFieldEnabled('isVeg') && item.isVeg;
+
+  // ---------------------------------------------------------
+  // Shared body content
+  // ---------------------------------------------------------
+  const bodyContent = (
+    <>
+      {/* ============ Image / Cross-fade Slider ============ */}
+      <div
+        className={local.imageWrapper}
+        ref={sliderRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={handlePointerCancel}
+        style={{
+          cursor: hasMultipleImages ? 'grab' : 'default',
+          touchAction: hasMultipleImages ? 'pan-y' : 'auto',
+        }}
+      >
+        {prevIndex !== null && (
           <img
-            key={`curr-${slideIndex}`}
-            src={currentImage}
-            alt={item.name}
-            className={`${styles.sliderLayer} ${
-              prevIndex !== null ? styles.sliderCurrIn : styles.sliderCurrIdle
-            }`}
+            key={`prev-${prevIndex}`}
+            src={galleryImages[prevIndex]}
+            alt=""
+            className={`${local.sliderLayer} ${local.sliderPrev}`}
             draggable={false}
-            style={{ pointerEvents: 'auto' }}
           />
+        )}
 
-          {hasMultipleImages && (
-            <div className={styles.sliderDots}>
-              {galleryImages.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  data-slider-dot
-                  className={`${styles.sliderDot} ${
-                    i === slideIndex ? styles.sliderDotActive : ''
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToSlide(i);
-                  }}
-                  aria-label={`Go to image ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
+        <img
+          key={`curr-${slideIndex}`}
+          src={currentImage}
+          alt={item.name}
+          className={`${local.sliderLayer} ${
+            prevIndex !== null ? local.sliderCurrIn : local.sliderCurrIdle
+          }`}
+          draggable={false}
+          style={{ pointerEvents: 'auto' }}
+        />
 
-          {hasMultipleImages && (
-            <div className={styles.swipeHint}>‹ Swipe to see more ›</div>
-          )}
+        {hasMultipleImages && (
+          <div className={local.sliderDots}>
+            {galleryImages.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                data-slider-dot
+                className={`${local.sliderDot} ${
+                  i === slideIndex ? local.sliderDotActive : ''
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSlide(i);
+                }}
+                aria-label={`Go to image ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
-          {hasDiscount && (
-            <span className={styles.discountRibbon}>{discount}% OFF</span>
-          )}
+        {hasMultipleImages && (
+          <div className={local.swipeHint}>‹ Swipe to see more ›</div>
+        )}
 
-          {(item.attributes?.isPopular ||
-            item.attributes?.isNew ||
-            item.attributes?.isChefSpecial ||
-            item.attributes?.isLimited ||
-            (isFieldEnabled('isVeg') && item?.isVeg)) && (
-            <div className={styles.badgesWrapper}>
-              {item.attributes?.isPopular && (
-                <PopularIcon width={32} height={32} />
-              )}
-              {item.attributes?.isNew && <NewIcon width={32} height={32} />}
-              {item.attributes?.isChefSpecial && (
-                <Special width={32} height={32} />
-              )}
-              {item.attributes?.isLimited && (
-                <LimitedIcon width={32} height={32} />
-              )}
-              {isFieldEnabled('isVeg') && item.isVeg && (
-                <span className={`${styles.badge} ${styles.veg}`}>Veg</span>
-              )}
-            </div>
-          )}
+        {hasDiscount && (
+          <span className={local.discountRibbon}>{discount}% OFF</span>
+        )}
 
-          <button
-            type="button"
-            className={styles.expandBtn}
-            data-slider-icon
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPreviewOpen(true);
-            }}
-            aria-label="Preview image"
-            title="Preview image"
-          >
-            <ExpandIcon width={16} height={16} fill="#fff" />
-          </button>
-        </div>
-
-        {/* ============ Content ============ */}
-        <div className={styles.content}>
-          <div className={styles.header}>
-            <h2>{item.name}</h2>
-            {hasReviews && (
-              <div className={styles.rating}>
-                <span className={styles.stars}>
-                  <StarIcon width={14} height={14} fill="#3caa46" />
-                </span>
-                <span>{item.rating}</span>
-                <span className={styles.reviewCount}>
-                  ({formatCount(item.reviewCount)})
-                </span>
-              </div>
+        {(hasBadges || showVegBadge) && (
+          <div className={local.badgesWrapper}>
+            {activeBadges.map(renderBadge)}
+            {showVegBadge && (
+              <span className={`${local.vegBadge}`}>Veg</span>
             )}
           </div>
+        )}
 
-          {hasDiscount && (
-            <div className={styles.discountLine}>
-              <del>Rs{item.price}</del>
-              <span className={styles.price}> Rs{effectiveUnitPrice}</span>
+        <IconButton
+          variant="ghost"
+          size="md"
+          shape="circle"
+          className={local.expandBtn}
+          data-slider-icon
+          aria-label="Preview image"
+          tooltip="Preview image"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPreviewOpen(true);
+          }}
+        >
+          <ExpandIcon width={16} height={16} fill="#fff" />
+        </IconButton>
+      </div>
+
+      {/* ============ Content ============ */}
+      <div className={local.content}>
+        <div className={local.header}>
+          {hasReviews && (
+            <div className={local.rating}>
+              <span className={local.stars}>
+                <StarIcon width={14} height={14} fill="#3caa46" />
+              </span>
+              <span>{item.rating}</span>
+              <span className={local.reviewCount}>
+                ({formatCount(item.reviewCount)})
+              </span>
             </div>
           )}
+        </div>
 
-          {hasDesc && <p className={styles.description}>{item.desc}</p>}
+        {hasDiscount && (
+          <div className={local.discountLine}>
+            <del>{formatRupees(item.price)}</del>
+            <span className={local.price}>
+              {' '}
+              {formatRupees(effectiveUnitPrice)}
+            </span>
+          </div>
+        )}
 
-          {hasAnyTag && (
-            <div className={styles.tags}>
-              {hasCategory && (
-                <span className={styles.tag}>
-                  <UtensilsIcon width={14} height={14} fill="#1e1e1e" />
-                  {item.category}
+        {hasDesc && <p className={local.description}>{item.desc}</p>}
+
+        {customLongText.map(({ field, value }) => (
+          <p key={field.key} className={local.description}>
+            {String(value)}
+          </p>
+        ))}
+
+        {(hasAnyTag ||
+          customTags.length > 0 ||
+          customSelects.length > 0) && (
+          <div className={local.tags}>
+            {hasCategory && (
+              <span className={local.tag}>
+                <UtensilsIcon width={14} height={14} fill="#1e1e1e" />
+                {item.category}
+              </span>
+            )}
+            {showSpicy && <span className={local.tag}>Spicy</span>}
+            {showGlutenFree && (
+              <span className={local.tag}>Gluten-Free</span>
+            )}
+            {hasPrepTime && (
+              <span className={local.tag}>
+                <ClockIcon width={14} height={14} fill="#1e1e1e" />
+                {item.preparationTime}
+              </span>
+            )}
+            {hasCalories && (
+              <span className={local.tag}>
+                <PlusIcon width={14} height={14} fill="#1e1e1e" />
+                {item.calories} kcal
+              </span>
+            )}
+
+            {customSelects.map(({ field, value }) => (
+              <span key={field.key} className={local.tag}>
+                <strong className={local.tagLabel}>{field.label}:</strong>
+                <span className={local.tagValue}>{String(value)}</span>
+              </span>
+            ))}
+
+            {customTags
+              .filter(({ field }) => field.type === 'text')
+              .map(({ field, value }) => (
+                <span key={field.key} className={local.tag}>
+                  <strong className={local.tagLabel}>{field.label}:</strong>
+                  <span className={local.tagValue}>{String(value)}</span>
                 </span>
-              )}
-              {showSpicy && <span className={styles.tag}>Spicy</span>}
-              {showGlutenFree && (
-                <span className={styles.tag}>Gluten-Free</span>
-              )}
-              {hasPrepTime && (
-                <span className={styles.tag}>
-                  <ClockIcon width={14} height={14} fill="#1e1e1e" />
-                  {item.preparationTime}
+              ))}
+
+            {customTags
+              .filter(({ field }) => field.type === 'checkbox')
+              .map(({ field }) => (
+                <span key={field.key} className={local.tag}>
+                  {field.label}
                 </span>
-              )}
-              {hasCalories && (
-                <span className={styles.tag}>
-                  <PlusIcon width={14} height={14} fill="#1e1e1e" />
-                  {item.calories} kcal
+              ))}
+          </div>
+        )}
+
+        {customNumbers.length > 0 && (
+          <div className={local.numberRow}>
+            {customNumbers.map(({ field, value }) => (
+              <div key={field.key} className={local.numberItem}>
+                <span className={local.numberLabel}>{field.label}</span>
+                <span className={local.numberValue}>{String(value)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasIngredients && (
+          <div className={local.section}>
+            <h4>Ingredients</h4>
+            <div className={local.ingredients}>
+              {item.ingredients!.map((ingredient, index) => (
+                <span key={index} className={local.ingredient}>
+                  <CheckIcon width={12} height={12} fill="#3CAA46" />
+                  {ingredient}
                 </span>
-              )}
-            </div>
-          )}
-
-          {customFieldEntries.length > 0 && (
-            <div className={styles.section}>
-              <h4>Additional Information</h4>
-              <div className={styles.nutritionalInfo}>
-                {customFieldEntries.map(({ field, value }) => (
-                  <div key={field.key} className={styles.nutritionItem}>
-                    <span>{field.label}</span>
-                    <span>
-                      {typeof value === 'boolean'
-                        ? value
-                          ? 'Yes'
-                          : 'No'
-                        : String(value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasIngredients && (
-            <div className={styles.section}>
-              <h4>Ingredients</h4>
-              <div className={styles.ingredients}>
-                {item.ingredients!.map((ingredient, index) => (
-                  <span key={index} className={styles.ingredient}>
-                    <CheckIcon width={12} height={12} fill="#3CAA46" />
-                    {ingredient}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasNutrition && (
-            <div className={styles.section}>
-              <h4>Nutritional Information</h4>
-              <div className={styles.nutritionalInfo}>
-                {nutritionEntries.map(([key, value]) => (
-                  <div key={key} className={styles.nutritionItem}>
-                    <span>
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </span>
-                    <span>{value}g</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasCustomizations && (
-            <div className={styles.section}>
-              <h4>Customize Your Order</h4>
-              {item.customizationOptions!.map((option) => (
-                <div key={option.name} className={styles.customizationGroup}>
-                  <label className={styles.customizationLabel}>
-                    {option.name}
-                  </label>
-                  <div className={styles.customizationOptions}>
-                    {option.choices.map((choice) => {
-                      const displayValue =
-                        choice.price > 0
-                          ? `${choice.name} +Rs${choice.price}`
-                          : choice.name;
-                      const isActive =
-                        selectedCustomizations[option.name] === displayValue;
-                      return (
-                        <label
-                          key={choice.name}
-                          className={styles.customizationOption}
-                          data-active={isActive}
-                        >
-                          <input
-                            type="radio"
-                            name={option.name}
-                            value={displayValue}
-                            checked={isActive}
-                            onChange={() =>
-                              handleCustomizationChange(
-                                option.name,
-                                displayValue,
-                              )
-                            }
-                          />
-                          <span>
-                            {choice.name}
-                            {choice.price > 0 && (
-                              <em className={styles.choicePrice}>
-                                {' '}
-                                +Rs{choice.price}
-                              </em>
-                            )}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {hasAnyCustomizationSelected && (
-            <div className={styles.customizationSummary}>
-              <span className={styles.summaryLabel}>
-                Selected Customizations:
-              </span>
-              <span className={styles.summaryValue}>
-                {getCustomizationSummary()}
-              </span>
-              {getAddonPrice() > 0 && (
-                <span className={styles.addonPrice}>
-                  +Rs{getAddonPrice()} add-ons
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Custom message - only when the plan allows it */}
-          {plan.canAddCustomMessage && (
-            <div className={styles.section}>
-              <h4>Add Customized Message</h4>
-              <div className={styles.customMessageWrapper}>
-                <textarea
-                  className={styles.customMessageInput}
-                  placeholder="Add any special instructions for the restaurant (e.g., extra sauce, less spice, etc.)"
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  rows={3}
-                  maxLength={500}
-                />
-                {customMessage && (
-                  <div className={styles.messageCharCount}>
-                    {customMessage.length}/500
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Reviews - only when the plan allows it AND tenant flag is on */}
-          {plan.canReview && reviewsEnabled && (
-            <ReviewSection item={item} />
-          )}
-
-          {/* Footer */}
-          <div className={styles.footer}>
-            <div className={styles.priceSection}>
-              <div>
-                <div className={styles.price}>
-                  Rs{getTotalPrice()}
-                  {quantity > 1 && (
-                    <span className={styles.pricePerItem}>
-                      (Rs{effectiveUnitPrice + getAddonPrice()} x {quantity})
+        {hasNutrition && (
+          <div className={local.section}>
+            <h4>Nutritional Information</h4>
+            <div className={local.nutritionalInfo}>
+              {nutritionEntries.map(([key, value]) => {
+                const nutField = schema.fields.find(
+                  (f) => f.key === 'nutritionalInfo',
+                );
+                const nutOption = normalizeOptions(nutField?.options).find(
+                  (o) => o.name.toLowerCase() === key.toLowerCase(),
+                );
+                return (
+                  <div key={key} className={local.nutritionItem}>
+                    <span>
+                      {nutOption?.name ??
+                        key.charAt(0).toUpperCase() + key.slice(1)}
                     </span>
-                  )}
-                </div>
-                {getAddonPrice() > 0 && (
-                  <div className={styles.basePrice}>
-                    Base: Rs{effectiveUnitPrice} + Add-ons: Rs
-                    {getAddonPrice()}
+                    <span>{value}</span>
                   </div>
-                )}
-              </div>
-              {plan.canOrder && acceptingOrders && (
-                <div className={styles.quantityControls}>
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className={styles.qtyBtn}
-                    aria-label="Decrease quantity"
-                  >
-                    <MinusIcon width={16} height={16} fill="#1e1e1e" />
-                  </button>
-                  <span className={styles.qtyNum}>{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className={styles.qtyBtn}
-                    aria-label="Increase quantity"
-                  >
-                    <PlusIcon width={16} height={16} fill="#1e1e1e" />
-                  </button>
-                </div>
-              )}
+                );
+              })}
             </div>
+          </div>
+        )}
 
-            <div className={styles.btnWrap}>
-              <button className={styles.closeBtn} onClick={onClose}>
-                Close
-              </button>
-              {plan.canOrder && acceptingOrders && (
-                <button
-                  className={styles.addToCartBtn}
-                  onClick={handleAddToCart}
-                >
-                  Add to Cart
-                </button>
+        {hasCustomizations && (
+          <div className={local.section}>
+            <h4>Customize Your Order</h4>
+            {item.customizationOptions!.map((option) => (
+              <div key={option.name} className={local.customizationGroup}>
+                <label className={local.customizationLabel}>
+                  {option.name}
+                </label>
+                <div className={local.customizationOptions}>
+                  {option.choices.map((choice) => {
+                    const displayValue =
+                      choice.price > 0
+                        ? `${choice.name} +Rs${choice.price}`
+                        : choice.name;
+                    const isActive =
+                      selectedCustomizations[option.name] === displayValue;
+                    return (
+                      <Chip
+                        key={choice.name}
+                        tone="primary"
+                        active={isActive}
+                        onClick={() =>
+                          handleCustomizationChange(
+                            option.name,
+                            displayValue,
+                          )
+                        }
+                        aria-pressed={isActive}
+                      >
+                        {choice.name}
+                        {choice.price > 0 && (
+                          <em className={local.choicePrice}>
+                            {formatRupees(choice.price)}
+                          </em>
+                        )}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasAnyCustomizationSelected && (
+          <div className={local.customizationSummary}>
+            <span className={local.summaryLabel}>
+              Selected Customizations:
+            </span>
+            <span className={local.summaryValue}>
+              {getCustomizationSummary()}
+            </span>
+            {getAddonPrice() > 0 && (
+              <span className={local.addonPrice}>
+                +{formatRupees(getAddonPrice())} add-ons
+              </span>
+            )}
+          </div>
+        )}
+
+        {plan.canAddCustomMessage && (
+          <div className={local.section}>
+            <h4>Add Customized Message</h4>
+            <div className={local.customMessageWrapper}>
+              <textarea
+                className={local.customMessageInput}
+                placeholder="Add any special instructions for the restaurant (e.g., extra sauce, less spice, etc.)"
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+              {customMessage && (
+                <div className={local.messageCharCount}>
+                  {customMessage.length}/500
+                </div>
               )}
             </div>
           </div>
-        </div>
+        )}
+
+        {plan.canReview && reviewsEnabled && <ReviewSection item={item} />}
       </div>
+    </>
+  );
+
+  // ---------------------------------------------------------
+  // Footer content
+  // ---------------------------------------------------------
+  const footerContent = (
+    <>
+      <div className={local.priceSection}>
+        <div>
+          <div className={local.price}>
+            {formatRupees(getTotalPrice())}
+            {quantity > 1 && (
+              <span className={local.pricePerItem}>
+                ({formatRupees(effectiveUnitPrice + getAddonPrice())} x{' '}
+                {quantity})
+              </span>
+            )}
+          </div>
+          {getAddonPrice() > 0 && (
+            <div className={local.basePrice}>
+              Base: {formatRupees(effectiveUnitPrice)} + Add-ons:{' '}
+              {formatRupees(getAddonPrice())}
+            </div>
+          )}
+        </div>
+        {plan.canOrder && acceptingOrders && (
+          <div className={local.quantityControls}>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              shape="square"
+              aria-label="Decrease quantity"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            >
+              <MinusIcon width={16} height={16} fill="#1e1e1e" />
+            </IconButton>
+            <span className={local.qtyNum}>{quantity}</span>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              shape="square"
+              aria-label="Increase quantity"
+              onClick={() => setQuantity(quantity + 1)}
+            >
+              <PlusIcon width={16} height={16} fill="#1e1e1e" />
+            </IconButton>
+          </div>
+        )}
+      </div>
+
+      <div className={local.btnWrap}>
+        {plan.canOrder && acceptingOrders && (
+          <Button onClick={handleSubmit}>
+            {isInCart ? 'Update Cart' : 'Add to Cart'}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+
+  // ---------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------
+  return (
+    <>
+      {isMobile ? (
+        <Sheet
+          isOpen={isOpen}
+          onClose={onClose}
+          title={item.name}
+          maxHeightVh={85}
+          footer={footerContent}
+        >
+          {bodyContent}
+        </Sheet>
+      ) : (
+        <Modal
+          isOpen={isOpen}
+          onClose={onClose}
+          title={item.name}
+          size="lg"
+          footer={footerContent}
+        >
+          {bodyContent}
+        </Modal>
+      )}
 
       <ImagePreview
         isOpen={isPreviewOpen}
@@ -645,7 +842,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         initialIndex={slideIndex}
         onClose={() => setIsPreviewOpen(false)}
       />
-    </div>
+    </>
   );
 };
 

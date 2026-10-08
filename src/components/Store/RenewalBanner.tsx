@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { planService } from '../../services/plan.service';
+import { Banner, Button, Modal } from '../ui';
 import PlanChangeModal from '../Payments/PlanChangeModal';
-import styles from './RenewalBanner.module.scss';
+import local from './RenewalBanner.module.scss';
 
 interface RenewalBannerProps {
   onRefresh?: () => void;
@@ -43,78 +44,76 @@ const RenewalBanner: React.FC<RenewalBannerProps> = ({ onRefresh }) => {
 
   return (
     <>
-      <div className={styles.banner}>
-        <div className={styles.icon}>⚠️</div>
-        <div className={styles.content}>
-          <div className={styles.title}>
-            Your plan expires in {days} day{days === 1 ? '' : 's'}
-          </div>
-          <div className={styles.subtitle}>
-            Renew now to keep your store running. If it expires, your store
-            will be paused automatically.
-          </div>
-        </div>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.primaryBtn}
-            onClick={() => setShowRenewInfo(true)}
-          >
-            Renew
-          </button>
-          <button
-            type="button"
-            className={styles.ghostBtn}
-            disabled={isPauseSending || tenant.pauseRequested}
-            onClick={handlePause}
-          >
-            {tenant.pauseRequested
-              ? 'Pause requested'
-              : isPauseSending
-              ? 'Sending...'
-              : 'Pause'}
-          </button>
-        </div>
-      </div>
-
-      {/* Renew popup */}
-      {showRenewInfo && (
-        <div
-          className={styles.dialogOverlay}
-          onClick={() => setShowRenewInfo(false)}
-        >
-          <div
-            className={styles.dialog}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3>Renew your plan</h3>
-            <p className={styles.dialogText}>
-              Pick a duration and pay via Razorpay, or switch to a different
-              plan entirely. You can also let support handle it - reach out
-              from the Info popup.
-            </p>
-            <div className={styles.dialogActions}>
-              <button
-                type="button"
-                className={styles.ghostBtn}
-                onClick={() => setShowRenewInfo(false)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                onClick={() => {
-                  setShowRenewInfo(false);
-                  setIsChangePlanOpen(true);
-                }}
-              >
-                Renew / Change Plan
-              </button>
+      <Banner
+        variant="warning"
+        icon={<span className={local.icon}>⚠️</span>}
+        className={local.banner}
+      >
+        <div className={local.body}>
+          <div className={local.content}>
+            <div className={local.title}>
+              Your plan expires in {days} day{days === 1 ? '' : 's'}
+            </div>
+            <div className={local.subtitle}>
+              Renew now to keep your store running. If it expires, your store
+              will be paused automatically.
             </div>
           </div>
+          <div className={local.actions}>
+            <Button
+              size="sm"
+              variant="warning"
+              onClick={() => setShowRenewInfo(true)}
+            >
+              Renew
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isPauseSending || tenant.pauseRequested}
+              onClick={handlePause}
+            >
+              {tenant.pauseRequested
+                ? 'Pause requested'
+                : isPauseSending
+                ? 'Sending...'
+                : 'Pause'}
+            </Button>
+          </div>
         </div>
-      )}
+      </Banner>
+
+      {/* ---- Renew info dialog ---- */}
+      <Modal
+        isOpen={showRenewInfo}
+        onClose={() => setShowRenewInfo(false)}
+        title="Renew your plan"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setShowRenewInfo(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setShowRenewInfo(false);
+                setIsChangePlanOpen(true);
+              }}
+            >
+              Renew / Change Plan
+            </Button>
+          </>
+        }
+      >
+        <p className={local.dialogText}>
+          Pick a duration and pay via Razorpay, or switch to a different plan
+          entirely. You can also let support handle it - reach out from the
+          Info popup.
+        </p>
+      </Modal>
 
       {isChangePlanOpen && (
         <PlanChangeModal

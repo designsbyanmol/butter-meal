@@ -55,10 +55,8 @@ export const useCart = () => {
 
   // ---------------------------------------------------------
   // Hydrate from localStorage whenever the tenant changes.
-  // Reset everything first so a previous tenant's data never leaks.
   // ---------------------------------------------------------
   useEffect(() => {
-    // Reset in-memory state before loading the new tenant's cache
     setCart([]);
     setPaymentMode('COD');
     setDeliveryType('now');
@@ -105,14 +103,14 @@ export const useCart = () => {
     setIsLoaded(true);
   }, [CART_KEY, PAYMENT_KEY, DELIVERY_KEY, SCHEDULE_KEY]);
 
-  // ---------------------------------------------------------
   // Persist cart
-  // ---------------------------------------------------------
   useEffect(() => {
     if (!isLoaded) return;
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [cart, isLoaded, CART_KEY]);
 
   // Persist payment mode
@@ -120,7 +118,9 @@ export const useCart = () => {
     if (!isLoaded) return;
     try {
       localStorage.setItem(PAYMENT_KEY, paymentMode);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [paymentMode, isLoaded, PAYMENT_KEY]);
 
   // Persist delivery type
@@ -128,7 +128,9 @@ export const useCart = () => {
     if (!isLoaded) return;
     try {
       localStorage.setItem(DELIVERY_KEY, deliveryType);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [deliveryType, isLoaded, DELIVERY_KEY]);
 
   // Persist schedule
@@ -140,12 +142,12 @@ export const useCart = () => {
       } else {
         localStorage.removeItem(SCHEDULE_KEY);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [scheduleData, isLoaded, SCHEDULE_KEY]);
 
-  // ---------------------------------------------------------
   // Migrate legacy cart rows: recompute basePrice for discounts
-  // ---------------------------------------------------------
   useEffect(() => {
     if (!isLoaded) return;
     setCart((prev) => {
@@ -181,7 +183,10 @@ export const useCart = () => {
       item: MenuItem,
       customizations?: Record<string, string>,
       customMessage?: string,
+      quantityToAdd: number = 1,
     ) => {
+      const qty = Math.max(1, Math.floor(quantityToAdd) || 1);
+
       setCart((prevCart) => {
         const addonPrice = customizations
           ? getCustomizationPrice(customizations)
@@ -206,7 +211,7 @@ export const useCart = () => {
             ...updatedCart[existingIndex],
             basePrice: discountedBase,
             addonPrice,
-            quantity: updatedCart[existingIndex].quantity + 1,
+            quantity: updatedCart[existingIndex].quantity + qty,
             customMessage:
               customMessage || updatedCart[existingIndex].customMessage,
           };
@@ -217,13 +222,72 @@ export const useCart = () => {
           ...prevCart,
           {
             ...item,
-            quantity: 1,
+            quantity: qty,
             customizations: customizations || {},
             customMessage: customMessage || '',
             addonPrice,
             basePrice: discountedBase,
           },
         ];
+      });
+    },
+    [],
+  );
+
+  /**
+   * Set the cart line for this item+customizations to an exact quantity.
+   * If the line doesn't exist, behaves like addItem with that quantity.
+   */
+  const setItemQuantity = useCallback(
+    (
+      item: MenuItem,
+      customizations?: Record<string, string>,
+      customMessage?: string,
+      quantity: number = 1,
+    ) => {
+      const qty = Math.max(1, Math.floor(quantity) || 1);
+
+      setCart((prevCart) => {
+        const addonPrice = customizations
+          ? getCustomizationPrice(customizations)
+          : 0;
+        const discountedBase = getEffectivePrice(item);
+
+        const existingIndex = prevCart.findIndex((c) => {
+          if (c.id !== item.id) return false;
+          if (!customizations && !c.customizations) return true;
+          if (customizations && c.customizations) {
+            return (
+              JSON.stringify(customizations) === JSON.stringify(c.customizations)
+            );
+          }
+          return false;
+        });
+
+        if (existingIndex === -1) {
+          return [
+            ...prevCart,
+            {
+              ...item,
+              quantity: qty,
+              customizations: customizations || {},
+              customMessage: customMessage || '',
+              addonPrice,
+              basePrice: discountedBase,
+            },
+          ];
+        }
+
+        const updatedCart = [...prevCart];
+        updatedCart[existingIndex] = {
+          ...updatedCart[existingIndex],
+          basePrice: discountedBase,
+          addonPrice,
+          quantity: qty,
+          customMessage:
+            customMessage || updatedCart[existingIndex].customMessage,
+        };
+        return updatedCart;
       });
     },
     [],
@@ -283,7 +347,9 @@ export const useCart = () => {
     setScheduleData(null);
     try {
       localStorage.removeItem(SCHEDULE_KEY);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [SCHEDULE_KEY]);
 
   const getTotalItems = useCallback(() => {
@@ -358,6 +424,7 @@ export const useCart = () => {
     scheduleData,
     setScheduleData,
     addItem,
+    setItemQuantity,
     removeItem,
     removeItemCompletely,
     clearCart,

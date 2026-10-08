@@ -1,6 +1,7 @@
+// components/FloatingCart/FloatingCart.tsx
 import React from 'react';
 import { RightArrow } from '../../assets/svgs';
-import styles from './FloatingCart.module.scss';
+import local from './FloatingCart.module.scss';
 
 interface FloatingCartProps {
   itemCount: number;
@@ -9,11 +10,11 @@ interface FloatingCartProps {
 
 const FloatingCart: React.FC<FloatingCartProps> = ({ itemCount, onClick }) => {
   return (
-    <button className={styles.floatingCart} onClick={onClick}>
-      <span className={styles.main}>
-        <span className={styles.label}>{itemCount} Item Added!</span>
-        <span className={styles.wrap}>
-          <span className={styles.wrap_in}>View</span>
+    <button className={local.floatingCart} onClick={onClick}>
+      <span className={local.main}>
+        <span className={local.label}>{itemCount} Item Added!</span>
+        <span className={local.wrap}>
+          <span className={local.wrap_in}>View</span>
           <RightArrow width={16} height={16} fill="#fff" />
         </span>
       </span>

@@ -1,0 +1,40 @@
+// src/components/ui/Tabs/Tabs.module.scss
+@use '../../../styles/tokens' as *;
+
+.wrap {
+  display: inline-flex;
+  background: $bg-muted;
+  border-radius: $radius-md;
+  padding: 4px;
+  gap: 4px;
+}
+
+.block {
+  display: flex;
+  width: 100%;
+
+  .tab { flex: 1; }
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background $t-fast, color $t-fast, box-shadow $t-fast;
+  white-space: nowrap;
+  font-family: inherit;
+
+  &:hover:not(:disabled) { color: $text; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.active {
+  background: #fff;
+  color: $primary-dark;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}

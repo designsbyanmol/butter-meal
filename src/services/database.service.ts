@@ -228,7 +228,7 @@ async waitForConnectionCheck(): Promise<boolean> {
         closedMessage: parsed.closedMessage || "",
         expectedOpenDate: parsed.expectedOpenDate || "",
         expectedOpenTime: parsed.expectedOpenTime || "",
-        acceptingOrders: parsed.acceptingOrders !== false, // ← NEW
+        acceptingOrders: parsed.acceptingOrders !== false, // - NEW
         lastUpdated: parsed.lastUpdated || new Date().toISOString(),
       };
     } catch (error) {
@@ -598,7 +598,7 @@ async waitForConnectionCheck(): Promise<boolean> {
   async getUserById(tenantSlug: string, id: string): Promise<User | null> {
     if (this.useSupabase && !this.isMaintenanceMode && this.isUuid(id)) {
       try {
-        const user = await supabaseService.getUserById(id); // ✅ matches the new method
+        const user = await supabaseService.getUserById(id); //  matches the new method
         if (user) {
           const localUsers = this.getLocalUsers(tenantSlug).filter(
             (u) => u.id !== id && u.phone !== user.phone,

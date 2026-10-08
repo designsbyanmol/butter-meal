@@ -1,57 +1,69 @@
-// components/Admin/BadgeSelector.tsx
+// src/components/Admin/BadgeSelector.tsx
 import React from 'react';
-import { MenuItem } from '../../types';
-import styles from './BadgeSelector.module.scss';
+import { MenuItem, BadgeDefinition } from '../../types';
+import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { useTenant } from '../../contexts/TenantContext';
+import { Toggle } from '../ui';
+import local from './BadgeSelector.module.scss';
 
 interface BadgeSelectorProps {
   value: MenuItem['attributes'] | undefined;
   onChange: (next: MenuItem['attributes']) => void;
 }
 
+/**
+ * Toggle each badge that is currently enabled in the tenant's form schema.
+ * Labels and icons come from the schema, so renaming a badge in
+ * FormBuilder updates it here too. Disabled badges are not rendered.
+ *
+ * The section header ("Badges" by default) is also editable via the
+ * schema's `badgesLabel`.
+ */
 const BadgeSelector: React.FC<BadgeSelectorProps> = ({
   value = {},
   onChange,
 }) => {
-  const toggle = (key: keyof NonNullable<MenuItem['attributes']>) => {
+  const { tenant } = useTenant();
+  const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+
+  const activeBadges: BadgeDefinition[] = (schema.badges ?? []).filter(
+    (b) => b.enabled,
+  );
+
+  if (activeBadges.length === 0) {
+    return null;
+  }
+
+  const sectionLabel = schema.badgesLabel ?? 'Badges';
+
+  const toggle = (key: string) => {
     onChange({ ...value, [key]: !value[key] });
   };
 
   return (
-    <div className={styles.formGroup}>
-      <label>Badges</label>
-      <div className={styles.badgeSelector}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isPopular}
-            onChange={() => toggle('isPopular')}
-          />
-          Popular
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isNew}
-            onChange={() => toggle('isNew')}
-          />
-          New
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isChefSpecial}
-            onChange={() => toggle('isChefSpecial')}
-          />
-          Chef's Special
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={!!value.isLimited}
-            onChange={() => toggle('isLimited')}
-          />
-          Limited
-        </label>
+    <div className={local.wrap}>
+      <label className={local.label}>{sectionLabel}</label>
+      <div className={local.grid}>
+        {activeBadges.map((badge) => (
+          <div key={badge.key} className={local.item}>
+            <Toggle
+              checked={!!value[badge.key]}
+              onChange={() => toggle(badge.key)}
+              label={
+                <span className={local.toggleLabel}>
+                  {badge.image ? (
+                    <img
+                      src={badge.image}
+                      alt=""
+                      className={local.badgeIcon}
+                    />
+                  ) : null}
+                  {badge.label}
+                </span>
+              }
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

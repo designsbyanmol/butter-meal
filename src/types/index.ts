@@ -1,4 +1,4 @@
-// types/index.ts
+// src/types/index.ts
 
 // =========================================================
 // USERS
@@ -9,13 +9,33 @@ export interface User {
   phone: string;
   name: string;
   password: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
   isActive: boolean;
   tenantId?: string;
   tenantSlug?: string;
   createdAt: string;
   lastLogin?: string;
 }
+
+// =========================================================
+// STORE CATEGORY
+// =========================================================
+export type StoreCategory =
+  | 'restaurant'
+  | 'drinks-cafe'
+  | 'fast-food'
+  | 'specialty-food'
+  | 'sweets-desserts'
+  | 'meat-seafood'
+  | 'events-flowers'
+  | 'clothing-jewelry'
+  | 'home-furniture'
+  | 'electronics'
+  | 'books-office'
+  | 'health-beauty'
+  | 'sports-garden'
+  | 'auto-parts'
+  | 'other-shops';
 
 // =========================================================
 // STORE SETTINGS
@@ -34,17 +54,15 @@ export interface StoreSettings {
 // MENU - CUSTOMIZATION
 // =========================================================
 
-/** A single choice within a customization group. */
 export interface CustomizationChoice {
   name: string;
-  price: number; // add-on price in Rs; 0 means no extra charge
+  price: number;
 }
 
-/** A customization group with its choices and optional default. */
 export interface CustomizationOption {
   name: string;
   choices: CustomizationChoice[];
-  default?: string; // must match one of choices[].name
+  default?: string;
 }
 
 // =========================================================
@@ -52,11 +70,21 @@ export interface CustomizationOption {
 // =========================================================
 
 export type FormFieldType =
-  | 'text'
-  | 'number'
-  | 'textarea'
-  | 'checkbox'
-  | 'select';
+  | "text"
+  | "number"
+  | "textarea"
+  | "checkbox"
+  | "select";
+
+/**
+ * Richer option for select-like and list-like fields.
+ * `name` is the display label; `value` is optional (used by nutrition info).
+ * Plain strings are also accepted anywhere a FormFieldOption is.
+ */
+export interface FormFieldOption {
+  name: string;
+  value?: string;
+}
 
 export interface FormFieldConfig {
   key: string;
@@ -68,38 +96,218 @@ export interface FormFieldConfig {
   locked?: boolean;
   /** Field is managed by the platform admin only - hidden for tenants. */
   platformOnly?: boolean;
-  options?: string[];
+  /**
+   * Options list. Most fields use plain strings; nutrition info uses
+   * `{ name, value }` objects. Both are valid.
+   */
+  options?: Array<string | FormFieldOption>;
+  /** Optional icon image for the field (category, prep time, calories, etc.). */
+  image?: string;
+}
+
+/** A badge definition editable by the owner. */
+export interface BadgeDefinition {
+  /** e.g. 'isPopular' | 'isNew' | 'isChefSpecial' | 'isLimited' | custom_* */
+  key: string;
+  /** Display label shown on the menu card / detail page. */
+  label: string;
+  enabled: boolean;
+  /** Custom icon image URL. Falls back to the built-in SVG when absent. */
+  image?: string;
+  /** Built-in badges cannot be removed. */
+  removable: boolean;
 }
 
 export interface FormSchema {
   fields: FormFieldConfig[];
+  badges?: BadgeDefinition[];
+  badgesLabel?: string;
 }
+
+/**
+ * Normalize a mixed options array into a `FormFieldOption[]`.
+ * Safe to call with undefined.
+ */
+export const normalizeOptions = (
+  options: Array<string | FormFieldOption> | undefined,
+): FormFieldOption[] =>
+  (options ?? []).map((o) => (typeof o === "string" ? { name: o } : o));
 
 export const DEFAULT_FORM_SCHEMA: FormSchema = {
   fields: [
     // Locked built-ins
-    { key: 'name',        label: 'Name',         type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'img',         label: 'Image',        type: 'text',     enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'price',       label: 'Price',        type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'discount',    label: 'Discount (%)', type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'desc',        label: 'Description',  type: 'textarea', enabled: true, builtin: true, removable: false, locked: true },
-    { key: 'costPrice',   label: 'Cost Price',   type: 'number',   enabled: true, builtin: true, removable: false, locked: true },
+    {
+      key: "name",
+      label: "Name",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "img",
+      label: "Image",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "price",
+      label: "Price",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "discount",
+      label: "Discount (%)",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "desc",
+      label: "Description",
+      type: "textarea",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "costPrice",
+      label: "Cost Price",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
 
     // Platform-managed - hidden from tenant item form / edit fields
-    { key: 'rating',      label: 'Rating',       type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
-    { key: 'reviewCount', label: 'Review Count', type: 'number',   enabled: true, builtin: true, removable: false, locked: true, platformOnly: true },
+    {
+      key: "rating",
+      label: "Rating",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+      platformOnly: true,
+    },
+    {
+      key: "reviewCount",
+      label: "Review Count",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+      platformOnly: true,
+    },
 
-    { key: 'inStock',     label: 'In Stock',     type: 'checkbox', enabled: true, builtin: true, removable: false, locked: true },
+    {
+      key: "inStock",
+      label: "In Stock",
+      type: "checkbox",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
 
     // Editable built-ins
-    { key: 'category',        label: 'Category',         type: 'select',   enabled: true, builtin: true, removable: false, options: [] },
-    { key: 'preparationTime', label: 'Preparation Time', type: 'text',     enabled: true, builtin: true, removable: false },
-    { key: 'calories',        label: 'Calories',         type: 'number',   enabled: true, builtin: true, removable: false },
-    { key: 'ingredients',     label: 'Ingredients',      type: 'text',     enabled: true, builtin: true, removable: false },
-    { key: 'isVeg',           label: 'Vegetarian',       type: 'checkbox', enabled: true, builtin: true, removable: false },
-    { key: 'isSpicy',         label: 'Spicy',            type: 'checkbox', enabled: true, builtin: true, removable: false },
-    { key: 'isGlutenFree',    label: 'Gluten Free',      type: 'checkbox', enabled: true, builtin: true, removable: false },
+    {
+      key: "category",
+      label: "Category",
+      type: "select",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      options: [],
+    },
+    {
+      key: "preparationTime",
+      label: "Preparation Time",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "calories",
+      label: "Calories",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "ingredients",
+      label: "Ingredients",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "isVeg",
+      label: "Vegetarian",
+      type: "checkbox",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "isSpicy",
+      label: "Spicy",
+      type: "checkbox",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "isGlutenFree",
+      label: "Gluten Free",
+      type: "checkbox",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "nutritionalInfo",
+      label: "Nutritional Information",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      options: [
+        { name: "Protein", value: "e.g. 12g" },
+        { name: "Carbs", value: "e.g. 30g" },
+        { name: "Fat", value: "e.g. 8g" },
+        { name: "Fiber", value: "e.g. 5g" },
+      ],
+    },
   ],
+  badges: [
+    { key: "isPopular", label: "Popular", enabled: true, removable: true },
+    { key: "isNew", label: "New", enabled: true, removable: true },
+    {
+      key: "isChefSpecial",
+      label: "Chef's Special",
+      enabled: true,
+      removable: true,
+    },
+    { key: "isLimited", label: "Limited", enabled: true, removable: true },
+  ],
+  badgesLabel: 'Badges',
 };
 
 // =========================================================
@@ -111,7 +319,6 @@ export type MenuItemAttributes = {
   isNew?: boolean;
   isChefSpecial?: boolean;
   isLimited?: boolean;
-  // Allow custom fields (any string key) with JSON-serializable values
   [key: string]: boolean | string | number | undefined;
 };
 
@@ -125,7 +332,6 @@ export interface MenuItem {
   price: number;
   discount?: number;
   img: string;
-  /** Optional multi-image gallery. First item matches `img`. */
   gallery?: string[];
   category?: string;
   isVeg?: boolean;
@@ -141,6 +347,7 @@ export interface MenuItem {
     carbs?: string;
     fat?: string;
     fiber?: string;
+    [key: string]: string | undefined;
   };
   attributes?: MenuItemAttributes;
   customizationOptions?: CustomizationOption[];
@@ -167,8 +374,8 @@ export interface ScheduleData {
   time: string;
 }
 
-export type PaymentMode = 'COD' | 'Online';
-export type DeliveryType = 'now' | 'schedule';
+export type PaymentMode = "COD" | "Online";
+export type DeliveryType = "now" | "schedule";
 
 // =========================================================
 // AUTH
@@ -185,58 +392,54 @@ export interface AuthState {
 // =========================================================
 
 export interface MessageTemplate {
-  // ---- Header ----
-  orderLabel: string;             // e.g., "New Order From {customerName}"
-  namePrompt: string;             // shown in the customer-name popup
+  orderLabel: string;
+  namePrompt: string;
   namePromptPlaceholder: string;
 
-  // ---- Item list ----
-  itemListTitle: string;          // "Item List"
-  itemLineTemplate: string;       // "{name} x {qty}"
+  itemListTitle: string;
+  itemLineTemplate: string;
   showItemDiscount: boolean;
   showItemAddons: boolean;
   showItemCustomizations: boolean;
   showItemNotes: boolean;
 
-  // ---- Pricing ----
   subtotalLabel: string;
   deliveryLabel: string;
   discountLabel: string;
   totalLabel: string;
-  freeDeliveryLabel: string;      // e.g., "(+Rs {fee} Inc. for delivery)"
+  freeDeliveryLabel: string;
 
-  // ---- Footer ----
   footerNote1: string;
   footerNote2: string;
   footerSignature: string;
 }
 
 export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
-  orderLabel: 'New Order From {customerName}',
-  namePrompt: 'Please enter your name',
-  namePromptPlaceholder: 'e.g., Anmol',
+  orderLabel: "New Order From {customerName}",
+  namePrompt: "Please enter your name",
+  namePromptPlaceholder: "e.g., Anmol",
 
-  itemListTitle: 'Item List',
-  itemLineTemplate: '{name} x {qty}',
+  itemListTitle: "Item List",
+  itemLineTemplate: "{name} x {qty}",
   showItemDiscount: true,
   showItemAddons: true,
   showItemCustomizations: true,
   showItemNotes: true,
 
-  subtotalLabel: 'Subtotal',
-  deliveryLabel: 'Delivery',
-  discountLabel: 'Discount',
-  totalLabel: 'Total Amount',
-  freeDeliveryLabel: '(+Rs {fee} Inc. for delivery)',
+  subtotalLabel: "Subtotal",
+  deliveryLabel: "Delivery",
+  discountLabel: "Discount",
+  totalLabel: "Total Amount",
+  freeDeliveryLabel: "(+Rs {fee} Inc. for delivery)",
 
   footerNote1:
-    'We take orders on trust. Once a faulty will be a lifetime faulty',
-  footerNote2: 'Editing this order before payment = Order Cancelled',
-  footerSignature: '-Butter Meal',
+    "We take orders on trust. Once a faulty will be a lifetime faulty",
+  footerNote2: "Editing this order before payment = Order Cancelled",
+  footerSignature: "-Butter Meal",
 };
 
 // =========================================================
-// TENANT (context type - the DB row is mapped to this shape)
+// TENANT
 // =========================================================
 
 export interface Tenant {
@@ -246,8 +449,8 @@ export interface Tenant {
   whatsappPhone?: string;
   isActive?: boolean;
   formSchema?: FormSchema;
+  storeCategory?: StoreCategory;
 
-  // ---- Store info (all resolved against ShopInfo fallback) ----
   bannerUrl?: string;
   storeTagline?: string;
   deliveryCharge?: number;
@@ -257,13 +460,13 @@ export interface Tenant {
   reviewsEnabled?: boolean;
   infoDefaults?: Partial<
     Record<
-      | 'displayName'
-      | 'whatsappPhone'
-      | 'bannerUrl'
-      | 'storeTagline'
-      | 'deliveryCharge'
-      | 'storewideDiscount'
-      | 'ownerPhone',
+      | "displayName"
+      | "whatsappPhone"
+      | "bannerUrl"
+      | "storeTagline"
+      | "deliveryCharge"
+      | "storewideDiscount"
+      | "ownerPhone",
       boolean
     >
   >;
@@ -295,7 +498,7 @@ export interface Review {
   createdAt: string;
 }
 
-export type ReviewFilter = 'all' | 'lte4' | 'lte3' | 'lte2' | 'commented';
+export type ReviewFilter = "all" | "lte4" | "lte3" | "lte2" | "commented";
 
 // =========================================================
 // PLANS / SUBSCRIPTION / INVOICES
@@ -314,7 +517,7 @@ export interface PlanFeatures {
 }
 
 export interface Plan {
-  id: string;            // 'basic' | 'dynamic' | 'professional'
+  id: string;
   name: string;
   monthlyPrice: number;
   description: string;
@@ -332,14 +535,14 @@ export interface DurationOption {
 }
 
 export const DURATION_OPTIONS: DurationOption[] = [
-  { months: 1,  discountPct: 0,  label: '1 month' },
-  { months: 3,  discountPct: 10, label: '3 months' },
-  { months: 6,  discountPct: 15, label: '6 months' },
-  { months: 12, discountPct: 20, label: '1 year' },
-  { months: 24, discountPct: 25, label: '2 years' },
+  { months: 1, discountPct: 0, label: "1 month" },
+  { months: 3, discountPct: 10, label: "3 months" },
+  { months: 6, discountPct: 15, label: "6 months" },
+  { months: 12, discountPct: 20, label: "1 year" },
+  { months: 24, discountPct: 25, label: "2 years" },
 ];
 
-export type SubscriptionStatus = 'active' | 'paused' | 'expired';
+export type SubscriptionStatus = "active" | "paused" | "expired";
 
 export interface Invoice {
   id: string;
@@ -349,7 +552,7 @@ export interface Invoice {
   baseAmount: number;
   discountPct: number;
   finalAmount: number;
-  status: 'pending' | 'paid' | 'cancelled';
+  status: "pending" | "paid" | "cancelled";
   paidAt?: string;
   markedPaidBy?: string;
   razorpayOrderId?: string;
@@ -363,7 +566,7 @@ export interface PauseRequest {
   tenantSlug: string;
   tenantName?: string;
   requestedAt: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: "pending" | "accepted" | "rejected";
   resolvedAt?: string;
   resolvedBy?: string;
 }

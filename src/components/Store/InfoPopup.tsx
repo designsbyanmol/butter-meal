@@ -2,14 +2,15 @@
 import React, { useEffect, useState } from 'react';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabaseService } from '../../services/supabase.service';
-import { CloseIcon, CopyIcon } from '../../assets/svgs';
+import { Modal, Button, IconButton, FormField, Input, Banner } from '../ui';
+import { CopyIcon } from '../../assets/svgs';
 import EditIcon from '../../assets/svgs/EditIcon';
 import ImageUpload from '../Admin/ImageUpload';
 import MessageTemplateEditor from './MessageTemplateEditor';
 import PlanChangeModal from '../Payments/PlanChangeModal';
 import { ShopInfo } from '../../config/credentials';
 import { usePlan } from '../../hooks/usePlan';
-import styles from './InfoPopup.module.scss';
+import local from './InfoPopup.module.scss';
 
 interface InfoPopupProps {
   isOpen: boolean;
@@ -39,8 +40,13 @@ const FIELDS: FieldDef[] = [
     key: 'banner_url',
     label: 'Store Offer Banner',
     type: 'image',
-    getValue: (t) => t?.bannerUrl || ShopInfo.Shop_banner || '',
-    hint: 'Shown at the top of the menu page. Recommended 1200x630px.',
+    // `getValue` returns the tenant banner or the platform default.
+    // BUT for editing we want to reflect the *actual* stored value, so we
+    // don't accidentally persist the default URL when the user clicks Save
+    // without changing anything. See `openEditor` below for the override.
+    getValue: (t) => t?.bannerUrl || '',
+    hint:
+      'Shown at the top of the menu page. Leave blank to use the default banner.',
   },
   {
     key: 'display_name',
@@ -73,9 +79,7 @@ const FIELDS: FieldDef[] = [
     type: 'number',
     getValue: (t) => {
       const n = Number(t?.deliveryCharge);
-      return Number.isFinite(n)
-        ? String(n)
-        : String(ShopInfo.Delivery_charge);
+      return Number.isFinite(n) ? String(n) : String(ShopInfo.Delivery_charge);
     },
   },
   {
@@ -113,18 +117,6 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
       setIsSaving(false);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (isTemplateEditorOpen || isPlanChangeOpen) return;
-      if (editingField) setEditingField(null);
-      else onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, editingField, isTemplateEditorOpen, isPlanChangeOpen, onClose]);
 
   if (!isOpen || !tenant) return null;
 
@@ -176,17 +168,16 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
     setError('');
   };
 
-  const saveEdit = async (overrideValue?: string) => {
+  const saveEdit = async () => {
     if (!editingField) return;
-    const value = (overrideValue ?? draftValue).trim();
+    const value = draftValue.trim();
 
     if (editingField === 'display_name' && !value) {
       setError('Store name cannot be empty.');
       return;
     }
     if (
-      (editingField === 'owner_phone' ||
-        editingField === 'whatsapp_phone') &&
+      (editingField === 'owner_phone' || editingField === 'whatsapp_phone') &&
       value &&
       !/^\d{10}$/.test(value)
     ) {
@@ -207,15 +198,20 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         return;
       }
     }
+    // NOTE: no validation for 'banner_url' - an empty value is valid and
+    // means "use the default banner".
 
     setIsSaving(true);
+    setError('');
     try {
-      await supabaseService.updateTenantInfo(
-        tenant.slug,
-        editingField,
-        value,
-      );
-      await refreshTenant();
+      await supabaseService.updateTenantInfo(tenant.slug, editingField, value);
+
+      if (editingField === 'banner_url') {
+        await refreshTenant({ expectBanner: value });
+      } else {
+        await refreshTenant();
+      }
+
       setSuccess('Saved');
       setTimeout(() => {
         setEditingField(null);
@@ -223,13 +219,15 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
         setSuccess('');
       }, 500);
     } catch (err) {
+      console.error('[InfoPopup] save failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const activeFieldDef = FIELDS.find((f) => f.key === editingField) || null;
+  const activeFieldDef =
+    FIELDS.find((f) => f.key === editingField) || null;
 
   const planStatus = tenant.subscriptionStatus ?? 'active';
   const planExpires = tenant.subscriptionExpiresAt
@@ -241,97 +239,96 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
     : '-';
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div
-        className={styles.panel}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
+    <>
+      {/* ============ Main info popup ============ */}
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Informations"
+        size="md"
       >
-        <div className={styles.header}>
-          <h2>Informations</h2>
-          <button
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <CloseIcon width={18} height={18} fill="#4d4d4d" />
-          </button>
-        </div>
-
-        <div className={styles.body}>
+        <div className={local.rows}>
           {/* ---- Plan row ---- */}
-          <div className={styles.row}>
-            <div className={styles.rowMain}>
-              <div className={styles.labelRow}>
-                <span className={styles.label}>Plan</span>
-                <span className={styles.defaultPill}>
+          <div className={local.row}>
+            <div className={local.rowMain}>
+              <div className={local.labelRow}>
+                <span className={local.label}>Plan</span>
+                <span className={local.defaultPill}>
                   {tenant.planName ?? 'Professional'} .{' '}
                   {planStatus.toUpperCase()}
                 </span>
               </div>
-              <div className={styles.value}>Expires on {planExpires}</div>
+              <div className={local.value}>Expires on {planExpires}</div>
             </div>
-            <button
-              className={styles.editBtn}
+            <IconButton
+              variant="primary"
+              size="md"
+              aria-label="Change plan"
+              tooltip="Change plan"
               onClick={() => setIsPlanChangeOpen(true)}
-              title="Change plan"
             >
               <EditIcon width={16} height={16} fill="#1e7e34" />
-            </button>
+            </IconButton>
           </div>
 
           {/* ---- URLs ---- */}
-          <div className={styles.row}>
-            <div className={styles.rowMain}>
-              <div className={styles.labelRow}>
-                <span className={styles.label}>Public Store URL</span>
+          <div className={local.row}>
+            <div className={local.rowMain}>
+              <div className={local.labelRow}>
+                <span className={local.label}>Public Store URL</span>
               </div>
-              <div className={styles.value}>{publicUrl}</div>
+              <div className={local.value}>{publicUrl}</div>
             </div>
-            <button
-              className={styles.editBtn}
+            <IconButton
+              variant="soft"
+              size="md"
+              aria-label="Copy public URL"
+              tooltip="Copy public URL"
               onClick={() => copyToClipboard(publicUrl)}
-              title="Copy public URL"
             >
               <CopyIcon width={16} height={16} fill="#4d4d4d" />
-            </button>
+            </IconButton>
           </div>
 
-          <div className={styles.row}>
-            <div className={styles.rowMain}>
-              <div className={styles.labelRow}>
-                <span className={styles.label}>Admin Store URL</span>
+          <div className={local.row}>
+            <div className={local.rowMain}>
+              <div className={local.labelRow}>
+                <span className={local.label}>Admin Store URL</span>
               </div>
-              <div className={styles.value}>{adminUrl}</div>
+              <div className={local.value}>{adminUrl}</div>
             </div>
-            <button
-              className={styles.editBtn}
+            <IconButton
+              variant="soft"
+              size="md"
+              aria-label="Copy admin URL"
+              tooltip="Copy admin URL"
               onClick={() => copyToClipboard(adminUrl)}
-              title="Copy admin URL"
             >
               <CopyIcon width={16} height={16} fill="#4d4d4d" />
-            </button>
+            </IconButton>
           </div>
 
-          {/* ---- Editable fields (hidden entirely when the plan doesn't allow) ---- */}
+          {/* ---- Editable fields ---- */}
           {FIELDS.map((field) => {
             const canEdit = plan.canEditProfileField(field.key);
             if (!canEdit) return null;
 
-            const value = field.getValue(tenant);
+            // For the banner, display the tenant's value OR the default
+            // so the row always shows *something* when the tenant has none.
+            const value =
+              field.key === 'banner_url'
+                ? tenant.bannerUrl || ShopInfo.Shop_banner || ''
+                : field.getValue(tenant);
             const isImage = field.type === 'image';
             const usingDefault = isDefault(field.key);
 
             return (
-              <div key={field.key} className={styles.row}>
-                <div className={styles.rowMain}>
-                  <div className={styles.labelRow}>
-                    <span className={styles.label}>{field.label}</span>
+              <div key={field.key} className={local.row}>
+                <div className={local.rowMain}>
+                  <div className={local.labelRow}>
+                    <span className={local.label}>{field.label}</span>
                     {usingDefault && (
-                      <span className={styles.defaultPill}>
-                        Using default
-                      </span>
+                      <span className={local.defaultPill}>Using default</span>
                     )}
                   </div>
 
@@ -340,154 +337,167 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
                       <img
                         src={value}
                         alt={field.label}
-                        className={styles.previewImg}
+                        className={local.previewImg}
+                        onError={(e) => {
+                          const fallbackUrl = ShopInfo.Shop_banner;
+                          if (
+                            fallbackUrl &&
+                            e.currentTarget.src !== fallbackUrl
+                          ) {
+                            e.currentTarget.src = fallbackUrl;
+                          }
+                        }}
                       />
                     ) : (
-                      <div className={styles.emptyPreview}>
+                      <div className={local.emptyPreview}>
                         No banner uploaded
                       </div>
                     )
                   ) : (
-                    <div className={styles.value}>
+                    <div className={local.value}>
                       {value || (
-                        <span className={styles.empty}>- Not set -</span>
+                        <span className={local.empty}>- Not set -</span>
                       )}
                     </div>
                   )}
 
                   {field.hint && (
-                    <div className={styles.hint}>{field.hint}</div>
+                    <div className={local.hint}>{field.hint}</div>
                   )}
                 </div>
 
-                <button
-                  className={styles.editBtn}
+                <IconButton
+                  variant="primary"
+                  size="md"
+                  aria-label={`Edit ${field.label}`}
+                  tooltip={`Edit ${field.label}`}
                   onClick={() => openEditor(field)}
-                  title={`Edit ${field.label}`}
                 >
                   <EditIcon width={16} height={16} fill="#1e7e34" />
-                </button>
+                </IconButton>
               </div>
             );
           })}
 
-          {/* ---- Message template row (hidden when the plan doesn't allow) ---- */}
+          {/* ---- Message template row ---- */}
           {plan.canEditProfileField('message_template') && (
-            <div className={styles.row}>
-              <div className={styles.rowMain}>
-                <div className={styles.labelRow}>
-                  <span className={styles.label}>
+            <div className={local.row}>
+              <div className={local.rowMain}>
+                <div className={local.labelRow}>
+                  <span className={local.label}>
                     WhatsApp Message Template
                   </span>
                 </div>
-                <div className={styles.value}>
+                <div className={local.value}>
                   Customize the exact text customers send to your WhatsApp.
                 </div>
               </div>
-              <button
-                className={styles.editBtn}
+              <IconButton
+                variant="primary"
+                size="md"
+                aria-label="Edit message template"
+                tooltip="Edit message template"
                 onClick={() => setIsTemplateEditorOpen(true)}
-                title="Edit template"
               >
                 <EditIcon width={16} height={16} fill="#1e7e34" />
-              </button>
+              </IconButton>
             </div>
           )}
         </div>
-      </div>
+      </Modal>
 
-      {/* Editor modal */}
-      {activeFieldDef && (
-        <div
-          className={styles.editorOverlay}
-          onClick={(e) => {
-            e.stopPropagation();
-            closeEditor();
-          }}
-        >
-          <div
-            className={styles.editorDialog}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.editorHeader}>
-              <h3>Edit {activeFieldDef.label}</h3>
-              <button
-                className={styles.closeBtn}
+      {/* ============ Inline field editor ============ */}
+      <Modal
+        isOpen={!!activeFieldDef}
+        onClose={closeEditor}
+        title={activeFieldDef ? `Edit ${activeFieldDef.label}` : ''}
+        size="sm"
+        footer={
+          activeFieldDef ? (
+            <>
+              <Button
+                variant="ghost"
                 onClick={closeEditor}
+                disabled={isSaving}
               >
-                <CloseIcon width={18} height={18} fill="#4d4d4d" />
-              </button>
-            </div>
-
-            <div className={styles.editorBody}>
-              {activeFieldDef.type === 'image' ? (
+                Cancel
+              </Button>
+              <Button onClick={() => saveEdit()} loading={isSaving}>
+                Save
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {activeFieldDef && (
+          <>
+            {activeFieldDef.type === 'image' ? (
+              <>
                 <ImageUpload
                   currentImage={draftValue}
                   onImageUploaded={(url) => {
                     setDraftValue(url);
-                    saveEdit(url);
+                    setError('');
                   }}
                   label="Upload Banner"
+                  folder="banners"
                 />
-              ) : (
-                <div className={styles.editorField}>
-                  <label>{activeFieldDef.label}</label>
-                  <input
-                    type={
-                      activeFieldDef.type === 'number'
-                        ? 'number'
-                        : activeFieldDef.type === 'tel'
-                        ? 'tel'
-                        : 'text'
+                {error && (
+                  <Banner
+                    variant="error"
+                    inline
+                    onDismiss={() => setError('')}
+                    className={local.editorBanner}
+                  >
+                    {error}
+                  </Banner>
+                )}
+              </>
+            ) : (
+              <FormField
+                label={activeFieldDef.label}
+                hint={activeFieldDef.hint}
+                error={error}
+              >
+                <Input
+                  type={
+                    activeFieldDef.type === 'number'
+                      ? 'number'
+                      : activeFieldDef.type === 'tel'
+                      ? 'tel'
+                      : 'text'
+                  }
+                  value={draftValue}
+                  onChange={(e) => {
+                    let v = e.target.value;
+                    if (activeFieldDef.type === 'tel') {
+                      v = v.replace(/\D/g, '').slice(0, 10);
                     }
-                    value={draftValue}
-                    onChange={(e) => {
-                      let v = e.target.value;
-                      if (activeFieldDef.type === 'tel') {
-                        v = v.replace(/\D/g, '').slice(0, 10);
-                      }
-                      if (activeFieldDef.type === 'number') {
-                        v = v.replace(/[^\d.]/g, '');
-                      }
-                      setDraftValue(v);
-                      setError('');
-                    }}
-                    placeholder={activeFieldDef.placeholder}
-                    autoFocus
-                  />
-                  {activeFieldDef.hint && (
-                    <small className={styles.fieldHint}>
-                      {activeFieldDef.hint}
-                    </small>
-                  )}
-                </div>
-              )}
-
-              {error && <div className={styles.error}>{error}</div>}
-              {success && <div className={styles.successMsg}>{success}</div>}
-            </div>
-
-            {activeFieldDef.type !== 'image' && (
-              <div className={styles.editorFooter}>
-                <button
-                  className={styles.cancelBtn}
-                  onClick={closeEditor}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  className={styles.saveBtn}
-                  onClick={() => saveEdit()}
-                  disabled={isSaving}
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+                    if (activeFieldDef.type === 'number') {
+                      v = v.replace(/[^\d.]/g, '');
+                    }
+                    setDraftValue(v);
+                    setError('');
+                  }}
+                  placeholder={activeFieldDef.placeholder}
+                  autoFocus
+                  invalid={!!error}
+                />
+              </FormField>
             )}
-          </div>
-        </div>
-      )}
+
+            {success && (
+              <Banner
+                variant="success"
+                inline
+                className={local.editorBanner}
+              >
+                {success}
+              </Banner>
+            )}
+          </>
+        )}
+      </Modal>
 
       <MessageTemplateEditor
         isOpen={isTemplateEditorOpen}
@@ -506,7 +516,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ isOpen, onClose }) => {
           setIsPlanChangeOpen(false);
         }}
       />
-    </div>
+    </>
   );
 };
 

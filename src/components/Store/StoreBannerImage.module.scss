@@ -1,16 +1,20 @@
 // components/Store/StoreBannerImage.module.scss
+@use '../../styles/tokens' as *;
 
 .bannerWrap {
   width: 100%;
-  margin: 0 0 16px;
-  border-radius: 12px;
+  margin: 0 0 $space-4;
+  border-radius: $radius;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 
   img {
-    display: block;
+    object-fit: cover;
     width: 100%;
-    height: auto;
-    object-fit: contain;
+    height: 100%;
+    max-height: 630px;
+    object-position: center;
+    max-width: 1280px;
+    display: block;
   }
 }

@@ -1,16 +1,24 @@
-import React from "react";
-import { CartItem, PaymentMode, DeliveryType, ScheduleData } from "../../types";
-import CartItemComponent from "./CartItem";
+// src/components/Cart/CartModal.tsx
+import React from 'react';
+import {
+  CartItem,
+  PaymentMode,
+  DeliveryType,
+  ScheduleData,
+} from '../../types';
+import { Sheet, Modal, Button, Tabs, Banner, EmptyState } from '../ui';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { formatRupees } from '../../utils/subscription';
+import CartItemComponent from './CartItem';
 import {
   CartIcon,
-  CloseIcon,
   WhatsAppIcon,
   ClockIcon,
   DiscountIcon,
   CheckIcon,
   PlusIcon,
-} from "../../assets/svgs";
-import styles from "./Cart.module.scss";
+} from '../../assets/svgs';
+import local from './Cart.module.scss';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -54,231 +62,223 @@ const CartModal: React.FC<CartModalProps> = ({
   totalItems,
   acceptingOrders,
 }) => {
+  const isMobile = useIsMobile();
+
   React.useEffect(() => {
-    if (deliveryType === "schedule" && paymentMode !== "Online") {
-      onPaymentChange("Online");
+    if (deliveryType === 'schedule' && paymentMode !== 'Online') {
+      onPaymentChange('Online');
     }
   }, [deliveryType, paymentMode, onPaymentChange]);
 
   if (!isOpen) return null;
 
-  const isSchedule = deliveryType === "schedule";
+  const isSchedule = deliveryType === 'schedule';
   const hasItems = cart.length > 0;
 
-  // Helper to generate unique key for cart items with customizations
   const getItemKey = (item: CartItem): string => {
     const customStr = item.customizations
       ? JSON.stringify(item.customizations)
-      : "none";
-    const messageStr = item.customMessage || "none";
+      : 'none';
+    const messageStr = item.customMessage || 'none';
     return `${item.id}-${customStr}-${messageStr}`;
   };
 
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalBoxContent}>
-          <div className={styles.modalHeader}>
-            <h2>
-              Your Cart <span>{hasItems && `${totalItems} items`}</span>
-            </h2>
-            <button className={styles.closeModal} onClick={onClose}>
-              <CloseIcon width={18} height={18} fill="#1e1e1e" />
-            </button>
-          </div>
-
-          <div className={styles.modalItems}>
-            {!hasItems ? (
-              <div className={styles.emptyCart}>
-                <span className={styles.emptyCartIcon}>
-                  <CartIcon width={32} height={32} fill="#7d6b60" />
+  const bodyContent = !hasItems ? (
+    <EmptyState
+      icon={<CartIcon width={32} height={32} fill="#7d6b60" />}
+      title="Your cart is empty"
+      description="Add some items to get started."
+    />
+  ) : (
+    <>
+      <div className={local.itemsList}>
+        {cart.map((item) => (
+          <div key={getItemKey(item)} className={local.itemWrapper}>
+            <CartItemComponent
+              item={item}
+              onIncrement={onIncrement}
+              onDecrement={onDecrement}
+            />
+            {item.customMessage && item.customMessage.trim() && (
+              <div className={local.customMessageDisplay}>
+                <span className={local.messageText}>
+                  "{item.customMessage.trim()}"
                 </span>
-                your cart is empty
               </div>
-            ) : (
-              cart.map((item) => (
-                <div key={getItemKey(item)} className={styles.cartItemWrapper}>
-                  <CartItemComponent
-                    item={item}
-                    onIncrement={onIncrement}
-                    onDecrement={onDecrement}
-                  />
-                  {/* Display custom message if it exists */}
-                  {item.customMessage && item.customMessage.trim() && (
-                    <div className={styles.customMessageDisplay}>
-                      <span className={styles.messageText}>
-                        "{item.customMessage.trim()}"
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))
             )}
           </div>
+        ))}
+      </div>
 
-          {hasItems && (
-            <>
-              <div className={styles.cartSummary}>
-                <div className={styles.summaryRow}>
-                  <span>Subtotal</span>
-                  <span className={styles.value}>Rs{Math.round(subtotal)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Delivery Fee</span>
-                  <span className={styles.value}>Rs{deliveryFee}</span>
-                </div>
-                {discount > 0 && (
-                  <div className={`${styles.summaryRow} ${styles.discountRow}`}>
-                    <span>Discount ({discountPercent}% off)</span>
-                    <span className={styles.value}>-Rs{discount}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.optionsSection}>
-                <div className={styles.optionGroup}>
-                  <label>Payment mode</label>
-                  <div className={styles.radioGroup}>
-                    <label
-                      className={`${paymentMode === "COD" ? styles.active : ""} ${isSchedule ? styles.disabled : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMode"
-                        value="COD"
-                        checked={paymentMode === "COD"}
-                        onChange={() => onPaymentChange("COD")}
-                        disabled={isSchedule}
-                      />{" "}
-                      COD
-                    </label>
-                    <label
-                      className={`${styles.discountLabel} ${paymentMode === "Online" ? styles.active : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMode"
-                        value="Online"
-                        checked={paymentMode === "Online"}
-                        onChange={() => onPaymentChange("Online")}
-                      />{" "}
-                      Online
-                      {discountPercent > 0 && (
-                        <span className={styles.discountBadge}>
-                          <DiscountIcon width={14} height={14} fill="#fff" />
-                          {discountPercent}% off
-                        </span>
-                      )}
-                    </label>
-                  </div>
-                </div>
-                <div className={styles.optionGroup}>
-                  <label>Delivery type</label>
-                  <div className={styles.radioGroup}>
-                    <label
-                      className={deliveryType === "now" ? styles.active : ""}
-                    >
-                      <input
-                        type="radio"
-                        name="deliveryType"
-                        value="now"
-                        checked={deliveryType === "now"}
-                        onChange={() => onDeliveryChange("now")}
-                      />
-                      Deliver Now
-                    </label>
-                    <label
-                      className={
-                        deliveryType === "schedule" ? styles.active : ""
-                      }
-                    >
-                      <input
-                        type="radio"
-                        name="deliveryType"
-                        value="schedule"
-                        checked={deliveryType === "schedule"}
-                        onChange={() => onDeliveryChange("schedule")}
-                      />
-                      Schedule Later
-                    </label>
-                  </div>
-                </div>
-                <div
-                  className={`${styles.scheduleNote} ${isSchedule && scheduleData ? styles.success : ""}`}
-                >
-                  {isSchedule && scheduleData ? (
-                    <>
-                      <CheckIcon width={12} height={12} fill="#1e7e34" />
-                      <span>
-                        Scheduled for {scheduleData.date} at {scheduleData.time}
-                      </span>
-                    </>
-                  ) : isSchedule ? (
-                    <>
-                      <ClockIcon width={12} height={12} fill="#c0392b" />
-                      <span>
-                        Scheduled orders: Prepaid only . Non-refundable .
-                        Reminder sent 1hr before
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className={styles.modalTotal}>
-            <span>Total Amount</span>
-            <span className={styles.totalValue}>
-              {paymentMode === "Online" && hasItems && discountPercent > 0 && (
-                <del className={styles.originalPrice}>
-                  Rs{subtotal + deliveryFee}
-                </del>
-              )}{" "}
-              {hasItems ? `Rs${total}` : 0}
+      <div className={local.summary}>
+        <div className={local.summaryRow}>
+          <span>Subtotal</span>
+          <span className={local.value}>
+            {formatRupees(Math.round(subtotal))}
+          </span>
+        </div>
+        <div className={local.summaryRow}>
+          <span>Delivery Fee</span>
+          <span className={local.value}>{formatRupees(deliveryFee)}</span>
+        </div>
+        {discount > 0 && (
+          <div className={`${local.summaryRow} ${local.discountRow}`}>
+            <span>Discount ({discountPercent}% off)</span>
+            <span className={local.value}>
+              -{formatRupees(discount)}
             </span>
           </div>
-          <div className={styles.appliedOffer}>
-            {hasItems ? (
-              discountPercent > 0 ? (
-                paymentMode === "Online" ? (
-                  <span className={styles.discountText}>
-                    <DiscountIcon width={12} height={12} fill="#1e1e1e" />(
-                    {discountPercent}% off applied)
-                  </span>
-                ) : (
-                  `incl. delivery`
-                )
-              ) : (
-                `incl. delivery`
-              )
-            ) : (
-              "No items"
-            )}
-          </div>
-
-          <div className={styles.modalActions}>
-            <button className={styles.btnAddMore} onClick={onClose}>
-              <PlusIcon width={16} height={16} fill="#1e1e1e" />
-              Add Item
-            </button>
-            <button
-              className={styles.btnPlaceOrder}
-              onClick={onPlaceOrder}
-              disabled={!hasItems || acceptingOrders === false}
-              title={
-                acceptingOrders === false
-                  ? "This store is not accepting orders right now"
-                  : undefined
-              }
-            >
-              <WhatsAppIcon width={16} height={16} fill="white" />
-              {acceptingOrders === false ? "Ordering Disabled" : "Place Order"}
-            </button>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
+
+      <div className={local.optionsSection}>
+        <div className={local.optionGroup}>
+          <label>Payment mode</label>
+          <Tabs
+            block
+            items={[
+              { key: 'COD', label: 'COD', disabled: isSchedule },
+              {
+                key: 'Online',
+                label: (
+                  <span className={local.onlineLabel}>
+                    Online
+                    {discountPercent > 0 && (
+                      <span className={local.discountBadge}>
+                        <DiscountIcon width={12} height={12} fill="#fff" />
+                        {discountPercent}% off
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+            ]}
+            value={paymentMode}
+            onChange={(k) => onPaymentChange(k as PaymentMode)}
+          />
+        </div>
+
+        <div className={local.optionGroup}>
+          <label>Delivery type</label>
+          <Tabs
+            block
+            items={[
+              { key: 'now', label: 'Deliver Now' },
+              { key: 'schedule', label: 'Schedule Later' },
+            ]}
+            value={deliveryType}
+            onChange={(k) => onDeliveryChange(k as DeliveryType)}
+          />
+        </div>
+
+        {isSchedule &&
+          (scheduleData ? (
+            <Banner variant="success" inline>
+              <span className={local.scheduleInline}>
+                <CheckIcon width={12} height={12} fill="#1e7e34" />
+                Scheduled for {scheduleData.date} at {scheduleData.time}
+              </span>
+            </Banner>
+          ) : (
+            <Banner variant="warning" inline>
+              <span className={local.scheduleInline}>
+                <ClockIcon width={12} height={12} fill="#c0392b" />
+                Scheduled orders: Prepaid only . Non-refundable . Reminder
+                sent 1hr before
+              </span>
+            </Banner>
+          ))}
+      </div>
+
+      <div className={local.totalRow}>
+        <span>Total Amount</span>
+        <span className={local.totalValue}>
+          {paymentMode === 'Online' && discountPercent > 0 && (
+            <del className={local.originalPrice}>
+              {formatRupees(subtotal + deliveryFee)}
+            </del>
+          )}{' '}
+          {formatRupees(total)}
+        </span>
+      </div>
+
+      <div className={local.appliedOffer}>
+        {discountPercent > 0 ? (
+          paymentMode === 'Online' ? (
+            <span className={local.discountText}>
+              <DiscountIcon width={12} height={12} fill="#1e1e1e" />
+              ({discountPercent}% off applied)
+            </span>
+          ) : (
+            'incl. delivery'
+          )
+        ) : (
+          'incl. delivery'
+        )}
+      </div>
+    </>
+  );
+
+  const footerContent = (
+    <>
+      <Button
+        variant="ghost"
+        onClick={onClose}
+        leftIcon={<PlusIcon width={14} height={14} fill="#1e1e1e" />}
+      >
+        Add Item
+      </Button>
+      <Button
+        block
+        onClick={onPlaceOrder}
+        disabled={!hasItems || acceptingOrders === false}
+        leftIcon={<WhatsAppIcon width={16} height={16} fill="#fff" />}
+        title={
+          acceptingOrders === false
+            ? 'This store is not accepting orders right now'
+            : undefined
+        }
+      >
+        {acceptingOrders === false ? 'Ordering Disabled' : 'Place Order'}
+      </Button>
+    </>
+  );
+
+  return isMobile ? (
+    <Sheet
+      isOpen={isOpen}
+      onClose={onClose}
+      className={local.cartPopup}
+      title={
+        <>
+          Your Cart
+          {hasItems && (
+            <span className={local.headerCount}>{totalItems} items</span>
+          )}
+        </>
+      }
+      maxHeightVh={92}
+      footer={footerContent}
+    >
+      {bodyContent}
+    </Sheet>
+  ) : (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <>
+          Your Cart
+          {hasItems && (
+            <span className={local.headerCount}>{totalItems} items</span>
+          )}
+        </>
+      }
+      size="md"
+      footer={footerContent}
+    >
+      {bodyContent}
+    </Modal>
   );
 };
 

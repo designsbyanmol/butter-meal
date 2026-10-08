@@ -1,0 +1,44 @@
+// components/Admin/PauseRequestIcon.module.scss
+@use '../../styles/tokens' as *;
+
+.bell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  border: 1px solid $red-200;
+  background: $red-50;
+  color: $red-800;
+  font-size: 12px;
+  cursor: pointer;
+  animation: bellPulse 1.6s ease-in-out infinite;
+  font-family: inherit;
+
+  &:hover { background: $red-100; }
+}
+
+@keyframes bellPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0); }
+}
+
+.body {
+  margin: 0;
+  font-size: 14px;
+  color: $text-muted;
+  line-height: 1.55;
+
+  strong { color: $text; }
+}
+
+.error {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: $red-50;
+  color: $red-800;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  font-weight: 600;
+}

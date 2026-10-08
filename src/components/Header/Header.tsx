@@ -16,12 +16,14 @@ import InfoPopup from '../Store/InfoPopup';
 import PlanBadgeInline from '../Store/PlanBadgeInline';
 import WishlistIcon from '../../assets/svgs/WishlistIcon';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
-import styles from './Header.module.scss';
+import { Avatar, Badge, IconButton, Button } from '../ui';
 import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
 import {
   subscribeAdminAction,
   AdminAction,
 } from '../../utils/adminEvents';
+import InstallIcon from './InstallIcon';
+import local from './Header.module.scss';
 
 interface HeaderProps {
   companyName: string;
@@ -58,10 +60,12 @@ const Header: React.FC<HeaderProps> = ({
           setIsStoreModalOpen(true);
           break;
         case 'open-user-management':
-          setIsUserManagementOpen(true);
+          // Guard: only admins may open user management via the event bus.
+          if (isAdmin) setIsUserManagementOpen(true);
           break;
         case 'open-info-popup':
-          setIsInfoOpen(true);
+          // Guard: only admins may open the info popup via the event bus.
+          if (isAdmin) setIsInfoOpen(true);
           break;
         case 'open-tenant-manager':
           setIsTenantManagerOpen(true);
@@ -69,13 +73,11 @@ const Header: React.FC<HeaderProps> = ({
       }
     });
     return unsubscribe;
-  }, []);
+  }, [isAdmin]);
 
   // ---------------------------------------------------------
   // Visibility rules
   // ---------------------------------------------------------
-
-  // Hide the entire header on the plain main host
   const shouldHideHeader = !tenant && !isSmartAdminHost;
 
   const isPlatformAdmin = isAdmin && !tenant;
@@ -84,8 +86,6 @@ const Header: React.FC<HeaderProps> = ({
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
   const isAdminContext = isSmartAdminHost || isAdminView;
-
-  // Customer name check
   const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
 
   const handleLogin = () => setIsLoginOpen(true);
@@ -106,49 +106,54 @@ const Header: React.FC<HeaderProps> = ({
       : '?';
 
   // ---------------------------------------------------------
-  // Left-side brand text
+  // Brand text
   // ---------------------------------------------------------
   const renderBrandText = () => {
-    // 1. Logged-in admin or staff
     if (isAuthenticated && user?.name) {
       return (
         <>
-          <span className={styles.tagline}>{user.name}</span>
+          <span className={local.tagline}>{user.name}</span>
+          {/*
+           * The plan badge is clickable for admins only. For staff we
+           * render a non-interactive version so they can still see
+           * their plan/status but cannot open the info popup.
+           */}
           {tenant && !isPlatformAdmin && (
-            <PlanBadgeInline onClick={() => setIsInfoOpen(true)} />
+            isAdmin ? (
+              <PlanBadgeInline onClick={() => setIsInfoOpen(true)} />
+            ) : (
+              <PlanBadgeInline />
+            )
           )}
         </>
       );
     }
 
-    // 2. Admin URLs - never show customer greeting
     if (isAdminContext) {
       if (isSmartAdminHost && !tenant) {
         return (
-          <span className={styles.companyName}>
+          <span className={local.companyName}>
             {companyName} {year}
           </span>
         );
       }
       return (
-        <span className={styles.companyName}>
+        <span className={local.companyName}>
           {tenant ? tenant.displayName : `${companyName} ${year}`}
         </span>
       );
     }
 
-    // 3. Customer view with saved name
     if (hasCustomerName) {
       return (
-        <span className={styles.customerGreeting}>
+        <span className={local.customerGreeting}>
           Hey! <strong>{customerName}</strong>
         </span>
       );
     }
 
-    // 4. Fallback
     return (
-      <span className={styles.companyName}>
+      <span className={local.companyName}>
         {tenant ? tenant.displayName : `${companyName} ${year}`}
       </span>
     );
@@ -158,117 +163,131 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <div className={styles.bm_header}>
-        <div className={styles.container}>
-          <div className={styles.brand}>
-            {showAdminAvatar && isAdmin && (
-              <button
-                type="button"
-                className={styles.avatarBtn}
-                onClick={() => setIsInfoOpen(true)}
-                title="Store informations"
-                aria-label="Open store informations"
-              >
-                {avatarInitial}
-              </button>
+      <div className={local.bm_header}>
+        <div className={local.container}>
+          <div className={local.brand}>
+            {tenant && !isDeactivated && <InstallIcon />}
+            {showAdminAvatar && (
+              <Avatar
+                name={avatarInitial}
+                size="md"
+                /* Only admins can click to open the info popup.
+                   Staff see the same avatar as a static element. */
+                onClick={isAdmin ? () => setIsInfoOpen(true) : undefined}
+              />
+            )}
+            {!isAuthenticated && (
+              <span className={local.brandText}>{renderBrandText()}</span>
             )}
 
-            <span className={styles.brandText}>{renderBrandText()}</span>
-
             {isSmartAdminHost && !tenant && (
-              <span className={styles.smartAdminBadge}>Smart Admin</span>
+              <Badge tone="info" size="sm">
+                Smart Admin
+              </Badge>
             )}
 
             {isAdminView && tenant && !isAuthenticated && (
-              <span className={styles.adminViewBadge}>Admin</span>
+              <Badge tone="warning" size="sm">
+                Admin
+              </Badge>
             )}
+            
           </div>
 
-          <div className={styles.actions}>
+          <div className={local.actions}>
             {showWishlist && !isAuthenticated && plan.canWishlist && (
-              <button
-                type="button"
-                className={styles.wishlistBtn}
-                onClick={() => setIsWishlistOpen(true)}
-                aria-label="Open wishlist"
-                title="Wishlist"
-              >
-                {wishlistCount > 0 ? (
-                  <WishlistFilledIcon
-                    width={20}
-                    height={20}
-                    fill="#e23744"
-                  />
-                ) : (
-                  <WishlistIcon width={20} height={20} fill="#1e1e1e" />
-                )}
+              <div className={local.wishlistWrap}>
+                <IconButton
+                  variant="ghost"
+                  size="md"
+                  aria-label="Open wishlist"
+                  tooltip="Wishlist"
+                  onClick={() => setIsWishlistOpen(true)}
+                >
+                  {wishlistCount > 0 ? (
+                    <WishlistFilledIcon
+                      width={20}
+                      height={20}
+                      fill="#e23744"
+                    />
+                  ) : (
+                    <WishlistIcon width={20} height={20} fill="#1e1e1e" />
+                  )}
+                </IconButton>
                 {wishlistCount > 0 && (
-                  <span className={styles.wishlistBadge}>
+                  <span className={local.wishlistBadge}>
                     {wishlistCount > 99 ? '99+' : wishlistCount}
                   </span>
                 )}
-              </button>
+              </div>
             )}
 
             {isAuthenticated ? (
               <>
                 {canManageTenant && (
                   <>
+                    {/* ---------- Store Management: admins AND staff ---------- */}
                     {plan.canManageStore && (
-                      <button
-                        className={styles.adminBtn}
+                      <IconButton
+                        variant="soft"
+                        size="md"
+                        aria-label="Store Settings"
+                        tooltip="Store Settings"
                         onClick={() => setIsStoreModalOpen(true)}
-                        title="Store Settings"
                       >
                         <StoreIcon width={20} height={20} fill="#1e1e1e" />
-                      </button>
+                      </IconButton>
                     )}
 
-                    <button
-                      className={styles.adminBtn}
+                    {/* ---------- Menu Management: admins AND staff ---------- */}
+                    <IconButton
+                      variant="soft"
+                      size="md"
+                      aria-label="Manage Menu"
+                      tooltip="Manage Menu"
                       onClick={() => setIsMenuPanelOpen(true)}
-                      title="Manage Menu"
                     >
                       <MenuIcon width={20} height={20} color="#1e1e1e" />
-                    </button>
+                    </IconButton>
 
+                    {/* ---------- User Management: admins ONLY ---------- */}
                     {plan.canManageUsers && isAdmin && (
-                      <button
-                        className={styles.adminBtn}
+                      <IconButton
+                        variant="soft"
+                        size="md"
+                        aria-label="User Management"
+                        tooltip="User Management"
                         onClick={() => setIsUserManagementOpen(true)}
-                        title="User Management"
                       >
-                        <UsersIcon
-                          width={20}
-                          height={20}
-                          color="#1e1e1e"
-                        />
-                      </button>
+                        <UsersIcon width={20} height={20} color="#1e1e1e" />
+                      </IconButton>
                     )}
                   </>
                 )}
 
                 {isPlatformAdmin && (
-                  <button
-                    className={styles.adminBtn}
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={() => setIsTenantManagerOpen(true)}
-                    title="Manage Stores"
+                    leftIcon={
+                      <StoreIcon width={16} height={16} fill="#1e1e1e" />
+                    }
                   >
-                    <StoreIcon width={20} height={20} fill="#1e1e1e" />
-                    <span style={{ marginLeft: 4 }}>Stores</span>
-                  </button>
+                    Stores
+                  </Button>
                 )}
 
-                <button className={styles.logoutBtn} onClick={handleLogout}>
+                <Button size="sm" variant="danger" onClick={handleLogout}>
                   Logout
-                </button>
+                </Button>
               </>
             ) : (
               <>
                 {(!tenant || isAdminView || isSmartAdminHost) && (
-                  <button className={styles.loginBtn} onClick={handleLogin}>
+                  <Button size="xs" onClick={handleLogin}>
                     Sign In
-                  </button>
+                  </Button>
                 )}
               </>
             )}
@@ -281,7 +300,7 @@ const Header: React.FC<HeaderProps> = ({
         onClose={() => setIsLoginOpen(false)}
       />
 
-      {isUserManagementOpen && tenant && (
+      {isUserManagementOpen && tenant && isAdmin && (
         <UserManagement
           tenantSlug={tenant.slug}
           onClose={() => setIsUserManagementOpen(false)}
@@ -309,7 +328,8 @@ const Header: React.FC<HeaderProps> = ({
         />
       )}
 
-      {showAdminAvatar && (
+      {/* InfoPopup: mount only for admins so staff can never reach it. */}
+      {showAdminAvatar && isAdmin && (
         <InfoPopup isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
       )}
     </>

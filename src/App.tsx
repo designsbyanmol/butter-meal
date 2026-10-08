@@ -1,42 +1,55 @@
 // App.tsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { menuItems as defaultMenuItems } from './data/menuData';
-import { useCart } from './hooks/useCart';
-import { useAuth } from './hooks/useAuth';
-import { useMenu } from './hooks/useMenu';
-import { menuService } from './services/menu.service';
-import { db } from './services/database.service';
-import { isSupabaseConfigured } from './config/env';
-import { StoreProvider, useStore } from './contexts/StoreContext';
-import { TenantProvider, useTenant } from './contexts/TenantContext';
-import Menu from './components/Menu/Menu';
-import BrandInfo from './components/BrandInfo/BrandInfo';
-import CartModal from './components/Cart/CartModal';
-import FloatingCart from './components/FloatingCart/FloatingCart';
-import ScheduleModal from './components/Schedule/ScheduleModal';
-import LocationModal from './components/Location/LocationModal';
-import MenuDetail from './components/MenuDetail/MenuDetail';
-import Header from './components/Header/Header';
-import StoreBanner from './components/Store/StoreBanner';
-import MenuSkeleton from './components/Menu/MenuSkeleton';
-import { ShopInfo } from './config/credentials';
-import StoreDeactivated from './components/Store/StoreDeactivated';
-import MainDashboard from './components/MainDashboard/MainDashboard';
-import TenantNotFound from './components/TenantNotFound/TenantNotFound';
-import MenuFilters from './components/Menu/MenuFilters';
+import React, { useEffect, useMemo, useState } from "react";
+import { useCart } from "./hooks/useCart";
+import { useAuth } from "./hooks/useAuth";
+import { useMenu } from "./hooks/useMenu";
+import { menuService } from "./services/menu.service";
+import { db } from "./services/database.service";
+import { supabaseService } from "./services/supabase.service";
+import { isSupabaseConfigured } from "./config/env";
+import { StoreProvider, useStore } from "./contexts/StoreContext";
+import { TenantProvider, useTenant } from "./contexts/TenantContext";
+import Menu from "./components/Menu/Menu";
+import BrandInfo from "./components/BrandInfo/BrandInfo";
+import CartModal from "./components/Cart/CartModal";
+import FloatingCart from "./components/FloatingCart/FloatingCart";
+import ScheduleModal from "./components/Schedule/ScheduleModal";
+import LocationModal from "./components/Location/LocationModal";
+import MenuDetail from "./components/MenuDetail/MenuDetail";
+import Header from "./components/Header/Header";
+import StoreBanner from "./components/Store/StoreBanner";
+import { ShopInfo } from "./config/credentials";
+import StoreDeactivated from "./components/Store/StoreDeactivated";
+import MainDashboard from "./components/MainDashboard/MainDashboard";
+import TenantNotFound from "./components/TenantNotFound/TenantNotFound";
+import MenuFilters from "./components/Menu/MenuFilters";
 import {
   MenuFilterState,
-  EMPTY_FILTERS,
-} from './components/Menu/menuFilters.types';
-import DashboardSkeleton from './components/DashboardSkeleton/DashboardSkeleton';
-import CustomerNameModal from './components/Cart/CustomerNameModal';
-import PausedScreen from './components/Store/PausedScreen';
-import ExpiredScreen from './components/Store/ExpiredScreen';
-import RenewalBanner from './components/Store/RenewalBanner';
-import SignupPage from './components/pages/Signup/SignupPage';
-import { getCustomerName } from './utils/customerName';
-import { DEFAULT_MESSAGE_TEMPLATE } from './types';
-import styles from './App.module.scss';
+  createEmptyFilters,
+} from "./components/Menu/menuFilters.types";
+import DashboardSkeleton from "./components/DashboardSkeleton/DashboardSkeleton";
+import CustomerNameModal from "./components/Cart/CustomerNameModal";
+import PausedScreen from "./components/Store/PausedScreen";
+import ExpiredScreen from "./components/Store/ExpiredScreen";
+import RenewalBanner from "./components/Store/RenewalBanner";
+import SignupPage from "./components/Pages/Signup/SignupPage";
+import { getCustomerName } from "./utils/customerName";
+import { getStoreLabels } from "./utils/storeLabels";
+import { getCategoryDefaults } from "./data/storeDefaults";
+import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
+import styles from "./App.module.scss";
+import { getCategoryLabel } from "./data/storeCategories";
+import StoreHub from './components/Hub/StoreHub';
+
+const isHubRoute = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const url = new URL(window.location.href);
+    return url.searchParams.has('hub');
+  } catch {
+    return false;
+  }
+};
 
 // =========================================================
 // Database status notice (admin only)
@@ -63,7 +76,7 @@ const DatabaseStatusNotice: React.FC<{
     >
       <span className={styles.statusDot}></span>
       <span className={styles.statusText}>
-        {isConnected ? 'Working!' : 'Wait'}
+        {isConnected ? "Working!" : "Wait"}
       </span>
       {!isConnected && (
         <span className={styles.reconnectingText}> - Reconnecting...</span>
@@ -76,13 +89,23 @@ const DatabaseStatusNotice: React.FC<{
 // Signup route detection
 // =========================================================
 const isSignupRoute = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   try {
     const url = new URL(window.location.href);
-    return url.searchParams.has('_sign-up');
+    return url.searchParams.has("_sign-up");
   } catch {
     return false;
   }
+};
+
+// =========================================================
+// Standalone (installed-app) detection
+// =========================================================
+const isStandaloneDisplay = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const mq = window.matchMedia?.("(display-mode: standalone)").matches;
+  const iosStandalone = (window.navigator as any).standalone === true;
+  return !!mq || !!iosStandalone;
 };
 
 // =========================================================
@@ -95,9 +118,16 @@ const AppContent: React.FC = () => {
     isLoading: tenantLoading,
     isDeactivated,
     tenantNotFound,
+    refreshTenant,
   } = useTenant();
-  const { isStoreOpen, isAcceptingOrders, isLoading: storeLoading } = useStore();
+  const {
+    isStoreOpen,
+    isAcceptingOrders,
+    isLoading: storeLoading,
+  } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
+
+  const labels = getStoreLabels(tenant?.storeCategory);
 
   const {
     cart,
@@ -108,6 +138,7 @@ const AppContent: React.FC = () => {
     scheduleData,
     setScheduleData,
     addItem,
+    setItemQuantity,
     removeItem,
     getDiscountPercent,
     getTotalItems,
@@ -124,9 +155,7 @@ const AppContent: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<
-    (typeof defaultMenuItems)[0] | null
-  >(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNameOpen, setIsNameOpen] = useState(false);
   const [customerName, setCustomerName] = useState<string>(() =>
@@ -137,10 +166,31 @@ const AppContent: React.FC = () => {
   const [isChecking, setIsChecking] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const [filters, setFilters] = useState<MenuFilterState>({
-    ...EMPTY_FILTERS,
-    types: new Set(),
+  const [filters, setFilters] = useState<MenuFilterState>(() =>
+    createEmptyFilters(),
+  );
+
+  // Launcher: shown only on the first screen after launching an installed app.
+  const [showPwaLauncher, setShowPwaLauncher] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    if (!isStandaloneDisplay()) return false;
+    try {
+      return sessionStorage.getItem("pwa-launcher:dismissed") !== "1";
+    } catch {
+      return true;
+    }
   });
+
+  const handleDismissLauncher = () => {
+    try {
+      sessionStorage.setItem("pwa-launcher:dismissed", "1");
+    } catch {
+      /* ignore */
+    }
+    setShowPwaLauncher(false);
+  };
+
+  const resetFilters = () => setFilters(createEmptyFilters());
 
   // ---- Connection check (one-shot) ----
   useEffect(() => {
@@ -165,11 +215,27 @@ const AppContent: React.FC = () => {
         if (tenant) {
           await db.initializeDefaultUsers(tenant.slug);
           await menuService.setTenant(tenant.slug);
-          await menuService.initializeItems(defaultMenuItems);
+
+          const defaults = getCategoryDefaults(tenant.storeCategory);
+          await menuService.initializeItems(defaults.items);
+
+          if (!tenant.bannerUrl && defaults.bannerUrl) {
+            try {
+              await supabaseService.updateTenantInfo(
+                tenant.slug,
+                "banner_url",
+                defaults.bannerUrl,
+              );
+              await refreshTenant();
+            } catch (err) {
+              console.warn("[App] failed to seed default banner:", err);
+            }
+          }
+
           stop = menuService.startSync({ pollMs: 0 });
         }
       } catch (error) {
-        console.error('App initialization failed:', error);
+        console.error("App initialization failed:", error);
       } finally {
         setIsInitializing(false);
       }
@@ -178,15 +244,14 @@ const AppContent: React.FC = () => {
     return () => {
       if (stop) stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, tenantLoading]);
 
   // ---- Page title ----
   useEffect(() => {
     document.title = tenant
-      ? `${tenant.displayName} - Menu`
-      : 'Menu Display by Teckut';
-  }, [tenant?.displayName]);
+      ? `${tenant.displayName} - ${labels.menu}`
+      : "Menu Display by Teckut";
+  }, [tenant?.displayName, labels.menu]);
 
   // ---- Keep selectedItem in sync with fresh data ----
   useEffect(() => {
@@ -201,32 +266,36 @@ const AppContent: React.FC = () => {
   // ---- Filtering ----
   const filteredItems = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
+    const badgeDefs = tenant?.formSchema?.badges ?? [];
+
     const list = visibleItems.filter((item) => {
       if (q) {
         const hay =
-          `${item.name} ${item.desc ?? ''} ${item.category ?? ''}`.toLowerCase();
+          `${item.name} ${item.desc ?? ""} ${item.category ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (filters.category && item.category !== filters.category) return false;
-      if (filters.stock === 'inStock' && !item.inStock) return false;
-      if (filters.stock === 'outOfStock' && item.inStock) return false;
+      if (filters.stock === "inStock" && !item.inStock) return false;
+      if (filters.stock === "outOfStock" && item.inStock) return false;
+
       if (filters.types.size > 0) {
-        const t = filters.types;
-        const match =
-          (t.has('popular') && item.attributes?.isPopular) ||
-          (t.has('new') && item.attributes?.isNew) ||
-          (t.has('chefSpecial') && item.attributes?.isChefSpecial) ||
-          (t.has('limited') && item.attributes?.isLimited) ||
-          (t.has('veg') && item.isVeg === true) ||
-          (t.has('nonVeg') && item.isVeg === false);
+        const match = Array.from(filters.types).some((key) => {
+          if (key === "veg") return item.isVeg === true;
+          if (key === "nonVeg") return item.isVeg === false;
+
+          const badge = badgeDefs.find((b) => b.key === key);
+          if (badge && !badge.enabled) return false;
+          return !!item.attributes?.[key];
+        });
         if (!match) return false;
       }
       return true;
     });
 
-    const priceOf = (it: typeof visibleItems[number]) =>
+    const priceOf = (it: MenuItem) =>
       it.costPrice && it.costPrice > 0 ? it.costPrice : it.price;
-    const healthScore = (it: typeof visibleItems[number]) => {
+
+    const healthScore = (it: MenuItem) => {
       const n = it.nutritionalInfo;
       return (
         Number(n?.protein ?? 0) * 2 -
@@ -234,7 +303,8 @@ const AppContent: React.FC = () => {
         Number(n?.carbs ?? 0) * 0.5
       );
     };
-    const discountOf = (it: typeof visibleItems[number]) => {
+
+    const discountOf = (it: MenuItem) => {
       const base = Number(it.costPrice ?? 0);
       const sell = Number(it.price ?? 0);
       if (base <= 0 || sell <= 0 || base <= sell) return 0;
@@ -243,32 +313,32 @@ const AppContent: React.FC = () => {
 
     const sorted = [...list];
     switch (filters.sort) {
-      case 'priceAsc':
+      case "priceAsc":
         sorted.sort((a, b) => priceOf(a) - priceOf(b));
         break;
-      case 'priceDesc':
+      case "priceDesc":
         sorted.sort((a, b) => priceOf(b) - priceOf(a));
         break;
-      case 'ratingDesc':
+      case "ratingDesc":
         sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
-      case 'ratingAsc':
+      case "ratingAsc":
         sorted.sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0));
         break;
-      case 'healthiest':
+      case "healthiest":
         sorted.sort((a, b) => healthScore(b) - healthScore(a));
         break;
-      case 'discountDesc':
+      case "discountDesc":
         sorted.sort((a, b) => discountOf(b) - discountOf(a));
         break;
-      case 'discountLeast':
+      case "discountLeast":
         sorted.sort((a, b) => discountOf(a) - discountOf(b));
         break;
       default:
         break;
     }
     return sorted;
-  }, [visibleItems, filters]);
+  }, [visibleItems, filters, tenant?.formSchema?.badges]);
 
   const isAppLoading =
     authLoading ||
@@ -279,31 +349,42 @@ const AppContent: React.FC = () => {
     menuLoading;
 
   // ---- Handlers ----
-  const handleItemClick = (item: (typeof defaultMenuItems)[0]) => {
+  const handleItemClick = (item: MenuItem) => {
     if (!isStoreOpen) return;
     setSelectedItem(item);
     setIsDetailOpen(true);
   };
 
   const handleAddToCartFromDetail = (
-    item: (typeof defaultMenuItems)[0],
+    item: MenuItem,
     customizations?: Record<string, string>,
     customMessage?: string,
+    quantity?: number,
   ) => {
     if (!isStoreOpen || !isAcceptingOrders) return;
-    addItem(item, customizations, customMessage);
+    addItem(item, customizations, customMessage, quantity);
   };
 
-  const handleDeliveryChange = (type: 'now' | 'schedule') => {
-    if (type === 'schedule') {
+  const handleUpdateCartFromDetail = (
+    item: MenuItem,
+    customizations?: Record<string, string>,
+    customMessage?: string,
+    quantity?: number,
+  ) => {
+    if (!isStoreOpen || !isAcceptingOrders) return;
+    setItemQuantity(item, customizations, customMessage, quantity);
+  };
+
+  const handleDeliveryChange = (type: "now" | "schedule") => {
+    if (type === "schedule") {
       if (cart.length === 0) {
-        setDeliveryType('now');
+        setDeliveryType("now");
         return;
       }
       if (!scheduleData) setIsScheduleOpen(true);
-      setDeliveryType('schedule');
+      setDeliveryType("schedule");
     } else {
-      setDeliveryType('now');
+      setDeliveryType("now");
       setScheduleData(null);
       setIsScheduleOpen(false);
     }
@@ -311,26 +392,26 @@ const AppContent: React.FC = () => {
 
   const handleScheduleSave = (date: string, time: string) => {
     setScheduleData({ date, time });
-    setDeliveryType('schedule');
+    setDeliveryType("schedule");
     setIsScheduleOpen(false);
   };
 
   const handleScheduleClose = () => {
-    setDeliveryType('now');
+    setDeliveryType("now");
     setScheduleData(null);
     setIsScheduleOpen(false);
   };
 
   const handlePlaceOrder = () => {
     if (!isStoreOpen) {
-      alert('Store is currently closed. Please try again later.');
+      alert("Store is currently closed. Please try again later.");
       return;
     }
     if (!isAcceptingOrders) {
-      alert('This store is not accepting orders right now.');
+      alert("This store is not accepting orders right now.");
       return;
     }
-    if (deliveryType === 'schedule' && !scheduleData) {
+    if (deliveryType === "schedule" && !scheduleData) {
       setIsScheduleOpen(true);
       return;
     }
@@ -361,13 +442,12 @@ const AppContent: React.FC = () => {
     const finalTotal = getTotalWithDelivery();
     const orderNo = generateOrderNumber();
     const deliveryTime = getDeliveryTime();
-    const brandName = tenant?.displayName ?? '';
-    const tagline = tenant?.storeTagline ?? '';
+    const brandName = tenant?.displayName ?? "";
+    const tagline = tenant?.storeTagline ?? "";
 
-    const orderLabel = (tpl.orderLabel || 'New Order From {customerName}').replace(
-      '{customerName}',
-      nameForOrder || 'Customer',
-    );
+    const orderLabel = (
+      tpl.orderLabel || "New Order From {customerName}"
+    ).replace("{customerName}", nameForOrder || "Customer");
 
     let message = `*${orderLabel}*\n`;
     message += `-----------------\n`;
@@ -376,17 +456,17 @@ const AppContent: React.FC = () => {
     message += `Order ID. - ${orderNo}\n`;
     message += `Total Items - ${totalItems}\n`;
     message += `Payment - ${paymentMode}`;
-    if (paymentMode === 'Online' && discountPercent > 0) {
+    if (paymentMode === "Online" && discountPercent > 0) {
       message += ` (${discountPercent}% OFF)`;
     }
     message += `\n`;
     message += `Exp. Delivery - ${deliveryTime}\n`;
 
-    if (deliveryType === 'schedule' && scheduleData) {
+    if (deliveryType === "schedule" && scheduleData) {
       const sdt = new Date(`${scheduleData.date}T${scheduleData.time}`);
       let h = sdt.getHours();
-      const m = String(sdt.getMinutes()).padStart(2, '0');
-      const ap = h >= 12 ? 'PM' : 'AM';
+      const m = String(sdt.getMinutes()).padStart(2, "0");
+      const ap = h >= 12 ? "PM" : "AM";
       h = h % 12;
       h = h ? h : 12;
       message += `Scheduled Delivery - ${scheduleData.date} at ${h}:${m} ${ap}\n`;
@@ -394,7 +474,7 @@ const AppContent: React.FC = () => {
     }
 
     message += `-----------------\n`;
-    message += `*${tpl.itemListTitle || 'Item List'}*\n`;
+    message += `*${tpl.itemListTitle || "Item List"}*\n`;
 
     cart.forEach((item) => {
       const baseForItem = item.basePrice || item.price;
@@ -402,9 +482,9 @@ const AppContent: React.FC = () => {
       const unitPrice = baseForItem + addons;
       const total = unitPrice * item.quantity;
 
-      let line = (tpl.itemLineTemplate || '{name} x {qty}')
-        .replace('{name}', item.name)
-        .replace('{qty}', String(item.quantity));
+      let line = (tpl.itemLineTemplate || "{name} x {qty}")
+        .replace("{name}", item.name)
+        .replace("{qty}", String(item.quantity));
 
       if (
         tpl.showItemCustomizations &&
@@ -413,7 +493,7 @@ const AppContent: React.FC = () => {
       ) {
         const cs = Object.entries(item.customizations)
           .map(([k, v]) => `${k}: ${v}`)
-          .join(', ');
+          .join(", ");
         line += ` (${cs})`;
       }
       if (tpl.showItemAddons && addons > 0) {
@@ -426,27 +506,30 @@ const AppContent: React.FC = () => {
       line += ` - Rs ${total}`;
       message += `- - - - - - -\n${line}\n`;
 
-      if (tpl.showItemNotes && item.customMessage && item.customMessage.trim()) {
+      if (
+        tpl.showItemNotes &&
+        item.customMessage &&
+        item.customMessage.trim()
+      ) {
         message += `   Note: ${item.customMessage.trim()}\n`;
       }
     });
 
     message += `-----------------\n`;
-    message += `${tpl.subtotalLabel || 'Subtotal'} - Rs ${Math.round(subtotal)}\n`;
-    message += `${tpl.deliveryLabel || 'Delivery'} - Rs ${DELIVERY_FEE}\n`;
+    message += `${tpl.subtotalLabel || "Subtotal"} - Rs ${Math.round(subtotal)}\n`;
+    message += `${tpl.deliveryLabel || "Delivery"} - Rs ${DELIVERY_FEE}\n`;
 
-    if (paymentMode === 'Online' && discountPercent > 0) {
-      message += `${tpl.discountLabel || 'Discount'} (${discountPercent}%) - Rs ${discount}\n`;
+    if (paymentMode === "Online" && discountPercent > 0) {
+      message += `${tpl.discountLabel || "Discount"} (${discountPercent}%) - Rs ${discount}\n`;
       message += `-----------------\n`;
-      message += `\n*${tpl.totalLabel || 'Total Amount'} - Rs ${finalTotal}*\n`;
+      message += `\n*${tpl.totalLabel || "Total Amount"} - Rs ${finalTotal}*\n`;
       message += `(${discountPercent}% discount applied on total)\n`;
     } else {
       message += `-----------------\n`;
-      message += `\n*${tpl.totalLabel || 'Total Amount'} - Rs ${finalTotal}*\n`;
-      const feeLine = (tpl.freeDeliveryLabel || '(+Rs {fee} Inc. for delivery)').replace(
-        '{fee}',
-        String(DELIVERY_FEE),
-      );
+      message += `\n*${tpl.totalLabel || "Total Amount"} - Rs ${finalTotal}*\n`;
+      const feeLine = (
+        tpl.freeDeliveryLabel || "(+Rs {fee} Inc. for delivery)"
+      ).replace("{fee}", String(DELIVERY_FEE));
       message += `${feeLine}\n`;
     }
 
@@ -457,14 +540,14 @@ const AppContent: React.FC = () => {
 
     const encoded = encodeURIComponent(message);
     const url = `https://wa.me/${RESTAURANT_PHONE}?text=${encoded}`;
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   };
 
   // ---- Subscription state ----
-  const subscriptionStatus = tenant?.subscriptionStatus ?? 'active';
+  const subscriptionStatus = tenant?.subscriptionStatus ?? "active";
   const daysLeft = tenant?.daysUntilExpiry ?? Infinity;
-  const isExpired = subscriptionStatus === 'expired' || daysLeft < 0;
-  const isPaused = subscriptionStatus === 'paused';
+  const isExpired = subscriptionStatus === "expired" || daysLeft < 0;
+  const isPaused = subscriptionStatus === "paused";
 
   // ---- Render ----
   return (
@@ -478,7 +561,7 @@ const AppContent: React.FC = () => {
 
       {!tenantNotFound && !isAppLoading && (
         <Header
-          companyName={tenant?.displayName ?? 'Teckut'}
+          companyName={tenant?.displayName ?? "Teckut"}
           year={2026}
           onWishlistItemClick={(item) => {
             setSelectedItem(item);
@@ -489,19 +572,25 @@ const AppContent: React.FC = () => {
 
       <div
         className={`${styles.container} ${
-          getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ''
+          getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
         }`}
       >
         {!tenant && !tenantLoading && <MainDashboard />}
 
         {tenantNotFound && <TenantNotFound />}
 
-        {isAppLoading && !tenantNotFound && tenant && <DashboardSkeleton count={6} />}
-
-        {/* Paused / expired tenant */}
-        {!isAppLoading && tenant && (isDeactivated || isPaused) && (
-          isAuthenticated && isAdmin ? <PausedScreen /> : <StoreDeactivated />
+        {isAppLoading && !tenantNotFound && tenant && (
+          <DashboardSkeleton count={6} />
         )}
+
+        {!isAppLoading &&
+          tenant &&
+          (isDeactivated || isPaused) &&
+          (isAuthenticated && isAdmin ? (
+            <PausedScreen />
+          ) : (
+            <StoreDeactivated />
+          ))}
 
         {!isAppLoading &&
           tenant &&
@@ -509,7 +598,6 @@ const AppContent: React.FC = () => {
           !isPaused &&
           isExpired && <ExpiredScreen />}
 
-        {/* Active tenant */}
         {!isAppLoading &&
           tenant &&
           !isDeactivated &&
@@ -518,7 +606,12 @@ const AppContent: React.FC = () => {
             <>
               <BrandInfo
                 brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-                brandDesc={ShopInfo.Shop_tagline}
+                brandDesc={
+                  tenant?.infoDefaults?.storeTagline
+                    ? getCategoryLabel(tenant?.storeCategory)
+                    : tenant?.storeTagline ??
+                      getCategoryLabel(tenant?.storeCategory)
+                }
               />
 
               {isAuthenticated && isAdmin && <RenewalBanner />}
@@ -534,16 +627,10 @@ const AppContent: React.FC = () => {
                   />
                   {filteredItems.length === 0 ? (
                     <div className={styles.emptyFilterState}>
-                      <p>No dishes match your filters.</p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFilters({
-                            ...EMPTY_FILTERS,
-                            types: new Set(),
-                          })
-                        }
-                      >
+                      <p>
+                        No {labels.items.toLowerCase()} match your filters.
+                      </p>
+                      <button type="button" onClick={resetFilters}>
                         Clear filters
                       </button>
                     </div>
@@ -562,7 +649,6 @@ const AppContent: React.FC = () => {
             </>
           )}
 
-        {/* Floating cart */}
         {!isAppLoading &&
           tenant &&
           !isDeactivated &&
@@ -570,6 +656,7 @@ const AppContent: React.FC = () => {
           !isExpired &&
           isStoreOpen &&
           isAcceptingOrders &&
+          !isAuthenticated &&
           getTotalItems() > 0 && (
             <FloatingCart
               itemCount={getTotalItems()}
@@ -577,7 +664,6 @@ const AppContent: React.FC = () => {
             />
           )}
 
-        {/* Cart modal */}
         {tenant && (
           <CartModal
             isOpen={isCartOpen}
@@ -641,7 +727,9 @@ const AppContent: React.FC = () => {
             setSelectedItem(null);
           }}
           onAddToCart={handleAddToCartFromDetail}
+          onUpdateCart={handleUpdateCartFromDetail}
           acceptingOrders={isAcceptingOrders}
+          cart={cart}
         />
       </div>
     </>
@@ -655,6 +743,8 @@ const App: React.FC = () => {
   if (isSignupRoute()) {
     return <SignupPage />;
   }
+  if (isSignupRoute()) return <SignupPage />;
+  if (isHubRoute()) return <StoreHub />;
 
   return (
     <TenantProvider>

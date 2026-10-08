@@ -1,276 +1,90 @@
 // components/Admin/AdminPanel.module.scss
-@use "./tokens" as *;
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
-// =========================================================
-// Overlay + panel shell
-// =========================================================
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  backdrop-filter: blur(6px);
-  animation: overlayFade 0.2s ease-out;
-}
-
-.panel {
-  background: $bg-elevated;
-  border-radius: $radius-lg;
-  width: 100%;
-  max-width: 920px;
-  max-height: 85%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: $shadow-lg;
-  animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-}
-
-// =========================================================
-// Header
-// =========================================================
-.header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 18px 22px;
-  border-bottom: 1px solid $border-soft;
-  position: relative;
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
-
-  h2 {
-    margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    color: $text;
-    letter-spacing: -0.2px;
-    flex: 1;
-  }
-}
-
-.closeBtn {
-  background: transparent;
-  border: none;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: $radius-sm;
-  cursor: pointer;
-  transition: background $t-fast;
-
-  &:hover {
-    background: $border-soft;
-  }
-  &:active path {
-    fill: $text;
-  }
-}
-
-.addNewBtn {
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  background: $primary;
-  color: #fff;
-  border: 1px solid $primary;
-  border-radius: $radius-sm;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    transform $t-fast,
-    box-shadow $t-fast;
-  white-space: nowrap;
-
-  &:hover {
-    background: $primary-dark;
-    border-color: $primary-dark;
-    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.25);
-  }
-  &:active {
-    transform: scale(0.97);
-  }
-}
-
-.addNewBtn + .addNewBtn {
-  background: transparent;
-  color: $primary-dark;
-  border: 1px solid rgba(60, 170, 70, 0.4);
-
-  &:hover {
-    background: $primary-tint;
-    border-color: $primary;
-    box-shadow: none;
-  }
-}
-
-// =========================================================
-// Stats
-// =========================================================
+// ---------- Stats ----------
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  padding: 18px 22px 0;
+  margin-bottom: 16px;
+}
 
-  .statItem {
-    position: relative;
-    text-align: center;
-    padding: 8px 12px;
-    background: $bg-subtle;
-    border: 1px solid $border-soft;
-    border-radius: $radius-sm;
-    transition:
-      background $t,
-      transform $t-fast;
-          display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: center;
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding: 8px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
 
-    &:hover {
-      background: #fff;
-      transform: translateY(-1px);
-    }
-  }
-
-  .statLabel {
-    display: block;
-    font-size: 14px;
-    color: $text-muted;
-    font-weight: 400;
-    letter-spacing: 0.6px;
-  }
-
-  .statValue {
-    font-size: 14px;
-    font-weight: 800;
-    color: $text;
-    line-height: 1;
-
-    &.inStock {
-      color: $primary-dark;
-    }
-    &.outOfStock {
-      color: $danger-dark;
-    }
+  &:hover {
+    background: #fff;
   }
 }
 
-// =========================================================
-// Controls
-// =========================================================
+.statLabel {
+  font-size: 13px;
+  color: $text-muted;
+  letter-spacing: 0.4px;
+}
+
+.statValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+  line-height: 1;
+
+  &.inStock { color: $primary-dark; }
+  &.outOfStock { color: $danger-dark; }
+}
+
+// ---------- Controls ----------
 .controls {
-  padding: 18px 22px 12px;
   display: flex;
   gap: 10px;
-
-  .searchInput {
-    flex: 1;
-    min-width: 100px;
-    padding: 6px 10px;
-    background: $bg-subtle;
-    border: 1.5px solid transparent;
-    border-radius: $radius-sm;
-    font-size: 12px;
-    color: $text;
-    transition:
-      background $t-fast,
-      border-color $t-fast,
-      box-shadow $t-fast;
-
-    &::placeholder {
-      color: $text-faint;
-    }
-    &:hover {
-      background: #eef0f3;
-    }
-    &:focus {
-      outline: none;
-      background: #fff;
-      border-color: $primary;
-      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
-    }
-  }
-
-  .filterSelect {
-    padding: 6px 10px;
-    border: 1.5px solid $border;
-    border-radius: $radius-sm;
-    background: #fff;
-    font-size: 12px;
-    width: 100px;
-    color: $text;
-    cursor: pointer;
-    transition:
-      border-color $t-fast,
-      box-shadow $t-fast;
-
-    &:hover {
-      border-color: $border-hover;
-    }
-    &:focus {
-      outline: none;
-      border-color: $primary;
-      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
-    }
-  }
+  margin-bottom: 12px;
 }
 
-// =========================================================
-// Reorder hint
-// =========================================================
-.reorderHint {
-  padding: 8px 14px;
-  margin: 4px 22px 0;
-  background: #fff8e1;
-  color: #8a6d00;
-  font-size: 12px;
-  font-weight: 500;
+.filterSelect {
+  width: 124px;
+  padding: 8px 10px;
+  border: 1.5px solid $border;
   border-radius: $radius-sm;
-  text-align: center;
-  border-left: 3px solid #ffc107;
+  background: #fff;
+  font-size: 13px;
+  color: $text;
+  cursor: pointer;
+
+  &:focus {
+    @include focus-ring;
+  }
 }
 
-// =========================================================
-// Item list
-// =========================================================
+// ---------- Item list ----------
 .itemList {
-  overflow-y: auto;
-  flex: 1;
-  padding: 12px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  .itemRow {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    margin-bottom: 8px;
-    border: 1px solid $border-soft;
-    border-radius: $radius;
-    gap: 14px;
-    position: relative;
-    transition:
-      background $t-fast,
-      border-color $t-fast,
-      box-shadow $t-fast,
-      transform $t-fast;
-    background: #fff;
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  gap: 14px;
+  background: #fff;
+  transition: border-color $t-fast, box-shadow $t-fast;
+  position: relative;
 
-    &:hover {
-      border-color: rgba(60, 170, 70, 0.3);
-      box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
-    }
-
-    &:last-child {
-      margin-bottom: 0;
-    }
+  &:hover {
+    border-color: rgba($primary, 0.3);
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
   }
 }
 
@@ -280,28 +94,34 @@
   gap: 12px;
   flex: 1;
   min-width: 0;
+}
 
-  .itemImage {
-    width: 52px;
-    height: 52px;
-    object-fit: cover;
-    border-radius: $radius-sm;
-    border: 1px solid $border-soft;
-    background: $bg-subtle;
-    flex-shrink: 0;
-  }
+.itemImage {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: $radius-sm;
+  border: 1px solid $border-soft;
+  background: $bg-subtle;
+  flex-shrink: 0;
 
-  .itemName {
-    font-weight: 600;
-    color: $text;
-    font-size: 14px;
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+  &.itemImageDim {
+    opacity: 0.6;
+    filter: grayscale(1);
   }
+}
+
+.itemName {
+  font-weight: 600;
+  color: $text;
+  font-size: 14px;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  @include line-clamp(2);
 }
 
 .itemStatus {
@@ -309,114 +129,30 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-
-  .stock_wrap {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .inStockBadge {
-    color: $primary-dark;
-    font-weight: 600;
-    font-size: 11px;
-    padding: 5px 10px;
-    background: $primary-soft;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    border: 1px solid rgba(60, 170, 70, 0.2);
-    white-space: nowrap;
-  }
-
-  .outOfStockBadge {
-    color: $danger-dark;
-    font-weight: 600;
-    font-size: 11px;
-    padding: 5px 10px;
-    background: $danger-soft;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    border: 1px solid rgba(220, 53, 69, 0.2);
-    white-space: nowrap;
-  }
 }
 
-.toggleBtn {
-  padding: 7px 14px;
-  border: 1px solid transparent;
-  border-radius: $radius-sm;
-  background: $primary;
-  color: #fff;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition:
-    background $t-fast,
-    box-shadow $t-fast,
-    transform $t-fast;
-  white-space: nowrap;
-
-  &:hover {
-    background: $primary-dark;
-    box-shadow: 0 2px 8px rgba(60, 170, 70, 0.25);
-  }
-  &:active {
-    transform: scale(0.97);
-  }
-
-  &.outOfStockBtn {
-    background: #fff;
-    color: $danger;
-    border-color: rgba(220, 53, 69, 0.3);
-
-    &:hover {
-      background: $danger;
-      color: #fff;
-      border-color: $danger;
-      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.25);
-    }
-  }
-}
-
-.editBtn {
-  padding: 7px 14px;
-  border: 1px solid rgba(60, 170, 70, 0.3);
-  border-radius: $radius-sm;
-  background: transparent;
-  color: $primary-dark;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition:
-    background $t-fast,
-    color $t-fast,
-    border-color $t-fast;
-  white-space: nowrap;
-
-  &:hover {
-    background: $primary-tint;
-    border-color: $primary;
-  }
-  &:active {
-    transform: scale(0.97);
-  }
-}
-
-.emptyState {
-  text-align: center;
-  padding: 56px 20px;
+.categoryCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: $radius-pill;
+  background: #fff;
   color: $text-muted;
-  font-size: 14px;
-  border: 1px dashed $border;
-  border-radius: $radius;
-  margin: 12px 0;
-  background: $bg-subtle;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid $border-soft;
 }
 
-// =========================================================
-// Drag & drop
-// =========================================================
+// --------- Header Right ----------
+
+.btnWrap {
+    display: flex;
+    gap: 6px;
+}
+// ---------- Drag & drop ----------
 .dragging {
   opacity: 0.5;
   background: $primary-tint !important;
@@ -426,7 +162,6 @@
 
 .dropTarget {
   border-top: 2px solid $primary !important;
-  transform: translateY(1px);
 }
 
 .dragHandle {
@@ -436,31 +171,11 @@
   width: 26px;
   min-width: 26px;
   height: 40px;
-  margin-right: 4px;
   cursor: grab;
-  color: $text-faint;
-  user-select: none;
   border-radius: $radius-xs;
-  transition: background $t-fast;
 
-  &:active {
-    cursor: grabbing;
-  }
-
-  &:hover {
-    background: $bg-subtle;
-
-    .dragDots,
-    .dragDots::before,
-    .dragDots::after {
-      background-color: $text;
-    }
-  }
-  @media (max-width: 580px) {
-    position: absolute;
-    top: 0;
-    right: 0;
-  }
+  &:active { cursor: grabbing; }
+  &:hover { background: $bg-subtle; }
 }
 
 .dragDots {
@@ -469,595 +184,39 @@
   height: 2px;
   background-color: #cfcfcf;
   border-radius: 1px;
-  transition: background $t-fast;
 
   &::before,
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     left: 0;
     width: 14px;
     height: 2px;
     background-color: #cfcfcf;
     border-radius: 1px;
-    transition: background $t-fast;
   }
 
-  &::before {
-    top: -5px;
-  }
-  &::after {
-    top: 5px;
-  }
+  &::before { top: -5px; }
+  &::after { top: 5px; }
 }
 
-.reorderingBanner {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  background: $primary-dark;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-  border-radius: $radius-sm;
-  box-shadow: $shadow-sm;
-}
-
-// =========================================================
-// Edit / Add modal
-// =========================================================
-.editModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  backdrop-filter: blur(6px);
-  animation: overlayFade 0.2s ease-out;
-}
-
-.editModalContent {
-  background: $bg-elevated;
-  border-radius: $radius-lg;
-  width: 100%;
-  max-width: 720px;
-  max-height: 85%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: $shadow-lg;
-  overflow: hidden;
-  position: relative;
-  animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-}
-
-.editModalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 22px;
-  border-bottom: 1px solid $border-soft;
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
-
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: $text;
-    letter-spacing: -0.2px;
-  }
-}
-
+// ---------- Edit / add form body ----------
 .editForm {
-  padding: 20px 22px;
-  overflow-y: auto;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  scroll-behavior: smooth;
 }
 
-.formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  label {
-    font-size: 12px;
-    font-weight: 600;
-    color: $text-muted;
-    letter-spacing: 0.1px;
-  }
-
-  input,
-  textarea,
-  select {
-    padding: 10px 12px;
-    border: 1.5px solid $border;
-    border-radius: $radius-sm;
-    font-size: 13px;
-    color: $text;
-    transition:
-      border-color $t-fast,
-      box-shadow $t-fast,
-      background $t-fast;
-    font-family: inherit;
-    background: #fff;
-
-    &::placeholder {
-      color: $text-faint;
-    }
-    &:hover:not(:disabled) {
-      border-color: $border-hover;
-    }
-    &:focus {
-      outline: none;
-      border-color: $primary;
-      box-shadow: 0 0 0 4px rgba(60, 170, 70, 0.12);
-    }
-    &:disabled {
-      background: $bg-subtle;
-      color: $text-faint;
-      cursor: not-allowed;
-    }
-  }
-
-  textarea {
-    resize: vertical;
-    min-height: 72px;
-    line-height: 1.5;
-  }
-}
-
-// =========================================================
-// Form actions
-// =========================================================
-.formActions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 14px 0 4px;
-  border-top: 1px solid $border-soft;
-  margin-top: 8px;
-  position: sticky;
-  bottom: -20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 30%);
-}
-
-.cancelBtn {
-  padding: 10px 18px;
-  background: transparent;
-  color: $text-muted;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    border-color $t-fast,
-    color $t-fast;
-
-  &:hover:not(:disabled) {
-    background: $bg-subtle;
-    border-color: $border-strong;
-    color: $text;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.saveBtn {
-  padding: 10px 20px;
-  background: $primary;
-  color: #fff;
-  border: 1px solid $primary;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    box-shadow $t-fast,
-    transform $t-fast;
-  letter-spacing: 0.2px;
-
-  &:hover:not(:disabled) {
-    background: $primary-dark;
-    border-color: $primary-dark;
-    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.3);
-  }
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-}
-
-.deleteBtn {
-  padding: 10px 18px;
-  background: transparent;
-  color: $danger;
-  border: 1px solid rgba(220, 53, 69, 0.3);
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    color $t-fast,
-    border-color $t-fast;
-
-  &:hover:not(:disabled) {
-    background: $danger;
-    color: #fff;
-    border-color: $danger;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-// =========================================================
-// Inline banners
-// =========================================================
-.formError {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: $danger-soft;
-  color: #b71c1c;
-  padding: 12px 14px;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 12px;
-  border-left: 4px solid $danger;
-  box-shadow: $shadow-sm;
-  animation: slideDown 0.2s ease-out;
-}
-
-.formSuccess {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: $primary-soft;
-  color: $primary-dark;
-  padding: 12px 14px;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 12px;
-  border-left: 4px solid $primary;
-  box-shadow: $shadow-sm;
-  animation: slideDown 0.2s ease-out;
-}
-
-// =========================================================
-// Invalid-field highlighting
-// =========================================================
-.inputError {
-  border-color: $danger !important;
-  background-color: #fff8f8 !important;
-  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.12) !important;
-
-  &:focus {
-    outline: none;
-    border-color: $danger !important;
-    box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.2) !important;
-  }
-}
-
-.imageUploadError {
-  border: 1px dashed $danger;
-  border-radius: $radius;
-  padding: 10px;
-  background: #fff8f8;
-  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
-}
-
-// =========================================================
-// Confirm dialog
-// =========================================================
-.confirmOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  z-index: 3000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  backdrop-filter: blur(6px);
-  animation: overlayFade 0.2s ease-out;
-}
-
-.confirmDialog {
-  background: $bg-elevated;
-  border-radius: $radius-lg;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: $shadow-lg;
-  overflow: hidden;
-  animation: panelIn 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-}
-
-.confirmHeader {
-  padding: 18px 22px 12px;
-
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: $text;
-    letter-spacing: -0.2px;
-  }
-}
-
-.confirmBody {
-  padding: 0 22px 18px;
-
-  p {
-    margin: 0;
-    font-size: 14px;
-    color: $text-muted;
-    line-height: 1.5;
-  }
-}
-
-.confirmFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 0 22px 18px;
-}
-
-.confirmCancelBtn {
-  padding: 10px 16px;
-  background: transparent;
-  color: $text-muted;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    border-color $t-fast;
-
-  &:hover {
-    background: $bg-subtle;
-    border-color: $border-strong;
-  }
-}
-
-.confirmActionBtn {
-  padding: 10px 18px;
-  background: $primary;
-  color: #fff;
-  border: none;
-  border-radius: $radius-sm;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background $t-fast,
-    box-shadow $t-fast,
-    transform $t-fast;
-
-  &:hover {
-    background: $primary-dark;
-    box-shadow: 0 4px 12px rgba(60, 170, 70, 0.3);
-  }
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-// =========================================================
-// Loading state
-// =========================================================
-.loading {
-  text-align: center;
-  padding: 40px 20px;
-  color: $text-muted;
-  font-size: 14px;
-}
-
-// =========================================================
-// Mobile
-// =========================================================
-@media (max-width: 768px) {
-  .overlay,
-  .editModal,
-  .confirmOverlay {
-    padding: 12px;
-  }
-
-  .panel {
-    max-height: 85%;
-    border-radius: $radius;
-  }
-  .editModalContent,
-  .confirmDialog {
-    border-radius: $radius;
-  }
-
-  .header {
-    padding: 14px 16px;
-    flex-wrap: wrap;
-    h2 {
-      font-size: 15px;
-      width: 100%;
-      flex: 1 0 100%;
-    }
-    .addNewBtn {
-      flex: 1;
-    }
-
-    .closeBtn {
+@include mobile {
+  .stats { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .statItem { padding: 8px; flex-direction: column; gap: 3px; }
+  .statValue { font-size: 12px; }
+  .itemRow { flex-direction: column; align-items: stretch; gap: 10px; }
+  .itemStatus { flex-wrap: wrap; justify-content: flex-start; }
+  .itemStatus button { flex: 1; }
+  .dragHandle {
       position: absolute;
-      top: 10px;
-      right: 10px;
-    }
+  top: 10px;
+  right: 10px;
   }
-
-  .stats {
-    padding: 10px 16px 0;
-    gap: 6px;
-    .statItem {
-      padding: 8px;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .statValue {
-      font-size: 12px;
-    }
-  }
-
-  .controls {
-    padding: 12px 16px 8px;
-  }
-  .itemList {
-    padding: 8px 16px 16px;
-  }
-
-  .itemList {
-    .itemRow {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 10px;
-      padding: 12px;
-    }
-  }
-
-  .itemInfo {
-    gap: 10px;
-    .itemImage {
-      width: 44px;
-      height: 44px;
-    }
-    .itemName {
-      font-size: 13px;
-    }
-  }
-
-  .itemStatus {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .formRow {
-    grid-template-columns: 1fr;
-  }
-  .editForm {
-    padding: 16px;
-  }
-  .editBtn {
-    flex: 1;
-  }
-}
-
-/* ---------- Category groups ---------- */
-.categoryGroup {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fafafa;
-}
-
-.categoryHeader {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-
-  &:hover {
-    background: #f3ede7;
-  }
-}
-
-.chevron {
-  display: inline-block;
-  font-size: 14px;
-  color: #7d6b60;
-  transition: transform 0.15s ease;
-  transform: rotate(0deg);
-}
-
-.chevronOpen {
-  transform: rotate(90deg);
-}
-
-.categoryGroupName {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e1e1e;
-  letter-spacing: -0.1px;
-}
-
-.categoryGroupCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: #fff;
-  color: #7d6b60;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid #e6ded7;
-}
-
-.categoryGroupBody {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-}
-
-.discountBadge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  vertical-align: middle;
 }

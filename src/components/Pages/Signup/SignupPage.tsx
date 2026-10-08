@@ -1,44 +1,62 @@
-// pages/Signup/SignupPage.tsx
+// src/components/Pages/Signup/SignupPage.tsx
 import React, { useEffect, useState } from 'react';
 import { Plan } from '../../../types';
 import { planService } from '../../../services/plan.service';
-import DetailsStep, { SignupDetails } from './Steps/DetailsStep';
+import DetailsStep from './Steps/DetailsStep';
 import PlanStep from './Steps/PlanStep';
-import PaymentStep from './Steps/PaymentStep';
 import BuildingStep from './Steps/BuildingStep';
 import CredentialsStep from './Steps/CredentialsStep';
-import styles from './Signup.module.scss';
+import {
+  useSignupPersistence,
+  clearSignupState,
+  DEFAULT_SIGNUP_STATE,
+} from './useSignupPersistence';
+import local from './Signup.module.scss';
+import { CheckIcon } from '../../../assets/svgs';
 
-type SignupStage =
-  | 'details'
-  | 'plan'
-  | 'payment'
-  | 'building'
-  | 'credentials';
+interface VisibleStep {
+  index: number;
+  label: string;
+  sub: string;
+  stages: ('details' | 'plan' | 'building' | 'credentials')[];
+}
+
+const VISIBLE_STEPS: VisibleStep[] = [
+  {
+    index: 1,
+    label: 'Store Details',
+    sub: 'Name, slug & owner',
+    stages: ['details'],
+  },
+  {
+    index: 2,
+    label: 'Select Plan',
+    sub: 'Pick a plan & pay',
+    stages: ['plan'],
+  },
+  {
+    index: 3,
+    label: 'Store Setup',
+    sub: 'Review & confirm',
+    stages: ['building', 'credentials'],
+  },
+];
 
 const SignupPage: React.FC = () => {
-  const [stage, setStage] = useState<SignupStage>('details');
-  const [details, setDetails] = useState<SignupDetails>({
-    storeName: '',
-    slug: '',
-    ownerName: '',
-    ownerPhone: '',
-    ownerPassword: '',
-    confirmPassword: '',
-  });
+  const { state, patch, patchDetails, reset } = useSignupPersistence();
+  const {
+    stage,
+    details,
+    selectedPlanId,
+    months,
+    confirmed,
+  } = state;
 
   const [plans, setPlans] = useState<Plan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string>('');
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-
-  const [confirmed, setConfirmed] = useState<{
-    months: number;
-    expiresAt: string;
-  } | null>(null);
-
-  // ---- Load plans once on mount ----
+  // ---- Load plans ----
   useEffect(() => {
     let cancelled = false;
     setPlansLoading(true);
@@ -73,102 +91,132 @@ const SignupPage: React.FC = () => {
     };
   }, []);
 
-  const selectedPlan = plans.find((p) => p.id === selectedPlanId) || null;
+  // ---- Auto-skip credentials step if plan/months got clobbered ----
+  useEffect(() => {
+    if (stage === 'credentials' && !confirmed) {
+      patch({ stage: 'plan' });
+    }
+    if (stage === 'building' && !confirmed) {
+      patch({ stage: 'plan' });
+    }
+  }, [stage, confirmed, patch]);
 
   const origin = window.location.origin + window.location.pathname;
   const publicUrl = `${origin}?t=${details.slug}`;
   const adminUrl = `${origin}?t=${details.slug}_admin`;
 
+  const activeVisibleIndex =
+    VISIBLE_STEPS.findIndex((s) => s.stages.includes(stage)) + 1;
+
+  const confirmedPlan = confirmed
+    ? plans.find((p) => p.id === confirmed.planId) ?? null
+    : null;
+
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <div className={styles.brand}>Smart Admin - Sign up</div>
-        <div className={styles.stageBar}>
-          {(['details', 'plan', 'payment'] as SignupStage[]).map((s, i) => {
-            const stageIndex = ['details', 'plan', 'payment', 'building', 'credentials'].indexOf(stage);
-            const thisIndex = i;
-            const isActive = thisIndex <= stageIndex && stageIndex < 3;
-            return (
-              <div
-                key={s}
-                className={`${styles.stageDot} ${
-                  isActive ? styles.stageDotActive : ''
-                }`}
-              >
-                <span>{i + 1}</span>
-                <label>
-                  {s === 'details'
-                    ? 'Details'
-                    : s === 'plan'
-                    ? 'Plan'
-                    : 'Payment'}
-                </label>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className={local.page}>
+      <header className={local.pageHeader}>
+        <h1 className={local.pageTitle}>Teckut Digital Menu</h1>
+        <p className={local.pageSubtitle}>
+          Follow the simple 3 steps below to set up your store, choose a plan,
+          and start taking orders.
+        </p>
+      </header>
 
-      <div className={styles.body}>
-        {stage === 'details' && (
-          <DetailsStep
-            initial={details}
-            onContinue={(d) => {
-              setDetails(d);
-              setStage('plan');
-            }}
-          />
-        )}
+      <div className={local.shell}>
+        <aside className={local.stepper}>
+          <ol className={local.stepperList}>
+            {VISIBLE_STEPS.map((s) => {
+              const isCompleted = s.index < activeVisibleIndex;
+              const isActive = s.index === activeVisibleIndex;
+              return (
+                <li
+                  key={s.index}
+                  className={[
+                    local.stepperItem,
+                    isCompleted ? local.stepCompleted : '',
+                    isActive ? local.stepActive : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  <div className={local.stepDot}>
+                    {isCompleted ? (
+                      <CheckIcon width={16} height={16} fill="#1e7e34" />
+                    ) : (
+                      s.index
+                    )}
+                  </div>
+                  <div className={local.stepText}>
+                    <span className={local.stepLabel}>{s.label}</span>
+                    <span className={local.stepSub}>{s.sub}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
 
-        {stage === 'plan' && (
-          <PlanStep
-            plans={plans}
-            plansLoading={plansLoading}
-            plansError={plansError}
-            selectedPlanId={selectedPlanId}
-            onSelect={setSelectedPlanId}
-            onContinue={() => setStage('payment')}
-            onBack={() => setStage('details')}
-          />
-        )}
+        <main className={local.stepPanel}>
+          {stage === 'details' && (
+            <DetailsStep
+              initial={details}
+              onFieldChange={patchDetails}
+              onContinue={(d) => {
+                patch({ details: d, stage: 'plan' });
+              }}
+            />
+          )}
 
-        {stage === 'payment' && selectedPlan && (
-          <PaymentStep
-            plan={selectedPlan}
-            details={{
-              storeName: details.storeName,
-              slug: details.slug,
-              ownerName: details.ownerName,
-              ownerPhone: details.ownerPhone,
-              ownerPassword: details.ownerPassword,
-            }}
-            onSuccess={(info) => {
-              setConfirmed(info);
-              setStage('building');
-            }}
-            onBack={() => setStage('plan')}
-          />
-        )}
+          {stage === 'plan' && (
+            <PlanStep
+              plans={plans}
+              plansLoading={plansLoading}
+              plansError={plansError}
+              details={{
+                storeName: details.storeName,
+                slug: details.slug,
+                storeCategory: details.storeCategory,
+                ownerName: details.ownerName,
+                ownerPhone: details.ownerPhone,
+                ownerPassword: details.ownerPassword,
+              }}
+              initialPlanId={selectedPlanId}
+              initialMonths={months}
+              onSelectionChange={({ planId, months }) =>
+                patch({ selectedPlanId: planId, months })
+              }
+              onBack={() => patch({ stage: 'details' })}
+              onPaid={(info) => {
+                patch({ confirmed: info, stage: 'building' });
+              }}
+            />
+          )}
 
-        {stage === 'building' && (
-          <BuildingStep
-            storeName={details.storeName}
-            onComplete={() => setStage('credentials')}
-          />
-        )}
+          {stage === 'building' && confirmed && (
+            <BuildingStep
+              storeName={details.storeName}
+              onComplete={() => patch({ stage: 'credentials' })}
+            />
+          )}
 
-        {stage === 'credentials' && selectedPlan && confirmed && (
-          <CredentialsStep
-            storeName={details.storeName}
-            publicUrl={publicUrl}
-            adminUrl={adminUrl}
-            phone={details.ownerPhone}
-            password={details.ownerPassword}
-            planName={selectedPlan.name}
-            months={confirmed.months}
-            expiresAtIso={confirmed.expiresAt}
-          />
-        )}
+          {stage === 'credentials' && confirmedPlan && confirmed && (
+            <CredentialsStep
+              storeName={details.storeName}
+              publicUrl={publicUrl}
+              adminUrl={adminUrl}
+              phone={details.ownerPhone}
+              password={details.ownerPassword}
+              planName={confirmedPlan.name}
+              months={confirmed.months}
+              expiresAtIso={confirmed.expiresAt}
+              onDone={() => {
+                // Fully reset after the user acknowledges.
+                clearSignupState();
+                reset();
+              }}
+            />
+          )}
+        </main>
       </div>
     </div>
   );

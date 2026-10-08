@@ -1,3 +1,6 @@
+// components/Store/PausedScreen.module.scss
+@use '../../styles/tokens' as *;
+
 .wrap {
   display: flex;
   align-items: center;
@@ -9,29 +12,23 @@
 .card {
   max-width: 460px;
   width: 100%;
-  background: #fff;
-  border: 1px solid #f0eae5;
-  border-radius: 16px;
-  padding: 32px 24px;
   text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+  padding: 32px 24px;
 
   h1 {
     margin: 12px 0 10px;
     font-size: 22px;
     font-weight: 800;
-    color: #1e1e1e;
+    color: $text;
   }
 
   p {
     margin: 0 0 10px;
     font-size: 14px;
-    color: #4d4d4d;
+    color: $text-muted;
     line-height: 1.55;
 
-    strong {
-      color: #1e7e34;
-    }
+    strong { color: $primary-dark; }
   }
 }
 
@@ -42,10 +39,10 @@
 
 .note {
   font-size: 12.5px !important;
-  color: #7d6b60 !important;
-  background: #fdfbf8;
-  border: 1px solid #f0eae5;
-  border-radius: 10px;
+  color: $text-muted !important;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
   padding: 10px 14px;
   text-align: left;
   margin-bottom: 20px !important;
@@ -56,24 +53,4 @@
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.primaryBtn,
-.ghostBtn {
-  padding: 11px 18px;
-  font-size: 13px;
-  font-weight: 700;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-}
-
-.primaryBtn {
-  background: #1e7e34;
-  color: #fff;
-}
-
-.ghostBtn {
-  background: #f5f1ec;
-  color: #4d4d4d;
 }

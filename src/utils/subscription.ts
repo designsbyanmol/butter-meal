@@ -48,7 +48,7 @@ export const computePlanPrice = (
 ): PriceBreakdown => computePrice(plan.monthlyPrice, months);
 
 export const formatRupees = (n: number): string =>
-  `Rs${n.toLocaleString('en-IN', {
+  `Rs ${n.toLocaleString('en-IN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
@@ -64,3 +64,4 @@ export const daysUntilExpiry = (
   if (!expiresAtIso) return Infinity;
   return daysBetween(new Date(), new Date(expiresAtIso));
 };
+

@@ -1,5 +1,7 @@
+// components/Promotion/Promotion.tsx
+
 import React, { useState, useEffect, useRef } from "react";
-import styles from "./Promotion.module.scss";
+import local from './Promotion.module.scss';
 
 interface PromotionProps {
   promoLink?: string;
@@ -14,7 +16,7 @@ interface PromotionProps {
 const Promotion: React.FC<PromotionProps> = ({ 
   promoLink, 
   promoTitle = "Promotion", 
-  messages = ["🎉 Special Offer Coming Soon!", "✨ Don't Miss Out!", "🔥 Limited Time Only!"],
+  messages = ["Special Offer Coming Soon!", "Don't Miss Out!", "Limited Time Only!"],
   typingSpeed = 100,
   eraseSpeed = 50,
   delayBeforeErase = 1000,
@@ -79,17 +81,17 @@ const Promotion: React.FC<PromotionProps> = ({
 
   if (promoLink) {
     return (
-      <div className={styles.promotionWrap}>
+      <div className={local.promotionWrap}>
         <img src={promoLink} alt={promoTitle} loading="lazy" />
       </div>
     );
   }
 
   return (
-    <div className={`${styles.promotionWrap} ${styles.typingContainer}`}>
-      <div className={styles.typingContent}>
-        <span className={styles.typingText}>{displayText}</span>
-        <span className={styles.cursor}>_</span>
+    <div className={`${local.promotionWrap} ${local.typingContainer}`}>
+      <div className={local.typingContent}>
+        <span className={local.typingText}>{displayText}</span>
+        <span className={local.cursor}>_</span>
       </div>
     </div>
   );

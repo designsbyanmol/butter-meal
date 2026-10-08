@@ -1,11 +1,11 @@
 // components/Cart/CustomerNameModal.tsx
 import React, { useEffect, useState } from 'react';
-import { CloseIcon } from '../../assets/svgs';
+import { Modal, Button, Input, FormField, Banner } from '../ui';
 import {
   getCustomerName,
   setCustomerName as persistCustomerName,
 } from '../../utils/customerName';
-import styles from './CustomerNameModal.module.scss';
+import local from './CustomerNameModal.module.scss';
 
 interface CustomerNameModalProps {
   isOpen: boolean;
@@ -24,11 +24,8 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
   onCancel,
   onConfirm,
 }) => {
-  // Currently-typed value in the input (edit mode)
   const [draft, setDraft] = useState('');
-  // The name persisted from a previous order (read on open)
   const [savedName, setSavedName] = useState('');
-  // Whether the input is visible right now
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,33 +39,15 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
 
     setSavedName(hasSaved ? stored : '');
     setDraft(initial);
-    // If we have a saved name and no explicit initial override,
-    // open in "greeting" mode (input hidden). Otherwise show the input.
-    setIsEditing(!hasSaved || (!!initialValue && initialValue.trim() !== stored));
+    setIsEditing(
+      !hasSaved ||
+        (!!initialValue && initialValue.trim() !== stored),
+    );
     setError('');
   }, [isOpen, initialValue]);
 
-  // Esc: close  /  Enter: submit
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-      if (e.key === 'Enter') {
-        if (isEditing) handleSubmitEdit();
-        else if (savedName) handleUseSaved();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isEditing, draft, savedName]);
-
-  if (!isOpen) return null;
-
-  // ---------- Actions ----------
-
-  /** First-time submission OR after clicking "Change Name" > Continue */
-  function handleSubmitEdit() {
+  // ---- Actions ----
+  const handleSubmitEdit = () => {
     const trimmed = draft.trim();
     if (!trimmed) {
       setError('Please enter your name');
@@ -80,23 +59,20 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
     }
     persistCustomerName(trimmed);
     onConfirm(trimmed);
-  }
+  };
 
-  /** Reuse the saved name (Continue button in greeting mode) */
-  function handleUseSaved() {
+  const handleUseSaved = () => {
     if (!savedName) return;
     onConfirm(savedName);
-  }
+  };
 
-  /** Enter edit mode from greeting mode */
-  function handleChangeName() {
+  const handleChangeName = () => {
     setDraft(savedName);
     setIsEditing(true);
     setError('');
-  }
+  };
 
-  /** Cancel edit - go back to greeting mode if a name exists */
-  function handleCancelEdit() {
+  const handleCancelEdit = () => {
     if (savedName) {
       setDraft(savedName);
       setIsEditing(false);
@@ -104,41 +80,57 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
     } else {
       onCancel();
     }
-  }
-
-  // ---------- Render ----------
+  };
 
   const isGreetingMode = !!savedName && !isEditing;
 
-  return (
-    <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h3>{isGreetingMode ? 'Welcome back' : 'Your Name'}</h3>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={onCancel}
-            aria-label="Close"
-          >
-            <CloseIcon width={18} height={18} fill="#4d4d4d" />
-          </button>
-        </div>
+  // ---- Footer variants ----
+  const footerContent = isGreetingMode ? (
+    <>
+      <Button variant="ghost" onClick={handleChangeName}>
+        Change Name
+      </Button>
+      <Button onClick={handleUseSaved}>Continue</Button>
+    </>
+  ) : savedName ? (
+    // Edit mode, came from greeting - allow back-out
+    <>
+      <Button variant="ghost" onClick={handleCancelEdit}>
+        Cancel
+      </Button>
+      <Button onClick={handleSubmitEdit}>Continue</Button>
+    </>
+  ) : (
+    // First-time user - no saved name
+    <>
+      <Button variant="ghost" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button onClick={handleSubmitEdit}>Continue</Button>
+    </>
+  );
 
-        {isGreetingMode ? (
-          /* ============ GREETING MODE ============ */
-          <div className={styles.body}>
-            <p className={styles.greeting}>
-              Hey <strong>{savedName}</strong>! Let&apos;s proceed.
-            </p>
-          </div>
-        ) : (
-          /* ============ EDIT MODE ============ */
-          <div className={styles.body}>
-            <p className={styles.prompt}>{promptText}</p>
-            <input
-              type="text"
-              className={styles.input}
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onCancel}
+      title={isGreetingMode ? 'Welcome back' : 'Your Name'}
+      size="sm"
+      className={local.confirmModal}
+      footer={footerContent}
+    >
+      {isGreetingMode ? (
+        /* ---- Greeting mode ---- */
+        <div className={local.body}>
+          <p className={local.greeting}>
+            Hey <strong>{savedName}</strong>! Let&apos;s proceed.
+          </p>
+        </div>
+      ) : (
+        /* ---- Edit mode ---- */
+        <div className={local.body}>
+          <FormField label={promptText} error={error}>
+            <Input
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
@@ -147,70 +139,12 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
               placeholder={placeholder}
               maxLength={40}
               autoFocus
+              invalid={!!error}
             />
-            {error && <div className={styles.error}>{error}</div>}
-          </div>
-        )}
-
-        {/* ---------- Footer ---------- */}
-        <div className={styles.footer}>
-          {isGreetingMode ? (
-            <>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={handleChangeName}
-              >
-                Change Name
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onClick={handleUseSaved}
-              >
-                Continue
-              </button>
-            </>
-          ) : savedName ? (
-            /* Edit mode + we came from a greeting - offer back-out */
-            <>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={handleCancelEdit}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onClick={handleSubmitEdit}
-              >
-                Continue
-              </button>
-            </>
-          ) : (
-            /* First-time user - no saved name */
-            <>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={onCancel}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onClick={handleSubmitEdit}
-              >
-                Continue
-              </button>
-            </>
-          )}
+          </FormField>
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 };
 

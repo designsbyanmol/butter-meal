@@ -1,12 +1,13 @@
 // components/Payments/InvoiceModal.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Invoice, Plan } from '../../types';
 import { formatRupees } from '../../utils/subscription';
 import { planService } from '../../services/plan.service';
+import { Modal, Button, Banner } from '../ui';
 import RazorpayCheckout from './RazorpayCheckout';
 import UpiQrCard from './UpiQrCard';
-import { CloseIcon, DownloadIcon } from '../../assets/svgs';
-import styles from './InvoiceModal.module.scss';
+import { DownloadIcon } from '../../assets/svgs';
+import local from './InvoiceModal.module.scss';
 
 export interface InvoiceModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     setIsSaving(false);
   }, [invoice]);
 
-  // Reset local copy when the modal is closing
+  // Reset when closing
   useEffect(() => {
     if (!isOpen) {
       setLocalInvoice(null);
@@ -48,14 +49,10 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   }, [isOpen]);
 
-  // -----------------------------------------------------------------
-  // HARD GUARD - must run before ANY access to `.planId`, `.finalAmount`
-  // or any other field on `localInvoice`. Also handles the case where
-  // `plan` is null: we can render the invoice fine without it since
-  // every amount is already baked into the invoice row.
-  // -----------------------------------------------------------------
+  // ---- Hard guard (must be BEFORE any field access) ----
   if (!isOpen || !localInvoice) return null;
 
+  // ---- Download invoice text ----
   const handleDownload = () => {
     const inv = localInvoice;
     const planLabel = plan?.name ?? inv.planId;
@@ -70,7 +67,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
       `--- Amount ---`,
       `Base:        ${formatRupees(inv.baseAmount)}`,
       inv.baseAmount !== inv.finalAmount
-        ? `Credit:      −${formatRupees(inv.baseAmount - inv.finalAmount)}`
+        ? `Credit:      -${formatRupees(inv.baseAmount - inv.finalAmount)}`
         : '',
       `Total:       ${formatRupees(inv.finalAmount)}`,
       ``,
@@ -98,6 +95,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     setTimeout(() => URL.revokeObjectURL(url), 800);
   };
 
+  // ---- Admin: mark paid ----
   const handleMarkPaid = async () => {
     if (!localInvoice) return;
     setIsSaving(true);
@@ -109,7 +107,6 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
       );
       if (!updated) throw new Error('Failed to mark invoice paid');
 
-      // Apply the plan change / extension
       await planService.changePlan(
         tenantSlug,
         localInvoice.planId,
@@ -127,136 +124,125 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
   const planLabel = plan?.name ?? localInvoice.planId;
 
-  return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h3>Invoice</h3>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <CloseIcon width={18} height={18} fill="#4d4d4d" />
-          </button>
-        </div>
-
-        <div className={styles.body}>
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryRow}>
-              <span>Tenant</span>
-              <span>
-                {tenantName}
-              </span>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Plan</span>
-              <span>
-                {planLabel} . {localInvoice.months} month
-                {localInvoice.months > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Base amount</span>
-              <span>{formatRupees(localInvoice.baseAmount)}</span>
-            </div>
-            {localInvoice.baseAmount !== localInvoice.finalAmount && (
-              <div
-                className={`${styles.summaryRow} ${styles.summaryDiscount}`}
-              >
-                <span>Prorated credit</span>
-                <span>
-                  −
-                  {formatRupees(
-                    localInvoice.baseAmount - localInvoice.finalAmount,
-                  )}
-                </span>
-              </div>
-            )}
-            <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-              <span>Total payable</span>
-              <span>{formatRupees(localInvoice.finalAmount)}</span>
-            </div>
-          </div>
-
-          <UpiQrCard
-            amount={localInvoice.finalAmount}
-            note={`${planLabel} . ${localInvoice.months} mo`}
-            txnRef={localInvoice.id.slice(0, 8)}
-          />
-
-          {error && <div className={styles.errorBanner}>{error}</div>}
-        </div>
-
-        <div className={styles.footer}>
-          {mode === 'tenant' ? (
-            <>
-              <button
-                type="button"
-                className={styles.ghostBtn}
-                onClick={onClose}
-              >
-                Close
-              </button>
-              <RazorpayCheckout
-                amount={localInvoice.finalAmount}
-                invoiceId={localInvoice.id}
-                description={`${planLabel} . ${localInvoice.months} months`}
-                action="change"
-                tenantSlug={tenantSlug}
-                planId={localInvoice.planId}
-                months={localInvoice.months}
-                onCheckoutSuccess={() => {
-                  planService
-                    .getInvoiceById(localInvoice.id)
-                    .then((inv) => {
-                      if (inv) onPaid(inv);
-                    });
-                  onClose();
-                }}
-                onCheckoutFailure={(reason) => {
-                  if (reason && reason !== 'Payment cancelled') {
-                    setError(reason);
-                  }
-                }}
-              >
-                {({ start, processing }) => (
-                  <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    disabled={processing}
-                    onClick={start}
-                  >
-                    {processing
-                      ? 'Processing...'
-                      : `Pay Now ${formatRupees(localInvoice.finalAmount)}`}
-                  </button>
-                )}
-              </RazorpayCheckout>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.ghostBtn}
-                onClick={handleDownload}
-              >
-                <DownloadIcon width={18} height={18} fill="#4d4d4d" /> Download
-              </button>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                disabled={isSaving}
-                onClick={handleMarkPaid}
-              >
-                {isSaving ? 'Saving...' : 'Paid / Save'}
-              </button>
-            </>
+  // ---- Footer variants ----
+  const footerContent =
+    mode === 'tenant' ? (
+      <>
+        <Button variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+        <RazorpayCheckout
+          amount={localInvoice.finalAmount}
+          invoiceId={localInvoice.id}
+          description={`${planLabel} . ${localInvoice.months} months`}
+          action="change"
+          tenantSlug={tenantSlug}
+          planId={localInvoice.planId}
+          months={localInvoice.months}
+          onCheckoutSuccess={() => {
+            planService
+              .getInvoiceById(localInvoice.id)
+              .then((inv) => {
+                if (inv) onPaid(inv);
+              });
+            onClose();
+          }}
+          onCheckoutFailure={(reason) => {
+            if (reason && reason !== 'Payment cancelled') {
+              setError(reason);
+            }
+          }}
+        >
+          {({ start, processing }) => (
+            <Button
+              onClick={start}
+              loading={processing}
+            >
+              {processing
+                ? 'Processing...'
+                : `Pay Now . ${formatRupees(localInvoice.finalAmount)}`}
+            </Button>
           )}
+        </RazorpayCheckout>
+      </>
+    ) : (
+      <>
+        <Button
+          variant="ghost"
+          onClick={handleDownload}
+          leftIcon={<DownloadIcon width={16} height={16} fill="#4d4d4d" />}
+        >
+          Download
+        </Button>
+        <Button
+          onClick={handleMarkPaid}
+          loading={isSaving}
+        >
+          {isSaving ? 'Saving...' : 'Paid / Save'}
+        </Button>
+      </>
+    );
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Invoice"
+      size="md"
+      footer={footerContent}
+    >
+      <div className={local.summaryCard}>
+        <div className={local.summaryRow}>
+          <span>Tenant</span>
+          <span>{tenantName}</span>
+        </div>
+        <div className={local.summaryRow}>
+          <span>Plan</span>
+          <span>
+            {planLabel} . {localInvoice.months} month
+            {localInvoice.months > 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className={local.summaryRow}>
+          <span>Base amount</span>
+          <span>{formatRupees(localInvoice.baseAmount)}</span>
+        </div>
+
+        {localInvoice.baseAmount !== localInvoice.finalAmount && (
+          <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
+            <span>Prorated credit</span>
+            <span>
+              -
+              {formatRupees(
+                localInvoice.baseAmount - localInvoice.finalAmount,
+              )}
+            </span>
+          </div>
+        )}
+
+        <div className={`${local.summaryRow} ${local.summaryTotal}`}>
+          <span>Total payable</span>
+          <span>{formatRupees(localInvoice.finalAmount)}</span>
         </div>
       </div>
-    </div>
+
+      <UpiQrCard
+        amount={localInvoice.finalAmount}
+        note={`${planLabel} . ${localInvoice.months} mo`}
+        txnRef={localInvoice.id.slice(0, 8)}
+      />
+
+      {error && (
+        <Banner
+          variant="error"
+          inline
+          onDismiss={() => setError('')}
+          className={local.errorBanner}
+        >
+          {error}
+        </Banner>
+      )}
+    </Modal>
   );
 };
 

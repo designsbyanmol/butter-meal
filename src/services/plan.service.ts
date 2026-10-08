@@ -225,33 +225,35 @@ async createInvoice(params: {
 
   // ---------- Subscription ----------
   async createTenantWithPlan(params: {
-    displayName: string;
-    slug: string;
-    ownerPhone: string;
-    ownerName: string;
-    ownerPassword: string;
-    planId: string;
-    months: number;
-    whatsappPhone?: string;
-  }): Promise<boolean> {
-    const client = this.getClient();
-    if (!client) return false;
-    const { error } = await client.rpc('create_tenant_with_plan', {
-      display_name_in: params.displayName,
-      slug_in: params.slug,
-      owner_phone_in: params.ownerPhone,
-      owner_name_in: params.ownerName,
-      owner_pw_in: params.ownerPassword,
-      plan_id_in: params.planId,
-      months_in: params.months,
-      whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,
-    });
-    if (error) {
-      console.error('create_tenant_with_plan error:', error);
-      throw new Error(error.message || 'Failed to create tenant');
-    }
-    return true;
+  displayName: string;
+  slug: string;
+  ownerPhone: string;
+  ownerName: string;
+  ownerPassword: string;
+  planId: string;
+  months: number;
+  whatsappPhone?: string;
+  storeCategory?: string;
+}): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { error } = await client.rpc('create_tenant_with_plan', {
+    display_name_in: params.displayName,
+    slug_in: params.slug,
+    owner_phone_in: params.ownerPhone,
+    owner_name_in: params.ownerName,
+    owner_pw_in: params.ownerPassword,
+    plan_id_in: params.planId,
+    months_in: params.months,
+    whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,
+    store_category_in: params.storeCategory ?? 'restaurant',
+  });
+  if (error) {
+    console.error('create_tenant_with_plan error:', error);
+    throw new Error(error.message || 'Failed to create tenant');
   }
+  return true;
+}
 
   async extendSubscription(
     slug: string,

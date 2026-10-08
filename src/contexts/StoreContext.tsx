@@ -25,7 +25,7 @@ const defaultStoreSettings: StoreSettings = {
   closedMessage: '',
   expectedOpenDate: '',
   expectedOpenTime: '',
-  acceptingOrders: true,   // ← NEW
+  acceptingOrders: true,   // - NEW
   lastUpdated: new Date().toISOString(),
 };
 
@@ -78,7 +78,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
   closedMessage: dbSettings.closedMessage || '',
   expectedOpenDate: dbSettings.expectedOpenDate || '',
   expectedOpenTime: dbSettings.expectedOpenTime || '',
-  acceptingOrders: dbSettings.acceptingOrders !== false,   // ← NEW
+  acceptingOrders: dbSettings.acceptingOrders !== false,   // - NEW
   lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
 };
 

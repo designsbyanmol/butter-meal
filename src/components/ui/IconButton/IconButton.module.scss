@@ -1,0 +1,112 @@
+// src/components/ui/IconButton/IconButton.module.scss
+@use "../../../styles/tokens" as *;
+@use "../../../styles/mixins" as *;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition:
+    background $t-fast,
+    color $t-fast,
+    transform 0.05s ease,
+    box-shadow $t-fast;
+  flex-shrink: 0;
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.circle {
+  border-radius: 50%;
+}
+.square {
+  border-radius: $radius-sm;
+}
+
+// ---------- SIZES ----------
+.xs {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+
+.sm {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.md {
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+
+.lg {
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
+}
+
+// ---------- VARIANTS ----------
+.default {
+  background: transparent;
+  color: $text-muted;
+
+  &:hover:not(:disabled) {
+    background: $bg-subtle;
+    color: $text;
+  }
+}
+
+.primary {
+  background: $primary-tint;
+  color: $primary-dark;
+
+  &:hover:not(:disabled) {
+    background: $primary-soft;
+  }
+}
+
+.danger {
+  background: $red-50;
+  color: $red-700;
+
+  &:hover:not(:disabled) {
+    background: $red-100;
+  }
+}
+
+.ghost {
+  background: transparent;
+  color: inherit;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+}
+
+.soft {
+  background: $bg-subtle;
+  color: $text-muted;
+
+  &:hover:not(:disabled) {
+    background: $bg-muted;
+    color: $text;
+  }
+}

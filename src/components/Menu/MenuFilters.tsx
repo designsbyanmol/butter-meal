@@ -1,16 +1,14 @@
-// components/Menu/MenuFilters.tsx
+// src/components/Menu/MenuFilters.tsx
 import React, { useMemo, useState } from 'react';
 import { MenuItem } from '../../types';
-import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { DEFAULT_FORM_SCHEMA, normalizeOptions } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
-import { CloseIcon } from '../../assets/svgs';
-import FilterIcon from '../../assets/svgs/FilterIcon';
+import { Input, IconButton, Chip, Button } from '../ui';
+import { FilterIcon, SearchIcon } from '../../assets/svgs';
 import MenuFilterPopup from './MenuFilterPopup';
-import {
-  MenuFilterState,
-  EMPTY_FILTERS,
-} from './menuFilters.types';
-import styles from './MenuFilters.module.scss';
+import { MenuFilterState } from './menuFilters.types';
+import { getStoreLabels } from '../../utils/storeLabels';
+import local from './MenuFilters.module.scss';
 
 interface MenuFiltersProps {
   items: MenuItem[];
@@ -26,15 +24,14 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const { tenant } = useTenant();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
+  const labels = getStoreLabels(tenant?.storeCategory);
 
-  // Schema category order - pills follow this exactly
   const categories = useMemo(() => {
     const catField = schema.fields.find((f) => f.key === 'category');
-    const options = (catField?.options ?? [])
-      .map((s) => s.trim())
+    const options = normalizeOptions(catField?.options)
+      .map((o) => o.name.trim())
       .filter(Boolean);
 
-    // Only show categories that are actually used by at least one item
     const usedInItems = new Set<string>();
     items.forEach((it) => {
       const c = (it.category ?? '').trim();
@@ -55,66 +52,70 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
     advancedCount > 0;
 
   return (
-    <div className={styles.wrap}>
-      {/* Search + Filter button */}
-      <div className={styles.searchRow}>
-        <div className={styles.searchBox}>
-          <span className={styles.searchIcon} aria-hidden>🔍</span>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Search dishes, categories..."
+    <div className={local.wrap}>
+      <div className={local.searchRow}>
+        <div className={local.searchBox}>
+          <Input
+            placeholder={labels.searchPlaceholder}
             value={filters.search}
             onChange={(e) =>
               onChange({ ...filters, search: e.target.value })
             }
+            leftIcon={
+              <SearchIcon
+                aria-hidden
+                width={20}
+                height={20}
+                className={local.searchIcon}
+                fill="#dcdcdc"
+              />
+            }
+            rightIcon={
+              filters.search ? (
+                <IconButton
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Clear search"
+                  onClick={() => onChange({ ...filters, search: '' })}
+                >
+                  ✕
+                </IconButton>
+              ) : undefined
+            }
           />
-          {filters.search && (
-            <button
-              type="button"
-              className={styles.clearSearch}
-              onClick={() => onChange({ ...filters, search: '' })}
-              aria-label="Clear search"
-            >
-              <CloseIcon width={14} height={14} fill="#7d6b60" />
-            </button>
-          )}
         </div>
 
-        <button
-          type="button"
-          className={`${styles.filterBtn} ${
-            advancedCount > 0 ? styles.filterBtnActive : ''
-          }`}
+        <Button
+          variant={advancedCount > 0 ? 'primary' : 'ghost'}
           onClick={() => setIsPopupOpen(true)}
+          leftIcon={
+            <FilterIcon width={14} height={14} fill="currentColor" />
+          }
+          rightIcon={
+            advancedCount > 0 ? (
+              <span className={local.filterCount}>{advancedCount}</span>
+            ) : undefined
+          }
+          className={local.filterBtn}
         >
-          <FilterIcon width={16} height={16} fill="currentColor" />
-          <span>Filters</span>
-          {advancedCount > 0 && (
-            <span className={styles.filterCount}>{advancedCount}</span>
-          )}
-        </button>
+          Filters
+        </Button>
       </div>
 
-      {/* Category pills - ordered by schema */}
       {categories.length > 0 && (
-        <div className={styles.pillRow}>
-          <button
-            type="button"
-            className={`${styles.pill} ${
-              filters.category === null ? styles.pillActive : ''
-            }`}
+        <div className={local.pillRow}>
+          <Chip
+            tone="primary"
+            active={filters.category === null}
             onClick={() => onChange({ ...filters, category: null })}
           >
             All
-          </button>
+          </Chip>
           {categories.map((c) => (
-            <button
+            <Chip
               key={c}
-              type="button"
-              className={`${styles.pill} ${
-                filters.category === c ? styles.pillActive : ''
-              }`}
+              tone="primary"
+              active={filters.category === c}
               onClick={() =>
                 onChange({
                   ...filters,
@@ -123,9 +124,27 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
               }
             >
               {c}
-            </button>
+            </Chip>
           ))}
         </div>
+      )}
+
+      {hasAnyFilter && categories.length > 0 && (
+        <button
+          type="button"
+          className={local.clearAll}
+          onClick={() =>
+            onChange({
+              search: '',
+              category: null,
+              types: new Set(),
+              sort: 'default',
+              stock: 'all',
+            })
+          }
+        >
+          Clear all
+        </button>
       )}
 
       <MenuFilterPopup
