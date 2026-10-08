@@ -9,13 +9,17 @@ const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, '..', 'dist');
 const indexPath = path.join(distPath, 'index.html');
 
-// Keep only index.html — everything else goes away.
+// Keep index.html and sw.js — delete everything else.
+const keep = new Set(['index.html', 'sw.js']);
+
 for (const file of fs.readdirSync(distPath)) {
-  if (file === 'index.html') continue;
+  if (keep.has(file)) continue;
   const full = path.join(distPath, file);
-  const stat = fs.statSync(full);
-  if (stat.isDirectory()) fs.rmSync(full, { recursive: true, force: true });
-  else fs.unlinkSync(full);
+  if (fs.statSync(full).isDirectory()) {
+    fs.rmSync(full, { recursive: true, force: true });
+  } else {
+    fs.unlinkSync(full);
+  }
 }
 
-console.log('[inline] single-file dist ready: index.html');
+console.log('[inline] dist ready:', Array.from(keep).join(', '));

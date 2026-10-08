@@ -3,11 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { IconButton, Modal, Button } from '../ui';
 import { DownloadIcon } from '../../assets/svgs';
 import { useTenant } from '../../contexts/TenantContext';
-import { hasHubStore, addHubStore } from '../../pwa/hubStorage';
+import { addHubStore, hasHubStore } from '../../pwa/hubStorage';
 import {
   isInstallAvailable,
   isStandalone,
   subscribeInstallAvailability,
+  subscribeAppInstalled,
   triggerInstall,
 } from '../../pwa/installPrompt';
 import { HUB_ICON_URL, HUB_APP_NAME } from '../../pwa/manifest';
@@ -17,41 +18,34 @@ type ModalState = 'closed' | 'waiting' | 'ready' | 'manual';
 
 const InstallIcon: React.FC = () => {
   const { tenant } = useTenant();
-  const [visible, setVisible] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [modal, setModal] = useState<ModalState>('closed');
 
-  // Visibility: hide if in hub or standalone.
   useEffect(() => {
-    const compute = () => {
-      if (!tenant) return setVisible(false);
-      const hide = hasHubStore(tenant.slug) || isStandalone() || installed;
-      setVisible(!hide);
-    };
-    compute();
-    const unsub = subscribeInstallAvailability(() => compute());
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'butter_hub:stores:v1') compute();
-    };
-    window.addEventListener('storage', onStorage);
-    return () => {
-      unsub();
-      window.removeEventListener('storage', onStorage);
-    };
-  }, [tenant?.slug, installed]);
+    const unsub = subscribeAppInstalled(() => setInstalled(true));
+    return unsub;
+  }, []);
 
-  // If we're waiting for the prompt and it arrives, promote to 'ready'.
   useEffect(() => {
     const unsub = subscribeInstallAvailability((available) => {
       setModal((m) => {
-        if (m === 'waiting' && available) return 'ready';
+        if (available && (m === 'waiting' || m === 'manual')) return 'ready';
         return m;
       });
     });
     return unsub;
   }, []);
 
-  if (!visible || !tenant) return null;
+  const isHubRoute = (() => {
+    try {
+      return new URL(window.location.href).searchParams.has('hub');
+    } catch {
+      return false;
+    }
+  })();
+
+  const hideIcon = !tenant || isStandalone() || installed || isHubRoute;
+  if (hideIcon || !tenant) return null;
 
   const storeUrl = `${window.location.origin}${window.location.pathname}?t=${tenant.slug}`;
 
@@ -71,7 +65,6 @@ const InstallIcon: React.FC = () => {
       return;
     }
 
-    // Give the browser a few seconds to fire beforeinstallprompt.
     setModal('waiting');
     window.setTimeout(() => {
       setModal((m) => (m === 'waiting' ? 'manual' : m));
@@ -83,15 +76,24 @@ const InstallIcon: React.FC = () => {
     if (outcome === 'accepted') {
       setInstalled(true);
       setModal('closed');
+    } else if (outcome === 'unavailable') {
+      setModal('waiting');
+      window.setTimeout(() => {
+        setModal((m) => (m === 'waiting' ? 'manual' : m));
+      }, 3000);
     } else {
       setModal('manual');
     }
   };
 
+  const handleRetryCheck = () => {
+    if (isInstallAvailable()) setModal('ready');
+  };
+
   const handleClose = () => setModal('closed');
 
-  const isReady = modal === 'ready';
   const isWaiting = modal === 'waiting';
+  const isReady = modal === 'ready';
 
   const footer = (
     <>
@@ -105,7 +107,9 @@ const InstallIcon: React.FC = () => {
           Preparing…
         </Button>
       ) : (
-        <Button onClick={handleClose}>Got it</Button>
+        <Button variant="secondary" onClick={handleRetryCheck}>
+          Try one-tap install
+        </Button>
       )}
     </>
   );
@@ -115,7 +119,7 @@ const InstallIcon: React.FC = () => {
       <IconButton
         variant="primary"
         size="md"
-        aria-label="Save to your store hub"
+        aria-label="Save this store to your hub"
         tooltip="Save to hub"
         className={local.icon}
         onClick={handleIconClick}
@@ -141,14 +145,12 @@ const InstallIcon: React.FC = () => {
           {isReady && (
             <p className={local.helpText}>
               Tap <strong>Install Hub App</strong> to add it to your home
-              screen. It will list every store you've saved.
+              screen.
             </p>
           )}
 
           {isWaiting && (
-            <p className={local.helpText}>
-              Checking install options…
-            </p>
+            <p className={local.helpText}>Checking install options…</p>
           )}
 
           {modal === 'manual' && (

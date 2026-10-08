@@ -12,10 +12,10 @@ const basePath =
   window.location.origin +
   window.location.pathname.replace(/index\.html?$/, '');
 
-// Fire-and-forget PWA bootstrap.
+// Fire-and-forget PWA bootstrap. Runs before React mounts.
 (async () => {
   try {
-    await installManifestLink({
+    installManifestLink({
       startUrl: `${basePath}?hub=1`,
       scope: basePath,
     });

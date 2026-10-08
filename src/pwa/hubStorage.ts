@@ -5,7 +5,7 @@ export interface HubEntry {
   displayName: string;
   url: string;
   iconUrl: string;
-  addedAt: string; // ISO
+  addedAt: string;
 }
 
 const KEY = 'butter_hub:stores:v1';

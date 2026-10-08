@@ -6,29 +6,32 @@ type BipEvent = Event & {
 };
 
 let deferredPrompt: BipEvent | null = null;
-const listeners = new Set<(available: boolean) => void>();
+const installListeners = new Set<(available: boolean) => void>();
+const installedListeners = new Set<() => void>();
 
 export const initInstallPrompt = (): void => {
   if (typeof window === 'undefined') return;
+  if ((window as any).__bipInit) return;
+  (window as any).__bipInit = true;
 
   window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar and stash the event for later.
     e.preventDefault();
     deferredPrompt = e as BipEvent;
-    listeners.forEach((l) => l(true));
+    installListeners.forEach((l) => l(true));
   });
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    listeners.forEach((l) => l(false));
+    installListeners.forEach((l) => l(false));
+    installedListeners.forEach((l) => l());
   });
 };
 
-export const isInstallAvailable = (): boolean => deferredPrompt !== null;
+export const isInstallAvailable = (): boolean =>
+  deferredPrompt !== null;
 
 export const isStandalone = (): boolean => {
   if (typeof window === 'undefined') return false;
-  // iOS Safari uses navigator.standalone
   const navStandalone =
     (window.navigator as unknown as { standalone?: boolean }).standalone ===
     true;
@@ -42,12 +45,20 @@ export const isStandalone = (): boolean => {
 export const subscribeInstallAvailability = (
   fn: (available: boolean) => void,
 ): (() => void) => {
-  listeners.add(fn);
+  installListeners.add(fn);
   fn(isInstallAvailable());
-  return () => listeners.delete(fn);
+  return () => {
+    installListeners.delete(fn);
+  };
 };
 
-/** Trigger the native install prompt. Returns the user's choice. */
+export const subscribeAppInstalled = (fn: () => void): (() => void) => {
+  installedListeners.add(fn);
+  return () => {
+    installedListeners.delete(fn);
+  };
+};
+
 export const triggerInstall = async (): Promise<
   'accepted' | 'dismissed' | 'unavailable'
 > => {
@@ -56,7 +67,7 @@ export const triggerInstall = async (): Promise<
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     deferredPrompt = null;
-    listeners.forEach((l) => l(false));
+    installListeners.forEach((l) => l(false));
     return choice.outcome;
   } catch {
     return 'dismissed';
