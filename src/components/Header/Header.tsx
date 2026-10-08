@@ -22,7 +22,6 @@ import {
   subscribeAdminAction,
   AdminAction,
 } from '../../utils/adminEvents';
-import InstallIcon from './InstallIcon';
 import local from './Header.module.scss';
 
 interface HeaderProps {
@@ -166,7 +165,6 @@ const Header: React.FC<HeaderProps> = ({
       <div className={local.bm_header}>
         <div className={local.container}>
           <div className={local.brand}>
-            {tenant && !isDeactivated && <InstallIcon />}
             {showAdminAvatar && (
               <Avatar
                 name={avatarInitial}

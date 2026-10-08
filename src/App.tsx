@@ -39,7 +39,6 @@ import { getCategoryDefaults } from "./data/storeDefaults";
 import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
 import styles from "./App.module.scss";
 import { getCategoryLabel } from "./data/storeCategories";
-import StoreHub from './components/Hub/StoreHub';
 
 const isHubRoute = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -743,8 +742,6 @@ const App: React.FC = () => {
   if (isSignupRoute()) {
     return <SignupPage />;
   }
-  if (isSignupRoute()) return <SignupPage />;
-  if (isHubRoute()) return <StoreHub />;
 
   return (
     <TenantProvider>

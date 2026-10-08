@@ -8,22 +8,13 @@ const __dirname = path.dirname(__filename);
 
 const distPath = path.join(__dirname, '..', 'dist');
 
-// Keep index.html + sw.js (our PWA files) + whatever Cloudflare's
-// Workers deploy flow writes into dist/.
-const keep = new Set([
-  'index.html',
-  'sw.js',
-  'wrangler.json',
-  '.assetsignore',
-]);
-
 if (!fs.existsSync(distPath)) {
   console.error('[inline] dist/ not found — did vite build fail?');
   process.exit(1);
 }
 
 for (const file of fs.readdirSync(distPath)) {
-  if (keep.has(file)) continue;
+  if (file === 'index.html') continue;
   const full = path.join(distPath, file);
   const stat = fs.statSync(full);
   if (stat.isDirectory()) {
@@ -33,4 +24,4 @@ for (const file of fs.readdirSync(distPath)) {
   }
 }
 
-console.log('[inline] dist ready:', fs.readdirSync(distPath).join(', '));
+console.log('[inline] dist ready: index.html');
