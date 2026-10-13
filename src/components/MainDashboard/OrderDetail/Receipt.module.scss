@@ -1,0 +1,226 @@
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+/* =========================================================
+   Thermal receipt — 80mm roll
+   ========================================================= */
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+.receipt {
+  /* 80mm roll, printable width ~72mm inside 4mm margins. */
+  width: 80mm;
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-family: 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace;
+  font-size: 10px;
+  line-height: 1.3;
+  padding: 6mm;
+  margin: 0 auto;
+  border: 1px dashed $border; /* on-screen preview only */
+  border-radius: 0;
+}
+
+/* =========================================================
+   Header (slightly larger — anchors the slip)
+   ========================================================= */
+.header {
+  text-align: center;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #000;
+  margin-bottom: 5px;
+
+  h2 {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: #000;
+    text-transform: uppercase;
+  }
+
+  .tagline {
+    margin: 0;
+    font-size: 9px;
+    color: #000;
+  }
+
+  .tableLine {
+    margin-top: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+}
+
+.orderNo {
+  margin-top: 2px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 0.4px;
+}
+
+.dateLine {
+  margin-top: 1px;
+  font-size: 8.5px;
+  color: #000;
+}
+
+/* =========================================================
+   Shared column grid
+   Columns: # | Item | Qty | Price | Total
+   Rebalanced for the smaller font sizes.
+   ========================================================= */
+$grid-cols: 14px 1fr 22px 40px 50px;
+$grid-gap: 3px;
+
+.itemsHeader {
+  display: grid;
+  grid-template-columns: $grid-cols;
+  gap: $grid-gap;
+  padding: 3px 0 3px;
+  border-bottom: 1px solid #000;
+  margin-bottom: 3px;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #000;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #000;
+}
+
+.itemRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.itemLine {
+  display: grid;
+  grid-template-columns: $grid-cols;
+  gap: $grid-gap;
+  align-items: baseline;
+  font-size: 9.5px;
+  line-height: 1.3;
+}
+
+/* ---- Columns ---- */
+.colSn {
+  color: #000;
+  font-size: 8.5px;
+}
+
+.colName {
+  /* The only column allowed to wrap. */
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  color: #000;
+  font-size: 9.5px;
+}
+
+.colQty {
+  text-align: right;
+  white-space: nowrap;
+  color: #000;
+  font-size: 9.5px;
+}
+
+.colPrice,
+.colTotal {
+  text-align: right;
+  white-space: nowrap;
+  color: #000;
+  font-size: 9.5px;
+}
+
+/* ---- Customizations + note under the row ---- */
+.itemCustom {
+  font-size: 8.5px;
+  color: #000;
+  padding-left: 20px;
+  line-height: 1.25;
+}
+
+.itemNote {
+  font-size: 8.5px;
+  color: #000;
+  padding-left: 20px;
+  font-style: italic;
+  line-height: 1.25;
+}
+
+/* =========================================================
+   Totals (moderately larger than the item table)
+   ========================================================= */
+.totals {
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9.5px;
+
+  > :last-child {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+.total {
+  padding-top: 3px;
+  margin-top: 2px;
+  border-top: 1px solid #000;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+.footer {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed #000;
+  text-align: center;
+  font-size: 9px;
+  color: #000;
+
+  p {
+    margin: 0;
+  }
+}
+
+/* =========================================================
+   Print — thermal roll
+   ========================================================= */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  .receipt {
+    width: 80mm;
+    border: none;
+    padding: 4mm;
+    margin: 0;
+    border-radius: 0;
+  }
+}

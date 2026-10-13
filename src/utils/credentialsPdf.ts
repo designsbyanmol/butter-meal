@@ -1,6 +1,6 @@
 // src/utils/credentialsPdf.ts
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import QRCode from 'qrcode';
 
 export interface CredentialsPdfPayload {
   storeName: string;
@@ -10,18 +10,13 @@ export interface CredentialsPdfPayload {
   password: string;
   planName: string;
   months: number;
-  expiresAt: string;   // human-readable, e.g. "12 Jan 2026"
+  expiresAt: string;
   generatedAt?: string;
 }
 
-const escapeHtml = (s: string): string =>
-  String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
+// ---------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------
 const slugify = (s: string): string =>
   s
     .toLowerCase()
@@ -29,6 +24,41 @@ const slugify = (s: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 40) || 'credentials';
+
+/** Render a QR into a PNG data URL at a fixed pixel size. */
+const qrToPngDataUrl = async (
+  value: string,
+  size = 400,
+  dark = '#000000',
+): Promise<string> =>
+  QRCode.toDataURL(value, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: size,
+    color: { dark, light: '#ffffff' },
+  });
+
+// ---------------------------------------------------------
+// Colors (RGB tuples for jsPDF)
+// ---------------------------------------------------------
+const GREEN: [number, number, number] = [60, 170, 70];
+const GREEN_DARK: [number, number, number] = [30, 126, 52];
+const GREEN_SOFT: [number, number, number] = [244, 251, 245];
+const AMBER_SOFT: [number, number, number] = [255, 248, 225];
+const TEXT: [number, number, number] = [30, 30, 30];
+const TEXT_MUTED: [number, number, number] = [110, 110, 110];
+const TEXT_FAINT: [number, number, number] = [160, 160, 160];
+const BORDER: [number, number, number] = [228, 228, 228];
+const BORDER_SOFT: [number, number, number] = [240, 235, 230];
+const WHITE: [number, number, number] = [255, 255, 255];
+
+// ---------------------------------------------------------
+// Layout constants
+// ---------------------------------------------------------
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
+const MARGIN = 48;
+const CONTENT_W = PAGE_W - MARGIN * 2; // 499.28
 
 export const downloadCredentialsPdf = async (
   payload: CredentialsPdfPayload,
@@ -52,415 +82,302 @@ export const downloadCredentialsPdf = async (
       timeStyle: 'short',
     });
 
-  // ---------------------------------------------------------
-  // 1. Build the styled HTML
-  //
-  //    Note the two URL sections below - instead of showing the URL
-  //    as text, each is a big styled "button" with a label and a
-  //    chevron. We tag them with `data-pdf-link` so the PDF builder
-  //    can find them and register a link annotation on the exact
-  //    rectangle they occupy.
-  // ---------------------------------------------------------
-  const holder = document.createElement('div');
-  holder.style.position = 'fixed';
-  holder.style.left = '-10000px';
-  holder.style.top = '0';
-  holder.style.width = '794px'; // A4 @ 96dpi
-  holder.style.background = '#ffffff';
-  holder.style.zIndex = '-1';
-  holder.setAttribute('aria-hidden', 'true');
+  // ---------- Pre-render QRs ----------
+  const [adminQr, publicQr] = await Promise.all([
+    qrToPngDataUrl(adminUrl, 400, '#1e1e1e'),
+    qrToPngDataUrl(publicUrl, 400, '#1e1e1e'),
+  ]);
 
-  holder.innerHTML = `
-    <div id="pdf-root" style="
-      width: 794px;
-      box-sizing: border-box;
-      padding: 48px 56px 40px;
-      font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-      color: #1e1e1e;
-      background: #ffffff;
-      position: relative;
-      overflow: hidden;
-    ">
-      <!-- Top accent bar -->
-      <div style="
-        position: absolute;
-        inset: 0 0 auto 0;
-        height: 8px;
-        background: linear-gradient(90deg, #3caa46 0%, #1e7e34 55%, #064a16 100%);
-      "></div>
+  // ---------- Create PDF ----------
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'a4',
+  });
 
-      <!-- Header -->
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding-top: 4px;
-        margin-bottom: 28px;
-      ">
-        <div>
-          <div style="
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: -0.4px;
-            color: #1e1e1e;
-          ">${escapeHtml(storeName)}</div>
-          <div style="
-            margin-top: 4px;
-            font-size: 12.5px;
-            color: #7d6b60;
-            letter-spacing: 0.2px;
-          ">Account Credentials · Store Login Details</div>
-        </div>
-        <div style="
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.6px;
-          text-transform: uppercase;
-          color: #1e7e34;
-          background: #e6f5e9;
-          border: 1px solid #d1ead6;
-          padding: 6px 12px;
-          border-radius: 999px;
-        ">Confidential</div>
-      </div>
+  // =========================================================
+  // Header
+  // =========================================================
+  let y = MARGIN;
 
-      <!-- Plan summary -->
-      <div style="display: flex; gap: 10px; margin-bottom: 22px;">
-        <div style="
-          flex: 1;
-          padding: 14px 16px;
-          background: #f4fbf5;
-          border: 1px solid #d1ead6;
-          border-radius: 10px;
-        ">
-          <div style="
-            font-size: 10.5px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6a6a6a;
-            margin-bottom: 4px;
-          ">Plan</div>
-          <div style="font-size: 15px; font-weight: 700; color: #1e1e1e;">
-            ${escapeHtml(planName)}
-            <span style="font-size: 12px; font-weight: 500; color: #6a6a6a; margin-left: 6px;">
-              · ${months} month${months > 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-        <div style="
-          flex: 1;
-          padding: 14px 16px;
-          background: #fff8e1;
-          border: 1px solid #fde68a;
-          border-radius: 10px;
-        ">
-          <div style="
-            font-size: 10.5px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6a6a6a;
-            margin-bottom: 4px;
-          ">Valid till</div>
-          <div style="font-size: 15px; font-weight: 700; color: #1e1e1e;">
-            ${escapeHtml(expiresAt)}
-          </div>
-        </div>
-      </div>
+  // Store name
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(22);
+  pdf.setTextColor(...TEXT);
+  pdf.text(storeName.toUpperCase(), MARGIN, y + 8);
+  y += 26;
 
-      <!-- Login credentials block (phone + password) -->
-      <div style="
-        border: 1px solid #e4e4e4;
-        border-radius: 12px;
-        padding: 4px 20px;
-        margin-bottom: 20px;
-      ">
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 0;
-          border-bottom: 1px solid #f0ebe6;
-        ">
-          <div style="
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6a6a6a;
-          ">Login Phone</div>
-          <div style="
-            font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1e1e1e;
-            letter-spacing: 0.5px;
-          ">+91 ${escapeHtml(phone)}</div>
-        </div>
+  // Subtitle
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+  pdf.setTextColor(...TEXT_MUTED);
+  pdf.text('Account Credentials · Store Login Details', MARGIN, y);
+  y += 20;
 
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 0;
-        ">
-          <div style="
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6a6a6a;
-          ">Password</div>
-          <div style="
-            font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1e7e34;
-            letter-spacing: 1px;
-            background: #f4fbf5;
-            border: 1px dashed #a8d9b1;
-            padding: 6px 12px;
-            border-radius: 6px;
-          ">${escapeHtml(password)}</div>
-        </div>
-      </div>
+  // Confidential pill (top-right)
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  const pillText = 'CONFIDENTIAL';
+  const pillW = pdf.getTextWidth(pillText) + 20;
+  const pillH = 18;
+  const pillX = PAGE_W - MARGIN - pillW;
+  const pillY = MARGIN - 2;
+  pdf.setFillColor(...GREEN_SOFT);
+  pdf.setDrawColor(209, 234, 214);
+  pdf.roundedRect(pillX, pillY, pillW, pillH, 9, 9, 'FD');
+  pdf.setTextColor(...GREEN_DARK);
+  pdf.text(pillText, pillX + pillW / 2, pillY + 12, { align: 'center' });
 
-      <!-- Two big URL buttons (side by side) -->
-      <div style="display: flex; gap: 12px; margin-bottom: 22px;">
+  y += 8;
 
-        <!-- Admin Store button -->
-        <div
-          data-pdf-link="admin"
-          data-pdf-url="${escapeHtml(adminUrl)}"
-          style="
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 14px 18px;
-            background: linear-gradient(135deg, #3caa46 0%, #1e7e34 100%);
-            color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(30, 126, 52, 0.22);
-            cursor: pointer;
-          "
-        >
-          <div style="display: flex; flex-direction: column; gap: 2px;">
-            <div style="
-              font-size: 10.5px;
-              font-weight: 700;
-              letter-spacing: 0.6px;
-              text-transform: uppercase;
-              opacity: 0.85;
-            ">Admin Store</div>
-            <div style="
-              font-size: 14px;
-              font-weight: 700;
-              letter-spacing: 0.2px;
-            ">Sign in to manage</div>
-          </div>
-          <div style="
-            font-size: 20px;
-            font-weight: 800;
-            line-height: 1;
-            opacity: 0.9;
-          ">&rsaquo;</div>
-        </div>
+  // =========================================================
+  // Plan summary — two soft-colored cards side by side
+  // =========================================================
+  const cardGap = 12;
+  const cardW = (CONTENT_W - cardGap) / 2;
+  const cardH = 52;
 
-        <!-- Public Store button -->
-        <div
-          data-pdf-link="public"
-          data-pdf-url="${escapeHtml(publicUrl)}"
-          style="
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 14px 18px;
-            background: #ffffff;
-            color: #1e1e1e;
-            border: 1.5px solid #1e7e34;
-            border-radius: 10px;
-            cursor: pointer;
-          "
-        >
-          <div style="display: flex; flex-direction: column; gap: 2px;">
-            <div style="
-              font-size: 10.5px;
-              font-weight: 700;
-              letter-spacing: 0.6px;
-              text-transform: uppercase;
-              color: #1e7e34;
-            ">Public Store</div>
-            <div style="
-              font-size: 14px;
-              font-weight: 700;
-              letter-spacing: 0.2px;
-            ">Share with customers</div>
-          </div>
-          <div style="
-            font-size: 20px;
-            font-weight: 800;
-            line-height: 1;
-            color: #1e7e34;
-          ">&rsaquo;</div>
-        </div>
+  // Plan card (left)
+  pdf.setFillColor(...GREEN_SOFT);
+  pdf.setDrawColor(209, 234, 214);
+  pdf.roundedRect(MARGIN, y, cardW, cardH, 8, 8, 'FD');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...TEXT_MUTED);
+  pdf.text('PLAN', MARGIN + 14, y + 16);
+  pdf.setFontSize(13);
+  pdf.setTextColor(...TEXT);
+  pdf.text(`${planName}`, MARGIN + 14, y + 36);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(...TEXT_MUTED);
+  pdf.text(
+    `· ${months} month${months > 1 ? 's' : ''}`,
+    MARGIN + 24 + pdf.getTextWidth(`${planName}`) + 8,
+    y + 36,
+  );
 
-      </div>
+  // Valid till card (right)
+  pdf.setFillColor(...AMBER_SOFT);
+  pdf.setDrawColor(253, 230, 138);
+  pdf.roundedRect(MARGIN + cardW + cardGap, y, cardW, cardH, 8, 8, 'FD');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...TEXT_MUTED);
+  pdf.text('VALID TILL', MARGIN + cardW + cardGap + 14, y + 16);
+  pdf.setFontSize(13);
+  pdf.setTextColor(...TEXT);
+  pdf.text(expiresAt, MARGIN + cardW + cardGap + 14, y + 36);
 
-      <!-- Notes -->
-      <div style="
-        padding: 14px 16px;
-        background: #fbfbfb;
-        border-left: 4px solid #3caa46;
-        border-radius: 6px;
-        margin-bottom: 26px;
-      ">
-        <div style="
-          font-size: 12px;
-          font-weight: 700;
-          color: #1e1e1e;
-          margin-bottom: 6px;
-        ">Notes</div>
-        <ul style="
-          margin: 0;
-          padding-left: 18px;
-          font-size: 11.5px;
-          color: #4d4d4d;
-          line-height: 1.55;
-        ">
-          <li>Click the two buttons above to open the store URLs directly from this PDF.</li>
-          <li>Keep these credentials safe - do not share them with anyone.</li>
-          <li>Change your password after the first login if you wish.</li>
-          <li><strong>Admin URL</strong> is where you sign in to manage your store. <strong>Public URL</strong> is what you share with customers.</li>
-        </ul>
-      </div>
+  y += cardH + 22;
 
-      <!-- Footer -->
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding-top: 16px;
-        border-top: 1px solid #f0ebe6;
-        font-size: 10.5px;
-        color: #a6a6a6;
-      ">
-        <div>Generated: ${escapeHtml(gen)}</div>
-        <div>- Butter Meal</div>
-      </div>
-    </div>
-  `;
+  // =========================================================
+  // Login details (phone + password)
+  // =========================================================
+  const rowH = 34;
+  const detailBoxH = rowH * 2 + 8;
 
-  document.body.appendChild(holder);
+  pdf.setDrawColor(...BORDER);
+  pdf.setLineWidth(0.8);
+  pdf.roundedRect(MARGIN, y, CONTENT_W, detailBoxH, 8, 8, 'S');
 
-  try {
-    // ---------------------------------------------------------
-    // 2. Render the HTML to a canvas
-    // ---------------------------------------------------------
-    const root = holder.querySelector('#pdf-root') as HTMLElement;
-    const canvas = await html2canvas(root, {
-      backgroundColor: '#ffffff',
-      scale: 2, // crisper text and buttons
-      useCORS: true,
-      logging: false,
-    });
+  // Row 1: label + value
+  const drawRow = (
+    topY: number,
+    label: string,
+    value: string,
+    isLast: boolean,
+    valueColor: [number, number, number] = TEXT,
+    mono = true,
+  ) => {
+    if (!isLast) {
+      pdf.setDrawColor(...BORDER_SOFT);
+      pdf.setLineWidth(0.8);
+      pdf.line(MARGIN + 16, topY + rowH, PAGE_W - MARGIN - 16, topY + rowH);
+    }
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(...TEXT_MUTED);
+    pdf.text(label.toUpperCase(), MARGIN + 16, topY + 20);
 
-    // ---------------------------------------------------------
-    // 3. Compute the (x, y, w, h) of each [data-pdf-link] element
-    //    relative to the canvas root, in canvas pixels, then scale
-    //    to PDF points using the same scale factor the image is
-    //    drawn at.
-    // ---------------------------------------------------------
-    const rootRect = root.getBoundingClientRect();
-    const canvasScale = canvas.width / rootRect.width;
+    pdf.setFont(mono ? 'courier' : 'helvetica', 'bold');
+    pdf.setFontSize(13);
+    pdf.setTextColor(...valueColor);
+    pdf.text(value, PAGE_W - MARGIN - 16, topY + 21, { align: 'right' });
+  };
 
-    const linkBoxes: {
-      url: string;
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    }[] = [];
+  drawRow(y + 4, 'Login Phone', `+91 ${phone}`, false);
+  drawRow(y + 4 + rowH, 'Password', password, true, GREEN_DARK, true);
 
-    root
-      .querySelectorAll<HTMLElement>('[data-pdf-link]')
-      .forEach((el) => {
-        const url = el.getAttribute('data-pdf-url') || '';
-        if (!url) return;
+  y += detailBoxH + 22;
 
-        const r = el.getBoundingClientRect();
-        linkBoxes.push({
-          url,
-          x: (r.left - rootRect.left) * canvasScale,
-          y: (r.top - rootRect.top) * canvasScale,
-          w: r.width * canvasScale,
-          h: r.height * canvasScale,
-        });
-      });
+  // =========================================================
+  // URL buttons (side by side, both clickable)
+  // =========================================================
+  const btnH = 44;
+  const btnGap = 12;
+  const btnW = (CONTENT_W - btnGap) / 2;
 
-    // ---------------------------------------------------------
-    // 4. Compose the PDF
-    // ---------------------------------------------------------
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4',
-    });
+  // Admin (filled green)
+  pdf.setFillColor(...GREEN);
+  pdf.roundedRect(MARGIN, y, btnW, btnH, 8, 8, 'F');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('ADMIN STORE', MARGIN + 14, y + 16);
+  pdf.setFontSize(11);
+  pdf.text('Sign in to manage', MARGIN + 14, y + 32);
+  pdf.setFontSize(16);
+  pdf.text('›', MARGIN + btnW - 16, y + 28, { align: 'right' });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();   // 595.28
-    const pageHeight = pdf.internal.pageSize.getHeight(); // 841.89
+  // Public (outlined)
+  pdf.setFillColor(...WHITE);
+  pdf.setDrawColor(...GREEN_DARK);
+  pdf.setLineWidth(1);
+  pdf.roundedRect(MARGIN + btnW + btnGap, y, btnW, btnH, 8, 8, 'FD');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...GREEN_DARK);
+  pdf.text('PUBLIC STORE', MARGIN + btnW + btnGap + 14, y + 16);
+  pdf.setTextColor(...TEXT);
+  pdf.setFontSize(11);
+  pdf.text(
+    'Share with customers',
+    MARGIN + btnW + btnGap + 14,
+    y + 32,
+  );
+  pdf.setTextColor(...GREEN_DARK);
+  pdf.setFontSize(16);
+  pdf.text('›', PAGE_W - MARGIN - 16, y + 28, { align: 'right' });
 
-    // Fit the canvas to the page width, keep aspect ratio.
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  // Register clickable rectangles.
+  pdf.link(MARGIN, y, btnW, btnH, { url: adminUrl });
+  pdf.link(MARGIN + btnW + btnGap, y, btnW, btnH, { url: publicUrl });
 
-    // If the content is taller than the page we scale down to fit.
-    const fitScale =
-      imgHeight <= pageHeight ? 1 : pageHeight / imgHeight;
+  y += btnH + 22;
 
-    const drawWidth = imgWidth * fitScale;
-    const drawHeight = imgHeight * fitScale;
+  // =========================================================
+  // QR codes (side by side)
+  // =========================================================
+  const qrCardH = 128;
+  const qrCardGap = 12;
+  const qrCardW = (CONTENT_W - qrCardGap) / 2;
+  const qrSize = 88;
+  const qrPad = 8;
 
-    // Offsets in case we ever want to center the drawing on the page.
-    const drawX = (pageWidth - drawWidth) / 2;
-    const drawY = 0;
+  // Admin QR card
+  pdf.setFillColor(...GREEN_SOFT);
+  pdf.setDrawColor(...GREEN_SOFT);
+  pdf.setLineWidth(0.8);
+  pdf.roundedRect(MARGIN, y, qrCardW, qrCardH, 8, 8, 'FD');
 
-    pdf.addImage(
-      canvas.toDataURL('image/png'),
-      'PNG',
-      drawX,
-      drawY,
-      drawWidth,
-      drawHeight,
-    );
+  // QR frame
+  pdf.setFillColor(...WHITE);
+  pdf.setDrawColor(209, 234, 214);
+  pdf.roundedRect(MARGIN + 10, y + 12, qrSize + qrPad * 2, qrSize + qrPad * 2, 6, 6, 'FD');
+  pdf.addImage(
+    adminQr,
+    'PNG',
+    MARGIN + 10 + qrPad,
+    y + 12 + qrPad,
+    qrSize,
+    qrSize,
+  );
 
-    // ---------------------------------------------------------
-    // 5. Register the link annotations.
-    //    Coordinates we captured are in canvas pixels; scale them
-    //    to PDF points using the same `imgWidth / canvas.width`
-    //    factor (times fitScale, in case we shrank the image).
-    // ---------------------------------------------------------
-    const pxToPt = (imgWidth / canvas.width) * fitScale;
+  // Label + URL text
+  const qrTextX = MARGIN + 10 + qrSize + qrPad * 2 + 12;
 
-    linkBoxes.forEach(({ url, x, y, w, h }) => {
-      pdf.link(
-        drawX + x * pxToPt,
-        drawY + y * pxToPt,
-        w * pxToPt,
-        h * pxToPt,
-        { url },
-      );
-    });
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...GREEN_DARK);
+  pdf.text('ADMIN QR', qrTextX, y + 26);
 
-    // ---------------------------------------------------------
-    // 6. Save
-    // ---------------------------------------------------------
-    pdf.save(`${slugify(storeName)}-credentials.pdf`);
-  } finally {
-    holder.remove();
-  }
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(...TEXT);
+  pdf.text('Scan to open', qrTextX, y + 42);
+
+  // Public QR card
+  const qrX2 = MARGIN + qrCardW + qrCardGap;
+  pdf.setFillColor(250, 250, 250);
+  pdf.setDrawColor(...BORDER);
+  pdf.roundedRect(qrX2, y, qrCardW, qrCardH, 8, 8, 'FD');
+
+  pdf.setFillColor(...WHITE);
+  pdf.setDrawColor(...BORDER);
+  pdf.roundedRect(qrX2 + 10, y + 12, qrSize + qrPad * 2, qrSize + qrPad * 2, 6, 6, 'FD');
+  pdf.addImage(
+    publicQr,
+    'PNG',
+    qrX2 + 10 + qrPad,
+    y + 12 + qrPad,
+    qrSize,
+    qrSize,
+  );
+
+  const qrTextX2 = qrX2 + 10 + qrSize + qrPad * 2 + 12;
+  const qrTextMaxW2 = qrCardW - (qrTextX2 - qrX2) - 10;
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...TEXT);
+  pdf.text('PUBLIC QR', qrTextX2, y + 26);
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.text('Scan to open', qrTextX2, y + 42);
+
+  y += qrCardH + 22;
+
+  // =========================================================
+  // Notes
+  // =========================================================
+  const notes = [
+    'Click the two buttons above, or scan the QR codes, to open the store URLs.',
+    'Keep these credentials safe — do not share them with anyone.',
+    'Admin URL is where you sign in to manage your store.',
+    'Public URL is what you share with customers.',
+  ];
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9.5);
+  const lineH = 13;
+  const notesH = 12 + 16 + notes.length * lineH + 6;
+
+  pdf.setFillColor(251, 251, 251);
+  pdf.setDrawColor(...BORDER_SOFT);
+  pdf.roundedRect(MARGIN, y, CONTENT_W, notesH, 6, 6, 'FD');
+  // Green rule
+  pdf.setFillColor(...GREEN);
+  pdf.rect(MARGIN, y, 3, notesH, 'F');
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(...TEXT);
+  pdf.text('Notes', MARGIN + 14, y + 18);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(...TEXT_MUTED);
+  notes.forEach((n, i) => {
+    pdf.text(`•  ${n}`, MARGIN + 14, y + 18 + 14 + i * lineH);
+  });
+
+  y += notesH + 20;
+
+  // =========================================================
+  // Footer
+  // =========================================================
+  pdf.setDrawColor(...BORDER_SOFT);
+  pdf.setLineWidth(0.8);
+  pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...TEXT_FAINT);
+  pdf.text(`Generated: ${gen}`, MARGIN, y + 14);
+  pdf.text('— Butter Meal', PAGE_W - MARGIN, y + 14, { align: 'right' });
+
+  // ---------- Save ----------
+  pdf.save(`${slugify(storeName)}-credentials.pdf`);
 };

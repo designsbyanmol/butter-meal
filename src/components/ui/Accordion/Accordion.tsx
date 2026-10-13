@@ -13,6 +13,16 @@ export interface AccordionProps {
   forceOpen?: boolean;
   /** Hide the header toggle (render the body only). Useful for search overrides. */
   hideHeader?: boolean;
+  /**
+   * Hide the chevron on the left of the header.
+   */
+  hideChevron?: boolean;
+  /**
+   * Called whenever the accordion's internal open state toggles.
+   * Receives the new state as an argument. Fires only on user
+   * interaction, not on mount or when `forceOpen` changes.
+   */
+  onToggle?: (isOpen: boolean) => void;
   className?: string;
   children: React.ReactNode;
 }
@@ -23,11 +33,19 @@ const Accordion: React.FC<AccordionProps> = ({
   defaultOpen = false,
   forceOpen = false,
   hideHeader = false,
+  hideChevron = false,
+  onToggle,
   className,
   children,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const isOpen = forceOpen || open;
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    onToggle?.(next);
+  };
 
   if (hideHeader) {
     return <div className={className}>{children}</div>;
@@ -38,15 +56,19 @@ const Accordion: React.FC<AccordionProps> = ({
       <button
         type="button"
         className={styles.header}
-        onClick={() => setOpen((s) => !s)}
+        onClick={handleToggle}
         aria-expanded={isOpen}
       >
-        <span
-          className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}
-          aria-hidden
-        >
-          <RightArrow width={16} height={16} fill="#1e1e1e" />
-        </span>
+        {!hideChevron && (
+          <span
+            className={`${styles.chevron} ${
+              isOpen ? styles.chevronOpen : ''
+            }`}
+            aria-hidden
+          >
+            <RightArrow width={16} height={16} fill="#1e1e1e" />
+          </span>
+        )}
         <span className={styles.title}>{title}</span>
         {meta && <span className={styles.meta}>{meta}</span>}
       </button>

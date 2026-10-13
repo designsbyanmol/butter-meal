@@ -1,0 +1,432 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* =========================================================
+   Full banner (top-left; full-width on mobile)
+   ========================================================= */
+.banner {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: $z-toast;
+  background: #1e1e1e;
+  color: #fff;
+  border-radius: $radius-lg;
+  padding: 12px 16px;
+  max-width: 380px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: bannerIn 0.25s ease-out;
+
+  /* On wider screens, cap the width so it doesn't span the whole page. */
+  @media (min-width: 640px) {
+    right: auto;
+    width: auto;
+    max-width: 380px;
+  }
+}
+
+@keyframes bannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.orderNo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.headline {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.stage {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.minimizeBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: background $t-fast;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* =========================================================
+   Minimized pill — top-left corner
+   ========================================================= */
+.minimizedPill {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: $z-toast;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border-radius: $radius-pill;
+  background: #1e1e1e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  transition: transform $t-fast, box-shadow $t-fast;
+  animation: pillIn 0.2s ease-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pillIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.minimizedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $primary;
+  box-shadow: 0 0 0 0 rgba($primary, 0.7);
+  animation: minimizedPulse 1.6s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes minimizedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba($primary, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba($primary, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba($primary, 0);
+  }
+}
+
+.minimizedOrderNo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.minimizedStatus {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fff;
+}
+
+.bannerAction {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+
+  /* Recolor the Button inside the dark banner so it reads well. */
+  button {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    color: #fff !important;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.24) !important;
+    }
+  }
+}
+
+/* ---------- Bill-flow buttons and notes inside the dark banner ---------- */
+.bannerNote {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.bannerBtnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+
+  button {
+    /* Recolor to read well on the dark banner. */
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    color: #fff !important;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.24) !important;
+    }
+  }
+
+  /* Primary-looking "Pay" and "End Order" buttons should pop. */
+  button:first-child {
+    background: $primary !important;
+    border-color: $primary !important;
+    color: #fff !important;
+
+    &:hover:not(:disabled) {
+      background: $primary-dark !important;
+      border-color: $primary-dark !important;
+    }
+  }
+}
+
+.bannerConfirmBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+
+  /* The reused Banner inside the dark panel needs a lighter treatment. */
+  > :global([class*='banner']) {
+    font-size: 11.5px;
+  }
+}
+
+/* =========================================================
+   View Order sheet content
+   ========================================================= */
+.sheetCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: $bg-muted;
+  color: $text-muted;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sheetList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheetRow {
+  padding: 10px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheetRowTop {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sheetRowName {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: $text;
+  line-height: 1.35;
+}
+
+.sheetRowQty {
+  font-size: 12px;
+  color: $text-muted;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sheetRowPrice {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text;
+  flex-shrink: 0;
+  min-width: 68px;
+  text-align: right;
+}
+
+.sheetRowCustom {
+  font-size: 11.5px;
+  color: $text-muted;
+  line-height: 1.4;
+}
+
+.sheetRowNote {
+  font-size: 11.5px;
+  color: $text-faint;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.sheetTotals {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed $border;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheetTotalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.sheetTotalBig {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid $border-soft;
+  font-size: 15px;
+  font-weight: 800;
+  color: $text;
+}
+
+/* =========================================================
+   Pay via UPI sheet
+   ========================================================= */
+.upiSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.upiSheetLead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.upiDetailCard {
+  padding: 12px 14px;
+  border-radius: $radius;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upiDetailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.upiDetailLabel {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.upiDetailValueRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.upiDetailValue {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.upiSheetHint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.upiSheetNote {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: $text-faint;
+  text-align: center;
+
+  strong {
+    color: $text-muted;
+    font-weight: 700;
+  }
+}

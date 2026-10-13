@@ -1,4 +1,4 @@
-// services/auth.service.ts
+// src/services/auth.service.ts
 import { User, AuthState } from '../types';
 import { isSupabaseConfigured } from '../config/env';
 import { supabase } from './supabase.client';
@@ -14,10 +14,10 @@ const ADMIN_SUFFIX = '_admin';
 
 /**
  * Session key resolution:
- *   - No slug + no smart-admin  > ::platform
- *   - No slug + smart-admin     > ::smart_admin
- *   - Slug + customer view      > ::<slug>
- *   - Slug + admin view         > ::<slug>_admin
+ *   - No slug + no smart-admin  → ::platform
+ *   - No slug + smart-admin     → ::smart_admin
+ *   - Slug + customer view      → ::<slug>
+ *   - Slug + admin view         → ::<slug>_admin
  */
 const keyFor = (
   slug: string | null,
@@ -64,17 +64,12 @@ class AuthService {
     this.currentSlug = ctx.slug;
     this.currentIsAdminView = ctx.isAdminView;
     this.currentIsSmartAdminHost = ctx.isSmartAdminHost;
-    this.loadSessionFromCache(
-      ctx.slug,
-      ctx.isAdminView,
-      ctx.isSmartAdminHost,
-    );
+    this.loadSessionFromCache(ctx.slug, ctx.isAdminView, ctx.isSmartAdminHost);
   }
 
   // =========================================================
   // URL PARSING
   // =========================================================
-
   private readContextFromUrl(): UrlContext {
     if (typeof window === 'undefined') {
       return { slug: null, isAdminView: false, isSmartAdminHost: false };
@@ -82,16 +77,13 @@ class AuthService {
     try {
       const url = new URL(window.location.href);
       const isSmartAdminHost = url.searchParams.has('_smart-admin');
-
       const qp = url.searchParams.get('t');
       if (!qp) {
         return { slug: null, isAdminView: false, isSmartAdminHost };
       }
-
       const raw = qp.trim();
       const isAdminView = raw.endsWith(ADMIN_SUFFIX);
       const slug = isAdminView ? raw.slice(0, -ADMIN_SUFFIX.length) : raw;
-
       if (!slug) {
         return { slug: null, isAdminView: false, isSmartAdminHost };
       }
@@ -120,20 +112,20 @@ class AuthService {
   }
 
   // =========================================================
-  // SESSION LIFECYCLE
+  // SESSION LIFECYCLE — no bridge, no cross-key scan
   // =========================================================
-
   private loadSessionFromCache(
     slug: string | null,
     isAdminView: boolean,
     isSmartAdminHost: boolean,
   ): void {
     try {
-      const raw = localStorage.getItem(
-        keyFor(slug, isAdminView, isSmartAdminHost),
-      );
+      const targetKey = keyFor(slug, isAdminView, isSmartAdminHost);
+      const raw = localStorage.getItem(targetKey);
+
       if (raw) {
-        const user: User = JSON.parse(raw);
+        const parsed = JSON.parse(raw) as User;
+        const user = this.withPlatformFlag(parsed);
         this.authState = { user, isAuthenticated: true, isLoading: false };
       } else {
         this.authState = {
@@ -150,6 +142,24 @@ class AuthService {
       };
     }
     this.notifyListeners();
+  }
+
+  /**
+   * Ensures `isPlatformAdmin` is set. Infers it from `role` + `tenantSlug`
+   * for legacy sessions saved before the flag existed.
+   */
+  private withPlatformFlag(u: User): User {
+    if (u.isPlatformAdmin === true) return u;
+    if (u.isPlatformAdmin === false) return u;
+
+    const looksLikePlatformAdmin =
+      u.role === 'admin' &&
+      (u.tenantSlug === 'main' ||
+        u.tenantSlug === undefined ||
+        u.tenantSlug === null ||
+        u.tenantSlug === '');
+
+    return { ...u, isPlatformAdmin: looksLikePlatformAdmin };
   }
 
   private saveSession(
@@ -174,9 +184,7 @@ class AuthService {
     isSmartAdminHost: boolean,
   ): void {
     try {
-      localStorage.removeItem(
-        keyFor(slug, isAdminView, isSmartAdminHost),
-      );
+      localStorage.removeItem(keyFor(slug, isAdminView, isSmartAdminHost));
     } catch {
       /* ignore */
     }
@@ -218,9 +226,48 @@ class AuthService {
   }
 
   // =========================================================
-  // LOGIN
+  // PLATFORM ADMIN READ-ONLY LOOKUP (no writes)
   // =========================================================
 
+  /**
+   * Returns the platform admin's user object if a platform-admin session
+   * exists in this browser, without touching any localStorage keys.
+   *
+   * Used by TenantContext to render the platform admin on a tenant admin
+   * URL without needing a written copy under ::<slug>_admin.
+   */
+  getPlatformAdminIfPresent(): User | null {
+    // Look at the two platform-scope keys only.
+    const candidates = [PLATFORM_KEY, SMART_ADMIN_KEY];
+    for (const key of candidates) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as User;
+        if (!parsed || typeof parsed !== 'object') continue;
+        if (parsed.role !== 'admin') continue;
+        if (parsed.isActive === false) continue;
+
+        const withFlag = this.withPlatformFlag(parsed);
+        if (withFlag.isPlatformAdmin) return withFlag;
+      } catch {
+        /* try next */
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Read-only, tenant-agnostic view of the current user for the purposes
+   * of rendering the platform admin on tenant pages. Does not write.
+   */
+  peekPlatformAdminUser(): User | null {
+    return this.getPlatformAdminIfPresent();
+  }
+
+  // =========================================================
+  // LOGIN
+  // =========================================================
   async login(
     phone: string,
     password: string,
@@ -234,7 +281,6 @@ class AuthService {
         error: 'Phone number and password are required',
       };
     }
-
     if (!isSupabaseConfigured || !supabase) {
       return {
         success: false,
@@ -263,8 +309,10 @@ class AuthService {
       };
     }
 
-    // Tenant scope validation
-    if (row.role !== 'admin') {
+    const isPlatformAdminCandidate =
+      row.role === 'admin' && row.tenant_slug === 'main';
+
+    if (!isPlatformAdminCandidate && row.role !== 'admin') {
       if (!currentTenantSlug) {
         return {
           success: false,
@@ -290,6 +338,7 @@ class AuthService {
       tenantSlug: row.tenant_slug,
       createdAt: row.created_at,
       lastLogin: row.last_login ?? undefined,
+      isPlatformAdmin: isPlatformAdminCandidate,
     };
 
     try {
@@ -298,21 +347,12 @@ class AuthService {
       /* ignore */
     }
 
-    this.saveSession(
-      currentTenantSlug,
-      isAdminView,
-      user,
-      isSmartAdminHost,
-    );
+    this.saveSession(currentTenantSlug, isAdminView, user, isSmartAdminHost);
 
     this.currentSlug = currentTenantSlug;
     this.currentIsAdminView = isAdminView;
     this.currentIsSmartAdminHost = isSmartAdminHost;
-    this.authState = {
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-    };
+    this.authState = { user, isAuthenticated: true, isLoading: false };
     this.notifyListeners();
 
     return { success: true };
@@ -321,7 +361,6 @@ class AuthService {
   // =========================================================
   // LOGOUT
   // =========================================================
-
   logout(): void {
     const slug = this.currentSlug;
     const isAdminView = this.currentIsAdminView;
@@ -330,7 +369,6 @@ class AuthService {
     if (slug) {
       credentialCache.remove(slug);
     }
-
     this.clearSession(slug, isAdminView, isSmartAdminHost);
 
     this.authState = {
@@ -364,12 +402,12 @@ class AuthService {
   // =========================================================
   // TENANT SCOPE ENFORCEMENT
   // =========================================================
-
   isUserValidForTenant(currentTenantSlug: string | null): boolean {
     const user = this.authState.user;
     if (!user) return true;
-    if (user.role === 'admin') return true;
-    if (!currentTenantSlug) return false;
+    if (user.isPlatformAdmin) return true;
+    if (!currentTenantSlug) return true;
+    if (!user.tenantSlug) return true;
     return user.tenantSlug === currentTenantSlug;
   }
 
@@ -378,7 +416,11 @@ class AuthService {
     isAdminView = false,
     isSmartAdminHost = false,
   ): void {
+    const priorSlug = this.currentSlug;
     this.bindTenant(currentTenantSlug, isAdminView, isSmartAdminHost);
+
+    // No transition → this is a reload/re-render, don't log out.
+    if (priorSlug === currentTenantSlug) return;
 
     if (!this.isUserValidForTenant(currentTenantSlug)) {
       try {
@@ -396,7 +438,6 @@ class AuthService {
   // =========================================================
   // PROFILE
   // =========================================================
-
   async updateUserProfile(
     updates: Partial<User>,
   ): Promise<{ success: boolean; error?: string }> {
@@ -418,15 +459,12 @@ class AuthService {
   // =========================================================
   // GETTERS
   // =========================================================
-
   isAuthenticated(): boolean {
     return this.authState.isAuthenticated;
   }
-
   getCurrentUser(): User | null {
     return this.authState.user;
   }
-
   isAdmin(): boolean {
     return this.authState.user?.role === 'admin';
   }

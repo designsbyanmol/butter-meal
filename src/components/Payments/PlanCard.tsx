@@ -20,10 +20,6 @@ interface PlanCardProps {
   ctaLabel?: (isSelected: boolean) => React.ReactNode;
 }
 
-/**
- * Bullet lists per plan id. Kept here so both the signup flow and the
- * admin plan-change modal render identical copy.
- */
 export const PLAN_BULLETS: Record<
   string,
   { included: string[]; excluded?: string[] }
@@ -67,7 +63,9 @@ const PlanCard: React.FC<PlanCardProps> = ({
   onSelect,
   ctaLabel,
 }) => {
-  const breakdown = computePlanPrice(plan, months);
+  // Cards display the pre-tax price. Tax is only added in the summary
+  // at the bottom of the plan step / plan-change modal.
+  const breakdown = computePlanPrice(plan, months, 0);
   const perMonth = Math.round(breakdown.finalAmount / breakdown.months);
   const bullets = PLAN_BULLETS[plan.id];
   const includedBullets = bullets?.included ?? [];

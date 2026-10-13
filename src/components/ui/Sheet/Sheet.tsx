@@ -3,6 +3,7 @@ import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from '../../../assets/svgs';
 import { pushEsc, popEsc, isTopEsc } from '../_escStack';
+import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import styles from './Sheet.module.scss';
 
 export interface SheetProps {
@@ -18,6 +19,13 @@ export interface SheetProps {
   disableBackdropClose?: boolean;
   /** Hide the built-in close button. */
   hideCloseButton?: boolean;
+  /**
+   * Override the overlay's z-index. By default the overlay uses the
+   * `$z-modal` layer (1100). Pass a number when the sheet must sit
+   * above another high-z element, e.g. the customer order-status
+   * banner which uses `$z-toast` (2000).
+   */
+  overlayZIndex?: number;
   className?: string;
   children: React.ReactNode;
 }
@@ -31,6 +39,7 @@ const Sheet: React.FC<SheetProps> = ({
   lockScroll = true,
   disableBackdropClose = false,
   hideCloseButton = false,
+  overlayZIndex,
   className,
   children,
 }) => {
@@ -57,13 +66,12 @@ const Sheet: React.FC<SheetProps> = ({
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll
+  // Lock body scroll (reference-counted)
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = original;
+      unlockBodyScroll();
     };
   }, [isOpen, lockScroll]);
 
@@ -74,7 +82,15 @@ const Sheet: React.FC<SheetProps> = ({
   };
 
   const content = (
-    <div className={styles.overlay} onClick={handleBackdrop}>
+    <div
+      className={styles.overlay}
+      onClick={handleBackdrop}
+      style={
+        overlayZIndex !== undefined
+          ? { zIndex: overlayZIndex }
+          : undefined
+      }
+    >
       <div
         className={[styles.sheet, className ?? '']
           .filter(Boolean)

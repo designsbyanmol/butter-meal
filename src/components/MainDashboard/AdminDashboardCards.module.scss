@@ -1,0 +1,84 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+
+  @include tablet(720px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 18px 16px;
+  border-radius: $radius-lg;
+  border: 1px solid transparent;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition:
+    transform $t-fast,
+    box-shadow $t-fast,
+    border-color $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.1px;
+  line-height: 1.2;
+}
+
+.desc {
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.35;
+}
+
+/* ---------- Accents ---------- */
+.green {
+  .icon { background: linear-gradient(135deg, $green-500, $green-700); }
+  &:hover { border-color: rgba($green-500, 0.4); }
+}
+.blue {
+  .icon { background: linear-gradient(135deg, $blue-500, $blue-700); }
+  &:hover { border-color: rgba($blue-500, 0.4); }
+}
+.amber {
+  .icon { background: linear-gradient(135deg, $amber-400, $amber-600); }
+  &:hover { border-color: rgba($amber-500, 0.4); }
+}
+.purple {
+  .icon { background: linear-gradient(135deg, $purple-400, $purple-600); }
+  &:hover { border-color: rgba($purple-500, 0.4); }
+}

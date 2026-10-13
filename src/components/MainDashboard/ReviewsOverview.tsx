@@ -1,7 +1,8 @@
-// components/MainDashboard/ReviewsOverview.tsx
+// src/components/MainDashboard/ReviewsOverview.tsx
 import React, { useEffect, useState } from 'react';
 import { Review, ReviewFilter, Tenant } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
+import { supabase } from '../../services/supabase.client';
 import ReviewSettingsPanel from './ReviewSettingsPanel';
 import {
   Accordion,
@@ -9,6 +10,7 @@ import {
   Chip,
   Card,
   EmptyState,
+  Badge,
 } from '../ui';
 import { CloseIcon, StarIcon } from '../../assets/svgs';
 import local from './ReviewsOverview.module.scss';
@@ -28,10 +30,15 @@ const PAGE_SIZE = 16;
 // =========================================================
 interface ReviewCardProps {
   review: Review;
+  isDisputed: boolean;
   onRemove: (r: Review) => void;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
+const ReviewCard: React.FC<ReviewCardProps> = ({
+  review,
+  isDisputed,
+  onRemove,
+}) => {
   const rounded = Math.round(review.rating);
   const when = new Date(review.createdAt).toLocaleDateString();
 
@@ -39,15 +46,22 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, onRemove }) => {
     <Card padding="sm" className={local.card}>
       <div className={local.cardHeader}>
         <div className={local.itemName}>{review.itemName}</div>
-        <button
-          type="button"
-          className={local.removeBtn}
-          onClick={() => onRemove(review)}
-          aria-label="Remove review"
-          title="Remove review"
-        >
-          <CloseIcon width={16} height={16} fill="#4d4d4d" />
-        </button>
+        <div className={local.cardHeaderRight}>
+          {isDisputed && (
+            <Badge tone="warning" size="sm">
+              Disputed
+            </Badge>
+          )}
+          <button
+            type="button"
+            className={local.removeBtn}
+            onClick={() => onRemove(review)}
+            aria-label="Remove review"
+            title="Remove review"
+          >
+            <CloseIcon width={16} height={16} fill="#4d4d4d" />
+          </button>
+        </div>
       </div>
 
       {review.itemCategory && (
@@ -95,6 +109,7 @@ const TenantSection: React.FC<TenantSectionProps> = ({
   refreshTick,
 }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [disputes, setDisputes] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<ReviewFilter>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -105,13 +120,17 @@ const TenantSection: React.FC<TenantSectionProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const list = await supabaseService.getTenantReviewsPaged(
-        tenant.slug,
-        f,
-        PAGE_SIZE,
-        0,
-      );
+      const [list, disputeMap] = await Promise.all([
+        supabaseService.getTenantReviewsPaged(
+          tenant.slug,
+          f,
+          PAGE_SIZE,
+          0,
+        ),
+        supabaseService.getPendingDisputesByReview(tenant.slug),
+      ]);
       setReviews(list);
+      setDisputes(disputeMap);
       setHasMore(list.length === PAGE_SIZE);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load';
@@ -154,28 +173,63 @@ const TenantSection: React.FC<TenantSectionProps> = ({
   };
 
   const handleRemove = async (review: Review) => {
-    if (
-      !window.confirm(
-        `Delete this ${review.rating}-star review of "${review.itemName}"?\n\nThe item's average rating and review count will be updated.`,
-      )
-    )
-      return;
+    const isDisputed = !!disputes[review.id];
+    const confirmMsg = isDisputed
+      ? `Delete this disputed ${review.rating}-star review of "${review.itemName}"?\n\nThe dispute will be marked resolved.`
+      : `Delete this ${review.rating}-star review of "${review.itemName}"?\n\nThe item's average rating and review count will be updated.`;
 
+    if (!window.confirm(confirmMsg)) return;
+
+    // 1. Delete the review (also recomputes the item rating server-side).
     const ok = await supabaseService.adminDeleteReview(review.id);
-    if (ok) {
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
-    } else {
+    if (!ok) {
       window.alert('Failed to delete review');
+      return;
     }
+
+    // 2. Resolve any pending dispute on the same review (best-effort).
+    const disputeId = disputes[review.id];
+    if (disputeId && supabase) {
+      try {
+        await supabase
+          .from('star_veg_review_disputes')
+          .update({
+            status: 'resolved',
+            resolved_at: new Date().toISOString(),
+            resolved_by: 'platform-admin',
+          })
+          .eq('id', disputeId);
+      } catch (err) {
+        console.warn('Failed to mark dispute resolved:', err);
+      }
+    }
+
+    // 3. Update local state.
+    setReviews((prev) => prev.filter((r) => r.id !== review.id));
+    setDisputes((prev) => {
+      const next = { ...prev };
+      delete next[review.id];
+      return next;
+    });
   };
 
   const filterLabel =
     FILTERS.find((f) => f.key === filter)?.label ?? 'All';
+  const disputedCount = Object.keys(disputes).length;
 
   return (
     <Accordion
       title={tenant.displayName}
-      meta={<span className={local.tenantSlug}>{tenant.slug}</span>}
+      meta={
+        <span className={local.tenantSlug}>
+          {tenant.slug}
+          {disputedCount > 0 && (
+            <Badge tone="warning" size="sm" className={local.disputedBadge}>
+              {disputedCount} disputed
+            </Badge>
+          )}
+        </span>
+      }
       className={local.tenantSection}
     >
       <div className={local.filterRow}>
@@ -204,7 +258,12 @@ const TenantSection: React.FC<TenantSectionProps> = ({
         <>
           <div className={local.grid}>
             {reviews.map((r) => (
-              <ReviewCard key={r.id} review={r} onRemove={handleRemove} />
+              <ReviewCard
+                key={r.id}
+                review={r}
+                isDisputed={!!disputes[r.id]}
+                onRemove={handleRemove}
+              />
             ))}
           </div>
 
@@ -236,8 +295,8 @@ const ReviewsOverview: React.FC = () => {
     (async () => {
       setIsLoading(true);
       try {
-        const list = await supabaseService.getAllTenants();
-        setTenants(list.filter((t) => t.slug !== 'main'));
+              const list = await supabaseService.getReviewsEligibleTenants();
+      setTenants(list);
       } catch (err) {
         console.warn('Failed to load tenants:', err);
       } finally {

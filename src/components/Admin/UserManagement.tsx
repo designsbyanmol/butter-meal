@@ -1,5 +1,5 @@
 // components/Admin/UserManagement.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { User } from '../../types';
 import { supabaseService } from '../../services/supabase.service';
@@ -90,26 +90,56 @@ const UserManagement: React.FC<UserManagementProps> = ({
       .join('');
   };
 
+  const phoneDuplicate = useMemo(() => {
+  const trimmed = newUser.phone.trim();
+  if (trimmed.length !== 10) return false;
+  return users.some((u) => u.phone === trimmed);
+}, [newUser.phone, users]);
+
   // ---- Actions ----
   const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await supabaseService.createUser(tenantSlug, {
-        phone: newUser.phone,
-        name: newUser.name,
-        password: newUser.password,
-        role: newUser.role,
-        isActive: true,
-      });
-      setSuccess('User created successfully!');
-      setNewUser({ phone: '', name: '', password: '', role: 'user' });
-      setShowCreate(false);
-      loadUsers();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create user');
+  e.preventDefault();
+  setError('');
+
+  const trimmedPhone = newUser.phone.trim();
+
+  // Client-side pre-check: reject duplicates before hitting the
+  // server. Server-side validation still runs (see the create_user
+  // RPC), but this gives the admin an instant, context-aware
+  // message instead of a cryptic constraint error.
+  const duplicate = users.some((u) => u.phone === trimmedPhone);
+  if (duplicate) {
+    setError(
+      `A user with phone ${trimmedPhone} already exists in this store.`,
+    );
+    return;
+  }
+
+  try {
+    await supabaseService.createUser(tenantSlug, {
+      phone: trimmedPhone,
+      name: newUser.name,
+      password: newUser.password,
+      role: newUser.role,
+      isActive: true,
+    });
+    setSuccess('User created successfully!');
+    setNewUser({ phone: '', name: '', password: '', role: 'user' });
+    setShowCreate(false);
+    loadUsers();
+  } catch (err: any) {
+    // Normalize the server-side duplicate message so it reads
+    // naturally in the modal.
+    const raw = err?.message || '';
+    if (raw.toLowerCase().includes('already exists')) {
+      setError(
+        `A user with phone ${trimmedPhone} already exists in this store.`,
+      );
+    } else {
+      setError(raw || 'Failed to create user');
     }
-  };
+  }
+};
 
   const handleToggleStatus = (user: User) => {
     const action = user.isActive ? 'deactivate' : 'activate';
@@ -333,33 +363,46 @@ const UserManagement: React.FC<UserManagementProps> = ({
         title="Create New User"
         size="md"
         footer={
-          <>
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="create-user-form">
-              Create User
-            </Button>
-          </>
-        }
+  <>
+    <Button variant="ghost" onClick={() => setShowCreate(false)}>
+      Cancel
+    </Button>
+    <Button
+  type="submit"
+  form="create-user-form"
+  disabled={newUser.phone.length !== 10 || phoneDuplicate}
+>
+  Create User
+</Button>
+  </>
+}
       >
         <form id="create-user-form" onSubmit={handleCreateUser}>
           <div className={local.formGrid}>
-            <FormField label="Phone Number" required>
-              <Input
-                type="tel"
-                value={newUser.phone}
-                onChange={(e) =>
-                  setNewUser({
-                    ...newUser,
-                    phone: e.target.value.replace(/\D/g, '').slice(0, 10),
-                  })
-                }
-                placeholder="10-digit phone"
-                maxLength={10}
-                required
-              />
-            </FormField>
+            <FormField
+  label="Phone Number"
+  required
+  error={
+    phoneDuplicate
+      ? `This phone number is already added in this store`
+      : undefined
+  }
+>
+  <Input
+    type="tel"
+    value={newUser.phone}
+    onChange={(e) =>
+      setNewUser({
+        ...newUser,
+        phone: e.target.value.replace(/\D/g, '').slice(0, 10),
+      })
+    }
+    placeholder="10-digit phone"
+    maxLength={10}
+    invalid={phoneDuplicate}
+    required
+  />
+</FormField>
 
             <FormField label="Full Name" required>
               <Input
@@ -420,6 +463,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         isOpen={!!confirm}
         title={confirm?.title ?? ''}
         message={confirm?.message ?? ''}
+        overlayZIndex={1300}
         confirmText={confirm?.confirmText}
         variant={confirm?.variant}
         onConfirm={() => confirm?.action()}

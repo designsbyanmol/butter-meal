@@ -44,6 +44,16 @@ export const useCart = () => {
       ? tenant.storewideDiscount
       : ShopInfo.Storewide_discount;
 
+  const GST_PERCENT =
+    typeof tenant?.gstPercent === 'number' && tenant.gstPercent >= 0
+      ? tenant.gstPercent
+      : 0;
+
+  const PACKING_CHARGE =
+    typeof tenant?.packingCharge === 'number' && tenant.packingCharge >= 0
+      ? tenant.packingCharge
+      : 0;
+
   const RESTAURANT_PHONE =
     tenant?.whatsappPhone || ShopInfo.Store_whatsapp;
 
@@ -234,10 +244,6 @@ export const useCart = () => {
     [],
   );
 
-  /**
-   * Set the cart line for this item+customizations to an exact quantity.
-   * If the line doesn't exist, behaves like addItem with that quantity.
-   */
   const setItemQuantity = useCallback(
     (
       item: MenuItem,
@@ -369,24 +375,55 @@ export const useCart = () => {
     [DISCOUNT_PERCENTAGE],
   );
 
+  /**
+   * GST is computed on the pre-tax subtotal (cart items only).
+   * Delivery and packing are charged as separate lines and are not
+   * taxed. Adjust here if your accounting requires them in the base.
+   */
+  const getGstAmount = useCallback(() => {
+    if (GST_PERCENT <= 0) return 0;
+    const subtotal = getSubtotal();
+    return Math.round(subtotal * (GST_PERCENT / 100));
+  }, [getSubtotal, GST_PERCENT]);
+
+  /**
+   * Base total = subtotal + delivery + packing + GST.
+   * The online-payment discount is applied on this base.
+   */
   const getDiscountAmount = useCallback(() => {
     const subtotal = getSubtotal();
-    const baseTotal = subtotal + DELIVERY_FEE;
+    const baseTotal =
+      subtotal + DELIVERY_FEE + PACKING_CHARGE + getGstAmount();
     if (paymentMode === 'Online') {
       return Math.round(baseTotal * (DISCOUNT_PERCENTAGE / 100));
     }
     return 0;
-  }, [getSubtotal, paymentMode, DELIVERY_FEE, DISCOUNT_PERCENTAGE]);
+  }, [
+    getSubtotal,
+    getGstAmount,
+    paymentMode,
+    DELIVERY_FEE,
+    PACKING_CHARGE,
+    DISCOUNT_PERCENTAGE,
+  ]);
 
   const getTotalWithDelivery = useCallback(() => {
     const subtotal = getSubtotal();
-    const baseTotal = subtotal + DELIVERY_FEE;
+    const baseTotal =
+      subtotal + DELIVERY_FEE + PACKING_CHARGE + getGstAmount();
     const discount = getDiscountAmount();
     if (paymentMode === 'Online') {
       return Math.round(baseTotal - discount);
     }
     return Math.round(baseTotal);
-  }, [getSubtotal, paymentMode, getDiscountAmount, DELIVERY_FEE]);
+  }, [
+    getSubtotal,
+    getGstAmount,
+    getDiscountAmount,
+    DELIVERY_FEE,
+    PACKING_CHARGE,
+    paymentMode,
+  ]);
 
   const getDeliveryTime = useCallback(() => {
     const totalItems = getTotalItems();
@@ -430,6 +467,7 @@ export const useCart = () => {
     clearCart,
     getTotalItems,
     getSubtotal,
+    getGstAmount,
     getTotalWithDiscount: getTotalWithDelivery,
     getTotalWithDelivery,
     getDiscountPercent,
@@ -437,6 +475,8 @@ export const useCart = () => {
     getDeliveryTime,
     generateOrderNumber,
     DELIVERY_FEE,
+    PACKING_CHARGE,
+    GST_PERCENT,
     RESTAURANT_PHONE,
     isLoaded,
   };

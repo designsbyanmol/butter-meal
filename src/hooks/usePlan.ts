@@ -9,9 +9,16 @@ interface UsePlanResult {
   status: 'active' | 'paused' | 'expired';
   expiresAt?: string;
   daysUntilExpiry: number;
-  isExpiringSoon: boolean;   // <= 7 days and still active
+  isExpiringSoon: boolean;
   isExpired: boolean;
   isPaused: boolean;
+
+  /**
+   * Whether the tenant's current plan is still enabled globally.
+   * Derived from `tenant.planActive`, which `TenantContext` refreshes
+   * whenever the platform admin enables/disables a plan.
+   */
+  isPlanActive: boolean;
 
   canOrder: boolean;
   canEditFields: boolean;
@@ -44,14 +51,30 @@ export const usePlan = (): UsePlanResult => {
   const isExpiringSoon =
     status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
 
-  // Feature flags default to TRUE when the tenant has no plan loaded yet
-  // (e.g., during initial load or on the platform host) - this keeps the
-  // customer UI stable until the tenant resolves.
+  const tenantLoaded = !!tenant;
+  // Default to true while the tenant hasn't loaded yet.
+  const isPlanActive = tenantLoaded ? tenant!.planActive !== false : true;
+
   const truthy = (v: any): boolean => v !== false;
+
+  const grant = (featureKey: keyof PlanFeatures): boolean => {
+    if (!tenantLoaded) return true;
+    if (!isPlanActive) return false;
+    return truthy(features[featureKey]);
+  };
 
   const canEditProfileField = (key: string): boolean => {
     const allowed = features.canEditProfileFields;
-    if (!Array.isArray(allowed)) return true;
+    if (!Array.isArray(allowed)) return tenantLoaded ? isPlanActive : true;
+    if (!isPlanActive && tenantLoaded) {
+      const safeKeys = new Set([
+        'display_name',
+        'store_tagline',
+        'owner_phone',
+        'whatsapp_phone',
+      ]);
+      return safeKeys.has(key);
+    }
     return allowed.includes(key);
   };
 
@@ -65,14 +88,15 @@ export const usePlan = (): UsePlanResult => {
     isExpiringSoon,
     isExpired,
     isPaused,
+    isPlanActive,
 
-    canOrder: truthy(features.canOrder),
-    canEditFields: truthy(features.canEditFields),
-    canManageStore: truthy(features.canManageStore),
-    canManageUsers: truthy(features.canManageUsers),
-    canWishlist: truthy(features.canWishlist),
-    canReview: truthy(features.canReview),
-    canAddCustomMessage: truthy(features.canAddCustomMessage),
+    canOrder: grant('canOrder'),
+    canEditFields: grant('canEditFields'),
+    canManageStore: grant('canManageStore'),
+    canManageUsers: grant('canManageUsers'),
+    canWishlist: grant('canWishlist'),
+    canReview: grant('canReview'),
+    canAddCustomMessage: grant('canAddCustomMessage'),
 
     canEditProfileField,
   };

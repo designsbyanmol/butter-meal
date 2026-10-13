@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plan, DurationMonths } from '../../types';
 import { formatRupees } from '../../utils/subscription';
 import { planService, PlanChangeQuote } from '../../services/plan.service';
+import { usePlatformTax } from '../../hooks/usePlatformTax';
 import { Modal, Button, Banner } from '../ui';
 import InvoiceModal from './InvoiceModal';
 import BillingToggle from './BillingToggle';
@@ -33,6 +34,8 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   onClose,
   onComplete,
 }) => {
+  const { taxPercent } = usePlatformTax();
+
   const [plans, setPlans] = useState<Plan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [error, setError] = useState('');
@@ -108,6 +111,19 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
     [plans, selectedPlanId],
   );
 
+  // ---- Tax math on top of the quote ----
+  const taxAmount = useMemo(() => {
+    if (!quote) return 0;
+    return Number(
+      ((quote.finalAmount * taxPercent) / 100).toFixed(2),
+    );
+  }, [quote, taxPercent]);
+
+  const taxedTotal = useMemo(() => {
+    if (!quote) return 0;
+    return Number((quote.finalAmount + taxAmount).toFixed(2));
+  }, [quote, taxAmount]);
+
   const setBillingMode = (yearly: boolean) => {
     setMonths(yearly ? TOGGLE_YEARLY : TOGGLE_MONTHLY);
     setError('');
@@ -118,7 +134,8 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   const handleGenerate = async () => {
     if (!selectedPlan || !quote) return;
 
-    if (quote.finalAmount <= 0) {
+    // Free change — apply directly, no invoice.
+    if (taxedTotal <= 0) {
       try {
         await planService.changePlan(tenantSlug, selectedPlan.id, quote.months);
         onComplete?.();
@@ -138,7 +155,9 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         months: quote.months,
         baseAmount: quote.baseAmount,
         discountPct: 0,
-        finalAmount: quote.finalAmount,
+        finalAmount: taxedTotal,
+        taxPercent,
+        taxAmount,
       });
       if (!inv) throw new Error('Could not create invoice');
       setInvoice(inv);
@@ -177,9 +196,9 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         onClick={handleGenerate}
       >
         {quote
-          ? quote.finalAmount <= 0
+          ? taxedTotal <= 0
             ? 'Apply Free Change'
-            : `Generate Invoice . ${formatRupees(quote.finalAmount)}`
+            : `Generate Invoice . ${formatRupees(taxedTotal)}`
           : 'Generate Invoice'}
       </Button>
     </>
@@ -202,10 +221,8 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
           <div className={local.loading}>Loading plans...</div>
         ) : (
           <>
-            {/* -------- Billing toggle -------- */}
             <BillingToggle yearly={isYearly} onChange={setBillingMode} />
 
-            {/* -------- Duration chips -------- */}
             <DurationChips
               value={months}
               onChange={(m) => {
@@ -214,9 +231,8 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
               }}
             />
 
-            {/* -------- Plan cards (shared component) -------- */}
             <div className={local.planGrid}>
-              {plans.map((plan) => (
+                            {plans.map((plan) => (
                 <PlanCard
                   key={plan.id}
                   plan={plan}
@@ -234,7 +250,6 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
               ))}
             </div>
 
-            {/* -------- Quote summary -------- */}
             {quoteLoading && (
               <div className={local.summary}>Calculating price...</div>
             )}
@@ -282,12 +297,17 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
                   </div>
                 )}
 
+                {taxAmount > 0 && (
+                  <div className={local.summaryRow}>
+                    <span>GST ({taxPercent}%)</span>
+                    <span>+ {formatRupees(taxAmount)}</span>
+                  </div>
+                )}
+
                 <div className={`${local.summaryRow} ${local.totalRow}`}>
                   <span>Pay today</span>
                   <span>
-                    {quote.finalAmount <= 0
-                      ? 'Free'
-                      : formatRupees(quote.finalAmount)}
+                    {taxedTotal <= 0 ? 'Free' : formatRupees(taxedTotal)}
                   </span>
                 </div>
 

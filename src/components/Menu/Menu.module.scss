@@ -473,3 +473,15 @@
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
+
+.btnAdded {
+  border-color: $primary;
+  background: $primary-tint;
+  color: $primary-dark;
+  font-weight: 700;
+}
+
+.btnCustomize {
+  /* existing rules stay... */
+  transition: all linear 0.1s, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}

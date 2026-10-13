@@ -7,9 +7,15 @@ import styles from './BrandInfo.module.scss';
 interface BrandInfoProps {
   brandName: string;
   brandDesc?: string;
+  /** Hide the store banner image (used on the admin dashboard). */
+  hideBanner?: boolean;
 }
 
-const BrandInfo: React.FC<BrandInfoProps> = ({ brandName, brandDesc }) => {
+const BrandInfo: React.FC<BrandInfoProps> = ({
+  brandName,
+  brandDesc,
+  hideBanner = false,
+}) => {
   const { tenant } = useTenant();
   const tagline = tenant?.storeTagline ?? brandDesc;
 
@@ -21,7 +27,7 @@ const BrandInfo: React.FC<BrandInfoProps> = ({ brandName, brandDesc }) => {
           <span>{tagline}</span>
         </div>
       )}
-      <StoreBannerImage />
+      {!hideBanner && <StoreBannerImage />}
     </div>
   );
 };

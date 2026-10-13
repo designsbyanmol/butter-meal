@@ -8,84 +8,44 @@ export interface StoreCategoryOption {
 }
 
 /**
- * The 15 top-level store categories shown in the signup "Store Type"
+ * The 7 top-level store categories shown in the signup "Store Type"
  * dropdown. Sub-hints are shown as secondary text in the select.
  */
 export const STORE_CATEGORIES: StoreCategoryOption[] = [
   {
-    value: 'restaurant',
-    label: 'Sit-Down Restaurants',
-    hint: 'Restaurants, Delis',
+    value: 'food-beverage',
+    label: 'Food & Beverage',
+    hint: 'Restaurants, cafés, fast food, bakeries, sweets, meat & seafood',
   },
   {
-    value: 'drinks-cafe',
-    label: 'Drinks & Cafés',
-    hint: 'Coffee Shops, Tea Shops, Juice Bars',
+    value: 'grocery-daily',
+    label: 'Grocery & Daily Needs',
+    hint: 'Kirana, supermarkets, fruits & vegetables, dairy, convenience',
   },
   {
-    value: 'fast-food',
-    label: 'Fast Food & Takeout',
-    hint: 'Food Trucks, Pizza Shops',
+    value: 'fashion-lifestyle',
+    label: 'Fashion & Lifestyle',
+    hint: 'Clothing, footwear, jewelry, cosmetics, salons, pharmacies',
   },
   {
-    value: 'specialty-food',
-    label: 'Specialty Food',
-    hint: 'Sushi Bars',
-  },
-  {
-    value: 'sweets-desserts',
-    label: 'Sweets & Desserts',
-    hint: 'Ice Cream Shops, Bakeries, Candy Stores',
-  },
-  {
-    value: 'meat-seafood',
-    label: 'Meat & Seafood',
-    hint: 'Butcher Shops, Seafood Markets',
-  },
-  {
-    value: 'events-flowers',
-    label: 'Events & Flowers',
-    hint: 'Catering Companies, Florist Shops',
-  },
-  {
-    value: 'clothing-jewelry',
-    label: 'Clothing & Jewelry',
-    hint: 'Clothing Stores, Jewelry Stores',
-  },
-  {
-    value: 'home-furniture',
-    label: 'Home & Furniture',
-    hint: 'Furniture Stores',
-  },
-  {
-    value: 'electronics',
-    label: 'Electronics',
-    hint: 'Electronics Stores',
+    value: 'home-living',
+    label: 'Home & Living',
+    hint: 'Furniture, décor, electronics, appliances, sports, garden',
   },
   {
     value: 'books-office',
     label: 'Books & Office',
-    hint: 'Bookstores, Office Supply Stores',
+    hint: 'Stationery, books, office supplies, printing',
   },
   {
-    value: 'health-beauty',
-    label: 'Health & Beauty',
-    hint: 'Cosmetics Stores, Pharmacies',
-  },
-  {
-    value: 'sports-garden',
-    label: 'Sports & Garden',
-    hint: 'Sporting Goods Stores, Seed and Garden Stores',
-  },
-  {
-    value: 'auto-parts',
-    label: 'Auto Parts',
-    hint: 'Auto Parts Stores',
+    value: 'services-events',
+    label: 'Services & Events',
+    hint: 'Florists, catering, events, auto parts & repair, general services',
   },
   {
     value: 'other-shops',
     label: 'Other Shops',
-    hint: 'Pet Stores, Toy Stores, Hardware Stores, Liquor Stores',
+    hint: 'Pet stores, toy shops, hardware, liquor, anything else',
   },
 ];
 
@@ -96,3 +56,13 @@ export const getCategoryLabel = (
   const found = STORE_CATEGORIES.find((c) => c.value === value);
   return found?.label ?? 'Store';
 };
+
+/** Ordered list of category values, useful for schema seeds and migrations. */
+export const STORE_CATEGORY_VALUES: StoreCategory[] = STORE_CATEGORIES.map(
+  (c) => c.value,
+);
+
+/** True when the given string is one of the 7 new category slugs. */
+export const isStoreCategory = (v: unknown): v is StoreCategory =>
+  typeof v === 'string' &&
+  STORE_CATEGORY_VALUES.includes(v as StoreCategory);

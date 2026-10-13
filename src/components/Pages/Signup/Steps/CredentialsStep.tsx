@@ -1,6 +1,10 @@
 // Components/Pages/Signup/Steps/CredentialsStep.tsx
 import React, { useState } from 'react';
 import { downloadCredentialsPdf } from '../../../../utils/credentialsPdf';
+import {
+  downloadAdminQrPdf,
+  downloadPublicQrPdf,
+} from '../../../../utils/qrPdf';
 import { Card, Button } from '../../../ui';
 import { DownloadIcon } from '../../../../assets/svgs';
 import local from '../Signup.module.scss';
@@ -28,18 +32,34 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
   expiresAtIso,
   onDone,
 }) => {
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [busy, setBusy] = useState<
+    'credentials' | 'adminQr' | 'publicQr' | null
+  >(null);
+
   const expiresDisplay = new Date(expiresAtIso).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
 
-  const handleDownload = async () => {
-    if (isDownloading) return;
-    setIsDownloading(true);
+  const runTask = async (
+    key: 'credentials' | 'adminQr' | 'publicQr',
+    task: () => Promise<void>,
+  ) => {
+    if (busy) return;
+    setBusy(key);
     try {
-      await downloadCredentialsPdf({
+      await task();
+    } catch (err) {
+      console.error(`[CredentialsStep] ${key} PDF failed:`, err);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDownloadCredentials = () =>
+    runTask('credentials', () =>
+      downloadCredentialsPdf({
         storeName,
         publicUrl,
         adminUrl,
@@ -48,14 +68,18 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
         planName,
         months,
         expiresAt: expiresDisplay,
-      });
-    } catch (err) {
-      console.error('[CredentialsStep] PDF generation failed:', err);
-      // Non-fatal - the credentials are visible on screen anyway.
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+      }),
+    );
+
+  const handleDownloadAdminQr = () =>
+    runTask('adminQr', () =>
+      downloadAdminQrPdf({ storeName, url: adminUrl }),
+    );
+
+  const handleDownloadPublicQr = () =>
+    runTask('publicQr', () =>
+      downloadPublicQrPdf({ storeName, url: publicUrl }),
+    );
 
   const openUrl = (url: string) => {
     window.open(url, '_blank');
@@ -116,12 +140,38 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
       <div className={local.credActions}>
         <Button
           variant="ghost"
-          onClick={handleDownload}
-          loading={isDownloading}
+          onClick={handleDownloadCredentials}
+          loading={busy === 'credentials'}
+          disabled={busy !== null && busy !== 'credentials'}
           leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
         >
-          {isDownloading ? 'Preparing PDF…' : 'Download credentials'}
+          {busy === 'credentials'
+            ? 'Preparing PDF…'
+            : 'Download credentials'}
         </Button>
+
+        <Button
+          variant="ghost"
+          onClick={handleDownloadAdminQr}
+          loading={busy === 'adminQr'}
+          disabled={busy !== null && busy !== 'adminQr'}
+          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
+        >
+          {busy === 'adminQr' ? 'Preparing…' : 'Admin QR (PDF)'}
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={handleDownloadPublicQr}
+          loading={busy === 'publicQr'}
+          disabled={busy !== null && busy !== 'publicQr'}
+          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
+        >
+          {busy === 'publicQr' ? 'Preparing…' : 'Public QR (PDF)'}
+        </Button>
+      </div>
+
+      <div className={local.credActions}>
         <Button variant="secondary" onClick={() => openUrl(publicUrl)}>
           Open Public Store
         </Button>
@@ -133,7 +183,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           className={local.credActions}
           style={{ marginTop: 12, justifyContent: 'center' }}
         >
-          <Button onClick={onDone}>Done - I've saved these</Button>
+          <Button onClick={onDone}>Done — I've saved these</Button>
         </div>
       )}
     </div>

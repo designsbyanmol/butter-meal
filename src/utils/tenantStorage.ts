@@ -6,7 +6,10 @@ const PLATFORM_SUFFIX = '__platform';
  * Used so carts, preferences, and names never cross-contaminate
  * between stores on the same browser.
  */
-export const tenantKey = (base: string, slug: string | null | undefined): string => {
+export const tenantKey = (
+  base: string,
+  slug: string | null | undefined,
+): string => {
   const safe = slug && slug.trim().length > 0 ? slug.trim() : PLATFORM_SUFFIX;
   return `${base}::${safe}`;
 };

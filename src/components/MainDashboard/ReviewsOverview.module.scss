@@ -193,3 +193,15 @@
   display: flex;
   margin: 16px auto 0;
 }
+
+.cardHeaderRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.disputedBadge {
+  margin-left: 8px;
+  vertical-align: middle;
+}

@@ -200,7 +200,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
             <h3>Header</h3>
             <FormField
               label="Order label"
-              hint={<>Use {'{customerName}'} where the name should go.</>}
+              hint="Use {customerName} where the name should go."
             >
               <Input
                 value={draft.orderLabel}
@@ -235,11 +235,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
             </FormField>
             <FormField
               label="Item line template"
-              hint={
-                <>
-                  Tokens: {'{name}'}, {'{qty}'}
-                </>
-              }
+              hint="Tokens: {name}, {qty}"
             >
               <Input
                 value={draft.itemLineTemplate}
@@ -304,7 +300,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
             </FormField>
             <FormField
               label="Free-delivery note"
-              hint={<>Use {'{fee}'} for the delivery charge.</>}
+              hint="Use {fee} for the delivery charge."
             >
               <Input
                 value={draft.freeDeliveryLabel}

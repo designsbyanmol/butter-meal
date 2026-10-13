@@ -1,6 +1,6 @@
 // src/components/MenuDetail/MenuDetail.tsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MenuItem, CartItem, BadgeDefinition } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { MenuItem, BadgeDefinition, DineinOrderItem } from '../../types';
 import { DEFAULT_FORM_SCHEMA, normalizeOptions } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { usePlan } from '../../hooks/usePlan';
@@ -14,7 +14,7 @@ import {
   Special,
 } from '../../assets/svgs';
 import { formatRupees } from '../../utils/subscription';
-import { Sheet, Modal, Button, IconButton, Chip } from '../ui';
+import { Sheet, Modal, Button, IconButton, Chip, Banner } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PopularIcon from '../../assets/svgs/PopularIcon';
 import NewIcon from '../../assets/svgs/NewIcon';
@@ -23,25 +23,23 @@ import ExpandIcon from '../../assets/svgs/ExpandIcon';
 import ImagePreview from '../ImagePreview/ImagePreview';
 import ReviewSection from '../Reviews/ReviewSection';
 import { formatCount } from '../../utils/formatCount';
+import TableModal from '../Dinein/TableModal';
+import OrderConfirmModal from '../Dinein/OrderConfirmModal';
+import { supabaseService } from '../../services/supabase.service';
+import { getEffectiveDeviceId } from '../../utils/deviceId';
+import { getCustomerName } from '../../utils/customerName';
 import local from './MenuDetail.module.scss';
 
 interface MenuDetailProps {
   isOpen: boolean;
   item: MenuItem | null;
   onClose: () => void;
-  /**
-   * Adds the picked quantity to the cart (or to the matching cart line).
-   */
   onAddToCart: (
     item: MenuItem,
     customizations?: Record<string, string>,
     customMessage?: string,
     quantity?: number,
   ) => void;
-  /**
-   * Sets the matching cart line to exactly the picked quantity.
-   * Used when a matching line already exists.
-   */
   onUpdateCart?: (
     item: MenuItem,
     customizations?: Record<string, string>,
@@ -49,17 +47,10 @@ interface MenuDetailProps {
     quantity?: number,
   ) => void;
   acceptingOrders?: boolean;
-  /**
-   * The full cart. Used to find the matching line (same item id + same
-   * customizations) so the stepper can seed from it and the CTA can
-   * toggle between Add and Update.
-   */
-  cart?: CartItem[];
+  initialQuantity?: number;
+  cart?: any[];
 }
 
-/**
- * Fallback SVG per built-in badge key.
- */
 const BUILTIN_BADGE_ICONS: Record<
   string,
   React.FC<{ width: number; height: number }>
@@ -70,7 +61,6 @@ const BUILTIN_BADGE_ICONS: Record<
   isLimited: (props) => <LimitedIcon {...props} />,
 };
 
-/** Deep-equal for customization records (order-independent). */
 const sameCustomizations = (
   a?: Record<string, string>,
   b?: Record<string, string>,
@@ -82,6 +72,33 @@ const sameCustomizations = (
   return JSON.stringify(a) === JSON.stringify(b);
 };
 
+/**
+ * Table details for the current dine-in flow, in the shape both
+ * TableModal and OrderConfirmModal consume.
+ */
+interface TableInfo {
+  id: string;
+  label: string;
+  kind: 'number' | 'name';
+}
+
+/** Statuses that count as "still open" for the same table. */
+const OPEN_ORDER_STATUSES: DineinOrderStatus[] = [
+  'placed',
+  'accepted',
+  'preparing',
+];
+
+// Imported as a type-only reference from types.
+type DineinOrderStatus =
+  | 'placed'
+  | 'accepted'
+  | 'preparing'
+  | 'served'
+  | 'bill_requested'
+  | 'paid'
+  | 'cancelled';
+
 const MenuDetail: React.FC<MenuDetailProps> = ({
   isOpen,
   item,
@@ -89,6 +106,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   onAddToCart,
   onUpdateCart,
   acceptingOrders = true,
+  initialQuantity = 0,
   cart = [],
 }) => {
   const { tenant } = useTenant();
@@ -103,6 +121,17 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const [customMessage, setCustomMessage] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // ---- Device id (stable for this browser session) ----
+  const [deviceId] = useState<string | null>(() => getEffectiveDeviceId());
+
+  // ---- Dine-in flow state ----
+  const [tableModalOpen, setTableModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [table, setTable] = useState<TableInfo | null>(null);
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  const [dineinBusy, setDineinBusy] = useState(false);
+  const [dineinError, setDineinError] = useState('');
+
   // Slider state
   const [slideIndex, setSlideIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState<number | null>(null);
@@ -113,10 +142,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const itemId = item?.id;
 
-  // ---------------------------------------------------------
-  // Reset state when the item changes or the modal opens.
-  // (Quantity is seeded below, once customizations are resolved.)
-  // ---------------------------------------------------------
   useEffect(() => {
     if (!item) return;
 
@@ -153,49 +178,39 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId, isOpen]);
 
-  // ---------------------------------------------------------
-  // Find the matching cart line for the CURRENT selection.
-  // Recomputes whenever customizations change, so:
-  //   - Default selection matches a cart line - show that line's qty, CTA = Update
-  //   - User picks a different addon - no match - qty = 1, CTA = Add to Cart
-  // ---------------------------------------------------------
-  const matchedLine = useMemo(() => {
+  const matchedLine = React.useMemo(() => {
     if (!item) return undefined;
     return cart.find(
-      (c) => c.id === item.id && sameCustomizations(c.customizations, selectedCustomizations),
+      (c) =>
+        c.id === item.id &&
+        sameCustomizations(c.customizations, selectedCustomizations),
     );
   }, [cart, item, selectedCustomizations]);
 
   const matchedQuantity = matchedLine?.quantity ?? 0;
   const isInCart = matchedQuantity > 0;
 
-  // ---------------------------------------------------------
-  // Seed the stepper.
-  // Runs when:
-  //   - the modal opens for a new item (matchedLine undetermined at reset)
-  //   - the current selection's match changes (addon added/removed)
-  // ---------------------------------------------------------
   useEffect(() => {
     if (!isOpen || !item) return;
     setQuantity(matchedQuantity > 0 ? matchedQuantity : 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchedQuantity, itemId, isOpen]);
 
-  if (!isOpen || !item) return null;
+  if (!item) return null;
+
+  const isDinein = tenant?.dineinEnabled === true;
 
   const isFieldEnabled = (key: string): boolean => {
     const field = schema.fields.find((f) => f.key === key);
     return field ? field.enabled : false;
   };
 
-  // ---------- Discount + price ----------
   const discount = Number(item.discount ?? 0);
   const hasDiscount = discount > 0 && discount <= 100;
   const effectiveUnitPrice = hasDiscount
     ? Math.round(item.price * (1 - discount / 100))
     : item.price;
 
-  // ---------- Gallery ----------
   const galleryImages: string[] =
     item.gallery && item.gallery.length > 0
       ? item.gallery
@@ -281,15 +296,213 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     }));
   };
 
-  const handleSubmit = () => {
+  const handleCartSubmit = () => {
     if (!plan.canOrder || !acceptingOrders) return;
-
     if (isInCart && onUpdateCart) {
       onUpdateCart(item, selectedCustomizations, customMessage, quantity);
     } else {
       onAddToCart(item, selectedCustomizations, customMessage, quantity);
     }
     onClose();
+  };
+
+  // ---------------------------------------------------------
+  // Dine-in flow
+  // ---------------------------------------------------------
+
+  /**
+   * Look for an open order at the given table. If one exists, we
+   * "append" to it; otherwise we create a new one.
+   */
+  const lookForOpenOrderAndConfirm = async (t: TableInfo) => {
+    if (!tenant) return;
+    try {
+      const orders = await supabaseService.getDineinOrders(
+        tenant.slug,
+        OPEN_ORDER_STATUSES,
+      );
+      const existing = orders.find((o) => o.tableId === t.id) ?? null;
+      setOpenOrderId(existing?.id ?? null);
+      setConfirmModalOpen(true);
+    } catch (err) {
+      setDineinError(
+        err instanceof Error ? err.message : 'Could not reach the store.',
+      );
+    }
+  };
+
+  /**
+ * Decide between two paths:
+ *
+ *   1. This tab has an active order on file → reuse its table and
+ *      append to that order.
+ *
+ *   2. No active order for this tab → ask for the table number.
+ *
+ * Tab-scoped state lives in `sessionStorage` under the key
+ * `dinein-active-order::<deviceId>`. We deliberately do NOT fall back
+ * to "latest order for this device" — `deviceId` lives in
+ * `localStorage`, which is shared between all tabs of the same
+ * browser, so a fallback would leak one customer's table into
+ * another customer's session on the same device.
+ */
+const handlePlaceOrder = async () => {
+  if (!tenant || !item || dineinBusy) return;
+
+  if (!deviceId) {
+    setDineinError('Could not identify this device. Please reload.');
+    return;
+  }
+
+  setDineinError('');
+
+  // ---------------------------------------------------------
+  // 1. Does THIS TAB have an active order on file?
+  // ---------------------------------------------------------
+  let activeId: string | null = null;
+  try {
+    activeId = sessionStorage.getItem(
+      `dinein-active-order::${deviceId}`,
+    );
+  } catch {
+    /* ignore */
+  }
+
+  if (activeId) {
+    setDineinBusy(true);
+    try {
+      const existing = await supabaseService.getDineinOrderById(activeId);
+
+      // Only reuse if the order still belongs to this device AND is
+      // still in an open state (not served / paid / cancelled).
+      if (
+        existing &&
+        existing.deviceId === deviceId &&
+        OPEN_ORDER_STATUSES.includes(existing.status)
+      ) {
+        const info: TableInfo = {
+          id: existing.tableId,
+          label: existing.tableLabel,
+          kind: existing.tableLabelKind,
+        };
+        setTable(info);
+        await lookForOpenOrderAndConfirm(info);
+        return;
+      }
+
+      // The order is gone, done, or not ours — clear the stale key.
+      try {
+        sessionStorage.removeItem(`dinein-active-order::${deviceId}`);
+      } catch {
+        /* ignore */
+      }
+    } catch (err) {
+      console.warn('[MenuDetail] active-order lookup failed:', err);
+      // Fall through to the table modal.
+    } finally {
+      setDineinBusy(false);
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 2. No active order for this tab → ask for the table.
+  // ---------------------------------------------------------
+  setTable(null);
+  setTableModalOpen(true);
+};
+
+  const handleTableConfirmed = async (
+    label: string,
+    kind: 'number' | 'name',
+  ) => {
+    if (!tenant) return;
+    const t = await supabaseService.findOrCreateDineinTable(
+      tenant.slug,
+      label,
+      kind,
+      deviceId ?? undefined,
+    );
+    if (!t) {
+      setDineinError('Could not reach the store.');
+      throw new Error('Could not reach the store.');
+    }
+
+    const info: TableInfo = {
+      id: t.id,
+      label: t.label,
+      kind: t.labelKind,
+    };
+    setTable(info);
+    setTableModalOpen(false);
+    await lookForOpenOrderAndConfirm(info);
+  };
+
+  const handleConfirmDinein = async () => {
+    if (!tenant || !item || !table) return;
+    setDineinBusy(true);
+    setDineinError('');
+
+    const lineItems: DineinOrderItem[] = [
+      {
+        itemId: item.id,
+        name: item.name,
+        quantity,
+        unitPrice: effectiveUnitPrice,
+        addons: getAddonPrice(),
+        discountPct: hasDiscount ? discount : 0,
+        customizations:
+          Object.keys(selectedCustomizations).length > 0
+            ? selectedCustomizations
+            : undefined,
+        customMessage: customMessage?.trim() || undefined,
+        lineTotal: (effectiveUnitPrice + getAddonPrice()) * quantity,
+        served: false,
+      },
+    ];
+
+    try {
+      if (openOrderId) {
+        const updated = await supabaseService.appendDineinOrderItems(
+          openOrderId,
+          lineItems,
+        );
+        if (!updated) throw new Error('Failed to add items');
+      } else {
+        const gstPercent = tenant.gstPercent ?? 0;
+        const subtotal = lineItems.reduce((s, i) => s + i.lineTotal, 0);
+        const gstAmount = Math.round(subtotal * (gstPercent / 100));
+        const created = await supabaseService.createDineinOrder({
+          tenantSlug: tenant.slug,
+          tableId: table.id,
+          tableLabel: table.label,
+          tableLabelKind: table.kind,
+          customerName: getCustomerName() || 'Guest',
+          deviceId: deviceId ?? undefined,
+          items: lineItems,
+          subtotal,
+          gstPercent,
+          gstAmount,
+          storewideDiscount: 0,
+          totalAmount: subtotal + gstAmount,
+        });
+        if (!created) throw new Error('Failed to place order');
+
+        try {
+          sessionStorage.setItem(
+            `dinein-active-order::${deviceId ?? 'anon'}`,
+            created.id,
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      setConfirmModalOpen(false);
+      onClose();
+    } catch (err) {
+      setDineinError(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setDineinBusy(false);
+    }
   };
 
   const getAddonPrice = (): number => {
@@ -311,7 +524,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
 
-  // ---------- Field presence flags ----------
+  // ---- Field presence flags ----
   const hasDesc =
     isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
   const hasCategory =
@@ -364,7 +577,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const hasAnyCustomizationSelected =
     Object.keys(selectedCustomizations).length > 0;
 
-  // ---------- Custom (owner-defined) fields ----------
   const customFields = schema.fields
     .filter((f) => !f.builtin && f.enabled)
     .map((field) => ({ field, value: item.attributes?.[field.key] }))
@@ -396,7 +608,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     ({ field }) => field.type === 'select',
   );
 
-  // ---------- Badges ----------
   const activeBadges: BadgeDefinition[] = (schema.badges ?? [])
     .filter((b) => b.enabled && item.attributes?.[b.key])
     .slice();
@@ -435,12 +646,9 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
   const hasBadges = activeBadges.length > 0;
   const showVegBadge = isFieldEnabled('isVeg') && item.isVeg;
 
-  // ---------------------------------------------------------
-  // Shared body content
-  // ---------------------------------------------------------
   const bodyContent = (
     <>
-      {/* ============ Image / Cross-fade Slider ============ */}
+      {/* Image / Slider */}
       <div
         className={local.imageWrapper}
         ref={sliderRef}
@@ -528,7 +736,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         </IconButton>
       </div>
 
-      {/* ============ Content ============ */}
+      {/* Content */}
       <div className={local.content}>
         <div className={local.header}>
           {hasReviews && (
@@ -751,9 +959,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     </>
   );
 
-  // ---------------------------------------------------------
-  // Footer content
-  // ---------------------------------------------------------
   const footerContent = (
     <>
       <div className={local.priceSection}>
@@ -801,17 +1006,23 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
       <div className={local.btnWrap}>
         {plan.canOrder && acceptingOrders && (
-          <Button onClick={handleSubmit}>
-            {isInCart ? 'Update Cart' : 'Add to Cart'}
+          <Button
+            onClick={isDinein ? handlePlaceOrder : handleCartSubmit}
+            loading={isDinein && dineinBusy}
+          >
+            {isDinein
+              ? dineinBusy
+                ? 'Loading...'
+                : 'Place Order'
+              : isInCart
+              ? 'Update Cart'
+              : 'Add to Cart'}
           </Button>
         )}
       </div>
     </>
   );
 
-  // ---------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------
   return (
     <>
       {isMobile ? (
@@ -842,6 +1053,26 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         initialIndex={slideIndex}
         onClose={() => setIsPreviewOpen(false)}
       />
+
+      {/* Dine-in modals */}
+      <TableModal
+        isOpen={tableModalOpen}
+        onClose={() => setTableModalOpen(false)}
+        onConfirm={handleTableConfirmed}
+      />
+
+      {table && (
+        <OrderConfirmModal
+          isOpen={confirmModalOpen}
+          tableLabel={table.label}
+          mode={openOrderId ? 'append' : 'first'}
+          itemsTotal={getTotalPrice()}
+          onConfirm={handleConfirmDinein}
+          onCancel={() => setConfirmModalOpen(false)}
+          busy={dineinBusy}
+          error={dineinError}
+        />
+      )}
     </>
   );
 };

@@ -4,7 +4,7 @@ import { supabaseService } from "../../services/supabase.service";
 import { planService } from "../../services/plan.service";
 import { Tenant } from "../../contexts/TenantContext";
 import { credentialCache } from "../../services/credentialCache";
-import { PauseRequest } from "../../types";
+import { PauseRequest, StoreCategory } from "../../types";
 import {
   Modal,
   ConfirmDialog,
@@ -15,21 +15,120 @@ import {
   Banner,
   EmptyState,
   Badge,
-  Avatar,
+  Sheet,
+  Chip,
 } from "../ui";
 import {
-  CloseIcon,
   PlusIcon,
   CopyIcon,
   EditIcon,
   TrashIcon,
+  SearchIcon,
+  FilterIcon,
 } from "../../assets/svgs";
 import PlanBadge from "./PlanBadge";
 import PauseRequestIcon from "./PauseRequestIcon";
 import PlanChangeModal from "../Payments/PlanChangeModal";
+import {
+  STORE_CATEGORIES,
+  getCategoryLabel,
+} from "../../data/storeCategories";
 import tokens from "../../styles/_tokens.module.scss";
 import local from "./TenantManager.module.scss";
 
+// =========================================================
+// Filter types & constants
+// =========================================================
+type CreatedRange =
+  | "all"
+  | "today"
+  | "in3d"
+  | "in7d"
+  | "in15d"
+  | "in1m"
+  | "in3m"
+  | "in6m"
+  | "in1y"
+  | "custom";
+
+type ExpiryFilter = "all" | "expired" | "next3d" | "next7d" | "next15d";
+
+type PlanMonthsFilter = "all" | 1 | 3 | 6 | 12 | 24;
+
+interface Filters {
+  search: string;
+  created: CreatedRange;
+  customFrom: string;
+  customTo: string;
+  expiry: ExpiryFilter;
+  planMonths: PlanMonthsFilter;
+  category: StoreCategory | "all";
+}
+
+const EMPTY_FILTERS: Filters = {
+  search: "",
+  created: "all",
+  customFrom: "",
+  customTo: "",
+  expiry: "all",
+  planMonths: "all",
+  category: "all",
+};
+
+const CREATED_OPTIONS: { key: CreatedRange; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "today", label: "Today" },
+  { key: "in3d", label: "In 3 days" },
+  { key: "in7d", label: "In 7 days" },
+  { key: "in15d", label: "In 15 days" },
+  { key: "in1m", label: "In 1 month" },
+  { key: "in3m", label: "In 3 months" },
+  { key: "in6m", label: "In 6 months" },
+  { key: "in1y", label: "In 1 year" },
+  { key: "custom", label: "Custom range" },
+];
+
+const EXPIRY_OPTIONS: { key: ExpiryFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "expired", label: "Expired" },
+  { key: "next3d", label: "Next 3 days" },
+  { key: "next7d", label: "Next 7 days" },
+  { key: "next15d", label: "Next 15 days" },
+];
+
+const PLAN_MONTHS_OPTIONS: { key: PlanMonthsFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: 1, label: "1 month" },
+  { key: 3, label: "3 months" },
+  { key: 6, label: "6 months" },
+  { key: 12, label: "1 year" },
+  { key: 24, label: "2 years" },
+];
+
+/**
+ * Derive "days until expiry" from the tenant's subscription_expires_at.
+ * Returns Infinity when the tenant has no expiry (e.g. 'main' or legacy).
+ * Returns negative when already expired.
+ */
+const daysUntilExpiry = (expiresAtIso?: string): number => {
+  if (!expiresAtIso) return Infinity;
+  const ms = new Date(expiresAtIso).getTime() - Date.now();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+};
+
+/** Snap the days-until-expiry into a DurationMonths bucket. */
+const monthsFromDays = (days: number): 0 | 1 | 3 | 6 | 12 | 24 => {
+  if (days === Infinity || days <= 0) return 0;
+  if (days <= 45) return 1;
+  if (days <= 135) return 3;
+  if (days <= 270) return 6;
+  if (days <= 540) return 12;
+  return 24;
+};
+
+// =========================================================
+// Component-scoped types
+// =========================================================
 interface TenantManagerProps {
   onClose: () => void;
 }
@@ -40,6 +139,9 @@ interface TenantRow extends Tenant {
   ownerName?: string;
   hasPauseRequest?: boolean;
   pauseRequestId?: string;
+  /** Set explicitly so filters don't have to guess. */
+  _createdAt: string;
+  _daysUntilExpiry: number;
 }
 
 type ConfirmState = {
@@ -52,6 +154,9 @@ type ConfirmState = {
 
 type SlugStatus = "idle" | "checking" | "available" | "taken" | "error";
 
+// =========================================================
+// Helpers
+// =========================================================
 const slugify = (s: string): string =>
   s
     .toLowerCase()
@@ -60,7 +165,7 @@ const slugify = (s: string): string =>
     .replace(/^-|-$/g, "");
 
 const generateRandomPassword = (length = 8): string => {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const chars = "abcdefghijklmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
   let pw = "";
   for (let i = 0; i < length; i++) {
     pw += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -68,6 +173,162 @@ const generateRandomPassword = (length = 8): string => {
   return pw;
 };
 
+// =========================================================
+// FilterSheet
+// =========================================================
+interface FilterSheetProps {
+  isOpen: boolean;
+  initial: Filters;
+  onApply: (next: Filters) => void;
+  onClose: () => void;
+}
+
+const FilterSheet: React.FC<FilterSheetProps> = ({
+  isOpen,
+  initial,
+  onApply,
+  onClose,
+}) => {
+  const [draft, setDraft] = useState<Filters>(initial);
+
+  useEffect(() => {
+    if (isOpen) setDraft(initial);
+  }, [isOpen, initial]);
+
+  const setCreated = (k: CreatedRange) =>
+    setDraft((d) => ({ ...d, created: k }));
+  const setExpiry = (k: ExpiryFilter) =>
+    setDraft((d) => ({ ...d, expiry: k }));
+  const setPlanMonths = (k: PlanMonthsFilter) =>
+    setDraft((d) => ({ ...d, planMonths: k }));
+  const setCategory = (k: StoreCategory | "all") =>
+  setDraft((d) => ({ ...d, category: k }));
+
+  const reset = () =>
+    setDraft({ ...EMPTY_FILTERS, search: draft.search });
+
+  return (
+    <Sheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Filters"
+      maxHeightVh={86}
+      className={local.filterFooter}
+      footer={
+        <>
+          <Button variant="ghost" onClick={reset} block>
+            Reset
+          </Button>
+          <Button onClick={() => onApply(draft)} block>
+            Apply
+          </Button>
+        </>
+      }
+    >
+      {/* --- Created --- */}
+      <section className={local.filterSection}>
+        <h4>Created</h4>
+        <div className={local.chipGrid}>
+          {CREATED_OPTIONS.map((o) => (
+            <Chip
+              key={o.key}
+              tone="primary"
+              active={draft.created === o.key}
+              onClick={() => setCreated(o.key)}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+
+        {draft.created === "custom" && (
+          <div className={local.dateRangeRow}>
+            <FormField label="From">
+              <Input
+                type="date"
+                value={draft.customFrom}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, customFrom: e.target.value }))
+                }
+              />
+            </FormField>
+            <FormField label="To">
+              <Input
+                type="date"
+                value={draft.customTo}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, customTo: e.target.value }))
+                }
+              />
+            </FormField>
+          </div>
+        )}
+      </section>
+
+      {/* --- Category --- */}
+<section className={local.filterSection}>
+  <h4>Category</h4>
+  <div className={local.chipGrid}>
+    <Chip
+      tone="primary"
+      active={draft.category === "all"}
+      onClick={() => setCategory("all")}
+    >
+      All
+    </Chip>
+    {STORE_CATEGORIES.map((c) => (
+      <Chip
+        key={c.value}
+        tone="primary"
+        active={draft.category === c.value}
+        onClick={() => setCategory(c.value)}
+      >
+        {c.label}
+      </Chip>
+    ))}
+  </div>
+</section>
+
+      {/* --- Expiry --- */}
+      <section className={local.filterSection}>
+        <h4>Expiry</h4>
+        <div className={local.chipGrid}>
+          {EXPIRY_OPTIONS.map((o) => (
+            <Chip
+              key={o.key}
+              tone="primary"
+              active={draft.expiry === o.key}
+              onClick={() => setExpiry(o.key)}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+      </section>
+
+      {/* --- Plan duration --- */}
+      <section className={local.filterSection}>
+        <h4>Plan duration</h4>
+        <div className={local.chipGrid}>
+          {PLAN_MONTHS_OPTIONS.map((o) => (
+            <Chip
+              key={String(o.key)}
+              tone="primary"
+              active={draft.planMonths === o.key}
+              onClick={() => setPlanMonths(o.key)}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+      </section>
+    </Sheet>
+  );
+};
+
+// =========================================================
+// TenantManager
+// =========================================================
 const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [pauseRequests, setPauseRequests] = useState<PauseRequest[]>([]);
@@ -76,6 +337,11 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [success, setSuccess] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
+  // ---- Filters ----
+  const [planFilter, setPlanFilter] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -88,7 +354,7 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [ownerPassword, setOwnerPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Slug availability check state (create modal)
+  // Slug availability check
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
   const slugCheckTimerRef = useRef<number | null>(null);
   const skipInitialCheckRef = useRef(true);
@@ -118,9 +384,10 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const [changePlanFor, setChangePlanFor] = useState<TenantRow | null>(null);
 
   const estimateCurrentMonths = (tenant: {
+    _daysUntilExpiry?: number;
     daysUntilExpiry?: number;
   }): number => {
-    const days = tenant.daysUntilExpiry;
+    const days = tenant._daysUntilExpiry ?? tenant.daysUntilExpiry;
     if (typeof days !== "number" || days === Infinity || days <= 0) return 1;
     if (days <= 45) return 1;
     if (days <= 135) return 3;
@@ -134,11 +401,10 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     if (!slugTouched) setSlug(slugify(displayName));
   }, [displayName, slugTouched]);
 
-  // Debounced slug uniqueness check (create modal only)
+  // Debounced slug uniqueness check
   useEffect(() => {
     if (!isCreateOpen) return;
 
-    // Skip the very first run after opening - nothing to check yet
     if (skipInitialCheckRef.current) {
       skipInitialCheckRef.current = false;
       return;
@@ -146,7 +412,6 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
 
     const candidate = slug.trim();
 
-    // Clear any pending check
     if (slugCheckTimerRef.current !== null) {
       window.clearTimeout(slugCheckTimerRef.current);
       slugCheckTimerRef.current = null;
@@ -192,8 +457,15 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   const buildAdminUrl = (s: string): string =>
     `${window.location.origin}${window.location.pathname}?t=${s}_admin`;
 
+  /**
+   * Fetch the raw tenant list directly via Supabase so we get `created_at`
+   * and `subscription_expires_at` — both needed by the filters. This
+   * bypasses the TenantContext mapper (which drops those fields).
+   */
   const loadAll = async () => {
     setLoading(true);
+
+    // Fetch raw rows via Supabase service (includes created_at + expiry).
     const [list, requests] = await Promise.all([
       supabaseService.getAllTenants(),
       planService.getPendingPauseRequests(),
@@ -208,6 +480,18 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
       list.map(async (t) => {
         const owner = await supabaseService.getTenantOwner(t.slug);
         const req = bySlug[t.slug];
+
+        // Compute the two fields the filters need, with safe fallbacks.
+        const createdAt =
+          (t as any).createdAt ??
+          (t as any).created_at ??
+          new Date(0).toISOString();
+
+        const expiresAt =
+          t.subscriptionExpiresAt ?? (t as any).subscription_expires_at;
+
+        const days = daysUntilExpiry(expiresAt);
+
         return {
           ...t,
           url: buildTenantUrl(t.slug),
@@ -215,6 +499,8 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
           ownerName: owner?.name,
           hasPauseRequest: !!req,
           pauseRequestId: req?.id,
+          _createdAt: createdAt,
+          _daysUntilExpiry: days,
         };
       }),
     );
@@ -298,7 +584,6 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     return null;
   };
 
-  // Is the create form ready to submit?
   const canCreate = useMemo(() => {
     return (
       displayName.trim() !== "" &&
@@ -446,34 +731,24 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
   };
 
   // ---------- Copy credentials ----------
-  const handleCopyCredentials = async (t: TenantRow) => {
-    const cached = credentialCache.get(t.slug);
-    if (cached) {
-      const owner = await supabaseService.getTenantOwner(t.slug);
-      if (!owner) return flashError("Owner not found");
-      setCredentialsModal({
-        displayName: t.displayName,
-        adminUrl: buildAdminUrl(t.slug),
-        customerUrl: buildTenantUrl(t.slug),
-        phone: owner.phone,
-        password: cached.password,
-        generatedAt: cached.generatedAt,
-        isNew: false,
-      });
-      setShowCredentialsPassword(true);
-      return;
-    }
-
+    const handleCopyCredentials = async (t: TenantRow) => {
     const owner = await supabaseService.getTenantOwner(t.slug);
-    if (!owner) return flashError("Owner not found");
-    const newPassword = generateRandomPassword();
+    if (!owner) return flashError('Owner not found');
+
+    // Always issue a fresh password. If we reuse the cached one, the DB
+    // and cache can drift out of sync (e.g. after a manual SQL change),
+    // which is what makes the shown password fail at login.
+    const newPassword = generateRandomPassword(10);
+
     const ok = await supabaseService.resetTenantOwnerPassword(
       t.slug,
       owner.phone,
       newPassword,
     );
-    if (!ok) return flashError("Failed");
+    if (!ok) return flashError('Failed to reset password');
+
     credentialCache.set(t.slug, newPassword);
+
     setCredentialsModal({
       displayName: t.displayName,
       adminUrl: buildAdminUrl(t.slug),
@@ -498,7 +773,154 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
     flashSuccess(ok ? "Copied to clipboard" : "Could not access clipboard");
   };
 
-  const shareableRows = useMemo(() => tenants, [tenants]);
+  // ---------- Plan counts ----------
+  const planCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    tenants.forEach((t) => {
+      const planId = t.planId ?? "professional";
+      counts.set(planId, (counts.get(planId) ?? 0) + 1);
+    });
+    return counts;
+  }, [tenants]);
+
+  const planOrder = useMemo(() => {
+    const preferred = ["professional", "dynamic", "basic"];
+    const present = Array.from(planCounts.keys());
+    const known = preferred.filter((p) => present.includes(p));
+    const unknown = present.filter((p) => !preferred.includes(p)).sort();
+    return [...known, ...unknown];
+  }, [planCounts]);
+
+  const planLabel = (planId: string): string => {
+    switch (planId) {
+      case "basic":
+        return "Basic";
+      case "dynamic":
+        return "Dynamic";
+      case "professional":
+        return "Professional";
+      default:
+        return planId.charAt(0).toUpperCase() + planId.slice(1);
+    }
+  };
+
+  // ---------- Advanced filter count ----------
+  const advancedFilterCount = useMemo(() => {
+    let n = 0;
+    if (filters.created !== "all") n += 1;
+    if (filters.expiry !== "all") n += 1;
+    if (filters.planMonths !== "all") n += 1;
+    if (filters.category !== "all") n += 1;
+    return n;
+  }, [filters]);
+
+  // ---------- Filtered rows ----------
+  const filteredRows = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    const now = Date.now();
+    const MS_DAY = 24 * 60 * 60 * 1000;
+
+    // --- Created-date bounds ---
+    let createdFromMs: number | null = null;
+    let createdToMs: number | null = null;
+
+    const windowFromNow = (daysBack: number) => {
+      createdFromMs = now - daysBack * MS_DAY;
+      createdToMs = now;
+    };
+
+    switch (filters.created) {
+      case "today": {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        createdFromMs = start.getTime();
+        createdToMs = now;
+        break;
+      }
+      case "in3d":
+        windowFromNow(3);
+        break;
+      case "in7d":
+        windowFromNow(7);
+        break;
+      case "in15d":
+        windowFromNow(15);
+        break;
+      case "in1m":
+        windowFromNow(30);
+        break;
+      case "in3m":
+        windowFromNow(90);
+        break;
+      case "in6m":
+        windowFromNow(180);
+        break;
+      case "in1y":
+        windowFromNow(365);
+        break;
+      case "custom": {
+        if (filters.customFrom) {
+          const d = new Date(filters.customFrom);
+          d.setHours(0, 0, 0, 0);
+          createdFromMs = d.getTime();
+        }
+        if (filters.customTo) {
+          const d = new Date(filters.customTo);
+          d.setHours(23, 59, 59, 999);
+          createdToMs = d.getTime();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    return tenants.filter((t) => {
+      // Plan pill filter
+      if (planFilter !== null && (t.planId ?? "professional") !== planFilter) {
+        return false;
+      }
+
+      // Search
+      if (q) {
+        const hay = `${t.displayName} ${t.slug}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      // Category filter
+if (filters.category !== "all" && t.storeCategory !== filters.category) {
+  return false;
+}
+
+      // Created date — uses the enriched `_createdAt` we computed in loadAll
+      if (createdFromMs !== null || createdToMs !== null) {
+        const ts = new Date(t._createdAt).getTime();
+        if (createdFromMs !== null && ts < createdFromMs) return false;
+        if (createdToMs !== null && ts > createdToMs) return false;
+      }
+
+      // Expiry — uses the enriched `_daysUntilExpiry` computed in loadAll
+      const days = t._daysUntilExpiry;
+
+      if (filters.expiry === "expired") {
+        if (!(days !== Infinity && days < 0)) return false;
+      } else if (filters.expiry === "next3d") {
+        if (!(days !== Infinity && days >= 0 && days <= 3)) return false;
+      } else if (filters.expiry === "next7d") {
+        if (!(days !== Infinity && days >= 0 && days <= 7)) return false;
+      } else if (filters.expiry === "next15d") {
+        if (!(days !== Infinity && days >= 0 && days <= 15)) return false;
+      }
+
+      // Plan months — snap `_daysUntilExpiry` into a duration bucket
+      if (filters.planMonths !== "all") {
+        const bucket = monthsFromDays(days);
+        if (bucket !== filters.planMonths) return false;
+      }
+
+      return true;
+    });
+  }, [tenants, planFilter, filters]);
 
   // ---------------------------------------------------------
   // Render
@@ -548,9 +970,100 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
           </Banner>
         )}
 
+        {/* ---- Plan filter pills ---- */}
+        {!loading && tenants.length > 0 && (
+          <div className={local.planPills}>
+            <button
+              type="button"
+              className={`${local.planPill} ${
+                planFilter === null ? local.planPillActive : ""
+              }`}
+              onClick={() => setPlanFilter(null)}
+            >
+              All
+              <span className={local.planPillCount}>{tenants.length}</span>
+            </button>
+
+            {planOrder.map((planId) => {
+              const count = planCounts.get(planId) ?? 0;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={planId}
+                  type="button"
+                  className={`${local.planPill} ${
+                    planFilter === planId ? local.planPillActive : ""
+                  }`}
+                  onClick={() =>
+                    setPlanFilter((prev) => (prev === planId ? null : planId))
+                  }
+                >
+                  {planLabel(planId)}
+                  <span className={local.planPillCount}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ---- Search + Filters row ---- */}
+        {!loading && tenants.length > 0 && (
+          <div className={local.searchRow}>
+            <div className={local.searchBox}>
+              <Input
+                placeholder="Search stores by name or slug"
+                value={filters.search}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, search: e.target.value }))
+                }
+                leftIcon={
+                  <SearchIcon
+                    width={18}
+                    height={18}
+                    fill="#dcdcdc"
+                    aria-hidden
+                  />
+                }
+                rightIcon={
+                  filters.search ? (
+                    <IconButton
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Clear search"
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, search: "" }))
+                      }
+                    >
+                      ✕
+                    </IconButton>
+                  ) : undefined
+                }
+              />
+            </div>
+
+            <Button
+              variant={advancedFilterCount > 0 ? "primary" : "ghost"}
+              onClick={() => setIsFilterSheetOpen(true)}
+              leftIcon={
+                <FilterIcon width={14} height={14} fill="currentColor" />
+              }
+              rightIcon={
+                advancedFilterCount > 0 ? (
+                  <span className={local.filterCount}>
+                    {advancedFilterCount}
+                  </span>
+                ) : undefined
+              }
+              className={local.filterBtn}
+            >
+              Filters
+            </Button>
+          </div>
+        )}
+
         {loading ? (
           <EmptyState title="Loading stores..." />
-        ) : shareableRows.length === 0 ? (
+        ) : tenants.length === 0 ? (
           <EmptyState
             title="No stores yet"
             description="Add your first store to get started."
@@ -563,9 +1076,25 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
               </Button>
             }
           />
+        ) : filteredRows.length === 0 ? (
+          <EmptyState
+            title="No stores match your filters"
+            description="Try adjusting or clearing the filters."
+            action={
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setPlanFilter(null);
+                  setFilters(EMPTY_FILTERS);
+                }}
+              >
+                Clear all filters
+              </Button>
+            }
+          />
         ) : (
           <div className={local.list}>
-            {shareableRows.map((t) => (
+            {filteredRows.map((t) => (
               <div key={t.id} className={`${local.row} ${local.storeItemRow}`}>
                 {editingTenant?.slug === t.slug ? (
                   <div className={local.editInline}>
@@ -695,24 +1224,30 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                               })
                             : "-"}
                         </span>
-                        {typeof t.daysUntilExpiry === "number" &&
-                          t.daysUntilExpiry !== Infinity && (
+                        {typeof t._daysUntilExpiry === "number" &&
+                          t._daysUntilExpiry !== Infinity && (
                             <span
                               className={`${local.expiryDays} ${
-                                t.daysUntilExpiry <= 0
+                                t._daysUntilExpiry <= 0
                                   ? local.expiryExpired
-                                  : t.daysUntilExpiry <= 7
+                                  : t._daysUntilExpiry <= 7
                                     ? local.expirySoon
                                     : ""
                               }`}
                             >
-                              {t.daysUntilExpiry > 0
-                                ? `${t.daysUntilExpiry} day${
-                                    t.daysUntilExpiry === 1 ? "" : "s"
+                              {t._daysUntilExpiry > 0
+                                ? `${t._daysUntilExpiry} day${
+                                    t._daysUntilExpiry === 1 ? "" : "s"
                                   } left`
                                 : "Expired"}
                             </span>
                           )}
+                      </div>
+
+                      <div className={local.metaRow}>
+                        <span className={local.categoryChip}>
+                          {getCategoryLabel(t.storeCategory)}
+                        </span>
                       </div>
 
                       {t.whatsappPhone && (
@@ -748,18 +1283,18 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
                           />
                         </Button>
                         {t.slug !== "main" && (
-                        <Button
-                          size="xs"
-                          variant="link"
-                          onClick={() => handleDelete(t)}
-                        >
-                          <TrashIcon
-                            width={16}
-                            height={16}
-                            fill={tokens.danger}
-                          />
-                        </Button>
-                      )}
+                          <Button
+                            size="xs"
+                            variant="link"
+                            onClick={() => handleDelete(t)}
+                          >
+                            <TrashIcon
+                              width={16}
+                              height={16}
+                              fill={tokens.danger}
+                            />
+                          </Button>
+                        )}
                       </div>
                       <Button
                         size="xs"
@@ -998,6 +1533,17 @@ const TenantManager: React.FC<TenantManagerProps> = ({ onClose }) => {
           }}
         />
       )}
+
+      {/* ============ Filter sheet ============ */}
+      <FilterSheet
+        isOpen={isFilterSheetOpen}
+        initial={filters}
+        onApply={(next) => {
+          setFilters(next);
+          setIsFilterSheetOpen(false);
+        }}
+        onClose={() => setIsFilterSheetOpen(false)}
+      />
 
       {/* ============ Confirm dialog ============ */}
       <ConfirmDialog

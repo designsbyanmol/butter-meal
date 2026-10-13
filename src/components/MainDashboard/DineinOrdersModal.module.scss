@@ -1,0 +1,456 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* ---------- Responsive grid of accordion cards ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start; // don't stretch short cards to match tall siblings
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Wrapper around each Accordion, used for focus-scroll targeting. */
+.cardWrap {
+  scroll-margin-top: 24px;
+  min-width: 0;
+}
+
+.cardWrap :global([class*='Accordion_header']) {
+  padding-left: 6px;
+}
+
+.cardWrap.focused {
+  box-shadow: 0 0 0 3px rgba($primary, 0.45);
+  border-radius: $radius;
+  transition: box-shadow 0.3s ease;
+}
+
+/* ---------- Accordion header (compact summary) ---------- */
+.accordionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.headerTable {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: $text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.headerOrderNo {
+  font-size: 11.5px;
+  color: $text-faint;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.headerServed {
+  font-size: 11px;
+  font-weight: 700;
+  color: $primary-dark;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: rgba($primary, 0.08);
+  white-space: nowrap;
+}
+
+.stageTimer {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: $primary-dark;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Body inside the accordion ---------- */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.itemsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.itemsHeaderLabel {
+  color: $text-muted;
+}
+
+.itemsHeaderCount {
+  color: $primary-dark;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  font-size: 11.5px;
+}
+
+.itemRow {
+  padding: 6px 0;
+  border-bottom: 1px dashed $border-soft;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.itemRowLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+}
+
+.itemCheckbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.itemCheckboxBox {
+  position: relative;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 5px;
+  border: 1.5px solid $border-strong;
+  background: #fff;
+  transition: background $t-fast, border-color $t-fast;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity $t-fast;
+  }
+}
+
+.itemCheckbox:checked + .itemCheckboxBox {
+  background: $primary;
+  border-color: $primary;
+
+  &::after {
+    opacity: 1;
+  }
+}
+
+.itemCheckbox:disabled + .itemCheckboxBox {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.itemCheckbox:focus-visible + .itemCheckboxBox {
+  box-shadow: 0 0 0 4px rgba($primary, 0.15);
+}
+
+.itemRowContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.itemLine {
+  font-size: 12.5px;
+  color: $text;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.itemCustom {
+  font-size: 11px;
+  color: $text-muted;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.itemNote {
+  font-size: 11px;
+  color: $text-faint;
+  font-style: italic;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.checkboxHint {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: $radius-sm;
+  background: $amber-50;
+  color: $amber-800;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* ---------- Static served checkmark (Served tab) ---------- */
+.checkmarkStatic,
+.checkmarkStaticEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: 5px;
+}
+
+.checkmarkStatic {
+  background: $primary;
+  color: #fff;
+  border: 1.5px solid $primary;
+}
+
+.checkmarkStaticEmpty {
+  background: #fff;
+  color: transparent;
+  border: 1.5px solid $border-strong;
+}
+
+/* ---------- Totals + actions inside the accordion body ---------- */
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 8px;
+  border-top: 1px dashed $border-soft;
+  font-size: 12px;
+}
+
+.totalLabel {
+  color: $text-muted;
+}
+
+.totalValue {
+  color: $text;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.billLine {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: $radius-pill;
+  background: $amber-50;
+  color: $amber-800;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed $border-soft;
+}
+
+.serveGate {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 11px;
+  color: $text-faint;
+}
+
+/* ---------- Tabs row ---------- */
+.tabsRow {
+  margin-bottom: 14px;
+}
+
+.tabLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: $radius-pill;
+  background: $bg-muted;
+  color: $text-muted;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tabCountActive {
+  background: $primary-dark;
+  color: #fff;
+}
+
+/* ---------- Failed-payment notice on the order card ---------- */
+.failureNotice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: $radius-sm;
+  background: $red-50;
+  color: $red-800;
+  border-left: 4px solid $danger;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.35;
+}
+
+@keyframes failurePulse {
+  0%,
+  100% {
+    background: $red-50;
+  }
+  50% {
+    background: $red-100;
+  }
+}
+
+/* =========================================================
+   Card state highlights (Served tab)
+   ========================================================= */
+
+/* Customer requested the bill — full blue highlight + pulse. */
+.cardBillRequested {
+  background: $blue-50 !important;
+  border-radius: $radius;
+  box-shadow: 0 0 0 3px rgba($blue-500, 0.12);
+  animation: billRequestedPulse 1.8s ease-in-out infinite;
+  position: relative;
+
+  /* The inner accordion surfaces should be transparent so the
+     card's blue-50 shows through. */
+  :global([class*='Accordion_wrap']) {
+    background: transparent !important;
+    border-color: transparent !important;
+  }
+
+  :global([class*='Accordion_header']) {
+    background: transparent !important;
+  }
+
+  :global([class*='Accordion_body']) {
+    background: transparent !important;
+    border-top-color: rgba($blue-500, 0.25) !important;
+  }
+  &::after {
+    content: 'NEW';
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
+    background: $blue-500;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    padding: 2px 6px;
+    border-radius: $radius-pill;
+    pointer-events: none;
+  }
+}
+
+@keyframes billRequestedPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba($blue-500, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba($blue-500, 0.04);
+  }
+}
+
+/* Customer's online payment failed and they settled offline —
+   full red highlight + pulse. */
+.cardPaymentFailed {
+  background: $red-50 !important;
+  border-radius: $radius;
+  box-shadow: 0 0 0 3px rgba($danger, 0.14);
+  animation: paymentFailedPulse 1.6s ease-in-out infinite;
+
+  :global([class*='Accordion_wrap']) {
+    background: transparent !important;
+    border-color: transparent !important;
+  }
+
+  :global([class*='Accordion_header']) {
+    background: transparent !important;
+  }
+
+  :global([class*='Accordion_body']) {
+    background: transparent !important;
+    border-top-color: rgba($danger, 0.25) !important;
+  }
+}
+
+@keyframes paymentFailedPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba($danger, 0.14);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba($danger, 0.05);
+  }
+}

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Plan, DurationMonths, StoreCategory } from "../../../../types";
 import { computePlanPrice, formatRupees } from "../../../../utils/subscription";
 import { planService } from "../../../../services/plan.service";
+import { usePlatformTax } from "../../../../hooks/usePlatformTax";
 import { Button, Card, Skeleton, Banner } from "../../../ui";
 import RazorpayCheckout from "../../../Payments/RazorpayCheckout";
 import BillingToggle from "../../../Payments/BillingToggle";
@@ -48,6 +49,8 @@ const PlanStep: React.FC<PlanStepProps> = ({
   onBack,
   onPaid,
 }) => {
+  const { taxPercent } = usePlatformTax();
+
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
     initialPlanId,
   );
@@ -70,8 +73,11 @@ const PlanStep: React.FC<PlanStepProps> = ({
   );
 
   const breakdown = useMemo(
-    () => (selectedPlan ? computePlanPrice(selectedPlan, months) : null),
-    [selectedPlan, months],
+    () =>
+      selectedPlan
+        ? computePlanPrice(selectedPlan, months, taxPercent)
+        : null,
+    [selectedPlan, months, taxPercent],
   );
 
   const expiresAtIso = useMemo(() => {
@@ -80,7 +86,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
     return d.toISOString();
   }, [months]);
 
-  // 1–6 mo - monthly; 12–24 mo - yearly.
+  // 1–6 mo → monthly; 12–24 mo → yearly.
   const isYearly = months >= 12;
 
   const setBillingMode = (yearly: boolean) => {
@@ -105,6 +111,8 @@ const PlanStep: React.FC<PlanStepProps> = ({
         baseAmount: breakdown.baseAmount,
         discountPct: breakdown.discountPct,
         finalAmount: breakdown.finalAmount,
+        taxPercent: breakdown.taxPercent,
+        taxAmount: breakdown.taxAmount,
       });
       if (!inv) throw new Error("Could not create invoice");
       setInvoiceId(inv.id);
@@ -207,7 +215,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
         }}
       />
 
-      <div className={local.planGrid}>
+            <div className={local.planGrid}>
         {plans.map((plan) => (
           <PlanCard
             key={plan.id}
@@ -237,6 +245,12 @@ const PlanStep: React.FC<PlanStepProps> = ({
             <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
               <span>Discount ({breakdown.discountPct}%)</span>
               <span>- {formatRupees(breakdown.discountAmount)}</span>
+            </div>
+          )}
+          {breakdown.taxAmount > 0 && (
+            <div className={`${local.summaryRow} ${local.summaryTax}`}>
+              <span>GST ({breakdown.taxPercent}%)</span>
+              <span>+ {formatRupees(breakdown.taxAmount)}</span>
             </div>
           )}
           <div className={`${local.summaryRow} ${local.summaryTotal}`}>

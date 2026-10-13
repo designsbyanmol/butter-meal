@@ -1,9 +1,10 @@
-// components/MainDashboard/MainDashboard.tsx
+// src/components/MainDashboard/MainDashboard.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui';
 import LoginModal from '../Auth/LoginModal';
-import ReviewsOverview from './ReviewsOverview';
+import AdminDashboardCards from './AdminDashboardCards';
+
 import local from './MainDashboard.module.scss';
 
 const MainDashboard: React.FC = () => {
@@ -20,7 +21,12 @@ const MainDashboard: React.FC = () => {
             <p className={local.subtitle}>
               Sign in to manage stores, menus, and tenants.
             </p>
-            <Button shape="pill" size="lg" onClick={() => setIsLoginOpen(true)} variant="secondary">
+            <Button
+              shape="pill"
+              size="lg"
+              onClick={() => setIsLoginOpen(true)}
+              variant="secondary"
+            >
               Sign In
             </Button>
             <p className={local.hint}>
@@ -59,8 +65,8 @@ const MainDashboard: React.FC = () => {
     <div className={local.dashboard}>
       <div className={local.hero}>
         <h1 className={local.title}>Welcome back, {user?.name}</h1>
-        <p className={local.subtitle}>This is your platform dashboard.</p>
-        <ReviewsOverview />
+        <p className={local.subtitle}>Everything you need, in one place.</p>
+        <AdminDashboardCards />
       </div>
     </div>
   );

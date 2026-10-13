@@ -9,32 +9,26 @@ export interface User {
   phone: string;
   name: string;
   password: string;
-  role: "admin" | "user";
+  role: 'admin' | 'user';
   isActive: boolean;
   tenantId?: string;
   tenantSlug?: string;
   createdAt: string;
   lastLogin?: string;
+  /** True for users whose role is admin AND whose home tenant is the platform tenant. */
+  isPlatformAdmin?: boolean;
 }
 
 // =========================================================
 // STORE CATEGORY
 // =========================================================
 export type StoreCategory =
-  | 'restaurant'
-  | 'drinks-cafe'
-  | 'fast-food'
-  | 'specialty-food'
-  | 'sweets-desserts'
-  | 'meat-seafood'
-  | 'events-flowers'
-  | 'clothing-jewelry'
-  | 'home-furniture'
-  | 'electronics'
+  | 'food-beverage'
+  | 'grocery-daily'
+  | 'fashion-lifestyle'
+  | 'home-living'
   | 'books-office'
-  | 'health-beauty'
-  | 'sports-garden'
-  | 'auto-parts'
+  | 'services-events'
   | 'other-shops';
 
 // =========================================================
@@ -450,7 +444,8 @@ export interface Tenant {
   isActive?: boolean;
   formSchema?: FormSchema;
   storeCategory?: StoreCategory;
-
+gstPercent?: number;
+  packingCharge?: number;
   bannerUrl?: string;
   storeTagline?: string;
   deliveryCharge?: number;
@@ -479,6 +474,8 @@ export interface Tenant {
   pauseRequested?: boolean;
   pauseRequestedAt?: string;
   daysUntilExpiry?: number;
+    dineinEnabled?: boolean;
+  upiId?: string;
 }
 
 // =========================================================
@@ -552,6 +549,10 @@ export interface Invoice {
   baseAmount: number;
   discountPct: number;
   finalAmount: number;
+  /** Tax percentage that was applied at the time of purchase (0-100). */
+  taxPercent?: number;
+  /** Tax amount in rupees, rounded to 2 decimals. */
+  taxAmount?: number;
   status: "pending" | "paid" | "cancelled";
   paidAt?: string;
   markedPaidBy?: string;
@@ -569,4 +570,86 @@ export interface PauseRequest {
   status: "pending" | "accepted" | "rejected";
   resolvedAt?: string;
   resolvedBy?: string;
+}
+
+// =========================================================
+// DINE-IN
+// =========================================================
+export interface DineinTable {
+  id: string;
+  tenantSlug: string;
+  label: string;
+  labelKind: 'number' | 'name';
+  deviceIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DineinOrderItem {
+  itemId: number;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  addons: number;
+  discountPct: number;
+  customizations?: Record<string, string>;
+  customMessage?: string;
+  lineTotal: number;
+  /** Per-item served flag. Absent on legacy rows; treated as false. */
+  served?: boolean;
+}
+
+export type DineinStatus =
+  | 'placed'
+  | 'accepted'
+  | 'preparing'
+  | 'served'
+  | 'bill_requested'
+  | 'paid'
+  | 'cancelled';
+
+export interface DineinOrder {
+  id: string;
+  orderNo: string;           // NEW
+  tenantSlug: string;
+  tableId: string;
+  tableLabel: string;
+  tableLabelKind: 'number' | 'name';
+  customerName: string;
+  deviceId: string | null;
+  items: DineinOrderItem[];
+  subtotal: number;
+  gstPercent: number;
+  gstAmount: number;
+  packingCharge: number;
+  storewideDiscount: number;
+  totalAmount: number;
+  status: DineinStatus;
+  billRequested: boolean;
+  billRequestedAt?: string;
+  payOnline: boolean;
+  payOnlineRequested?: boolean;
+  paidAt?: string;
+  paymentRef?: string;
+  sessionClosed?: boolean;
+  closedAt?: string;
+  // NEW — stage timestamps
+  acceptedAt?: string;
+  preparingAt?: string;
+  servedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  settledOfflineAfterFailure?: boolean;
+  customerPaidClaimed?: boolean;
+customerPaidClaimedAt?: string;
+}
+
+export interface DineinEvent {
+  id: string;
+  orderId: string;
+  tableLabel: string;
+  kind: 'order' | 'bill_request' | 'rating';
+  payload?: Record<string, any>;
+  createdAt: string;
+  readAt?: string | null;
 }

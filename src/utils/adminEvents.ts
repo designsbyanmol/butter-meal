@@ -1,10 +1,12 @@
-// utils/adminEvents.ts
+// src/utils/adminEvents.ts
 export type AdminAction =
   | 'open-menu-panel'
   | 'open-store-settings'
   | 'open-user-management'
   | 'open-info-popup'
-  | 'open-tenant-manager';
+  | 'open-tenant-manager'
+  | 'open-reviews'
+  | 'open-orders';
 
 export const dispatchAdminAction = (action: AdminAction) => {
   window.dispatchEvent(new CustomEvent('admin:action', { detail: action }));

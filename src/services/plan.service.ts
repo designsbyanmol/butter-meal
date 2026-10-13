@@ -1,12 +1,12 @@
 // services/plan.service.ts
-import { supabase } from './supabase.client';
+import { supabase } from "./supabase.client";
 import {
   Plan,
   Invoice,
   PauseRequest,
   DurationMonths,
   PlanFeatures,
-} from '../types';
+} from "../types";
 
 export interface PlanChangeQuote {
   isUpgrade: boolean;
@@ -29,144 +29,213 @@ class PlanService {
     return supabase;
   }
 
-  // ---------- Plans ----------
-  async getAllPlans(): Promise<Plan[]> {
-  const client = this.getClient();
-  if (!client) {
-    throw new Error('Supabase not configured');
-  }
-  const { data, error } = await client
-    .from('star_veg_plans')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+    /**
+   * Fetch plans.
+   *
+   * By default returns only active plans (used by signup, plan change,
+   * and everywhere the customer-facing UI reads them).
+   *
+   * Pass `{ includeInactive: true }` to get every row (used by the
+   * platform-admin Plans modal).
+   */
+  async getAllPlans(
+    opts: { includeInactive?: boolean } = {},
+  ): Promise<Plan[]> {
+    const client = this.getClient();
+    if (!client) throw new Error('Supabase not configured');
 
-  if (error) {
-    console.error('getAllPlans error:', error);
-    throw new Error(error.message || 'Failed to load plans');
-  }
+    let query = client
+      .from('star_veg_plans')
+      .select('*')
+      .order('sort_order', { ascending: true });
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    name: row.name,
-    monthlyPrice: Number(row.monthly_price),
-    description: row.description ?? '',
-    features: (row.features ?? {}) as PlanFeatures,
-    isActive: row.is_active !== false,
-    sortOrder: row.sort_order ?? 0,
-  }));
-}
+    if (!opts.includeInactive) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('getAllPlans error:', error);
+      throw new Error(error.message || 'Failed to load plans');
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      monthlyPrice: Number(row.monthly_price),
+      description: row.description ?? '',
+      features: (row.features ?? {}) as PlanFeatures,
+      isActive: row.is_active !== false,
+      sortOrder: row.sort_order ?? 0,
+    }));
+  }
 
   async getPlanById(id: string): Promise<Plan | null> {
     const client = this.getClient();
     if (!client) return null;
     const { data, error } = await client
-      .from('star_veg_plans')
-      .select('*')
-      .eq('id', id)
+      .from("star_veg_plans")
+      .select("*")
+      .eq("id", id)
       .maybeSingle();
     if (error || !data) return null;
     return {
       id: data.id,
       name: data.name,
       monthlyPrice: Number(data.monthly_price),
-      description: data.description ?? '',
+      description: data.description ?? "",
       features: (data.features ?? {}) as PlanFeatures,
       isActive: data.is_active !== false,
       sortOrder: data.sort_order ?? 0,
     };
   }
 
+  /**
+   * Toggle a plan's `is_active` flag. Throws on failure.
+   * After the write, broadcasts a change event so every cached plan
+   * list in the app invalidates and re-fetches.
+   */
+  async setPlanActive(planId: string, isActive: boolean): Promise<void> {
+    const client = this.getClient();
+    if (!client) throw new Error("Supabase not configured");
+
+    const { data, error } = await client
+      .from("star_veg_plans")
+      .update({ is_active: isActive })
+      .eq("id", planId)
+      .select("id, is_active")
+      .single();
+
+    if (error) {
+      console.error("[planService.setPlanActive] update error:", error);
+      throw new Error(error.message || "Failed to update plan");
+    }
+    if (!data || data.is_active !== isActive) {
+      throw new Error("Plan was not updated (write returned no row)");
+    }
+
+    // Broadcast so all consumers refetch.
+    planService.broadcastChange();
+  }
+
+  // =========================================================
+  // Change notification
+  // =========================================================
+  private planChangeListeners = new Set<() => void>();
+
+  /** Subscribe to plan-list change events. Returns an unsubscribe fn. */
+  subscribeToPlanChanges(handler: () => void): () => void {
+    this.planChangeListeners.add(handler);
+    return () => {
+      this.planChangeListeners.delete(handler);
+    };
+  }
+
+  /** Called after any write to star_veg_plans. Fires all listeners. */
+  broadcastChange(): void {
+    this.planChangeListeners.forEach((l) => {
+      try {
+        l();
+      } catch (e) {
+        console.error("[planService] listener threw:", e);
+      }
+    });
+  }
+
   // ---------- Invoices ----------
 
-async createInvoice(params: {
-  tenantSlug: string;
-  planId: string;
-  months: number;
-  baseAmount: number;
-  discountPct: number;
-  finalAmount: number;
-}): Promise<Invoice | null> {
-  const client = this.getClient();
-  if (!client) {
-    throw new Error('Supabase client not configured');
+  async createInvoice(params: {
+    tenantSlug: string;
+    planId: string;
+    months: number;
+    baseAmount: number;
+    discountPct: number;
+    finalAmount: number;
+    taxPercent?: number;
+    taxAmount?: number;
+  }): Promise<Invoice | null> {
+    const client = this.getClient();
+    if (!client) {
+      throw new Error("Supabase client not configured");
+    }
+
+    // Try to resolve tenant_id, but allow null during signup.
+    let tenantId: string | null = null;
+    try {
+      const { data: tenantRow, error: tErr } = await client
+        .from("star_veg_tenants")
+        .select("id")
+        .eq("slug", params.tenantSlug)
+        .maybeSingle();
+
+      if (tErr) {
+        // Non-fatal - signup flow where the tenant doesn't exist yet.
+        console.warn("createInvoice: tenant lookup failed", tErr.message);
+      } else if (tenantRow) {
+        tenantId = tenantRow.id;
+      }
+    } catch (err) {
+      console.warn("createInvoice: tenant lookup threw", err);
+    }
+
+    const payload = {
+      tenant_id: tenantId,
+      tenant_slug: params.tenantSlug,
+      plan_id: params.planId,
+      months: params.months,
+      base_amount: params.baseAmount,
+      discount_pct: params.discountPct,
+      final_amount: params.finalAmount,
+      tax_percent: params.taxPercent ?? 0,
+      tax_amount: params.taxAmount ?? 0,
+      status: 'pending',
+    };
+
+    console.log("[createInvoice] inserting", payload);
+
+    const { data, error } = await client
+      .from("star_veg_invoices")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[createInvoice] insert error:", {
+        code: error.code,
+        message: error.message,
+        details: (error as any).details,
+        hint: (error as any).hint,
+      });
+
+      // Friendlier messages for common cases
+      if (error.code === "42P01") {
+        throw new Error("Invoices table not found. Did the SQL migration run?");
+      }
+      if (error.code === "42501") {
+        throw new Error(
+          "Permission denied inserting invoice. Check RLS policies and grants.",
+        );
+      }
+      if (error.code === "23503") {
+        throw new Error(
+          "Foreign key violation. Check that plan_id exists in star_veg_plans.",
+        );
+      }
+      if (error.code === "23502") {
+        throw new Error(
+          "Missing required column on invoice. A NOT NULL constraint is failing.",
+        );
+      }
+
+      throw new Error(error.message || "Failed to create invoice");
+    }
+
+    if (!data) {
+      throw new Error("Invoice created but no row returned");
+    }
+
+    return this.mapInvoice(data);
   }
-
-  // Try to resolve tenant_id, but allow null during signup.
-  let tenantId: string | null = null;
-  try {
-    const { data: tenantRow, error: tErr } = await client
-      .from('star_veg_tenants')
-      .select('id')
-      .eq('slug', params.tenantSlug)
-      .maybeSingle();
-
-    if (tErr) {
-      // Non-fatal - signup flow where the tenant doesn't exist yet.
-      console.warn('createInvoice: tenant lookup failed', tErr.message);
-    } else if (tenantRow) {
-      tenantId = tenantRow.id;
-    }
-  } catch (err) {
-    console.warn('createInvoice: tenant lookup threw', err);
-  }
-
-  const payload = {
-    tenant_id: tenantId,               // may be null
-    tenant_slug: params.tenantSlug,
-    plan_id: params.planId,
-    months: params.months,
-    base_amount: params.baseAmount,
-    discount_pct: params.discountPct,
-    final_amount: params.finalAmount,
-    status: 'pending',
-  };
-
-  console.log('[createInvoice] inserting', payload);
-
-  const { data, error } = await client
-    .from('star_veg_invoices')
-    .insert(payload)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('[createInvoice] insert error:', {
-      code: error.code,
-      message: error.message,
-      details: (error as any).details,
-      hint: (error as any).hint,
-    });
-
-    // Friendlier messages for common cases
-    if (error.code === '42P01') {
-      throw new Error('Invoices table not found. Did the SQL migration run?');
-    }
-    if (error.code === '42501') {
-      throw new Error(
-        'Permission denied inserting invoice. Check RLS policies and grants.',
-      );
-    }
-    if (error.code === '23503') {
-      throw new Error(
-        'Foreign key violation. Check that plan_id exists in star_veg_plans.',
-      );
-    }
-    if (error.code === '23502') {
-      throw new Error(
-        'Missing required column on invoice. A NOT NULL constraint is failing.',
-      );
-    }
-
-    throw new Error(error.message || 'Failed to create invoice');
-  }
-
-  if (!data) {
-    throw new Error('Invoice created but no row returned');
-  }
-
-  return this.mapInvoice(data);
-}
 
   async updateInvoiceRazorpayOrder(
     invoiceId: string,
@@ -175,9 +244,9 @@ async createInvoice(params: {
     const client = this.getClient();
     if (!client) return false;
     const { error } = await client
-      .from('star_veg_invoices')
+      .from("star_veg_invoices")
       .update({ razorpay_order_id: razorpayOrderId })
-      .eq('id', invoiceId);
+      .eq("id", invoiceId);
     return !error;
   }
 
@@ -185,9 +254,9 @@ async createInvoice(params: {
     const client = this.getClient();
     if (!client) return null;
     const { data, error } = await client
-      .from('star_veg_invoices')
-      .select('*')
-      .eq('id', id)
+      .from("star_veg_invoices")
+      .select("*")
+      .eq("id", id)
       .maybeSingle();
     if (error || !data) return null;
     return this.mapInvoice(data);
@@ -197,10 +266,10 @@ async createInvoice(params: {
     const client = this.getClient();
     if (!client) return [];
     const { data, error } = await client
-      .from('star_veg_invoices')
-      .select('*')
-      .eq('tenant_slug', slug)
-      .order('created_at', { ascending: false });
+      .from("star_veg_invoices")
+      .select("*")
+      .eq("tenant_slug", slug)
+      .order("created_at", { ascending: false });
     if (error) return [];
     return (data || []).map((r: any) => this.mapInvoice(r));
   }
@@ -211,13 +280,13 @@ async createInvoice(params: {
   ): Promise<Invoice | null> {
     const client = this.getClient();
     if (!client) return null;
-    const { data, error } = await client.rpc('mark_invoice_paid', {
+    const { data, error } = await client.rpc("mark_invoice_paid", {
       invoice_id_in: invoiceId,
       admin_note_in: adminNote ?? null,
     });
     if (error) {
-      console.error('mark_invoice_paid error:', error);
-      throw new Error(error.message || 'Failed to mark invoice paid');
+      console.error("mark_invoice_paid error:", error);
+      throw new Error(error.message || "Failed to mark invoice paid");
     }
     const row = Array.isArray(data) ? data[0] : data;
     return row ? this.mapInvoice(row) : null;
@@ -225,49 +294,46 @@ async createInvoice(params: {
 
   // ---------- Subscription ----------
   async createTenantWithPlan(params: {
-  displayName: string;
-  slug: string;
-  ownerPhone: string;
-  ownerName: string;
-  ownerPassword: string;
-  planId: string;
-  months: number;
-  whatsappPhone?: string;
-  storeCategory?: string;
-}): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('create_tenant_with_plan', {
-    display_name_in: params.displayName,
-    slug_in: params.slug,
-    owner_phone_in: params.ownerPhone,
-    owner_name_in: params.ownerName,
-    owner_pw_in: params.ownerPassword,
-    plan_id_in: params.planId,
-    months_in: params.months,
-    whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,
-    store_category_in: params.storeCategory ?? 'restaurant',
-  });
-  if (error) {
-    console.error('create_tenant_with_plan error:', error);
-    throw new Error(error.message || 'Failed to create tenant');
-  }
-  return true;
-}
-
-  async extendSubscription(
-    slug: string,
-    months: number,
-  ): Promise<boolean> {
+    displayName: string;
+    slug: string;
+    ownerPhone: string;
+    ownerName: string;
+    ownerPassword: string;
+    planId: string;
+    months: number;
+    whatsappPhone?: string;
+    storeCategory?: string;
+  }): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.rpc('extend_subscription', {
+    const { error } = await client.rpc("create_tenant_with_plan", {
+      display_name_in: params.displayName,
+      slug_in: params.slug,
+      owner_phone_in: params.ownerPhone,
+      owner_name_in: params.ownerName,
+      owner_pw_in: params.ownerPassword,
+      plan_id_in: params.planId,
+      months_in: params.months,
+      whatsapp_phone_in: params.whatsappPhone ?? params.ownerPhone,
+      store_category_in: params.storeCategory ?? "restaurant",
+    });
+    if (error) {
+      console.error("create_tenant_with_plan error:", error);
+      throw new Error(error.message || "Failed to create tenant");
+    }
+    return true;
+  }
+
+  async extendSubscription(slug: string, months: number): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("extend_subscription", {
       tenant_slug_in: slug,
       months_in: months,
     });
     if (error) {
-      console.error('extend_subscription error:', error);
-      throw new Error(error.message || 'Failed to extend subscription');
+      console.error("extend_subscription error:", error);
+      throw new Error(error.message || "Failed to extend subscription");
     }
     return true;
   }
@@ -279,14 +345,14 @@ async createInvoice(params: {
   ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.rpc('change_plan', {
+    const { error } = await client.rpc("change_plan", {
       tenant_slug_in: slug,
       plan_id_in: planId,
       months_in: months,
     });
     if (error) {
-      console.error('change_plan error:', error);
-      throw new Error(error.message || 'Failed to change plan');
+      console.error("change_plan error:", error);
+      throw new Error(error.message || "Failed to change plan");
     }
     return true;
   }
@@ -294,7 +360,7 @@ async createInvoice(params: {
   async requestPause(slug: string): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { data, error } = await client.rpc('request_pause_tenant', {
+    const { data, error } = await client.rpc("request_pause_tenant", {
       tenant_slug_in: slug,
     });
     if (error) return false;
@@ -307,7 +373,7 @@ async createInvoice(params: {
   ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { data, error } = await client.rpc('resolve_pause_request', {
+    const { data, error } = await client.rpc("resolve_pause_request", {
       request_id_in: requestId,
       accept_in: accept,
     });
@@ -319,12 +385,10 @@ async createInvoice(params: {
     const client = this.getClient();
     if (!client) return [];
     const { data, error } = await client
-      .from('star_veg_pause_requests')
-      .select(
-        'id, tenant_slug, requested_at, status, resolved_at, resolved_by',
-      )
-      .eq('status', 'pending')
-      .order('requested_at', { ascending: false });
+      .from("star_veg_pause_requests")
+      .select("id, tenant_slug, requested_at, status, resolved_at, resolved_by")
+      .eq("status", "pending")
+      .order("requested_at", { ascending: false });
     if (error) return [];
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -339,7 +403,7 @@ async createInvoice(params: {
   async expireStaleSubscriptions(): Promise<number> {
     const client = this.getClient();
     if (!client) return 0;
-    const { data, error } = await client.rpc('expire_stale_subscriptions');
+    const { data, error } = await client.rpc("expire_stale_subscriptions");
     if (error) return 0;
     return Number(data) || 0;
   }
@@ -359,49 +423,49 @@ async createInvoice(params: {
       markedPaidBy: row.marked_paid_by ?? undefined,
       razorpayOrderId: row.razorpay_order_id ?? undefined,
       razorpayPaymentId: row.razorpay_payment_id ?? undefined,
-      notes: row.notes ?? '',
+      notes: row.notes ?? "",
       createdAt: row.created_at,
     };
   }
 
   async getPlanChangeQuote(
-  tenantSlug: string,
-  newPlanId: string,
-  months: number,
-): Promise<PlanChangeQuote | null> {
-  const client = this.getClient();
-  if (!client) return null;
+    tenantSlug: string,
+    newPlanId: string,
+    months: number,
+  ): Promise<PlanChangeQuote | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  const { data, error } = await client.rpc('compute_plan_change_quote', {
-    tenant_slug_in: tenantSlug,
-    new_plan_id_in: newPlanId,
-    months_in: months,
-  });
+    const { data, error } = await client.rpc("compute_plan_change_quote", {
+      tenant_slug_in: tenantSlug,
+      new_plan_id_in: newPlanId,
+      months_in: months,
+    });
 
-  if (error) {
-    console.error('compute_plan_change_quote error:', error);
-    throw new Error(error.message || 'Failed to compute quote');
+    if (error) {
+      console.error("compute_plan_change_quote error:", error);
+      throw new Error(error.message || "Failed to compute quote");
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+
+    return {
+      isUpgrade: row.is_upgrade === true,
+      isDowngrade: row.is_downgrade === true,
+      isRenewal: row.is_renewal === true,
+      baseAmount: Number(row.base_amount),
+      creditAmount: Number(row.credit_amount),
+      finalAmount: Number(row.final_amount),
+      extraDays: Number(row.extra_days) || 0,
+      newExpiresAt: row.new_expires_at,
+      currentPlanId: row.current_plan_id,
+      currentPlanPrice: Number(row.current_plan_price),
+      newPlanPrice: Number(row.new_plan_price),
+      remainingDays: Number(row.remaining_days) || 0,
+      months: Number(row.months),
+    };
   }
-
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
-
-  return {
-    isUpgrade: row.is_upgrade === true,
-    isDowngrade: row.is_downgrade === true,
-    isRenewal: row.is_renewal === true,
-    baseAmount: Number(row.base_amount),
-    creditAmount: Number(row.credit_amount),
-    finalAmount: Number(row.final_amount),
-    extraDays: Number(row.extra_days) || 0,
-    newExpiresAt: row.new_expires_at,
-    currentPlanId: row.current_plan_id,
-    currentPlanPrice: Number(row.current_plan_price),
-    newPlanPrice: Number(row.new_plan_price),
-    remainingDays: Number(row.remaining_days) || 0,
-    months: Number(row.months),
-  };
-}
 }
 
 export const planService = new PlanService();

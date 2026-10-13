@@ -1,5 +1,6 @@
 // components/MainDashboard/ReviewSettingsPanel.module.scss
 @use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
 .panel {
   margin-bottom: 24px;
@@ -112,4 +113,34 @@
   text-align: center;
   color: $text-faint;
   font-size: 13px;
+}
+
+/* Outer wrapper (already present if you added .wrap earlier) */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Sticky footer with Save / Cancel */
+.saveBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  margin: -16px;
+  background: #fff;
+  border-top: 1px solid $border-soft;
+  position: sticky;
+  bottom: -16px;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.04);
+  z-index: 2;
+
+  @include mobile {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
 }

@@ -38,17 +38,9 @@ import { getStoreLabels } from "./utils/storeLabels";
 import { getCategoryDefaults } from "./data/storeDefaults";
 import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
 import styles from "./App.module.scss";
+import TenantDashboardCards from './components/MainDashboard/TenantDashboardCards';
 import { getCategoryLabel } from "./data/storeCategories";
-
-const isHubRoute = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  try {
-    const url = new URL(window.location.href);
-    return url.searchParams.has('hub');
-  } catch {
-    return false;
-  }
-};
+import CustomerOrderStatus from "./components/Dinein/CustomerOrderStatus";
 
 // =========================================================
 // Database status notice (admin only)
@@ -117,6 +109,7 @@ const AppContent: React.FC = () => {
     isLoading: tenantLoading,
     isDeactivated,
     tenantNotFound,
+    isAdminView,
     refreshTenant,
   } = useTenant();
   const {
@@ -142,13 +135,17 @@ const AppContent: React.FC = () => {
     getDiscountPercent,
     getTotalItems,
     getSubtotal,
+    getGstAmount,
     getTotalWithDelivery,
     getDiscountAmount,
     getDeliveryTime,
     generateOrderNumber,
     DELIVERY_FEE,
+    PACKING_CHARGE,
+    GST_PERCENT,
     RESTAURANT_PHONE,
     isLoaded: cartLoaded,
+    clearCart
   } = useCart();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -169,7 +166,6 @@ const AppContent: React.FC = () => {
     createEmptyFilters(),
   );
 
-  // Launcher: shown only on the first screen after launching an installed app.
   const [showPwaLauncher, setShowPwaLauncher] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     if (!isStandaloneDisplay()) return false;
@@ -191,18 +187,50 @@ const AppContent: React.FC = () => {
 
   const resetFilters = () => setFilters(createEmptyFilters());
 
-  // ---- Connection check (one-shot) ----
+    // ---- Connection check ----
+  // Runs once on mount, then keeps retrying every 15s while the DB is
+  // unreachable. Also subscribes to the service's maintenance state so
+  // any check triggered elsewhere updates the badge.
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setIsConnected(true);
       setIsChecking(false);
       return;
     }
-    (async () => {
+
+    let cancelled = false;
+    let interval: number | null = null;
+
+    const unsubscribe = db.subscribeToMaintenance((active) => {
+      if (cancelled) return;
+      setIsConnected(!active);
+      setIsChecking(false);
+    });
+
+    const attempt = async (): Promise<boolean> => {
       const connected = await db.forceConnectionCheck();
+      if (cancelled) return connected;
       setIsConnected(connected);
       setIsChecking(false);
-    })();
+      return connected;
+    };
+
+    attempt().then((ok) => {
+      if (cancelled || ok) return;
+      interval = window.setInterval(async () => {
+        const now = await attempt();
+        if (now && interval !== null) {
+          window.clearInterval(interval);
+          interval = null;
+        }
+      }, 15_000);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      if (interval !== null) window.clearInterval(interval);
+    };
   }, []);
 
   // ---- Tenant-scoped initialization ----
@@ -261,6 +289,23 @@ const AppContent: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, selectedItem?.id]);
+
+  // When dine-in gets enabled for this tenant, the delivery cart
+// is meaningless — the customer orders directly at the table. Wipe
+// the cart so the floating button disappears and no stale items
+// linger. Flipping back to false restores normal delivery flow.
+useEffect(() => {
+  if (tenant?.dineinEnabled === true && getTotalItems() > 0) {
+    clearCart();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [tenant?.dineinEnabled]);
+
+useEffect(() => {
+  if (tenant?.dineinEnabled === true && isCartOpen) {
+    setIsCartOpen(false);
+  }
+}, [tenant?.dineinEnabled, isCartOpen]);
 
   // ---- Filtering ----
   const filteredItems = useMemo(() => {
@@ -436,6 +481,7 @@ const AppContent: React.FC = () => {
 
     const totalItems = getTotalItems();
     const subtotal = getSubtotal();
+    const gstAmount = getGstAmount();
     const discount = getDiscountAmount();
     const discountPercent = getDiscountPercent();
     const finalTotal = getTotalWithDelivery();
@@ -518,6 +564,13 @@ const AppContent: React.FC = () => {
     message += `${tpl.subtotalLabel || "Subtotal"} - Rs ${Math.round(subtotal)}\n`;
     message += `${tpl.deliveryLabel || "Delivery"} - Rs ${DELIVERY_FEE}\n`;
 
+    if (PACKING_CHARGE > 0) {
+      message += `Packing - Rs ${PACKING_CHARGE}\n`;
+    }
+    if (GST_PERCENT > 0 && gstAmount > 0) {
+      message += `GST (${GST_PERCENT}%) - Rs ${gstAmount}\n`;
+    }
+
     if (paymentMode === "Online" && discountPercent > 0) {
       message += `${tpl.discountLabel || "Discount"} (${discountPercent}%) - Rs ${discount}\n`;
       message += `-----------------\n`;
@@ -558,6 +611,8 @@ const AppContent: React.FC = () => {
         />
       )}
 
+      {!isAuthenticated && tenant?.dineinEnabled && <CustomerOrderStatus />}
+
       {!tenantNotFound && !isAppLoading && (
         <Header
           companyName={tenant?.displayName ?? "Teckut"}
@@ -568,6 +623,12 @@ const AppContent: React.FC = () => {
           }}
         />
       )}
+
+      {!isAppLoading &&
+          tenant &&
+          !isDeactivated &&
+          !isPaused &&
+          isExpired && <ExpiredScreen />}
 
       <div
         className={`${styles.container} ${
@@ -595,25 +656,27 @@ const AppContent: React.FC = () => {
           tenant &&
           !isDeactivated &&
           !isPaused &&
-          isExpired && <ExpiredScreen />}
-
-        {!isAppLoading &&
-          tenant &&
-          !isDeactivated &&
-          !isPaused &&
           !isExpired && (
             <>
-              <BrandInfo
-                brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-                brandDesc={
-                  tenant?.infoDefaults?.storeTagline
-                    ? getCategoryLabel(tenant?.storeCategory)
-                    : tenant?.storeTagline ??
-                      getCategoryLabel(tenant?.storeCategory)
-                }
-              />
+                {isAuthenticated && isAdmin && <RenewalBanner />}
 
-              {isAuthenticated && isAdmin && <RenewalBanner />}
+{isAuthenticated && tenant && (
+  <TenantDashboardCards />
+)}
+
+<BrandInfo
+  brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+  brandDesc={
+    tenant?.infoDefaults?.storeTagline
+      ? getCategoryLabel(tenant?.storeCategory)
+      : tenant?.storeTagline ??
+        getCategoryLabel(tenant?.storeCategory)
+  }
+  // Hide the store banner for any authenticated tenant user
+  // (admin or staff). The banner is only meant for customers.
+  hideBanner={isAuthenticated}
+/>
+
 
               {!isStoreOpen && <StoreBanner />}
 
@@ -656,6 +719,7 @@ const AppContent: React.FC = () => {
           isStoreOpen &&
           isAcceptingOrders &&
           !isAuthenticated &&
+          tenant.dineinEnabled !== true &&
           getTotalItems() > 0 && (
             <FloatingCart
               itemCount={getTotalItems()}
@@ -686,6 +750,9 @@ const AppContent: React.FC = () => {
             discount={getDiscountAmount()}
             discountPercent={getDiscountPercent()}
             deliveryFee={DELIVERY_FEE}
+            packingCharge={PACKING_CHARGE}
+            gstPercent={GST_PERCENT}
+            gstAmount={getGstAmount()}
             totalItems={getTotalItems()}
             acceptingOrders={isAcceptingOrders}
           />

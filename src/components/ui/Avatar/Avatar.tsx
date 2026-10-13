@@ -10,6 +10,12 @@ export interface AvatarProps {
   size?: AvatarSize;
   /** Optional click handler makes it a button. */
   onClick?: () => void;
+  /**
+   * Optional background color override. Applied as an inline style so
+   * it beats the CSS-module default (`$primary-dark`). Used to
+   * color-code avatars per tenant.
+   */
+  bgColor?: string;
   className?: string;
 }
 
@@ -21,11 +27,15 @@ const Avatar: React.FC<AvatarProps> = ({
   src,
   size = 'md',
   onClick,
+  bgColor,
   className,
 }) => {
   const classes = [styles.avatar, styles[size], className ?? '']
     .filter(Boolean)
     .join(' ');
+
+  // Inline style overrides the CSS module's background when provided.
+  const style = bgColor ? { background: bgColor } : undefined;
 
   const inner = src ? (
     <img src={src} alt={name ?? 'Avatar'} className={styles.img} />
@@ -38,6 +48,7 @@ const Avatar: React.FC<AvatarProps> = ({
       <button
         type="button"
         className={classes}
+        style={style}
         onClick={onClick}
         aria-label={name}
       >
@@ -46,7 +57,11 @@ const Avatar: React.FC<AvatarProps> = ({
     );
   }
 
-  return <span className={classes}>{inner}</span>;
+  return (
+    <span className={classes} style={style}>
+      {inner}
+    </span>
+  );
 };
 
 export default Avatar;

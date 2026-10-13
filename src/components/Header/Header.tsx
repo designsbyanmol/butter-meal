@@ -22,6 +22,12 @@ import {
   subscribeAdminAction,
   AdminAction,
 } from '../../utils/adminEvents';
+import ReviewsAdminModal from '../MainDashboard/ReviewsAdminModal';
+import AdminNotificationsDrawer from './AdminNotificationsDrawer';
+import TenantNotificationsDrawer from './TenantNotificationsDrawer';
+import DineinNotificationsDrawer from './DineinNotificationsDrawer';
+import ReviewsModal from '../MainDashboard/Modals/ReviewsModal';
+import DineinOrdersModal from '../MainDashboard/DineinOrdersModal';
 import local from './Header.module.scss';
 
 interface HeaderProps {
@@ -30,12 +36,45 @@ interface HeaderProps {
   onWishlistItemClick?: (item: MenuItem) => void;
 }
 
+interface FocusDispute {
+  disputeId: string;
+  reviewId: string;
+  outcome: 'deleted' | 'rejected';
+  reviewItemName: string | null;
+}
+
+const AVATAR_COLORS = [
+  '#3caa46', // primary green
+  '#2563eb', // blue
+  '#9333ea', // purple
+  '#f59e0b', // amber
+  '#dc3545', // red
+  '#0f766e', // teal
+  '#c2410c', // orange-brown
+] as const;
+
+const colorForSlug = (slug: string | undefined): string => {
+  if (!slug) return AVATAR_COLORS[0];
+  let hash = 5381;
+  for (let i = 0; i < slug.length; i++) {
+    hash = ((hash << 5) + hash) ^ slug.charCodeAt(i);
+  }
+  const idx = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[idx];
+};
+
 const Header: React.FC<HeaderProps> = ({
   companyName,
   year,
   onWishlistItemClick,
 }) => {
-  const { user, isAuthenticated, logout, isAdmin } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    logout,
+    isAdmin,
+    isLoading: authLoading,
+  } = useAuth();
   const { tenant, isDeactivated, isAdminView, isSmartAdminHost } = useTenant();
   const { count: wishlistCount } = useWishlist();
   const customerName = useCustomerName();
@@ -48,6 +87,18 @@ const Header: React.FC<HeaderProps> = ({
   const [isTenantManagerOpen, setIsTenantManagerOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [focusDisputeId, setFocusDisputeId] = useState<string | null>(null);
+
+  const [focusDisputeOutcome, setFocusDisputeOutcome] =
+    useState<FocusDispute | null>(null);
+
+  const [isDineinOrdersOpen, setIsDineinOrdersOpen] = useState(false);
+  const [focusDineinOrderId, setFocusDineinOrderId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribe = subscribeAdminAction((action: AdminAction) => {
@@ -59,33 +110,61 @@ const Header: React.FC<HeaderProps> = ({
           setIsStoreModalOpen(true);
           break;
         case 'open-user-management':
-          // Guard: only admins may open user management via the event bus.
           if (isAdmin) setIsUserManagementOpen(true);
           break;
         case 'open-info-popup':
-          // Guard: only admins may open the info popup via the event bus.
           if (isAdmin) setIsInfoOpen(true);
           break;
         case 'open-tenant-manager':
           setIsTenantManagerOpen(true);
+          break;
+        case 'open-reviews':
+          if (isAdmin) setIsReviewsOpen(true);
+          break;
+        case 'open-orders':
+          setIsDineinOrdersOpen(true);
           break;
       }
     });
     return unsubscribe;
   }, [isAdmin]);
 
-  // ---------------------------------------------------------
-  // Visibility rules
-  // ---------------------------------------------------------
   const shouldHideHeader = !tenant && !isSmartAdminHost;
 
-  const isPlatformAdmin = isAdmin && !tenant;
+  const isPlatformAdmin = !!user?.isPlatformAdmin;
+  const isPlatformAdminViewingTenant = isPlatformAdmin && !!tenant;
+  const isPlatformAdminOnHost = isPlatformAdmin && !tenant;
+
   const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
   const showWishlist = !!tenant && !isDeactivated && !isAdminView;
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
   const isAdminContext = isSmartAdminHost || isAdminView;
-  const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
+  const hasCustomerName =
+    !isAuthenticated && customerName.trim().length > 0;
+
+  const showPlatformBell = isAuthenticated && isPlatformAdminOnHost;
+  const showTenantBell =
+  isAuthenticated &&
+  isAdmin &&
+  !!tenant &&
+  !isDeactivated &&
+  !isPlatformAdmin &&
+  plan.canReview;
+
+  const showDineinBell =
+  isAuthenticated &&
+  isAdmin &&
+  !!tenant &&
+  tenant.dineinEnabled === true &&
+  !isPlatformAdmin;
+
+  const showLogout = isAuthenticated && !isPlatformAdminViewingTenant;
+
+  const showSignIn =
+    !isAuthenticated &&
+    (!tenant || isAdminView || isSmartAdminHost) &&
+    !authLoading;
 
   const handleLogin = () => setIsLoginOpen(true);
 
@@ -99,25 +178,24 @@ const Header: React.FC<HeaderProps> = ({
     onWishlistItemClick?.(item);
   };
 
-  const avatarInitial =
-    user?.name && user.name.trim().length > 0
-      ? user.name.trim().charAt(0).toUpperCase()
-      : '?';
+  const avatarInitial = (() => {
+  const storeName = tenant?.displayName?.trim();
+  if (storeName && storeName.length > 0) {
+    return storeName.charAt(0).toUpperCase();
+  }
+  const userName = user?.name?.trim();
+  if (userName && userName.length > 0) {
+    return userName.charAt(0).toUpperCase();
+  }
+  return '?';
+})();
 
-  // ---------------------------------------------------------
-  // Brand text
-  // ---------------------------------------------------------
   const renderBrandText = () => {
     if (isAuthenticated && user?.name) {
       return (
         <>
           <span className={local.tagline}>{user.name}</span>
-          {/*
-           * The plan badge is clickable for admins only. For staff we
-           * render a non-interactive version so they can still see
-           * their plan/status but cannot open the info popup.
-           */}
-          {tenant && !isPlatformAdmin && (
+          {tenant && !isPlatformAdminOnHost && (
             isAdmin ? (
               <PlanBadgeInline onClick={() => setIsInfoOpen(true)} />
             ) : (
@@ -166,14 +244,22 @@ const Header: React.FC<HeaderProps> = ({
         <div className={local.container}>
           <div className={local.brand}>
             {showAdminAvatar && (
-              <Avatar
-                name={avatarInitial}
-                size="md"
-                /* Only admins can click to open the info popup.
-                   Staff see the same avatar as a static element. */
-                onClick={isAdmin ? () => setIsInfoOpen(true) : undefined}
-              />
-            )}
+  <span className={local.avatarWrap}>
+    <Avatar
+      name={avatarInitial}
+      size="md"
+      bgColor={colorForSlug(tenant?.slug)}
+      onClick={isAdmin ? () => setIsInfoOpen(true) : undefined}
+    />
+    <span
+      className={`${local.roleBadge} ${
+        isAdmin ? local.roleBadgeAdmin : local.roleBadgeStaff
+      }`}
+    >
+      {isAdmin ? 'Admin' : 'Staff'}
+    </span>
+  </span>
+)}
             {!isAuthenticated && (
               <span className={local.brandText}>{renderBrandText()}</span>
             )}
@@ -189,7 +275,6 @@ const Header: React.FC<HeaderProps> = ({
                 Admin
               </Badge>
             )}
-            
           </div>
 
           <div className={local.actions}>
@@ -224,7 +309,6 @@ const Header: React.FC<HeaderProps> = ({
               <>
                 {canManageTenant && (
                   <>
-                    {/* ---------- Store Management: admins AND staff ---------- */}
                     {plan.canManageStore && (
                       <IconButton
                         variant="soft"
@@ -237,7 +321,6 @@ const Header: React.FC<HeaderProps> = ({
                       </IconButton>
                     )}
 
-                    {/* ---------- Menu Management: admins AND staff ---------- */}
                     <IconButton
                       variant="soft"
                       size="md"
@@ -248,7 +331,6 @@ const Header: React.FC<HeaderProps> = ({
                       <MenuIcon width={20} height={20} color="#1e1e1e" />
                     </IconButton>
 
-                    {/* ---------- User Management: admins ONLY ---------- */}
                     {plan.canManageUsers && isAdmin && (
                       <IconButton
                         variant="soft"
@@ -263,7 +345,39 @@ const Header: React.FC<HeaderProps> = ({
                   </>
                 )}
 
-                {isPlatformAdmin && (
+                {showPlatformBell && (
+                  <AdminNotificationsDrawer
+                    onOpenDispute={(disputeId) => {
+                      setFocusDisputeId(disputeId);
+                      setIsReviewsModalOpen(true);
+                    }}
+                  />
+                )}
+
+                {showTenantBell && (
+                  <TenantNotificationsDrawer
+                    onOpenReview={(n) => {
+                      setFocusDisputeOutcome({
+                        disputeId: n.disputeId,
+                        reviewId: n.reviewId,
+                        outcome: n.outcome,
+                        reviewItemName: n.reviewItemName,
+                      });
+                      setIsReviewsOpen(true);
+                    }}
+                  />
+                )}
+
+                {showDineinBell && (
+                  <DineinNotificationsDrawer
+                    onOpenOrder={(orderId: string) => {
+                      setFocusDineinOrderId(orderId);
+                      setIsDineinOrdersOpen(true);
+                    }}
+                  />
+                )}
+
+                {isPlatformAdminViewingTenant && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -276,13 +390,15 @@ const Header: React.FC<HeaderProps> = ({
                   </Button>
                 )}
 
-                <Button size="sm" variant="danger" onClick={handleLogout}>
-                  Logout
-                </Button>
+                {showLogout && (
+                  <Button size="sm" variant="danger" onClick={handleLogout}>
+                    Logout
+                  </Button>
+                )}
               </>
             ) : (
               <>
-                {(!tenant || isAdminView || isSmartAdminHost) && (
+                {showSignIn && (
                   <Button size="xs" onClick={handleLogin}>
                     Sign In
                   </Button>
@@ -309,6 +425,16 @@ const Header: React.FC<HeaderProps> = ({
         <AdminPanel onClose={() => setIsMenuPanelOpen(false)} />
       )}
 
+      {isReviewsOpen && isAdmin && (
+        <ReviewsAdminModal
+          onClose={() => {
+            setIsReviewsOpen(false);
+            setFocusDisputeOutcome(null);
+          }}
+          focusDispute={focusDisputeOutcome}
+        />
+      )}
+
       <StoreModal
         isOpen={isStoreModalOpen}
         onClose={() => setIsStoreModalOpen(false)}
@@ -318,7 +444,7 @@ const Header: React.FC<HeaderProps> = ({
         <TenantManager onClose={() => setIsTenantManagerOpen(false)} />
       )}
 
-      {plan.canWishlist && (
+      {plan.canWishlist && isWishlistOpen && (
         <WishlistPanel
           isOpen={isWishlistOpen}
           onClose={() => setIsWishlistOpen(false)}
@@ -326,10 +452,35 @@ const Header: React.FC<HeaderProps> = ({
         />
       )}
 
-      {/* InfoPopup: mount only for admins so staff can never reach it. */}
-      {showAdminAvatar && isAdmin && (
-        <InfoPopup isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
+      {showAdminAvatar && isAdmin && isInfoOpen && (
+        <InfoPopup
+          isOpen={isInfoOpen}
+          onClose={() => setIsInfoOpen(false)}
+        />
       )}
+
+      {isReviewsModalOpen && (
+        <ReviewsModal
+          isOpen={isReviewsModalOpen}
+          onClose={() => {
+            setIsReviewsModalOpen(false);
+            setFocusDisputeId(null);
+          }}
+          initialDisputeId={focusDisputeId}
+        />
+      )}
+
+      {isDineinOrdersOpen && tenant && isAdmin && (
+  <DineinOrdersModal
+    isOpen={isDineinOrdersOpen}
+    onClose={() => {
+      setIsDineinOrdersOpen(false);
+      setFocusDineinOrderId(null);
+    }}
+    focusOrderId={focusDineinOrderId}
+    mode="admin"
+  />
+)}
     </>
   );
 };

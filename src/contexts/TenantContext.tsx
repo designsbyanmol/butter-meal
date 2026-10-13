@@ -1,8 +1,15 @@
 // src/contexts/TenantContext.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "../services/supabase.client";
 import { supabaseService } from "../services/supabase.service";
 import { authService } from "../services/auth.service";
+import { planService } from "../services/plan.service";
 import { ShopInfo } from "../config/credentials";
 import {
   FormSchema,
@@ -14,9 +21,9 @@ import {
   DEFAULT_MESSAGE_TEMPLATE,
   PlanFeatures,
   SubscriptionStatus,
-  StoreCategory
+  StoreCategory,
 } from "../types";
-import { getCategoryLabel } from '../data/storeCategories';
+import { getCategoryLabel } from "../data/storeCategories";
 
 // =========================================================
 // Tenant shape
@@ -28,20 +35,26 @@ export interface Tenant {
   whatsappPhone?: string;
   isActive?: boolean;
   formSchema?: FormSchema;
-storeCategory?: StoreCategory;
+  storeCategory?: StoreCategory;
   bannerUrl?: string;
   storeTagline?: string;
   deliveryCharge?: number;
   storewideDiscount?: number;
   ownerPhone?: string;
 
+  // ---------- new ----------
+  gstPercent?: number;
+  packingCharge?: number;
+  upiId?: string;
+  dineinEnabled?: boolean;
+
   messageTemplate?: MessageTemplate;
-
   reviewsEnabled?: boolean;
-
+  createdAt?: string;
   planId?: string;
   planName?: string;
   planFeatures?: PlanFeatures;
+  planActive?: boolean;
   subscriptionStatus?: SubscriptionStatus;
   subscriptionStartedAt?: string;
   subscriptionExpiresAt?: string;
@@ -57,7 +70,10 @@ storeCategory?: StoreCategory;
       | "storeTagline"
       | "deliveryCharge"
       | "storewideDiscount"
-      | "ownerPhone",
+      | "ownerPhone"
+      | "gstPercent"
+      | "packingCharge"
+      | "upiId",
       boolean
     >
   >;
@@ -254,7 +270,7 @@ const normalizeFormSchema = (stored: any): FormSchema => {
     fields: merged,
     badges: normalizeStoredBadges(stored.badges),
     badgesLabel:
-      typeof stored.badgesLabel === 'string' && stored.badgesLabel
+      typeof stored.badgesLabel === "string" && stored.badgesLabel
         ? stored.badgesLabel
         : DEFAULT_FORM_SCHEMA.badgesLabel,
   };
@@ -303,14 +319,23 @@ const loadPlansMap = async (): Promise<Record<string, any>> => {
   if (!supabase) return {};
   const { data } = await supabase
     .from("star_veg_plans")
-    .select("id, name, features");
+    .select("id, name, features, is_active");
   const map: Record<string, any> = {};
   (data || []).forEach((p: any) => {
-    map[p.id] = p;
+    map[p.id] = {
+      ...p,
+      is_active: p.is_active !== false,
+    };
   });
   plansCache = map;
   return map;
 };
+
+// Invalidate the plans cache on every broadcast from planService, so
+// the next tenant fetch sees freshly-toggled plans.
+planService.subscribeToPlanChanges(() => {
+  plansCache = null;
+});
 
 // =========================================================
 // Build tenant object from a DB row
@@ -329,22 +354,38 @@ const buildTenant = (
       )
     : Infinity;
 
+  const planActive = planRow !== null && planRow.is_active !== false;
+
+  // When the plan row is missing or disabled, expose a marker on the
+  // features object so any consumer that reads `planFeatures.isActive`
+  // sees the disabled state explicitly.
+  const planFeatures: PlanFeatures = (planRow?.features ??
+    {}) as PlanFeatures;
+  if (!planActive) {
+    (planFeatures as any).isActive = false;
+  }
+
   return {
     id: row.id,
     slug: row.slug,
-
+    gstPercent: pickNumber(row.gst_percent, 0),
+    packingCharge: pickNumber(row.packing_charge, 0),
+    upiId: isBlank(row.upi_id) ? undefined : String(row.upi_id),
+    dineinEnabled:
+  (row.store_category ?? "restaurant") === "food-beverage" &&
+  row.dinein_enabled === true,
     displayName: pickString(row.display_name, ShopInfo.Shop_name),
-    storeCategory: (row.store_category ?? 'restaurant') as StoreCategory,
+    storeCategory: (row.store_category ?? "food-beverage") as StoreCategory,
     whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
     bannerUrl: isBlank(row.banner_url)
       ? ShopInfo.Shop_banner || undefined
       : String(row.banner_url),
     storeTagline: pickString(
-  row.store_tagline,
-  row.store_category
-    ? getCategoryLabel(row.store_category as StoreCategory)
-    : ShopInfo.Shop_tagline,
-),
+      row.store_tagline,
+      row.store_category
+        ? getCategoryLabel(row.store_category as StoreCategory)
+        : ShopInfo.Shop_tagline,
+    ),
     deliveryCharge: pickNumber(row.delivery_charge, ShopInfo.Delivery_charge),
     storewideDiscount: pickNumber(
       row.storewide_discount,
@@ -360,7 +401,8 @@ const buildTenant = (
 
     planId: row.plan_id ?? "professional",
     planName: planRow?.name ?? "Professional",
-    planFeatures: (planRow?.features ?? {}) as PlanFeatures,
+    planFeatures,
+    planActive,
     subscriptionStatus: (row.subscription_status ??
       "active") as SubscriptionStatus,
     subscriptionStartedAt: row.subscription_started_at ?? undefined,
@@ -385,15 +427,30 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   const [tenantNotFound, setTenantNotFound] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
 
+  // ---------------------------------------------------------
+  // Fresh-tenant ref.
+  //
+  // The runtime-flag poll below runs inside a setTimeout loop and
+  // reads `tenant.dineinEnabled` / `tenant.planId` / etc. directly.
+  // Those values must be the CURRENT ones, not the ones captured at
+  // the moment the effect was set up. A ref is the correct way to
+  // expose fresh state to a closure that runs outside React's
+  // render cycle.
+  // ---------------------------------------------------------
+  const tenantRef = useRef<Tenant | null>(null);
+  useEffect(() => {
+    tenantRef.current = tenant;
+  }, [tenant]);
+
   const fetchTenant = async (slug: string): Promise<Tenant | null> => {
     if (!supabase) return null;
 
     const [tenantRes, mainRes] = await Promise.all([
       supabase
-  .from('star_veg_tenants')
-  .select(
-    'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category',
-  )
+        .from("star_veg_tenants")
+        .select(
+          "id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled",
+        )
         .eq("slug", slug)
         .maybeSingle(),
       supabase
@@ -415,6 +472,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       deliveryCharge: isBlankNum(data.delivery_charge),
       storewideDiscount: isBlankNum(data.storewide_discount),
       ownerPhone: isBlank(data.owner_phone),
+      gstPercent:
+        isBlankNum(data.gst_percent) || Number(data.gst_percent) === 0,
+      packingCharge:
+        isBlankNum(data.packing_charge) || Number(data.packing_charge) === 0,
+      upiId: isBlank(data.upi_id),
     };
 
     const globalOn = mainRes.data?.reviews_enabled !== false;
@@ -446,7 +508,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
           });
 
           if (seen.size > 0) {
-            const merged = Array.from(seen).sort((a, b) => a.localeCompare(b));
+            const merged = Array.from(seen).sort((a, b) =>
+              a.localeCompare(b),
+            );
             const seeded: FormSchema = {
               ...formSchema,
               fields: formSchema.fields.map((f) =>
@@ -483,7 +547,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-    const refreshTenant = async (opts?: { expectBanner?: string }) => {
+  const refreshTenant = async (opts?: { expectBanner?: string }) => {
     const { slug } = resolveSlugFromUrl();
     if (!slug) return;
 
@@ -504,6 +568,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     if (fresh) {
+      // Update the ref synchronously so the poll sees the fresh
+      // value on its very next tick, before React has re-rendered.
+      tenantRef.current = fresh;
       setTenant(fresh);
       setIsDeactivated(fresh.isActive === false);
       setTenantNotFound(false);
@@ -518,6 +585,19 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  // Re-resolve the current tenant whenever plans change globally so that
+  // planName / planFeatures / planActive stay in sync.
+  useEffect(() => {
+    const unsubscribe = planService.subscribeToPlanChanges(() => {
+      if (tenantRef.current) {
+        refreshTenant();
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Initial tenant resolution.
   useEffect(() => {
     const smartAdmin = isSmartAdminUrl();
     setIsSmartAdminHost(smartAdmin);
@@ -552,6 +632,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
         setTenantNotFound(true);
         authService.enforceTenantScope(null, false, smartAdmin);
       } else {
+        tenantRef.current = resolved;
         setTenant(resolved);
         setIsDeactivated(resolved.isActive === false);
         setTenantNotFound(false);
@@ -559,6 +640,98 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       setIsLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------------------------------------------------------
+  // Live poll for runtime flags (customer side).
+  //
+  // The customer's open tab needs to react within ~10s when the
+  // admin toggles dine-in on/off (or the plan / reviews setting
+  // changes). This poll fetches only the small subset of fields
+  // that affect the customer layout, so it's cheap — one narrow
+  // SELECT per ~10s while the tab is visible.
+  //
+  // Skipped entirely when the tab is hidden.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const { slug } = resolveSlugFromUrl();
+    if (!slug) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const POLL_MS = 10_000;
+
+    const schedule = (ms: number) => {
+      if (cancelled) return;
+      timer = window.setTimeout(tick, ms);
+    };
+
+    const tick = async () => {
+      if (cancelled) return;
+
+      if (typeof document !== "undefined" && document.hidden) {
+        schedule(POLL_MS);
+        return;
+      }
+
+      // Wait until the initial tenant load has completed.
+      if (!tenantRef.current) {
+        schedule(POLL_MS);
+        return;
+      }
+
+      try {
+        const flags = await supabaseService.getTenantRuntimeFlags(slug);
+        if (cancelled) return;
+        if (!flags) {
+          schedule(POLL_MS);
+          return;
+        }
+
+        // Read the freshest tenant from the ref, not the closure.
+        const current = tenantRef.current;
+        if (!current) {
+          schedule(POLL_MS);
+          return;
+        }
+
+        const changed =
+          (current.isActive !== false) !== flags.isActive ||
+          (current.dineinEnabled === true) !== flags.dineinEnabled ||
+          (current.subscriptionStatus ?? "active") !==
+            flags.subscriptionStatus ||
+          (current.planId ?? "professional") !== flags.planId ||
+          (current.reviewsEnabled !== false) !== flags.reviewsEnabled;
+
+        if (changed) {
+          await refreshTenant();
+        }
+      } catch (err) {
+        console.warn("[TenantContext] runtime-flag poll failed:", err);
+      } finally {
+        schedule(POLL_MS);
+      }
+    };
+
+    // First check waits one interval so the initial load has time
+    // to settle.
+    schedule(POLL_MS);
+
+    const onVisibility = () => {
+      if (document.hidden) return;
+      if (timer !== null) window.clearTimeout(timer);
+      tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

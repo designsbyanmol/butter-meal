@@ -51,6 +51,20 @@
   letter-spacing: 0.3px;
 }
 
+/* Action-required pill on the dine-in toggle row */
+.requiredPill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: $amber-50;
+  color: $amber-800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .value {
   font-size: 14px;
   color: $text;
@@ -96,4 +110,48 @@
 
 .editorBanner {
   margin-top: 10px;
+}
+
+/* ---------- Dine-in enable confirmation dialog ---------- */
+.confirmLead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.confirmList {
+  margin: 0 0 14px;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: $text-muted;
+
+  li {
+    list-style: disc;
+
+    strong {
+      color: $text;
+      font-weight: 700;
+    }
+  }
+}
+
+.confirmNote {
+  margin: 0;
+  padding: 10px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
 }

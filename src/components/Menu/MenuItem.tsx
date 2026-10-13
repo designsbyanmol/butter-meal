@@ -217,31 +217,34 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
           {formatRupees(finalPrice)}
         </span>
         <div className={local.actions}>
-          {!plan.canOrder ? (
-            <button className={local.btnCustomize} onClick={handleAddClick}>
-              View
-            </button>
-          ) : !acceptingOrders ? (
-            <button className={local.btnCustomize} onClick={handleAddClick}>
-              Preview
-            </button>
-          ) : isOutOfStock ? (
-            <button
-              className={`${local.btnCustomize} ${local.btnOutOfStock}`}
-              disabled
-            >
-              Out of Stock
-            </button>
-          ) : isAdded ? (
-            <button className={local.btnCustomize} onClick={handleAddClick}>
-              {quantity} Added
-            </button>
-          ) : (
-            <button className={local.btnCustomize} onClick={handleAddClick}>
-              Add
-            </button>
-          )}
-        </div>
+  {!plan.canOrder ? (
+    <button className={local.btnCustomize} onClick={handleAddClick}>
+      View
+    </button>
+  ) : !acceptingOrders ? (
+    <button className={local.btnCustomize} onClick={handleAddClick}>
+      Preview
+    </button>
+  ) : isOutOfStock ? (
+    <button
+      className={`${local.btnCustomize} ${local.btnOutOfStock}`}
+      disabled
+    >
+      Out of Stock
+    </button>
+  ) : isAdded ? (
+    <button
+      className={`${local.btnCustomize} ${local.btnAdded}`}
+      onClick={handleAddClick}
+    >
+      {quantity} Added
+    </button>
+  ) : (
+    <button className={local.btnCustomize} onClick={handleAddClick}>
+      Add
+    </button>
+  )}
+</div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from '../../../assets/svgs';
 import { pushEsc, popEsc, isTopEsc } from '../_escStack';
+import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import styles from './Drawer.module.scss';
 
 export type DrawerSide = 'left' | 'right';
@@ -54,13 +55,12 @@ const Drawer: React.FC<DrawerProps> = ({
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll
+  // Lock body scroll (reference-counted)
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = original;
+      unlockBodyScroll();
     };
   }, [isOpen, lockScroll]);
 

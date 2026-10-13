@@ -3,6 +3,7 @@ import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from '../../../assets/svgs';
 import { pushEsc, popEsc, isTopEsc } from '../_escStack';
+import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import styles from './Modal.module.scss';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -22,6 +23,13 @@ export interface ModalProps {
   lockScroll?: boolean;
   footer?: React.ReactNode;
   className?: string;
+  /**
+   * Override the overlay's z-index. By default the overlay uses the
+   * `$z-modal` layer (1100). Pass a number when the modal must sit
+   * above another high-z element, e.g. the customer order-status
+   * banner which uses `$z-toast` (2000).
+   */
+  overlayZIndex?: number;
   children: React.ReactNode;
 }
 
@@ -36,6 +44,7 @@ const Modal: React.FC<ModalProps> = ({
   lockScroll = true,
   footer,
   className,
+  overlayZIndex,
   children,
 }) => {
   // Stable per-instance identifier for the Esc stack
@@ -62,13 +71,12 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll
+  // Lock body scroll (reference-counted so nested modals nest correctly)
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = original;
+      unlockBodyScroll();
     };
   }, [isOpen, lockScroll]);
 
@@ -79,7 +87,15 @@ const Modal: React.FC<ModalProps> = ({
   };
 
   const content = (
-    <div className={styles.overlay} onClick={handleBackdrop}>
+    <div
+      className={styles.overlay}
+      onClick={handleBackdrop}
+      style={
+        overlayZIndex !== undefined
+          ? { zIndex: overlayZIndex }
+          : undefined
+      }
+    >
       <div
         className={[styles.dialog, styles[size], className ?? '']
           .filter(Boolean)

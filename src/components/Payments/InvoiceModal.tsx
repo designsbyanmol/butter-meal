@@ -40,7 +40,6 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     setIsSaving(false);
   }, [invoice]);
 
-  // Reset when closing
   useEffect(() => {
     if (!isOpen) {
       setLocalInvoice(null);
@@ -49,15 +48,16 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   }, [isOpen]);
 
-  // ---- Hard guard (must be BEFORE any field access) ----
   if (!isOpen || !localInvoice) return null;
 
-  // ---- Download invoice text ----
+  const planLabel = plan?.name ?? localInvoice.planId;
+  const taxPercent = Number(localInvoice.taxPercent ?? 0);
+  const taxAmount = Number(localInvoice.taxAmount ?? 0);
+
   const handleDownload = () => {
     const inv = localInvoice;
-    const planLabel = plan?.name ?? inv.planId;
 
-    const text = [
+    const lines: string[] = [
       `========== INVOICE ==========`,
       ``,
       `Tenant:      ${tenantName} (${tenantSlug})`,
@@ -66,23 +66,29 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
       ``,
       `--- Amount ---`,
       `Base:        ${formatRupees(inv.baseAmount)}`,
-      inv.baseAmount !== inv.finalAmount
-        ? `Credit:      -${formatRupees(inv.baseAmount - inv.finalAmount)}`
-        : '',
-      `Total:       ${formatRupees(inv.finalAmount)}`,
-      ``,
-      `--- Payment Details ---`,
-      `Account No.: 469801500458`,
-      `UPI ID:      anmolui@ybl`,
-      ``,
-      `Invoice ID:  ${inv.id}`,
-      `Created:     ${new Date(inv.createdAt).toLocaleString()}`,
-      `Status:      ${inv.status}`,
-      ``,
-      `Thank you!`,
-    ]
-      .filter((l) => l !== '')
-      .join('\n');
+    ];
+
+    if (inv.baseAmount !== inv.finalAmount) {
+      lines.push(
+        `Credit:      -${formatRupees(inv.baseAmount - inv.finalAmount - taxAmount)}`,
+      );
+    }
+    if (taxAmount > 0) {
+      lines.push(`GST (${taxPercent}%): ${formatRupees(taxAmount)}`);
+    }
+    lines.push(`Total:       ${formatRupees(inv.finalAmount)}`);
+    lines.push(``);
+    lines.push(`--- Payment Details ---`);
+    lines.push(`Account No.: 469801500458`);
+    lines.push(`UPI ID:      anmolui@ybl`);
+    lines.push(``);
+    lines.push(`Invoice ID:  ${inv.id}`);
+    lines.push(`Created:     ${new Date(inv.createdAt).toLocaleString()}`);
+    lines.push(`Status:      ${inv.status}`);
+    lines.push(``);
+    lines.push(`Thank you!`);
+
+    const text = lines.join('\n');
 
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -95,7 +101,6 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     setTimeout(() => URL.revokeObjectURL(url), 800);
   };
 
-  // ---- Admin: mark paid ----
   const handleMarkPaid = async () => {
     if (!localInvoice) return;
     setIsSaving(true);
@@ -122,9 +127,6 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   };
 
-  const planLabel = plan?.name ?? localInvoice.planId;
-
-  // ---- Footer variants ----
   const footerContent =
     mode === 'tenant' ? (
       <>
@@ -154,10 +156,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
           }}
         >
           {({ start, processing }) => (
-            <Button
-              onClick={start}
-              loading={processing}
-            >
+            <Button onClick={start} loading={processing}>
               {processing
                 ? 'Processing...'
                 : `Pay Now . ${formatRupees(localInvoice.finalAmount)}`}
@@ -174,14 +173,17 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
         >
           Download
         </Button>
-        <Button
-          onClick={handleMarkPaid}
-          loading={isSaving}
-        >
+        <Button onClick={handleMarkPaid} loading={isSaving}>
           {isSaving ? 'Saving...' : 'Paid / Save'}
         </Button>
       </>
     );
+
+  // Amount breakdown lines
+  const baseMinusCredit = localInvoice.baseAmount - taxAmount;
+  const creditApplied =
+    localInvoice.baseAmount !== localInvoice.finalAmount - taxAmount &&
+    baseMinusCredit > 0;
 
   return (
     <Modal
@@ -208,15 +210,23 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
           <span>{formatRupees(localInvoice.baseAmount)}</span>
         </div>
 
-        {localInvoice.baseAmount !== localInvoice.finalAmount && (
+        {creditApplied && (
           <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
             <span>Prorated credit</span>
             <span>
               -
               {formatRupees(
-                localInvoice.baseAmount - localInvoice.finalAmount,
+                localInvoice.baseAmount -
+                  (localInvoice.finalAmount - taxAmount),
               )}
             </span>
+          </div>
+        )}
+
+        {taxAmount > 0 && (
+          <div className={local.summaryRow}>
+            <span>GST ({taxPercent}%)</span>
+            <span>+ {formatRupees(taxAmount)}</span>
           </div>
         )}
 

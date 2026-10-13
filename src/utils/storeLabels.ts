@@ -17,85 +17,37 @@ export interface StoreLabelSet {
 }
 
 const LABELS: Record<StoreCategory, StoreLabelSet> = {
-  'restaurant': {
-    menu: 'Menu',
-    item: 'Dish',
-    items: 'Dishes',
-    addAction: 'Add',
-    adminPanelTitle: 'Menu Items',
-    searchPlaceholder: 'Search dishes, categories...',
-  },
-  'drinks-cafe': {
-    menu: 'Menu',
-    item: 'Drink',
-    items: 'Drinks',
-    addAction: 'Add',
-    adminPanelTitle: 'Drinks Menu',
-    searchPlaceholder: 'Search drinks...',
-  },
-  'fast-food': {
+  'food-beverage': {
     menu: 'Menu',
     item: 'Item',
     items: 'Items',
     addAction: 'Add',
     adminPanelTitle: 'Menu Items',
-    searchPlaceholder: 'Search items...',
+    searchPlaceholder: 'Search dishes, drinks, categories...',
   },
-  'specialty-food': {
-    menu: 'Menu',
-    item: 'Item',
-    items: 'Items',
-    addAction: 'Add',
-    adminPanelTitle: 'Menu Items',
-    searchPlaceholder: 'Search items...',
-  },
-  'sweets-desserts': {
-    menu: 'Menu',
-    item: 'Treat',
-    items: 'Treats',
-    addAction: 'Add',
-    adminPanelTitle: 'Treats Menu',
-    searchPlaceholder: 'Search treats...',
-  },
-  'meat-seafood': {
+  'grocery-daily': {
     menu: 'Products',
     item: 'Product',
     items: 'Products',
     addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
+    adminPanelTitle: 'Grocery Products',
+    searchPlaceholder: 'Search groceries...',
   },
-  'events-flowers': {
+  'fashion-lifestyle': {
     menu: 'Catalog',
-    item: 'Item',
-    items: 'Items',
+    item: 'Product',
+    items: 'Products',
     addAction: 'Add',
     adminPanelTitle: 'Catalog Items',
-    searchPlaceholder: 'Search catalog...',
+    searchPlaceholder: 'Search clothing, jewelry, beauty...',
   },
-  'clothing-jewelry': {
+  'home-living': {
     menu: 'Catalog',
     item: 'Product',
     items: 'Products',
     addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
-  },
-  'home-furniture': {
-    menu: 'Catalog',
-    item: 'Product',
-    items: 'Products',
-    addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
-  },
-  'electronics': {
-    menu: 'Products',
-    item: 'Product',
-    items: 'Products',
-    addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
+    adminPanelTitle: 'Catalog Items',
+    searchPlaceholder: 'Search home, electronics, garden...',
   },
   'books-office': {
     menu: 'Catalog',
@@ -103,31 +55,15 @@ const LABELS: Record<StoreCategory, StoreLabelSet> = {
     items: 'Items',
     addAction: 'Add',
     adminPanelTitle: 'Catalog Items',
-    searchPlaceholder: 'Search catalog...',
+    searchPlaceholder: 'Search books, stationery...',
   },
-  'health-beauty': {
-    menu: 'Products',
-    item: 'Product',
-    items: 'Products',
+  'services-events': {
+    menu: 'Services',
+    item: 'Service',
+    items: 'Services',
     addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
-  },
-  'sports-garden': {
-    menu: 'Products',
-    item: 'Product',
-    items: 'Products',
-    addAction: 'Add',
-    adminPanelTitle: 'Products',
-    searchPlaceholder: 'Search products...',
-  },
-  'auto-parts': {
-    menu: 'Parts',
-    item: 'Part',
-    items: 'Parts',
-    addAction: 'Add',
-    adminPanelTitle: 'Auto Parts',
-    searchPlaceholder: 'Search parts...',
+    adminPanelTitle: 'Services',
+    searchPlaceholder: 'Search services...',
   },
   'other-shops': {
     menu: 'Products',
@@ -141,4 +77,4 @@ const LABELS: Record<StoreCategory, StoreLabelSet> = {
 
 export const getStoreLabels = (
   category: StoreCategory | undefined,
-): StoreLabelSet => LABELS[category ?? 'restaurant'] ?? LABELS.restaurant;
+): StoreLabelSet => LABELS[category ?? 'food-beverage'] ?? LABELS['food-beverage'];

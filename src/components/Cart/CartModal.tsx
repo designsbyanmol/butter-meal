@@ -40,6 +40,9 @@ interface CartModalProps {
   deliveryFee: number;
   totalItems: number;
   acceptingOrders?: boolean;
+  gstPercent: number;
+  gstAmount: number;
+  packingCharge: number;
 }
 
 const CartModal: React.FC<CartModalProps> = ({
@@ -61,6 +64,9 @@ const CartModal: React.FC<CartModalProps> = ({
   deliveryFee,
   totalItems,
   acceptingOrders,
+  gstPercent,
+  gstAmount,
+  packingCharge
 }) => {
   const isMobile = useIsMobile();
 
@@ -117,10 +123,27 @@ const CartModal: React.FC<CartModalProps> = ({
             {formatRupees(Math.round(subtotal))}
           </span>
         </div>
-        <div className={local.summaryRow}>
+                <div className={local.summaryRow}>
           <span>Delivery Fee</span>
           <span className={local.value}>{formatRupees(deliveryFee)}</span>
         </div>
+
+        {packingCharge > 0 && (
+          <div className={local.summaryRow}>
+            <span>Packing Charge</span>
+            <span className={local.value}>
+              {formatRupees(packingCharge)}
+            </span>
+          </div>
+        )}
+
+        {gstAmount > 0 && (
+          <div className={local.summaryRow}>
+            <span>GST ({gstPercent}%)</span>
+            <span className={local.value}>{formatRupees(gstAmount)}</span>
+          </div>
+        )}
+
         {discount > 0 && (
           <div className={`${local.summaryRow} ${local.discountRow}`}>
             <span>Discount ({discountPercent}% off)</span>
