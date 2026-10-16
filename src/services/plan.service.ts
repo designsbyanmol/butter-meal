@@ -250,6 +250,35 @@ class PlanService {
     return !error;
   }
 
+  // In plan.service.ts
+async setMultiplePlansActive(
+  changes: { id: string; isActive: boolean }[],
+): Promise<void> {
+  const client = this.getClient();
+  if (!client) throw new Error('Supabase not configured');
+  if (changes.length === 0) return;
+
+  // Fire all writes in parallel.
+  const results = await Promise.all(
+    changes.map((c) =>
+      client
+        .from('star_veg_plans')
+        .update({ is_active: c.isActive })
+        .eq('id', c.id)
+        .select('id, is_active')
+        .single(),
+    ),
+  );
+
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) {
+    throw new Error(firstError.message || 'Failed to update plans');
+  }
+
+  // One broadcast for the whole batch.
+  this.broadcastChange();
+}
+
   async getInvoiceById(id: string): Promise<Invoice | null> {
     const client = this.getClient();
     if (!client) return null;

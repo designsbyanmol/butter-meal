@@ -230,6 +230,82 @@ class SupabaseService {
     return supabase;
   }
 
+  async getTenantOwnerMap(): Promise<
+  Record<string, { phone: string; name: string }>
+> {
+  const client = this.getClient();
+  if (!client) return {};
+  const { data, error } = await client.rpc('get_tenant_owner_map');
+  if (error) {
+    console.error('get_tenant_owner_map error:', error);
+    return {};
+  }
+  const map: Record<string, { phone: string; name: string }> = {};
+  (data || []).forEach((row: any) => {
+    map[row.tenant_slug] = {
+      phone: row.phone || '',
+      name: row.name || '',
+    };
+  });
+  return map;
+}
+
+async getReviewsAdminBundle(
+  tenantSlug: string,
+  filter: ReviewFilter,
+  limit: number,
+  offset: number,
+): Promise<{
+  reviews: Review[];
+  pending: Record<string, string>;
+  resolved: Array<{
+    disputeId: string;
+    reviewId: string;
+    status: 'resolved' | 'rejected';
+    outcome: 'deleted' | 'rejected';
+    reason: string;
+    createdAt: string;
+    resolvedAt?: string;
+    resolvedBy?: string;
+    review: { itemName: string; rating: number; comment: string } | null;
+  }>;
+}> {
+  const client = this.getClient();
+  if (!client) return { reviews: [], pending: {}, resolved: [] };
+
+  const { data, error } = await client.rpc('get_reviews_admin_bundle', {
+    tenant_slug_in: tenantSlug,
+    filter_in: filter,
+    limit_in: limit,
+    offset_in: offset,
+  });
+  if (error) {
+    console.error('get_reviews_admin_bundle error:', error);
+    return { reviews: [], pending: {}, resolved: [] };
+  }
+
+  const raw = (data ?? {}) as any;
+  return {
+    reviews: (raw.reviews ?? []).map((r: any) =>
+      this.mapReviewRow(r, r.item_name, r.item_category),
+    ),
+    pending: raw.pending ?? {},
+    resolved: raw.resolved ?? [],
+  };
+}
+
+async getMenuVersion(slug: string): Promise<number | null> {
+  const client = this.getClient();
+  if (!client) return null;
+  const { data, error } = await client
+    .from('star_veg_tenants')
+    .select('menu_version')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error || !data) return null;
+  return Number(data.menu_version) || 0;
+}
+
   // ============ USERS ============
 
   async getUsers(tenantSlug: string): Promise<User[]> {

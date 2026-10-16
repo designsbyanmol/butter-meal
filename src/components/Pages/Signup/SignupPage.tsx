@@ -9,10 +9,9 @@ import CredentialsStep from './Steps/CredentialsStep';
 import {
   useSignupPersistence,
   clearSignupState,
-  DEFAULT_SIGNUP_STATE,
 } from './useSignupPersistence';
 import local from './Signup.module.scss';
-import { CheckIcon } from '../../../assets/svgs';
+import { CheckIcon, LeftArrowIcon } from '../../../assets/svgs';
 
 interface VisibleStep {
   index: number;
@@ -41,6 +40,9 @@ const VISIBLE_STEPS: VisibleStep[] = [
     stages: ['building', 'credentials'],
   },
 ];
+
+const LOGO_URL =
+  'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/dozzelo-full-logo.webp';
 
 const SignupPage: React.FC = () => {
   const { state, patch, patchDetails, reset } = useSignupPersistence();
@@ -101,6 +103,28 @@ const SignupPage: React.FC = () => {
     }
   }, [stage, confirmed, patch]);
 
+  // ---- Back to home ----
+  const handleBackToHome = () => {
+    // Abandon the signup draft so the next visit starts clean. Then
+    // navigate to the root URL (stripping `_sign-up` and any other
+    // query params) — the router-free `window.location` approach keeps
+    // this consistent with how the signup route is entered.
+    try {
+      clearSignupState();
+      reset();
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.location.href = url.toString();
+    } catch {
+      window.location.href = window.location.origin + window.location.pathname;
+    }
+  };
+
   const origin = window.location.origin + window.location.pathname;
   const publicUrl = `${origin}?t=${details.slug}`;
   const adminUrl = `${origin}?t=${details.slug}_admin`;
@@ -114,12 +138,26 @@ const SignupPage: React.FC = () => {
 
   return (
     <div className={local.page}>
+      {/* =========================================================
+          Page header — back to home on the left, brand logo on the right
+         ========================================================= */}
       <header className={local.pageHeader}>
-        <h1 className={local.pageTitle}>Teckut Digital Menu</h1>
-        <p className={local.pageSubtitle}>
-          Follow the simple 3 steps below to set up your store, choose a plan,
-          and start taking orders.
-        </p>
+        <button
+          type="button"
+          className={local.backLink}
+          onClick={handleBackToHome}
+          aria-label="Back to home"
+        >
+          <LeftArrowIcon width={18} height={18} fill="#1e1e1e" />
+          <span className={local.backLinkText}>Back to home</span>
+        </button>
+
+        <img
+          src={LOGO_URL}
+          alt="Avoca"
+          className={local.headerLogo}
+          draggable={false}
+        />
       </header>
 
       <div className={local.shell}>
@@ -210,7 +248,6 @@ const SignupPage: React.FC = () => {
               months={confirmed.months}
               expiresAtIso={confirmed.expiresAt}
               onDone={() => {
-                // Fully reset after the user acknowledges.
                 clearSignupState();
                 reset();
               }}

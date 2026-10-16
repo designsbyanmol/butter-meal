@@ -1,0 +1,68 @@
+// components/Home/sections/FAQ.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.section {
+  background: #f8fafc;
+}
+
+.list {
+  max-width: 780px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  overflow: hidden;
+  transition: border-color $t-fast;
+}
+
+.itemOpen {
+  border-color: rgba($primary, 0.3);
+}
+
+.question {
+  width: 100%;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: $text;
+  text-align: left;
+
+  &:hover { background: $bg-subtle; }
+}
+
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: $bg-subtle;
+  color: $text-muted;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.answer {
+  margin: 0;
+  padding: 0 20px 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: $text-muted;
+}

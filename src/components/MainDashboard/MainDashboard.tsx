@@ -5,43 +5,42 @@ import { Button } from '../ui';
 import LoginModal from '../Auth/LoginModal';
 import AdminDashboardCards from './AdminDashboardCards';
 import SuperAdminShell from './SuperAdminShell';
+import HomePage from '../Home/HomePage';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import local from './MainDashboard.module.scss';
 
+const goToSignup = () => {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_sign-up', '1');
+    window.location.href = url.toString();
+  } catch {
+    const sep = window.location.search ? '&' : '?';
+    window.location.href =
+      window.location.href.split('?')[0] + `${sep}_sign-up=1`;
+  }
+};
+
+const handleTrySample = () => {
+  // TODO: define behavior. Options:
+  //   - Open a modal that shows a read-only demo store
+  //   - Navigate to a hosted demo tenant URL
+  //   - Show a video walkthrough
+  console.log('Try sample store — not yet implemented');
+};
+
 const MainDashboard: React.FC = () => {
   const { isAuthenticated, user, isAdmin } = useAuth();
-  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
   const isMobile = useIsMobile(900);
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className={local.dashboard}>
-          <div className={local.hero}>
-            <h1 className={local.title}>Platform Administration</h1>
-            <p className={local.subtitle}>
-              Sign in to manage stores, menus, and tenants.
-            </p>
-            <Button
-              shape="pill"
-              size="lg"
-              onClick={() => setIsLoginOpen(true)}
-              variant="secondary"
-            >
-              Sign In
-            </Button>
-            <p className={local.hint}>
-              Customers should use their store's direct link.
-            </p>
-          </div>
-        </div>
-        <LoginModal
-          isOpen={isLoginOpen}
-          onClose={() => setIsLoginOpen(false)}
-        />
-      </>
-    );
-  }
+  return (
+    <HomePage
+      onSignup={goToSignup}
+      onTrySample={handleTrySample}
+    />
+  );
+}
 
   if (!isAdmin) {
     return (

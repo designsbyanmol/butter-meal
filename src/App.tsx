@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useCart } from "./hooks/useCart";
 import { useAuth } from "./hooks/useAuth";
 import { useMenu } from "./hooks/useMenu";
@@ -24,6 +24,9 @@ import StoreDeactivated from "./components/Store/StoreDeactivated";
 import MainDashboard from "./components/MainDashboard/MainDashboard";
 import TenantNotFound from "./components/TenantNotFound/TenantNotFound";
 import MenuFilters from "./components/Menu/MenuFilters";
+import WishlistPanel from "./components/Menu/WishlistPanel";
+import { usePlan } from "./hooks/usePlan";
+import { useWishlist } from "./hooks/useWishlist";
 import {
   MenuFilterState,
   createEmptyFilters,
@@ -59,14 +62,9 @@ import styles from "./App.module.scss";
  * notifications, logout). Hide it only when the shell is going to
  * take over — mobile and customer URLs still get the Header.
  */
-const shouldHideHeader = (
-  hasTenant: boolean,
-  isAdminView: boolean,
-  isMobile: boolean,
-): boolean => {
-  if (isMobile) return false;
-  if (!hasTenant) return true; // platform admin host
-  return isAdminView;
+const shouldHideHeader = (hasTenant: boolean, isMobile: boolean): boolean => {
+  if (hasTenant) return true;
+  return !isMobile;
 };
 
 /** Desktop renders the shell; mobile falls back to the legacy card grid. */
@@ -97,12 +95,11 @@ const DatabaseStatusNotice: React.FC<{
     <div
       className={`${styles.dbStatusNotice} ${
         isConnected ? styles.connected : styles.disconnected
-      }`} title={isConnected ? "Working" : "Reconnecting"}
+      }`}
+      title={isConnected ? "Working" : "Reconnecting"}
     >
       <span className={styles.statusDot}></span>
-      <span className={styles.statusText}>
-        {isConnected ? "" : ""}
-      </span>
+      <span className={styles.statusText}>{isConnected ? "" : ""}</span>
     </div>
   );
 };
@@ -148,7 +145,7 @@ const AppContent: React.FC = () => {
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
 
   const isMobile = useIsMobile(900);
-  const hideHeader = shouldHideHeader(!!tenant, isAdminView, isMobile);
+  const hideHeader = shouldHideHeader(!!tenant, isMobile);
 
   const labels = getStoreLabels(tenant?.storeCategory);
 
@@ -188,6 +185,8 @@ const AppContent: React.FC = () => {
   const [customerName, setCustomerName] = useState<string>(() =>
     getCustomerName(),
   );
+
+  const plan = usePlan();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   const [isConnected, setIsConnected] = useState(false);
@@ -197,6 +196,8 @@ const AppContent: React.FC = () => {
   const [filters, setFilters] = useState<MenuFilterState>(() =>
     createEmptyFilters(),
   );
+
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
 
   const [showPwaLauncher, setShowPwaLauncher] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -208,6 +209,104 @@ const AppContent: React.FC = () => {
     }
   });
 
+  const [showFilterLoader, setShowFilterLoader] = useState(false);
+const filterLoaderTimerRef = useRef<number | null>(null);
+
+useEffect(() => {
+  // Fires on every filter field change.
+  // Skip the very first render (mount) — no reason to show the
+  // skeleton before the customer has filtered anything.
+  if (
+    filters.search === '' &&
+    filters.category === null &&
+    filters.types.size === 0 &&
+    filters.sort === 'default' &&
+    filters.stock === 'all'
+  ) {
+    // Empty filter state: hide the loader if it was showing.
+    setShowFilterLoader(false);
+    if (filterLoaderTimerRef.current !== null) {
+      window.clearTimeout(filterLoaderTimerRef.current);
+      filterLoaderTimerRef.current = null;
+    }
+    return;
+  }
+
+  // Non-empty filter state: show the skeleton for exactly 2s,
+  // restarting the timer on every change.
+  setShowFilterLoader(true);
+  if (filterLoaderTimerRef.current !== null) {
+    window.clearTimeout(filterLoaderTimerRef.current);
+  }
+  filterLoaderTimerRef.current = window.setTimeout(() => {
+    setShowFilterLoader(false);
+    filterLoaderTimerRef.current = null;
+  }, 2000);
+
+  return () => {
+    if (filterLoaderTimerRef.current !== null) {
+      window.clearTimeout(filterLoaderTimerRef.current);
+      filterLoaderTimerRef.current = null;
+    }
+  };
+}, [
+  filters.search,
+  filters.category,
+  filters.types,
+  filters.sort,
+  filters.stock,
+]);
+
+  // Filtering state — true when the customer has narrowed the menu.
+  const isFiltering =
+    filters.search.trim() !== "" ||
+    filters.category !== null ||
+    filters.types.size > 0 ||
+    filters.sort !== "default" ||
+    filters.stock !== "all";
+
+  useEffect(() => {
+    if (!isFiltering) {
+      setShowFilterLoader(false);
+      return;
+    }
+
+    setShowFilterLoader(true);
+    const t = window.setTimeout(() => setShowFilterLoader(false), 2000);
+    return () => window.clearTimeout(t);
+  }, [isFiltering]);
+
+  const menuTopRef = useRef<HTMLDivElement | null>(null);
+
+  // Skip the initial mount — no reason to scroll on first paint.
+  const isFirstFilterRenderRef = useRef(true);
+
+  useEffect(() => {
+    if (isFirstFilterRenderRef.current) {
+      isFirstFilterRenderRef.current = false;
+      return;
+    }
+
+    // Only scroll when the customer is actually filtering. Clearing
+    // filters shouldn't yank the page back to the top.
+    if (!isFiltering) return;
+
+    const el = menuTopRef.current;
+    if (!el) return;
+
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      el.scrollIntoView();
+    }
+  }, [
+    filters.search,
+    filters.category,
+    filters.types,
+    filters.sort,
+    filters.stock,
+    isFiltering,
+  ]);
   const handleDismissLauncher = () => {
     try {
       sessionStorage.setItem("pwa-launcher:dismissed", "1");
@@ -263,8 +362,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   // ---- Force-open login on tenant admin URLs when signed out ----
-  const mustLogin =
-    !!tenant && isAdminView && !isAuthenticated && !authLoading;
+  const mustLogin = !!tenant && isAdminView && !isAuthenticated && !authLoading;
 
   useEffect(() => {
     if (mustLogin) setIsLoginOpen(true);
@@ -711,6 +809,8 @@ const AppContent: React.FC = () => {
     isAdmin &&
     ((!!tenant && isAdminView) || !tenant);
 
+  const homeActive = !tenant && !tenantLoading && !isAuthenticated;
+
   // ---- Render ----
   return (
     <>
@@ -724,26 +824,19 @@ const AppContent: React.FC = () => {
       {!isAuthenticated && tenant?.dineinEnabled && <CustomerOrderStatus />}
 
       {!tenantNotFound && !isAppLoading && !hideHeader && (
-        <Header
-          companyName={tenant?.displayName ?? "Teckut"}
-          year={2026}
-          onWishlistItemClick={(item) => {
-            setSelectedItem(item);
-            setIsDetailOpen(true);
-          }}
-        />
+        <Header companyName={tenant?.displayName ?? "Teckut"} year={2026} />
       )}
 
-      {!isAppLoading &&
-        tenant &&
-        !isDeactivated &&
-        !isPaused &&
-        isExpired && <ExpiredScreen />}
+      {!isAppLoading && tenant && !isDeactivated && !isPaused && isExpired && (
+        <ExpiredScreen />
+      )}
 
       <div
         className={`${styles.container} ${
           getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
-        } ${shellActive ? styles.shellActive : ""}`}
+        } ${shellActive ? styles.shellActive : ""} ${
+          homeActive ? styles.homeActive : ""
+        }`}
       >
         {!tenant && !tenantLoading && <MainDashboard />}
 
@@ -770,34 +863,37 @@ const AppContent: React.FC = () => {
             <>
               {isAuthenticated && isAdmin && <RenewalBanner />}
 
-{isAuthenticated && tenant && <TenantDashboardSwitch />}
+              {isAuthenticated && tenant && <TenantDashboardSwitch />}
 
-{!isAuthenticated && (
-  <BrandInfo
-    brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-    brandDesc={
-      tenant?.infoDefaults?.storeTagline
-        ? getCategoryLabel(tenant?.storeCategory)
-        : tenant?.storeTagline ??
-          getCategoryLabel(tenant?.storeCategory)
-    }
-  />
-)}
+              {/* Brand info only shows when the customer isn't filtering. */}
+              {!isAuthenticated && !isFiltering && (
+                <BrandInfo
+                  brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+                  brandDesc={
+                    tenant?.infoDefaults?.storeTagline
+                      ? getCategoryLabel(tenant?.storeCategory)
+                      : (tenant?.storeTagline ??
+                        getCategoryLabel(tenant?.storeCategory))
+                  }
+                />
+              )}
 
-{!isStoreOpen && <StoreBanner />}
+              {!isStoreOpen && <StoreBanner />}
 
               {isStoreOpen && !isAuthenticated && (
-                <>
+                <div ref={menuTopRef}>
                   <MenuFilters
                     items={visibleItems}
                     filters={filters}
                     onChange={setFilters}
+                    onOpenWishlist={() => setIsWishlistOpen(true)}
                   />
-                  {filteredItems.length === 0 ? (
+
+                  {showFilterLoader ? (
+                    <DashboardSkeleton count={6} hideHeader hideBrand hidePill/>
+                  ) : filteredItems.length === 0 ? (
                     <div className={styles.emptyFilterState}>
-                      <p>
-                        No {labels.items.toLowerCase()} match your filters.
-                      </p>
+                      <p>No {labels.items.toLowerCase()} match your filters.</p>
                       <button type="button" onClick={resetFilters}>
                         Clear filters
                       </button>
@@ -812,7 +908,18 @@ const AppContent: React.FC = () => {
                       acceptingOrders={isAcceptingOrders}
                     />
                   )}
-                </>
+                </div>
+              )}
+
+              {plan.canWishlist && isWishlistOpen && (
+                <WishlistPanel
+                  isOpen={isWishlistOpen}
+                  onClose={() => setIsWishlistOpen(false)}
+                  onItemClick={(item) => {
+                    setSelectedItem(item);
+                    setIsDetailOpen(true);
+                  }}
+                />
               )}
             </>
           )}

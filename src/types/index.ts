@@ -24,7 +24,6 @@ export interface User {
 // =========================================================
 export type StoreCategory =
   | 'food-beverage'
-  | 'grocery-daily'
   | 'fashion-lifestyle'
   | 'home-living'
   | 'books-office'

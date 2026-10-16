@@ -95,3 +95,14 @@
     font-weight: 700;
   }
 }
+.renewNote {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  font-size: 12.5px;
+  color: $text-muted;
+  text-align: center;
+  line-height: 1.5;
+}

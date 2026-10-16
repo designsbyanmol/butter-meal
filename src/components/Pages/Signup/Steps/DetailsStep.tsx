@@ -1,7 +1,7 @@
 // components/Pages/Signup/Steps/DetailsStep.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StoreCategory } from '../../../../types';
-import { STORE_CATEGORIES } from '../../../../data/storeCategories';
+import { STORE_CATEGORIES, getCategoryDef } from '../../../../data/storeCategories';
 import { FormField, Input, Button, Banner, Select } from '../../../ui';
 import { RightArrow } from '../../../../assets/svgs';
 import { supabase } from '../../../../services/supabase.client';
@@ -51,6 +51,8 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
   onContinue,
   onFieldChange,
 }) => {
+
+  
   const [form, setForm] = useState<SignupDetails>(initial);
   // Starts false on every mount. Only flips to true when the USER
   // physically types in the slug field.
@@ -60,7 +62,10 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
   const [slugStatus, setSlugStatus] = useState<SlugStatus>('idle');
   const slugCheckRef = useRef<number | null>(null);
   const skipInitialCheckRef = useRef(true);
-
+  
+const selectedCategoryDef = getCategoryDef(
+  form.storeCategory || undefined,
+);
   // Re-hydrate if the parent hands us a different `initial`
   // (e.g. after a reset or a cross-tab storage event).
   // NOTE: do NOT touch slugTouched here.
@@ -264,21 +269,33 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
 
       <div className={local.grid2}>
         <FormField
-          label="Store Type"
-          required
-          error={errors.storeCategory}
-          hint="This decides the default catalog layout."
-        >
-          <Select
-            value={form.storeCategory}
-            onChange={(e) =>
-              update('storeCategory', e.target.value as StoreCategory)
-            }
-            placeholder="- Select your store type -"
-            options={categoryOptions}
-            invalid={!!errors.storeCategory}
-          />
-        </FormField>
+  label="Store Type"
+  required
+  error={errors.storeCategory}
+  hint="This decides the default catalog layout."
+>
+  <Select
+    value={form.storeCategory}
+    onChange={(e) =>
+      update('storeCategory', e.target.value as StoreCategory)
+    }
+    placeholder="- Select your store type -"
+    options={categoryOptions}
+    invalid={!!errors.storeCategory}
+  />
+
+  {selectedCategoryDef && (
+    <div className={local.categoryBanner}>
+      <span className={local.categoryBannerIcon} aria-hidden>
+        <img src={selectedCategoryDef.image} alt="" />
+      </span>
+      <div className={local.categoryBannerText}>
+        <strong>{selectedCategoryDef.label}</strong>
+        <p>{selectedCategoryDef.description}</p>
+      </div>
+    </div>
+  )}
+</FormField>
 
         <FormField label="Owner Name" required error={errors.ownerName}>
           <Input

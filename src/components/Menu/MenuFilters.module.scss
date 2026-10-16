@@ -7,11 +7,11 @@
     flex-direction: column;
     gap: 8px;
     background: $white;
-    padding: 0 $space-3 $space-3;
+    padding: $space-3;
     margin: 0 -15px 15px;
     position: sticky;
     z-index: $z-sticky;
-    top: calc($header-height);
+    top: 0;
     border-bottom: 1px solid $gray-100;
 }
 
@@ -59,3 +59,28 @@
   &::-webkit-scrollbar { display: none; }
 }
 
+.wishlistWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wishlistBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: $radius-pill;
+  background: $gray-900;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}

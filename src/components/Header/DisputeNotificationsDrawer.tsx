@@ -52,7 +52,7 @@ export interface DisputeNotificationsDrawerProps {
   pollMs?: number;
 }
 
-const DEFAULT_POLL_MS = 120_000;
+const DEFAULT_POLL_MS = 2 * 60 * 60 * 1000;
 
 const formatNotifTime = (iso: string): string => {
   const d = new Date(iso);

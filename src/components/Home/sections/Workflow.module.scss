@@ -1,0 +1,70 @@
+// components/Home/sections/Workflow.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.section {
+  background: #f8fafc;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+
+  @include tablet(900px) { grid-template-columns: 1fr; }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stepNum {
+  font-size: 30px;
+  font-weight: 800;
+  color: rgba(60, 170, 70, 0.18);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: $text;
+}
+
+.stepDesc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: $text-muted;
+}
+
+.stepImgWrap {
+  aspect-ratio: 16 / 10;
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: $bg-subtle;
+  margin-top: 6px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}

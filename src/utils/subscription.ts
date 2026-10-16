@@ -12,58 +12,105 @@ export const getDurationOption = (months: DurationMonths): DurationOption => {
   );
 };
 
+/** The promotional first-month price in rupees. */
+export const FIRST_MONTH_PRICE = 1;
+
 export interface PriceBreakdown {
   months: number;
-  /** Raw amount: monthlyPrice × months. */
   baseAmount: number;
-  /** Duration discount percentage (from DURATION_OPTIONS). */
   discountPct: number;
-  /** Discount amount in rupees. */
   discountAmount: number;
-  /** Amount after discount, before tax. */
   subtotal: number;
-  /** Tax percentage (0-100). Comes from the platform admin's setting. */
   taxPercent: number;
-  /** Tax amount in rupees, computed on `subtotal`. */
   taxAmount: number;
-  /** Final amount the customer pays: subtotal + tax. */
   finalAmount: number;
+  /**
+   * True when the price shown is the promotional first-month price
+   * rather than the plan's regular monthly price.
+   */
+  isFirstMonth: boolean;
+  /**
+   * The regular monthly price this plan will charge from month 2
+   * onward, or on renewal. Handy for "then ₹XX/mo" copy in the UI.
+   */
+  regularMonthlyPrice: number;
 }
 
 /**
  * Compute a plan price for a given duration and optional tax rate.
  *
- * Order of operations:
- *   1. baseAmount  = monthlyPrice × months
- *   2. discount    = baseAmount × (discountPct / 100)
- *   3. subtotal    = baseAmount − discount
- *   4. taxAmount   = subtotal × (taxPercent / 100)
- *   5. finalAmount = subtotal + taxAmount
+ * When `isFirstMonth` is true:
+ *   - The first month's base is `FIRST_MONTH_PRICE` (₹1).
+ *   - Any additional months in the bundle are charged at the plan's
+ *     regular monthly price, with the normal duration discount.
+ *   - Tax applies to the total.
  *
- * Every amount is rounded to 2 decimals at each step so that
+ * When `isFirstMonth` is false (renewals, upgrades, downgrades):
+ *   - Behaves exactly as before — plan price × months, minus the
+ *     duration discount, plus tax.
+ *
+ * Every amount is rounded to 2 decimals so
  * `subtotal + taxAmount === finalAmount` exactly.
  */
 export const computePrice = (
   monthlyPrice: number,
   months: DurationMonths,
   taxPercent = 0,
+  isFirstMonth = false,
 ): PriceBreakdown => {
   const opt = getDurationOption(months);
 
-  const baseAmount = Number((monthlyPrice * months).toFixed(2));
-  const discountPct = opt.discountPct;
+  let baseAmount: number;
+  let discountPct: number;
+
+  if (isFirstMonth) {
+    // Month 1 is ₹1 flat, no duration discount on it.
+    // Additional months (if any) are charged at the regular price
+    // with the standard duration discount applied to those months.
+    const extraMonths = Math.max(0, months - 1);
+    const extraBase = extraMonths * monthlyPrice;
+    const extraDiscount = Number(
+      ((extraBase * opt.discountPct) / 100).toFixed(2),
+    );
+    baseAmount = Number(
+      (FIRST_MONTH_PRICE + extraBase).toFixed(2),
+    );
+    discountPct = opt.discountPct;
+
+    const discountAmount = extraDiscount;
+    const subtotal = Number((baseAmount - discountAmount).toFixed(2));
+    const safeTaxPercent = clampTax(taxPercent);
+    const taxAmount = Number(
+      ((subtotal * safeTaxPercent) / 100).toFixed(2),
+    );
+    const finalAmount = Number((subtotal + taxAmount).toFixed(2));
+
+    return {
+      months,
+      baseAmount,
+      discountPct,
+      discountAmount,
+      subtotal,
+      taxPercent: safeTaxPercent,
+      taxAmount,
+      finalAmount,
+      isFirstMonth: true,
+      regularMonthlyPrice: monthlyPrice,
+    };
+  }
+
+  // Regular pricing
+  baseAmount = Number((monthlyPrice * months).toFixed(2));
+  discountPct = opt.discountPct;
   const discountAmount = Number(
     ((baseAmount * discountPct) / 100).toFixed(2),
   );
-
   const subtotal = Number((baseAmount - discountAmount).toFixed(2));
 
-  // Clamp to a safe 0-100 range regardless of what the caller passes.
-  const safeTaxPercent = Math.max(0, Math.min(Number(taxPercent) || 0, 100));
+  const safeTaxPercent = clampTax(taxPercent);
   const taxAmount = Number(
     ((subtotal * safeTaxPercent) / 100).toFixed(2),
   );
-
   const finalAmount = Number((subtotal + taxAmount).toFixed(2));
 
   return {
@@ -75,14 +122,21 @@ export const computePrice = (
     taxPercent: safeTaxPercent,
     taxAmount,
     finalAmount,
+    isFirstMonth: false,
+    regularMonthlyPrice: monthlyPrice,
   };
 };
+
+const clampTax = (t: number): number =>
+  Math.max(0, Math.min(Number(t) || 0, 100));
 
 export const computePlanPrice = (
   plan: Plan,
   months: DurationMonths,
   taxPercent = 0,
-): PriceBreakdown => computePrice(plan.monthlyPrice, months, taxPercent);
+  isFirstMonth = false,
+): PriceBreakdown =>
+  computePrice(plan.monthlyPrice, months, taxPercent, isFirstMonth);
 
 export const formatRupees = (n: number): string =>
   `Rs ${n.toLocaleString('en-IN', {

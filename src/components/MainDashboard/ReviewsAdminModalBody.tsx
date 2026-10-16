@@ -1,18 +1,18 @@
 // components/MainDashboard/ReviewsAdminModalBody.tsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { EmptyState, Button, Chip, Banner, Badge } from '../ui';
-import { useTenant } from '../../contexts/TenantContext';
-import { useAuth } from '../../hooks/useAuth';
-import { supabaseService } from '../../services/supabase.service';
-import { Review, ReviewFilter } from '../../types';
-import { StarIcon } from '../../assets/svgs';
-import { InlineSection } from '../Dashboard/inline';
-import local from './ReviewsAdminModal.module.scss';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { EmptyState, Button, Chip, Banner, Badge } from "../ui";
+import { useTenant } from "../../contexts/TenantContext";
+import { useAuth } from "../../hooks/useAuth";
+import { supabaseService } from "../../services/supabase.service";
+import { Review, ReviewFilter } from "../../types";
+import { StarIcon } from "../../assets/svgs";
+import { InlineSection } from "../Dashboard/inline";
+import local from "./ReviewsAdminModal.module.scss";
 
 interface FocusDispute {
   disputeId: string;
   reviewId: string;
-  outcome: 'deleted' | 'rejected';
+  outcome: "deleted" | "rejected";
   reviewItemName: string | null;
 }
 
@@ -22,16 +22,16 @@ interface ReviewsAdminModalBodyProps {
 }
 
 const FILTERS: { key: ReviewFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'lte4', label: '< 4 stars' },
-  { key: 'lte3', label: '< 3 stars' },
-  { key: 'lte2', label: '< 2 stars' },
-  { key: 'commented', label: 'With comments' },
+  { key: "all", label: "All" },
+  { key: "lte4", label: "< 4 stars" },
+  { key: "lte3", label: "< 3 stars" },
+  { key: "lte2", label: "< 2 stars" },
+  { key: "commented", label: "With comments" },
 ];
 
 const PAGE_SIZE = 16;
 
-type DisputeOutcome = 'pending' | 'rejected' | 'removed';
+type DisputeOutcome = "pending" | "rejected" | "removed";
 
 interface DisputeMeta {
   status: DisputeOutcome;
@@ -39,7 +39,7 @@ interface DisputeMeta {
 }
 
 interface CardItem {
-  kind: 'live' | 'removed';
+  kind: "live" | "removed";
   id: string;
   disputeId?: string;
   itemName: string;
@@ -61,120 +61,72 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [removedStubs, setRemovedStubs] = useState<CardItem[]>([]);
-  const [disputeMeta, setDisputeMeta] = useState<
-    Record<string, DisputeMeta>
-  >({});
-  const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [disputeMeta, setDisputeMeta] = useState<Record<string, DisputeMeta>>(
+    {},
+  );
+  const [filter, setFilter] = useState<ReviewFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [disputingId, setDisputingId] = useState<string | null>(null);
 
   const scrolledForRef = useRef<string | null>(null);
 
-  const reviewIdsKey = useMemo(
-    () => reviews.map((r) => r.id).join(','),
-    [reviews],
-  );
-
   const loadFirstPage = async (f: ReviewFilter) => {
-    if (!tenant) return;
-    setIsLoading(true);
-    setError('');
-    try {
-      const [list, pending, resolved] = await Promise.all([
-        supabaseService.getTenantReviewsPaged(tenant.slug, f, PAGE_SIZE, 0),
-        supabaseService.getPendingDisputesByReview(tenant.slug),
-        supabaseService.getResolvedDisputesForTenant(tenant.slug),
-      ]);
+  if (!tenant) return;
+  setIsLoading(true);
+  setError('');
+  try {
+    const bundle = await supabaseService.getReviewsAdminBundle(
+      tenant.slug,
+      f,
+      PAGE_SIZE,
+      0,
+    );
 
-      setReviews(list);
+    setReviews(bundle.reviews);
 
-      const meta: Record<string, DisputeMeta> = {};
+    const meta: Record<string, DisputeMeta> = {};
+    Object.entries(bundle.pending).forEach(([reviewId, disputeId]) => {
+      meta[reviewId] = { status: 'pending', disputeId };
+    });
 
-      Object.entries(pending).forEach(([reviewId, disputeId]) => {
-        meta[reviewId] = { status: 'pending', disputeId };
-      });
-
-      const stubs: CardItem[] = [];
-      const currentReviewIds = new Set(list.map((r) => r.id));
-
-      resolved.forEach((d) => {
-        if (d.outcome === 'rejected') {
-          if (!meta[d.reviewId]) {
-            meta[d.reviewId] = {
-              status: 'rejected',
-              disputeId: d.disputeId,
-            };
-          }
-        } else {
-          if (!currentReviewIds.has(d.reviewId)) {
-            stubs.push({
-              kind: 'removed',
-              id: d.disputeId,
-              disputeId: d.disputeId,
-              itemName: d.review?.itemName ?? 'Review',
-              rating: d.review?.rating ?? 0,
-              resolvedAt: d.resolvedAt,
-              outcome: 'removed',
-            });
-          }
+    const stubs: CardItem[] = [];
+    const currentReviewIds = new Set(bundle.reviews.map((r) => r.id));
+    bundle.resolved.forEach((d) => {
+      if (d.outcome === 'rejected') {
+        if (!meta[d.reviewId]) {
+          meta[d.reviewId] = { status: 'rejected', disputeId: d.disputeId };
         }
-      });
+      } else if (!currentReviewIds.has(d.reviewId)) {
+        stubs.push({
+          kind: 'removed',
+          id: d.disputeId,
+          disputeId: d.disputeId,
+          itemName: d.review?.itemName ?? 'Review',
+          rating: d.review?.rating ?? 0,
+          resolvedAt: d.resolvedAt,
+          outcome: 'removed',
+        });
+      }
+    });
 
-      setDisputeMeta(meta);
-      setRemovedStubs(stubs);
-      setHasMore(list.length === PAGE_SIZE);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setDisputeMeta(meta);
+    setRemovedStubs(stubs);
+    setHasMore(bundle.reviews.length === PAGE_SIZE);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to load');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   useEffect(() => {
     loadFirstPage(filter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, filter]);
-
-  useEffect(() => {
-    if (!tenant) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const list = await supabaseService.getResolvedDisputesForTenant(
-          tenant.slug,
-        );
-        if (cancelled) return;
-        const currentReviewIds = new Set(reviews.map((r) => r.id));
-        const stubs: CardItem[] = list
-          .filter(
-            (d) =>
-              d.outcome === 'deleted' && !currentReviewIds.has(d.reviewId),
-          )
-          .map((d) => ({
-            kind: 'removed',
-            id: d.disputeId,
-            disputeId: d.disputeId,
-            itemName: d.review?.itemName ?? 'Review',
-            rating: d.review?.rating ?? 0,
-            resolvedAt: d.resolvedAt,
-            outcome: 'removed',
-          }));
-        setRemovedStubs(stubs);
-      } catch (err) {
-        console.warn('[tenant reviews] resolved stubs failed:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.slug, reviewIdsKey]);
 
   useEffect(() => {
     if (!focusDispute) return;
@@ -189,7 +141,7 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
       scrolledForRef.current = focusDispute.disputeId;
 
       try {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch {
         el.scrollIntoView();
       }
@@ -217,43 +169,41 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
       setReviews((prev) => [...prev, ...next]);
       setHasMore(next.length === PAGE_SIZE);
     } catch (err) {
-      console.warn('Show more failed:', err);
+      console.warn("Show more failed:", err);
     } finally {
       setIsLoadingMore(false);
     }
   };
 
   const handleRaiseDispute = async (review: Review) => {
-    if (!tenant || disputeMeta[review.id]?.status === 'pending') return;
+    if (!tenant || disputeMeta[review.id]?.status === "pending") return;
 
     const reason =
       window.prompt(
         `Raise a dispute for this ${review.rating}-star review of "${review.itemName}"?\n\nAdd a short reason (optional):`,
-        '',
-      ) ?? '';
+        "",
+      ) ?? "";
 
     setDisputingId(review.id);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     try {
       const res = await supabaseService.raiseReviewDispute({
         reviewId: review.id,
         tenantSlug: tenant.slug,
-        raisedBy: user?.name ?? user?.phone ?? '',
+        raisedBy: user?.name ?? user?.phone ?? "",
         reason,
       });
-      if (!res) throw new Error('Failed to raise dispute');
+      if (!res) throw new Error("Failed to raise dispute");
 
       setDisputeMeta((prev) => ({
         ...prev,
-        [review.id]: { status: 'pending', disputeId: res.id },
+        [review.id]: { status: "pending", disputeId: res.id },
       }));
-      setSuccess('Dispute raised - our team will review it.');
-      window.setTimeout(() => setSuccess(''), 2500);
+      setSuccess("Dispute raised - our team will review it.");
+      window.setTimeout(() => setSuccess(""), 2500);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to raise dispute',
-      );
+      setError(err instanceof Error ? err.message : "Failed to raise dispute");
     } finally {
       setDisputingId(null);
     }
@@ -261,7 +211,7 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
 
   const cards: CardItem[] = useMemo(() => {
     const live: CardItem[] = reviews.map((r) => ({
-      kind: 'live',
+      kind: "live",
       id: r.id,
       disputeId: disputeMeta[r.id]?.disputeId,
       itemName: r.itemName,
@@ -283,8 +233,7 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
     return [...live, ...stubs];
   }, [reviews, disputeMeta, removedStubs]);
 
-  const filterLabel =
-    FILTERS.find((f) => f.key === filter)?.label ?? 'All';
+  const filterLabel = FILTERS.find((f) => f.key === filter)?.label ?? "All";
 
   return (
     <InlineSection
@@ -305,7 +254,7 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
       }
     >
       {error && (
-        <Banner variant="error" onDismiss={() => setError('')}>
+        <Banner variant="error" onDismiss={() => setError("")}>
           {error}
         </Banner>
       )}
@@ -320,9 +269,9 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
           <div className={local.grid}>
             {cards.map((c) => {
               const rounded = Math.round(c.rating);
-              const isRemoved = c.kind === 'removed';
-              const isRejected = c.outcome === 'rejected';
-              const isPending = c.outcome === 'pending';
+              const isRemoved = c.kind === "removed";
+              const isRejected = c.outcome === "rejected";
+              const isPending = c.outcome === "pending";
 
               return (
                 <div
@@ -330,11 +279,11 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
                   data-dispute-id={c.disputeId}
                   className={[
                     local.card,
-                    isRemoved ? local.stubCard : '',
-                    isRejected ? local.cardMuted : '',
+                    isRemoved ? local.stubCard : "",
+                    isRejected ? local.cardMuted : "",
                   ]
                     .filter(Boolean)
-                    .join(' ')}
+                    .join(" ")}
                 >
                   <div className={local.cardHeader}>
                     <div className={local.itemName}>{c.itemName}</div>
@@ -356,9 +305,7 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
                         size="xs"
                         variant="ghost"
                         onClick={() => {
-                          const review = reviews.find(
-                            (r) => r.id === c.id,
-                          );
+                          const review = reviews.find((r) => r.id === c.id);
                           if (review) handleRaiseDispute(review);
                         }}
                         loading={disputingId === c.id}
@@ -375,29 +322,17 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
 
                   <div className={local.stars}>
                     {Array.from({ length: rounded }).map((_, i) => (
-                      <StarIcon
-                        key={i}
-                        width={14}
-                        height={14}
-                        fill="#f5a623"
-                      />
+                      <StarIcon key={i} width={14} height={14} fill="#f5a623" />
                     ))}
                     {Array.from({ length: 5 - rounded }).map((_, i) => (
-                      <StarIcon
-                        key={i}
-                        width={14}
-                        height={14}
-                        fill="#dcdcdc"
-                      />
+                      <StarIcon key={i} width={14} height={14} fill="#dcdcdc" />
                     ))}
                     <span className={local.ratingNum}>
                       {c.rating.toFixed(1)}
                     </span>
                   </div>
 
-                  {c.comment && (
-                    <p className={local.comment}>"{c.comment}"</p>
-                  )}
+                  {c.comment && <p className={local.comment}>"{c.comment}"</p>}
 
                   {isRemoved && (
                     <p className={local.stubMessage}>
@@ -407,16 +342,16 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
 
                   <div className={local.footer}>
                     <span>
-                      {c.kind === 'live'
-                        ? c.customerName || 'Customer'
-                        : 'Platform'}
+                      {c.kind === "live"
+                        ? c.customerName || "Customer"
+                        : "Platform"}
                     </span>
                     <span>
-                      {c.kind === 'live' && c.createdAt
+                      {c.kind === "live" && c.createdAt
                         ? new Date(c.createdAt).toLocaleDateString()
                         : c.resolvedAt
-                        ? new Date(c.resolvedAt).toLocaleDateString()
-                        : ''}
+                          ? new Date(c.resolvedAt).toLocaleDateString()
+                          : ""}
                     </span>
                   </div>
                 </div>
@@ -431,8 +366,8 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
               loading={isLoadingMore}
               style={{
                 marginTop: 16,
-                display: 'flex',
-                marginInline: 'auto',
+                display: "flex",
+                marginInline: "auto",
               }}
             >
               Show more

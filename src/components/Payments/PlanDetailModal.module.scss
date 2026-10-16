@@ -1,0 +1,152 @@
+// src/components/Payments/PlanDetailModal.module.scss
+@use '../../styles/tokens' as *;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.planName {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.3px;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.priceBlock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: $radius-sm;
+  background: $primary-tint;
+  border: 1px solid rgba($primary, 0.25);
+  flex-shrink: 0;
+}
+
+.priceValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: $primary-dark;
+  letter-spacing: -0.3px;
+}
+
+.priceUnit {
+  font-size: 12px;
+  color: $primary-dark;
+  font-weight: 600;
+}
+
+.description {
+  margin: 0;
+  padding: 12px 14px;
+  background: $bg-subtle;
+  border-left: 3px solid $primary;
+  border-radius: 0 $radius-sm $radius-sm 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: $text-muted;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $text-muted;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.listItem {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: $text;
+  align-items: flex-start;
+
+  svg { flex-shrink: 0; margin-top: 3px; }
+}
+
+.listItemMuted {
+  color: $text-faint;
+}
+
+.checkIcon,
+.crossIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.checkIcon {
+  background: $primary;
+  color: #fff;
+}
+
+.crossIcon {
+  background: $bg-muted;
+}
+
+.priceStrike {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($primary-dark, 0.55);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  margin-right: 4px;
+}
+
+.promoNote {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: $radius-sm;
+  background: rgba($primary, 0.08);
+  color: $primary-dark;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+}

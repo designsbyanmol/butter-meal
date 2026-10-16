@@ -667,15 +667,19 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 //   - `refreshTenant()` is exposed on context and can be called
 //     by any screen after it mutates tenant state
 // ---------------------------------------------------------
+const lastFocusRefreshRef = useRef(0);
 useEffect(() => {
   const { slug } = resolveSlugFromUrl();
   if (!slug) return;
 
-  const onFocus = () => {
-    if (document.hidden) return;
-    if (!tenantRef.current) return;
-    refreshTenant();
-  };
+
+const onFocus = () => {
+  if (document.hidden) return;
+  const now = Date.now();
+  if (now - lastFocusRefreshRef.current < 15_000) return;
+  lastFocusRefreshRef.current = now;
+  refreshTenant();
+};
 
   document.addEventListener("visibilitychange", onFocus);
   window.addEventListener("focus", onFocus);

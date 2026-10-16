@@ -2,20 +2,14 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useTenant } from "../../contexts/TenantContext";
-import { useWishlist } from "../../hooks/useWishlist";
 import { useCustomerName } from "../../hooks/useCustomerName";
 import { usePlan } from "../../hooks/usePlan";
-import { MenuItem } from "../../types";
-import LoginModal from "../Auth/LoginModal";
 import UserManagement from "../Admin/UserManagement";
 import AdminPanel from "../Admin/AdminPanel";
 import StoreModal from "../Store/StoreModal";
 import TenantManager from "../Admin/TenantManager";
-import WishlistPanel from "../Menu/WishlistPanel";
 import InfoPopup from "../Store/InfoPopup";
 import PlanBadgeInline from "../Store/PlanBadgeInline";
-import WishlistIcon from "../../assets/svgs/WishlistIcon";
-import WishlistFilledIcon from "../../assets/svgs/WishlistFilledIcon";
 import { Avatar, Badge, IconButton, Button } from "../ui";
 import { MenuIcon, UsersIcon, StoreIcon } from "../../assets/svgs";
 import { subscribeAdminAction, AdminAction } from "../../utils/adminEvents";
@@ -25,13 +19,11 @@ import TenantNotificationsDrawer from "./TenantNotificationsDrawer";
 import DineinNotificationsDrawer from "./DineinNotificationsDrawer";
 import ReviewsModal from "../MainDashboard/Modals/ReviewsModal";
 import DineinOrdersModal from "../MainDashboard/DineinOrdersModal";
-import WelcomePopup from "../Auth/WelcomePopup";
 import local from "./Header.module.scss";
 
 interface HeaderProps {
   companyName: string;
   year: number;
-  onWishlistItemClick?: (item: MenuItem) => void;
 }
 
 interface FocusDispute {
@@ -42,13 +34,13 @@ interface FocusDispute {
 }
 
 const AVATAR_COLORS = [
-  "#3caa46", // primary green
-  "#2563eb", // blue
-  "#9333ea", // purple
-  "#f59e0b", // amber
-  "#dc3545", // red
-  "#0f766e", // teal
-  "#c2410c", // orange-brown
+  "#3caa46",
+  "#2563eb",
+  "#9333ea",
+  "#f59e0b",
+  "#dc3545",
+  "#0f766e",
+  "#c2410c",
 ] as const;
 
 const colorForSlug = (slug: string | undefined): string => {
@@ -61,11 +53,7 @@ const colorForSlug = (slug: string | undefined): string => {
   return AVATAR_COLORS[idx];
 };
 
-const Header: React.FC<HeaderProps> = ({
-  companyName,
-  year,
-  onWishlistItemClick,
-}) => {
+const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
   const {
     user,
     isAuthenticated,
@@ -74,16 +62,13 @@ const Header: React.FC<HeaderProps> = ({
     isLoading: authLoading,
   } = useAuth();
   const { tenant, isDeactivated, isAdminView, isSmartAdminHost } = useTenant();
-  const { count: wishlistCount } = useWishlist();
   const customerName = useCustomerName();
   const plan = usePlan();
 
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isMenuPanelOpen, setIsMenuPanelOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isTenantManagerOpen, setIsTenantManagerOpen] = useState(false);
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
@@ -97,24 +82,6 @@ const Header: React.FC<HeaderProps> = ({
   const [focusDineinOrderId, setFocusDineinOrderId] = useState<string | null>(
     null,
   );
-
-  const [welcome, setWelcome] = useState<{
-    userName: string;
-    storeName?: string;
-  } | null>(null);
-
-  const isForcedLogin =
-    isAdminView &&
-    !isAuthenticated &&
-    !authLoading &&
-    !isDeactivated &&
-    !!tenant;
-
-  useEffect(() => {
-    if (isForcedLogin) {
-      setIsLoginOpen(true);
-    }
-  }, [isForcedLogin]);
 
   useEffect(() => {
     const unsubscribe = subscribeAdminAction((action: AdminAction) => {
@@ -152,7 +119,6 @@ const Header: React.FC<HeaderProps> = ({
   const isPlatformAdminOnHost = isPlatformAdmin && !tenant;
 
   const canManageTenant = isAuthenticated && !!tenant && !isDeactivated;
-  const showWishlist = !!tenant && !isDeactivated && !isAdminView;
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
   const isAdminContext = isSmartAdminHost || isAdminView;
@@ -181,16 +147,10 @@ const Header: React.FC<HeaderProps> = ({
     (!tenant || isAdminView || isSmartAdminHost) &&
     !authLoading;
 
-  const handleLogin = () => setIsLoginOpen(true);
-
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       logout();
     }
-  };
-
-  const handleWishlistItemClick = (item: MenuItem) => {
-    onWishlistItemClick?.(item);
   };
 
   const avatarInitial = (() => {
@@ -294,29 +254,6 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className={local.actions}>
-            {showWishlist && !isAuthenticated && plan.canWishlist && (
-              <div className={local.wishlistWrap}>
-                <IconButton
-                  variant="ghost"
-                  size="md"
-                  aria-label="Open wishlist"
-                  tooltip="Wishlist"
-                  onClick={() => setIsWishlistOpen(true)}
-                >
-                  {wishlistCount > 0 ? (
-                    <WishlistFilledIcon width={20} height={20} fill="#e23744" />
-                  ) : (
-                    <WishlistIcon width={20} height={20} fill="#1e1e1e" />
-                  )}
-                </IconButton>
-                {wishlistCount > 0 && (
-                  <span className={local.wishlistBadge}>
-                    {wishlistCount > 99 ? "99+" : wishlistCount}
-                  </span>
-                )}
-              </div>
-            )}
-
             {isAuthenticated ? (
               <>
                 {canManageTenant && (
@@ -411,7 +348,14 @@ const Header: React.FC<HeaderProps> = ({
             ) : (
               <>
                 {showSignIn && (
-                  <Button size="xs" onClick={handleLogin}>
+                  <Button
+                    size="xs"
+                    onClick={() => {
+                      // App.tsx owns the forced-login flow. Dispatch an
+                      // event so the app can open its own modal.
+                      window.dispatchEvent(new Event("app:open-login"));
+                    }}
+                  >
                     Sign In
                   </Button>
                 )}
@@ -421,27 +365,10 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        forceOpen={isForcedLogin}
-        onLoginSuccess={(info) => {
-          setIsLoginOpen(false);
-          setWelcome(info);
-        }}
-      />
-
-      <WelcomePopup
-        isOpen={!!welcome}
-        userName={welcome?.userName ?? ""}
-        storeName={welcome?.storeName}
-        onDismiss={() => setWelcome(null)}
-      />
-
+      {/* Modals opened by the header — kept only for admin-mobile,
+          where the shell doesn't render. */}
       {isUserManagementOpen && tenant && isAdmin && (
-        <UserManagement
-          onClose={() => setIsUserManagementOpen(false)}
-        />
+        <UserManagement onClose={() => setIsUserManagementOpen(false)} />
       )}
 
       {isMenuPanelOpen && (
@@ -465,14 +392,6 @@ const Header: React.FC<HeaderProps> = ({
 
       {isTenantManagerOpen && (
         <TenantManager onClose={() => setIsTenantManagerOpen(false)} />
-      )}
-
-      {plan.canWishlist && isWishlistOpen && (
-        <WishlistPanel
-          isOpen={isWishlistOpen}
-          onClose={() => setIsWishlistOpen(false)}
-          onItemClick={handleWishlistItemClick}
-        />
       )}
 
       {showAdminAvatar && isAdmin && isInfoOpen && (

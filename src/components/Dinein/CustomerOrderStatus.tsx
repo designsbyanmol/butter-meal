@@ -220,11 +220,14 @@ const CustomerOrderStatus: React.FC = () => {
 
   schedule();
 
-  const onFocus = () => {
-    if (document.hidden) return;
-    if (timer !== null) window.clearTimeout(timer);
-    load().finally(schedule);
-  };
+  const lastFocusRef = useRef(0);
+const onFocus = () => {
+  if (document.hidden) return;
+  const now = Date.now();
+  if (now - lastFocusRef.current < 15_000) return;
+  lastFocusRef.current = now;
+  load();
+};
 
   document.addEventListener("visibilitychange", onFocus);
   window.addEventListener("focus", onFocus);
@@ -259,24 +262,47 @@ const CustomerOrderStatus: React.FC = () => {
     return () => window.clearInterval(id);
   }, [isVisible, order?.status, order?.id]);
 
-  useEffect(() => {
-    if (!order) return;
-    if (dismissTimerRef.current !== null) {
-      window.clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
-    }
-    if (order.status === "cancelled") {
-      dismissTimerRef.current = window.setTimeout(() => {
-        hideBanner();
-      }, 4000);
-    }
-    return () => {
-      if (dismissTimerRef.current !== null) {
-        window.clearTimeout(dismissTimerRef.current);
-        dismissTimerRef.current = null;
+  const POLL_MS = 30_000;
+
+useEffect(() => {
+  if (!order) return;
+  // Stop polling for terminal states.
+  if (order.status === 'paid' || order.status === 'cancelled') return;
+
+  let cancelled = false;
+  let timer: number | null = null;
+
+  const schedule = () => {
+    if (cancelled) return;
+    timer = window.setTimeout(async () => {
+      if (cancelled) return;
+      if (document.hidden) {
+        // Back off 4× while hidden — the customer can't see the
+        // banner anyway.
+        schedule();
+        return;
       }
-    };
-  }, [order?.status, order?.id]);
+      await load();
+      schedule();
+    }, document.hidden ? POLL_MS * 4 : POLL_MS);
+  };
+
+  schedule();
+
+  const onVisibility = () => {
+    if (document.hidden) return;
+    if (timer !== null) window.clearTimeout(timer);
+    load().finally(schedule);
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
+  return () => {
+    cancelled = true;
+    if (timer !== null) window.clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [order?.id, order?.status]);
 
   useEffect(() => {
     if (!order) return;

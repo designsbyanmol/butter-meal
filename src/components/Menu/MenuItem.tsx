@@ -1,18 +1,18 @@
 // src/components/Menu/MenuItem.tsx
-import React from 'react';
-import { MenuItem } from '../../types';
-import { DEFAULT_FORM_SCHEMA } from '../../types';
-import { useTenant } from '../../contexts/TenantContext';
-import { usePlan } from '../../hooks/usePlan';
-import { Badge } from '../ui';
-import { Special, StarIcon } from '../../assets/svgs';
-import WishlistButton from './WishlistButton';
-import { formatCount } from '../../utils/formatCount';
-import { formatRupees } from '../../utils/subscription';
-import NewIcon from '../../assets/svgs/NewIcon';
-import PopularIcon from '../../assets/svgs/PopularIcon';
-import LimitedIcon from '../../assets/svgs/LimitedIcon';
-import local from './Menu.module.scss';
+import React from "react";
+import { MenuItem } from "../../types";
+import { DEFAULT_FORM_SCHEMA } from "../../types";
+import { useTenant } from "../../contexts/TenantContext";
+import { usePlan } from "../../hooks/usePlan";
+import { Badge } from "../ui";
+import { Special, StarIcon } from "../../assets/svgs";
+import WishlistButton from "./WishlistButton";
+import { formatCount } from "../../utils/formatCount";
+import { formatRupees } from "../../utils/subscription";
+import NewIcon from "../../assets/svgs/NewIcon";
+import PopularIcon from "../../assets/svgs/PopularIcon";
+import LimitedIcon from "../../assets/svgs/LimitedIcon";
+import local from "./Menu.module.scss";
 
 interface MenuItemProps {
   item: MenuItem;
@@ -70,12 +70,12 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
   const hasReviews =
     plan.canReview &&
     reviewsEnabled &&
-    typeof item.reviewCount === 'number' &&
+    typeof item.reviewCount === "number" &&
     item.reviewCount > 0 &&
-    typeof item.rating === 'number' &&
+    typeof item.rating === "number" &&
     item.rating > 0;
 
-  const showVegBadge = isFieldEnabled('isVeg') && item.isVeg === true;
+  const showVegBadge = isFieldEnabled("isVeg") && item.isVeg === true;
 
   const activeBadges = (schema.badges ?? []).filter(
     (b) => b.enabled && item.attributes?.[b.key],
@@ -91,29 +91,27 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
 
   const showCostPrice =
     !hasDiscount &&
-    isFieldEnabled('costPrice') &&
-    typeof item.costPrice === 'number' &&
+    isFieldEnabled("costPrice") &&
+    typeof item.costPrice === "number" &&
     item.costPrice > 0;
 
   const strikethrough = hasDiscount
     ? originalPrice
     : showCostPrice
-    ? item.costPrice!
-    : null;
+      ? item.costPrice!
+      : null;
 
   return (
     <div
-      className={`${local.itemCard} ${
-        isOutOfStock ? local.outOfStock : ''
-      }`}
+      className={`${local.itemCard} ${isOutOfStock ? local.outOfStock : ""}`}
     >
       <div
         className={local.imageWrapper}
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
-        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-        style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
+        onKeyDown={(e) => e.key === "Enter" && handleClick()}
+        style={{ cursor: isOutOfStock ? "not-allowed" : "pointer" }}
       >
         {plan.canWishlist && (
           <WishlistButton
@@ -190,10 +188,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
                 </span>
               );
             })}
-
-            {showVegBadge && (
-              <span className={`${local.badge} ${local.veg}`} />
-            )}
           </div>
         )}
       </div>
@@ -203,48 +197,49 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         onClick={handleClick}
         role="button"
         tabIndex={isOutOfStock ? -1 : 0}
-        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-        style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}
+        onKeyDown={(e) => e.key === "Enter" && handleClick()}
+        style={{ cursor: isOutOfStock ? "not-allowed" : "pointer" }}
       >
-        <div className={local.itemName}>{item.name}</div>
+        <div className={local.itemNameWrap}>
+          {showVegBadge && <span className={`${local.badge} ${local.veg}`} />}
+          <div className={local.itemName}>{item.name}</div>
+        </div>
       </div>
 
       <div className={local.itemFooter}>
         <span className={local.price}>
-          {strikethrough !== null && (
-            <del>{formatRupees(strikethrough)}</del>
-          )}
+          {strikethrough !== null && <del>{formatRupees(strikethrough)}</del>}
           {formatRupees(finalPrice)}
         </span>
         <div className={local.actions}>
-  {!plan.canOrder ? (
-    <button className={local.btnCustomize} onClick={handleAddClick}>
-      View
-    </button>
-  ) : !acceptingOrders ? (
-    <button className={local.btnCustomize} onClick={handleAddClick}>
-      Preview
-    </button>
-  ) : isOutOfStock ? (
-    <button
-      className={`${local.btnCustomize} ${local.btnOutOfStock}`}
-      disabled
-    >
-      Out of Stock
-    </button>
-  ) : isAdded ? (
-    <button
-      className={`${local.btnCustomize} ${local.btnAdded}`}
-      onClick={handleAddClick}
-    >
-      {quantity} Added
-    </button>
-  ) : (
-    <button className={local.btnCustomize} onClick={handleAddClick}>
-      Add
-    </button>
-  )}
-</div>
+          {!plan.canOrder ? (
+            <button className={local.btnCustomize} onClick={handleAddClick}>
+              View
+            </button>
+          ) : !acceptingOrders ? (
+            <button className={local.btnCustomize} onClick={handleAddClick}>
+              Preview
+            </button>
+          ) : isOutOfStock ? (
+            <button
+              className={`${local.btnCustomize} ${local.btnOutOfStock}`}
+              disabled
+            >
+              Out of Stock
+            </button>
+          ) : isAdded ? (
+            <button
+              className={`${local.btnCustomize} ${local.btnAdded}`}
+              onClick={handleAddClick}
+            >
+              {quantity} Added
+            </button>
+          ) : (
+            <button className={local.btnCustomize} onClick={handleAddClick}>
+              Add
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

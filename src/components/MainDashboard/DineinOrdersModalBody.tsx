@@ -23,9 +23,6 @@ import MarkPaidModal from './MarkPaidModal';
 import { printReceiptNode } from '../../utils/printReceipt';
 import Receipt from './OrderDetail/Receipt';
 
-// ---------------------------------------------------------
-// Constants & helpers
-// ---------------------------------------------------------
 type TabKey = 'new' | 'preparing' | 'served' | 'rejected';
 
 const ACTIVE_STATUSES: DineinOrder['status'][] = [
@@ -167,9 +164,6 @@ const checkboxModeForStaff = (
   return 'hidden';
 };
 
-// ---------------------------------------------------------
-// Compact accordion header
-// ---------------------------------------------------------
 interface CardHeaderProps {
   order: DineinOrder;
   servedN: number;
@@ -203,20 +197,9 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   );
 };
 
-// ---------------------------------------------------------
-// Body
-// ---------------------------------------------------------
 interface DineinOrdersModalBodyProps {
   focusOrderId?: string | null;
-  /**
-   * 'admin' (default) - full tabs, full actions, order history.
-   * 'staff' - Preparing tab only, no action buttons, no history.
-   */
   mode?: 'admin' | 'staff';
-  /**
-   * Optional close handler. Reserved for future use by the modal
-   * wrapper; ignored inline.
-   */
   onClose?: () => void;
 }
 
@@ -248,7 +231,27 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
   const scrolledForRef = useRef<string | null>(null);
 
-  // ---------- Load ----------
+  // ---------------------------------------------------------
+  // Local-state helpers
+  //
+  // Every mutation returns the updated order. We splice it back into
+  // `orders` instead of refetching the whole list — that halves the
+  // API calls for every admin action.
+  // ---------------------------------------------------------
+  const applyOrderUpdate = (updated: DineinOrder) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updated.id ? updated : o)),
+    );
+  };
+
+  const removeOrder = (orderId: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  };
+
+  // ---------------------------------------------------------
+  // Load — only called on mount, on manual refresh, and when the
+  // order set fundamentally changes (e.g. after a poll timer).
+  // ---------------------------------------------------------
   const load = async () => {
     if (!tenant) return;
     setIsLoading(true);
@@ -272,7 +275,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, isStaff]);
 
-  // Refresh every 60s while visible; ticker for elapsed timers.
+  // Refresh every 60s while visible; pause when hidden.
   useEffect(() => {
     let cancelled = false;
     let timer: number | null = null;
@@ -310,7 +313,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug]);
 
-  // ---------- Focus-scroll ----------
+  // Focus-scroll
   useEffect(() => {
     if (!focusOrderId) return;
     if (scrolledForRef.current === focusOrderId) return;
@@ -318,7 +321,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     const target = orders.find((o) => o.id === focusOrderId);
     if (!target) return;
 
-    // Staff stays on Preparing regardless of the target's status.
     const tab = tabForStatus(target.status);
     if (tab && tab !== activeTab && !isStaff) setActiveTab(tab);
 
@@ -337,7 +339,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusOrderId, orders.length, activeTab, isStaff]);
 
-  // ---------- Bucketing ----------
+  // Bucketing
   const byTab = useMemo(() => {
     const bucket: Record<TabKey, DineinOrder[]> = {
       new: [],
@@ -375,6 +377,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
   const visibleOrders = isStaff ? byTab.preparing : byTab[activeTab];
 
+  // Print effect
   useEffect(() => {
     if (!printOrder) return;
     const ok = printReceiptNode(printRef.current);
@@ -382,7 +385,10 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     setPrintOrder(null);
   }, [printOrder]);
 
-  // ---------- Actions ----------
+  // ---------------------------------------------------------
+  // Actions — each one updates local state from the returned row
+  // instead of triggering a full refetch.
+  // ---------------------------------------------------------
   const handleGenerateBill = (order: DineinOrder) => {
     setPrintOrder(order);
   };
@@ -399,8 +405,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         target,
       );
       if (!updated) throw new Error('Failed to update status');
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
-      load();
+      applyOrderUpdate(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update');
     } finally {
@@ -420,8 +425,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     try {
       const updated = await supabaseService.setDineinPayOnline(order.id, true);
       if (!updated) throw new Error('Failed to send pay link');
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
-      load();
+      applyOrderUpdate(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send pay link');
     } finally {
@@ -438,8 +442,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         'online',
       );
       if (!updated) throw new Error('Failed to confirm payment');
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
-      load();
+      applyOrderUpdate(updated);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to confirm payment',
@@ -454,6 +457,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     itemIndex: number,
     next: boolean,
   ) => {
+    // Optimistic update first.
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== order.id) return o;
@@ -471,10 +475,10 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     );
     if (!updated) {
       setError('Failed to update item state');
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
+      applyOrderUpdate(order);
       return;
     }
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+    applyOrderUpdate(updated);
   };
 
   const requestMarkServed = (order: DineinOrder) => {
@@ -494,8 +498,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         'served',
       );
       if (!updated) throw new Error('Failed to mark served');
-      setOrders((prev) => prev.map((o) => (o.id === target.id ? updated : o)));
-      load();
+      applyOrderUpdate(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to mark served');
     } finally {
@@ -513,8 +516,22 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         m,
       );
       if (!ok) throw new Error('Failed to mark paid');
+
+      // `markDineinOrderPaid` returns a boolean, not the updated row,
+      // so patch the local row with the fields we know changed.
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === markPaidFor.id
+            ? {
+                ...o,
+                status: 'paid',
+                paidAt: new Date().toISOString(),
+                paymentRef: m,
+              }
+            : o,
+        ),
+      );
       setMarkPaidFor(null);
-      load();
     } catch (err) {
       setMarkPaidError(
         err instanceof Error ? err.message : 'Failed to mark paid',
@@ -536,8 +553,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         'Rejected by store',
       );
       if (!updated) throw new Error('Failed to cancel');
-      setOrders((prev) => prev.map((o) => (o.id === target.id ? updated : o)));
-      load();
+      applyOrderUpdate(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel');
     } finally {
@@ -545,7 +561,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     }
   };
 
-  // ---------- Tabs config ----------
+  // Tabs config
   const tabs = useMemo(
     () =>
       TAB_ORDER.map((key) => ({
@@ -584,9 +600,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
           ? 'No served orders waiting on payment.'
           : 'No rejected orders.';
 
-  // ---------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------
   return (
     <>
       <InlineSection
@@ -665,7 +678,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       />
                     }
                   >
-                    {/* ---- Items with per-item served state ---- */}
                     <div className={local.items}>
                       {mode0 !== 'hidden' && (
                         <div className={local.itemsHeader}>
@@ -800,14 +812,12 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       )}
                     </div>
 
-                    {/* ---- Staff tip note ---- */}
                     {(o.staffTip ?? 0) > 0 && (
                       <div className={local.tipLine}>
                         Staff tip: {formatRupees(o.staffTip ?? 0)}
                       </div>
                     )}
 
-                    {/* ---- Totals (admin only) ---- */}
                     {!isStaff && (
                       <div className={local.cardFooter}>
                         <span className={local.totalLabel}>Current total</span>
@@ -817,7 +827,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       </div>
                     )}
 
-                    {/* ---- Bill line (admin only) ---- */}
                     {!isStaff && o.status === 'paid' && (
                       <div className={local.billLine}>
                         Paid via{' '}
@@ -878,7 +887,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       </div>
                     )}
 
-                    {/* ---- Admin action row ---- */}
                     {!isStaff &&
                       (stage ||
                         showReject ||
@@ -1022,7 +1030,6 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         )}
       </InlineSection>
 
-      {/* ---------- Admin-only side modals ---------- */}
       {!isStaff && (
         <>
           {selected && (
@@ -1031,9 +1038,12 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
               order={selected}
               onClose={() => {
                 setSelected(null);
+              }}
+              onRefresh={() => {
+                // OrderDetail only opens modals for atomic actions.
+                // If it calls back, do a single refresh.
                 load();
               }}
-              onRefresh={load}
             />
           )}
 

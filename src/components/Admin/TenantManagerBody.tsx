@@ -29,13 +29,10 @@ import {
 import PlanBadge from "./PlanBadge";
 import PauseRequestIcon from "./PauseRequestIcon";
 import PlanChangeModal from "../Payments/PlanChangeModal";
-import {
-  STORE_CATEGORIES,
-  getCategoryLabel,
-} from "../../data/storeCategories";
-import { clearSignupState } from '../Pages/Signup/useSignupPersistence';
+import { STORE_CATEGORIES, getCategoryLabel } from "../../data/storeCategories";
+import { clearSignupState } from "../Pages/Signup/useSignupPersistence";
 import tokens from "../../styles/_tokens.module.scss";
-import { InlineSection } from '../Dashboard/inline';
+import { InlineSection } from "../Dashboard/inline";
 import local from "./TenantManager.module.scss";
 
 // =========================================================
@@ -140,15 +137,6 @@ type ConfirmState = {
   action: () => void | Promise<void>;
 };
 
-type SlugStatus = "idle" | "checking" | "available" | "taken" | "error";
-
-const slugify = (s: string): string =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
 const generateRandomPassword = (length = 8): string => {
   const chars = "abcdefghijklmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
   let pw = "";
@@ -182,15 +170,13 @@ const FilterSheet: React.FC<FilterSheetProps> = ({
 
   const setCreated = (k: CreatedRange) =>
     setDraft((d) => ({ ...d, created: k }));
-  const setExpiry = (k: ExpiryFilter) =>
-    setDraft((d) => ({ ...d, expiry: k }));
+  const setExpiry = (k: ExpiryFilter) => setDraft((d) => ({ ...d, expiry: k }));
   const setPlanMonths = (k: PlanMonthsFilter) =>
     setDraft((d) => ({ ...d, planMonths: k }));
   const setCategory = (k: StoreCategory | "all") =>
     setDraft((d) => ({ ...d, category: k }));
 
-  const reset = () =>
-    setDraft({ ...EMPTY_FILTERS, search: draft.search });
+  const reset = () => setDraft({ ...EMPTY_FILTERS, search: draft.search });
 
   return (
     <Sheet
@@ -317,26 +303,11 @@ const TenantManagerBody: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const [planFilter, setPlanFilter] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [ownerName, setOwnerName] = useState("");
-  const [ownerPhone, setOwnerPhone] = useState("");
-  const [whatsappPhone, setWhatsappPhone] = useState("");
-  const [ownerPassword, setOwnerPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-
-  const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
-  const slugCheckTimerRef = useRef<number | null>(null);
-  const skipInitialCheckRef = useRef(true);
 
   const [editingTenant, setEditingTenant] = useState<TenantRow | null>(null);
   const [editDisplayName, setEditDisplayName] = useState("");
@@ -373,59 +344,6 @@ const TenantManagerBody: React.FC = () => {
     return 24;
   };
 
-  useEffect(() => {
-    if (!slugTouched) setSlug(slugify(displayName));
-  }, [displayName, slugTouched]);
-
-  useEffect(() => {
-    if (!isCreateOpen) return;
-
-    if (skipInitialCheckRef.current) {
-      skipInitialCheckRef.current = false;
-      return;
-    }
-
-    const candidate = slug.trim();
-
-    if (slugCheckTimerRef.current !== null) {
-      window.clearTimeout(slugCheckTimerRef.current);
-      slugCheckTimerRef.current = null;
-    }
-
-    if (!candidate) {
-      setSlugStatus("idle");
-      return;
-    }
-
-    if (!/^[a-z0-9-]+$/.test(candidate)) {
-      setSlugStatus("idle");
-      return;
-    }
-
-    setSlugStatus("checking");
-
-    slugCheckTimerRef.current = window.setTimeout(async () => {
-      try {
-        const available =
-          await supabaseService.isTenantSlugAvailable(candidate);
-        setSlugStatus(available ? "available" : "taken");
-      } catch (err) {
-        console.warn("[TenantManagerBody] slug check failed:", err);
-        setSlugStatus("error");
-      } finally {
-        slugCheckTimerRef.current = null;
-      }
-    }, 400);
-
-    return () => {
-      if (slugCheckTimerRef.current !== null) {
-        window.clearTimeout(slugCheckTimerRef.current);
-        slugCheckTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, isCreateOpen]);
-
   const buildTenantUrl = (s: string): string =>
     `${window.location.origin}${window.location.pathname}?t=${s}`;
 
@@ -434,47 +352,49 @@ const TenantManagerBody: React.FC = () => {
 
   const loadAll = async () => {
     setLoading(true);
+    try {
+      const [list, requests, ownerMap] = await Promise.all([
+        supabaseService.getAllTenants(),
+        planService.getPendingPauseRequests(),
+        supabaseService.getTenantOwnerMap(), // 1 request for all owners
+      ]);
 
-    const [list, requests] = await Promise.all([
-      supabaseService.getAllTenants(),
-      planService.getPendingPauseRequests(),
-    ]);
+      const bySlug: Record<string, PauseRequest> = {};
+      requests.forEach((r) => {
+        bySlug[r.tenantSlug] = r;
+      });
 
-    const bySlug: Record<string, PauseRequest> = {};
-    requests.forEach((r) => {
-      bySlug[r.tenantSlug] = r;
-    });
-
-    const enriched: TenantRow[] = await Promise.all(
-      list.map(async (t) => {
-        const owner = await supabaseService.getTenantOwner(t.slug);
+      const enriched: TenantRow[] = list.map((t) => {
+        const owner = ownerMap[t.slug];
         const req = bySlug[t.slug];
-
         const createdAt =
           (t as any).createdAt ??
           (t as any).created_at ??
           new Date(0).toISOString();
-
         const expiresAt =
           t.subscriptionExpiresAt ?? (t as any).subscription_expires_at;
-
         const days = daysUntilExpiry(expiresAt);
 
         return {
           ...t,
           url: buildTenantUrl(t.slug),
-          ownerPhone: owner?.phone,
-          ownerName: owner?.name,
+          ownerPhone: owner?.phone || undefined,
+          ownerName: owner?.name || undefined,
           hasPauseRequest: !!req,
           pauseRequestId: req?.id,
           _createdAt: createdAt,
           _daysUntilExpiry: days,
         };
-      }),
-    );
-    setTenants(enriched);
-    setPauseRequests(requests);
-    setLoading(false);
+      });
+
+      setTenants(enriched);
+      setPauseRequests(requests);
+    } catch (err) {
+      console.error("[TenantManagerBody] loadAll failed:", err);
+      flashError("Failed to load stores");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -519,89 +439,12 @@ const TenantManagerBody: React.FC = () => {
 
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set('_sign-up', '1');
+      url.searchParams.set("_sign-up", "1");
       window.location.href = url.toString();
     } catch {
-      const sep = window.location.search ? '&' : '?';
+      const sep = window.location.search ? "&" : "?";
       window.location.href =
-        window.location.href.split('?')[0] + `${sep}_sign-up=1`;
-    }
-  };
-
-  const closeCreateModal = () => {
-    if (isCreating) return;
-    setIsCreateOpen(false);
-  };
-
-  const validateCreateForm = (): string | null => {
-    if (!displayName.trim()) return "Store name is required";
-    if (!slug.trim()) return "URL slug is required";
-    if (!/^[a-z0-9-]+$/.test(slug))
-      return "Slug can only contain lowercase letters, numbers and hyphens";
-    if (slugStatus === "taken")
-      return "Domain already present, please change the slug";
-    if (tenants.some((t) => t.slug === slug))
-      return "A tenant with this URL slug already exists";
-    if (!ownerPhone.trim() || ownerPhone.length < 10)
-      return "Owner phone must be at least 10 digits";
-    if (whatsappPhone && whatsappPhone.length < 10)
-      return "WhatsApp number must be 10 digits (or leave blank)";
-    if (!ownerPassword || ownerPassword.length < 6)
-      return "Owner password must be at least 6 characters";
-    return null;
-  };
-
-  const canCreate = useMemo(() => {
-    return (
-      displayName.trim() !== "" &&
-      slug.trim() !== "" &&
-      /^[a-z0-9-]+$/.test(slug) &&
-      ownerPhone.trim().length === 10 &&
-      (!whatsappPhone || whatsappPhone.length === 10) &&
-      ownerPassword.length >= 6 &&
-      slugStatus === "available"
-    );
-  }, [displayName, slug, ownerPhone, whatsappPhone, ownerPassword, slugStatus]);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    const v = validateCreateForm();
-    if (v) {
-      flashError(v);
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const tenant = await supabaseService.createTenantWithOwner({
-        displayName: displayName.trim(),
-        slug: slug.trim(),
-        ownerPhone: ownerPhone.trim(),
-        ownerName: ownerName.trim() || displayName.trim() + " Owner",
-        ownerPassword,
-        whatsappPhone: whatsappPhone.trim() || undefined,
-      });
-
-      credentialCache.set(tenant.slug, ownerPassword);
-      setIsCreateOpen(false);
-
-      setCredentialsModal({
-        displayName: tenant.displayName,
-        adminUrl: buildAdminUrl(tenant.slug),
-        customerUrl: buildTenantUrl(tenant.slug),
-        phone: ownerPhone.trim(),
-        password: ownerPassword,
-        generatedAt: new Date().toISOString(),
-        isNew: true,
-      });
-      setShowCredentialsPassword(true);
-      await loadAll();
-    } catch (err) {
-      flashError(err instanceof Error ? err.message : "Failed to create store");
-    } finally {
-      setIsCreating(false);
+        window.location.href.split("?")[0] + `${sep}_sign-up=1`;
     }
   };
 
@@ -696,7 +539,7 @@ const TenantManagerBody: React.FC = () => {
 
   const handleCopyCredentials = async (t: TenantRow) => {
     const owner = await supabaseService.getTenantOwner(t.slug);
-    if (!owner) return flashError('Owner not found');
+    if (!owner) return flashError("Owner not found");
 
     const newPassword = generateRandomPassword(10);
 
@@ -705,7 +548,7 @@ const TenantManagerBody: React.FC = () => {
       owner.phone,
       newPassword,
     );
-    if (!ok) return flashError('Failed to reset password');
+    if (!ok) return flashError("Failed to reset password");
 
     credentialCache.set(t.slug, newPassword);
 
@@ -877,13 +720,23 @@ const TenantManagerBody: React.FC = () => {
       <InlineSection
         title={`Stores (${tenants.length})`}
         actions={
-          <Button
-            size="sm"
-            leftIcon={<PlusIcon width={16} height={16} fill="#fff" />}
-            onClick={openCreateModal}
-          >
-            Add
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={loadAll}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              size="sm"
+              leftIcon={<PlusIcon width={16} height={16} fill="#fff" />}
+              onClick={openCreateModal}
+            >
+              Add
+            </Button>
+          </>
         }
       >
         {error && (
@@ -1266,137 +1119,6 @@ const TenantManagerBody: React.FC = () => {
           </div>
         )}
       </InlineSection>
-
-      {/* ============ Create store modal ============ */}
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={closeCreateModal}
-        title="Create new store"
-        mobileFullScreen
-        size="lg"
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              onClick={closeCreateModal}
-              disabled={isCreating}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="create-store-form"
-              loading={isCreating}
-              disabled={!canCreate}
-            >
-              Create store
-            </Button>
-          </>
-        }
-      >
-        <form id="create-store-form" onSubmit={handleCreate}>
-          <div className={local.formRow}>
-            <FormField label="Store name" required>
-              <Input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                autoFocus
-                required
-              />
-            </FormField>
-
-            <FormField
-              label="URL slug"
-              required
-              error={
-                slugStatus === "taken"
-                  ? "Domain already present, please change the slug"
-                  : undefined
-              }
-              hint={
-                slugStatus === "checking"
-                  ? "Checking availability..."
-                  : slugStatus === "available"
-                    ? "Yes! This slug is available"
-                    : undefined
-              }
-            >
-              <Input
-                value={slug}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  setSlug(
-                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                  );
-                }}
-                invalid={slugStatus === "taken"}
-                required
-              />
-            </FormField>
-          </div>
-
-          <div className={local.formRow}>
-            <FormField label="Owner name">
-              <Input
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-              />
-            </FormField>
-            <FormField label="Owner phone" required>
-              <Input
-                type="tel"
-                value={ownerPhone}
-                onChange={(e) =>
-                  setOwnerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
-                }
-                maxLength={10}
-                required
-              />
-            </FormField>
-          </div>
-
-          <div className={local.formRow}>
-            <FormField label="WhatsApp number">
-              <Input
-                type="tel"
-                value={whatsappPhone}
-                onChange={(e) =>
-                  setWhatsappPhone(
-                    e.target.value.replace(/\D/g, "").slice(0, 10),
-                  )
-                }
-                maxLength={10}
-              />
-            </FormField>
-            <FormField label="Owner password" required>
-              <div className={local.passwordRow}>
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={ownerPassword}
-                  onChange={(e) => setOwnerPassword(e.target.value)}
-                  minLength={6}
-                  required
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setOwnerPassword(generateRandomPassword())}
-                  aria-label="Generate password"
-                >
-                  🎲
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowPassword((s) => !s)}
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </Button>
-              </div>
-            </FormField>
-          </div>
-        </form>
-      </Modal>
 
       {/* ============ Credentials modal ============ */}
       <Modal

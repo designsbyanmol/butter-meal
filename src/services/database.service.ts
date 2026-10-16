@@ -742,6 +742,16 @@ async waitForConnectionCheck(): Promise<boolean> {
     }
   }
 
+  // In database.service.ts, add to the DatabaseService class:
+async getMenuVersion(tenantSlug: string): Promise<number | null> {
+  if (!this.useSupabase || this.isMaintenanceMode) return null;
+  try {
+    return await supabaseService.getMenuVersion(tenantSlug);
+  } catch {
+    return null;
+  }
+}
+
   async changeUserPassword(
     tenantSlug: string,
     id: string,

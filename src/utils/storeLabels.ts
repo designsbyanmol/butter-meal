@@ -25,14 +25,6 @@ const LABELS: Record<StoreCategory, StoreLabelSet> = {
     adminPanelTitle: 'Menu Items',
     searchPlaceholder: 'Search dishes, drinks, categories...',
   },
-  'grocery-daily': {
-    menu: 'Products',
-    item: 'Product',
-    items: 'Products',
-    addAction: 'Add',
-    adminPanelTitle: 'Grocery Products',
-    searchPlaceholder: 'Search groceries...',
-  },
   'fashion-lifestyle': {
     menu: 'Catalog',
     item: 'Product',

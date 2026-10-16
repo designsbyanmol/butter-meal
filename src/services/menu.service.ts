@@ -2,6 +2,64 @@
 import { MenuItem } from "../types";
 import { db } from "./database.service";
 
+/**
+ * localStorage cache key for a tenant's menu. The cache stores both
+ * the fetched items and the tenant's `menu_version` at the time of
+ * the fetch. On subsequent loads, comparing the cached version
+ * against the tenant's current `menu_version` tells us whether the
+ * cache is still valid — no menu fetch needed if it is.
+ */
+const CACHE_PREFIX = 'menu:cache:v2';
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days hard cap
+
+interface MenuCache {
+  version: number;
+  items: MenuItem[];
+  savedAt: number;
+}
+
+const cacheKey = (slug: string): string => `${CACHE_PREFIX}::${slug}`;
+
+function readCache(slug: string): MenuCache | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(slug));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MenuCache;
+    if (
+      !parsed ||
+      typeof parsed.version !== 'number' ||
+      !Array.isArray(parsed.items)
+    ) {
+      return null;
+    }
+    if (Date.now() - parsed.savedAt > CACHE_TTL_MS) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(slug: string, version: number, items: MenuItem[]): void {
+  try {
+    localStorage.setItem(
+      cacheKey(slug),
+      JSON.stringify({ version, items, savedAt: Date.now() }),
+    );
+  } catch {
+    /* quota / private mode — ignore */
+  }
+}
+
+function clearCache(slug: string): void {
+  try {
+    localStorage.removeItem(cacheKey(slug));
+  } catch {
+    /* ignore */
+  }
+}
+
 class MenuService {
   private menuItems: MenuItem[] = [];
   private listeners: ((items: MenuItem[]) => void)[] = [];
@@ -12,12 +70,28 @@ class MenuService {
 
   private tenantSlug: string | null = null;
 
+  /** Last version we've confirmed against the server for this slug. */
+  private knownVersion: number | null = null;
+
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private focusHandler: (() => void) | null = null;
   private visibilityHandler: (() => void) | null = null;
 
-  // Set which tenant this service is operating on.
-  // Clears cached state and refetches.
+  // =========================================================
+  // Tenant lifecycle
+  // =========================================================
+
+  /**
+   * Bind the service to a tenant.
+   *
+   * Behavior:
+   *  1. Seed from the local cache synchronously (if present) so the
+   *     menu renders without waiting on the network.
+   *  2. Kick off a background validation: fetch the tenant's current
+   *     `menu_version` and compare against the cached version.
+   *  3. If it matches, keep the cached items and stop.
+   *  4. If it differs (or the cache is empty), fetch the full menu.
+   */
   setTenant(slug: string): void {
     if (this.tenantSlug === slug) return;
 
@@ -26,78 +100,174 @@ class MenuService {
     this.isInitialized = false;
     this.isLoading = false;
     this.pendingReload = false;
-    this.initialFetchPromise = this.loadMenuItems(true).catch((err) => {
-      console.error("Menu Service initial load failed:", err);
-    });
+    this.knownVersion = null;
 
-    // Notify subscribers immediately with the empty list so the UI shows
-    // the skeleton instead of stale data from the previous tenant.
-    this.notifyListeners();
+    // ---- 1. Synchronous cache seed ----
+    const cached = readCache(slug);
+    if (cached) {
+      this.menuItems = cached.items;
+      this.knownVersion = cached.version;
+      this.isInitialized = true;
+      // Notify subscribers immediately with the cached list.
+      this.notifyListeners();
+    }
+
+    // ---- 2. Background validation ----
+    this.initialFetchPromise = this.validateAndMaybeLoad(cached).catch(
+      (err) => {
+        console.error('Menu Service initial load failed:', err);
+        if (!this.isInitialized) {
+          this.isInitialized = true;
+          this.notifyListeners();
+        }
+      },
+    );
   }
 
-  private async loadMenuItems(force = false): Promise<void> {
-  if (!this.tenantSlug) return;
-  if (this.isInitialized && !force) return;
+  /**
+   * Fetch the tenant's current `menu_version` and decide whether to
+   * keep the cached list or refetch the whole menu.
+   */
+  private async validateAndMaybeLoad(
+    cached: MenuCache | null,
+  ): Promise<void> {
+    if (!this.tenantSlug) return;
+    const slug = this.tenantSlug;
 
-  if (this.isLoading) {
-    this.pendingReload = true;
-    return;
-  }
+    // One small request: just the version number.
+    let freshVersion: number | null = null;
+    try {
+      freshVersion = await db.getMenuVersion(slug);
+    } catch (err) {
+      console.warn('menu.service: version check failed:', err);
+    }
 
-  const slug = this.tenantSlug;
-  this.isLoading = true;
-  const wasInitialized = this.isInitialized;
+    // Tenant changed while we were fetching — bail.
+    if (this.tenantSlug !== slug) return;
 
-  try {
-    const items = await db.getMenuItems(slug);
-
-    if (this.tenantSlug !== slug) {
-      this.isLoading = false;
+    // Couldn't reach the server: trust the cache if we have one.
+    if (freshVersion === null) {
+      if (this.isInitialized) {
+        this.notifyListeners();
+        return;
+      }
+      // No cache and no server — let the fallback path try a full load.
+      await this.loadMenuItems(true);
       return;
     }
 
-    const hadItems = this.menuItems.length > 0;
-    const gotEmpty = Array.isArray(items) && items.length === 0;
+    // ---- Cache hit: nothing changed ----
+    if (cached && cached.version === freshVersion) {
+      this.knownVersion = freshVersion;
+      this.isInitialized = true;
+      this.notifyListeners();
+      return;
+    }
 
-    // When not forcing, refuse to overwrite real data with an empty
-    // response. When forcing, trust the response (used after seeding).
-    if (hadItems && gotEmpty && !force) {
-      console.warn(
-        'menu.service: empty response - keeping previous',
-        this.menuItems.length,
-        'items.',
-      );
-      if (!wasInitialized) {
+    // ---- Cache miss or stale ----
+    await this.loadMenuItems(true, freshVersion);
+  }
+
+  // =========================================================
+  // Load
+  // =========================================================
+
+  /**
+   * Fetch the full menu.
+   *
+   * `expectedVersion` is optional. When provided (from the version
+   * check), we persist it against the fetched items. When omitted
+   * (manual refresh, mutation-triggered reload), we refetch the
+   * version after loading.
+   */
+  private async loadMenuItems(
+    force = false,
+    expectedVersion?: number,
+  ): Promise<void> {
+    if (!this.tenantSlug) return;
+    if (this.isInitialized && !force) return;
+
+    if (this.isLoading) {
+      this.pendingReload = true;
+      return;
+    }
+
+    const slug = this.tenantSlug;
+    this.isLoading = true;
+    const wasInitialized = this.isInitialized;
+
+    try {
+      const items = await db.getMenuItems(slug);
+
+      if (this.tenantSlug !== slug) {
+        this.isLoading = false;
+        return;
+      }
+
+      const hadItems = this.menuItems.length > 0;
+      const gotEmpty = Array.isArray(items) && items.length === 0;
+
+      // When not forcing, refuse to overwrite real data with an empty
+      // response. When forcing, trust the response (used after seeding).
+      if (hadItems && gotEmpty && !force) {
+        console.warn(
+          'menu.service: empty response - keeping previous',
+          this.menuItems.length,
+          'items.',
+        );
+        if (!wasInitialized) {
+          this.isInitialized = true;
+          this.notifyListeners();
+        }
+        return;
+      }
+
+      if (Array.isArray(items)) {
+        this.menuItems = items;
+        this.isInitialized = true;
+
+        // Persist the version against the fetched items so future
+        // loads can skip the fetch entirely.
+        let versionToStore = expectedVersion;
+        if (versionToStore === undefined) {
+          // We didn't have a fresh version to hand; read one now.
+          try {
+            const v = await db.getMenuVersion(slug);
+            if (typeof v === 'number') versionToStore = v;
+          } catch {
+            /* fall through */
+          }
+        }
+        if (typeof versionToStore === 'number') {
+          this.knownVersion = versionToStore;
+          writeCache(slug, versionToStore, items);
+        }
+
+        this.notifyListeners();
+      }
+    } catch (error) {
+      console.error('menu.service loadMenuItems failed:', error);
+      if (!this.isInitialized) {
         this.isInitialized = true;
         this.notifyListeners();
       }
-      return;
-    }
-
-    if (Array.isArray(items)) {
-      this.menuItems = items;
-      this.isInitialized = true;
-      this.notifyListeners();
-    }
-  } catch (error) {
-    console.error('menu.service loadMenuItems failed:', error);
-    if (!this.isInitialized) {
-      this.isInitialized = true;
-      this.notifyListeners();
-    }
-  } finally {
-    this.isLoading = false;
-    if (this.pendingReload) {
-      this.pendingReload = false;
-      this.loadMenuItems(true).catch(() => {});
+    } finally {
+      this.isLoading = false;
+      if (this.pendingReload) {
+        this.pendingReload = false;
+        this.loadMenuItems(true).catch(() => {});
+      }
     }
   }
-}
 
   private notifyListeners(): void {
     const snapshot = [...this.menuItems];
     this.listeners.forEach((l) => l(snapshot));
   }
+
+  // =========================================================
+  // Subscriptions
+  // =========================================================
 
   subscribe(listener: (items: MenuItem[]) => void): () => void {
     this.listeners.push(listener);
@@ -119,6 +289,15 @@ class MenuService {
     };
   }
 
+  // =========================================================
+  // Manual refresh / mutation reload
+  // =========================================================
+
+  /**
+   * Force a full refetch. Bypasses the version check because the
+   * caller has explicitly requested fresh data (e.g. after a menu
+   * mutation, or from a manual Refresh button).
+   */
   async refresh(): Promise<void> {
     this.isLoading = false;
     this.pendingReload = false;
@@ -136,18 +315,29 @@ class MenuService {
       if (Array.isArray(items)) {
         this.menuItems = items;
         this.isInitialized = true;
+
+        // Refresh the cached version too.
+        try {
+          const v = await db.getMenuVersion(slug);
+          if (typeof v === 'number') {
+            this.knownVersion = v;
+            writeCache(slug, v, items);
+          }
+        } catch {
+          /* ignore */
+        }
+
         this.notifyListeners();
       }
     } catch (e) {
-      console.error("reloadAuthoritative failed:", e);
+      console.error('reloadAuthoritative failed:', e);
     }
   }
 
-  /**
-   * No-op by default. Polling and focus/visibility refetches are disabled
-   * so the customer end makes no network calls while a tab is idle.
-   * Data is fetched on mount (via setTenant) or on manual refresh.
-   */
+  // =========================================================
+  // Sync (no-op by design)
+  // =========================================================
+
   startSync(_options: { pollMs?: number } = {}): () => void {
     return () => {
       /* no-op */
@@ -169,6 +359,10 @@ class MenuService {
     }
   }
 
+  // =========================================================
+  // Reads
+  // =========================================================
+
   async getVisibleItems(): Promise<MenuItem[]> {
     if (!this.isInitialized && this.initialFetchPromise) {
       await this.initialFetchPromise;
@@ -188,7 +382,7 @@ class MenuService {
   }
 
   // =========================================================
-  // WRITE METHODS - every mutation passes the tenant slug
+  // WRITE METHODS
   // =========================================================
 
   async addItem(newItem: Omit<MenuItem, "id">): Promise<MenuItem | null> {
@@ -247,12 +441,19 @@ class MenuService {
 
   async initializeItems(defaultItems: MenuItem[]): Promise<void> {
     if (!this.tenantSlug) return;
+
+    // If we already have a valid cache, skip the seed check entirely.
+    // The version check in setTenant has already confirmed the menu
+    // is up to date — there's nothing to initialize.
+    if (this.isInitialized && this.menuItems.length > 0) {
+      return;
+    }
+
     await db.initializeMenuItems(this.tenantSlug, defaultItems);
-    // Force a refetch so subscribers receive the freshly-seeded items.
     await this.loadMenuItems(true);
   }
 
-    /**
+  /**
    * Replace the entire menu for the current tenant with the given
    * sample items. Deletes every existing item first, then inserts the
    * samples. Returns the number of items inserted.
@@ -265,29 +466,37 @@ class MenuService {
 
     const slug = this.tenantSlug;
 
-    // 1. Snapshot the current ids so we don't rely on state that may
-    //    mutate while we're deleting.
     const existingIds = this.menuItems.map((it) => it.id);
 
-    // 2. Delete every current item.
     for (const id of existingIds) {
       const ok = await db.deleteMenuItem(slug, id);
       if (!ok) {
-        // A single failure shouldn't abort the whole wipe; log and continue.
         console.warn(`replaceWithSampleItems: failed to delete id=${id}`);
       }
     }
 
-    // 3. Insert the samples one by one. addItem assigns fresh ids.
     let inserted = 0;
     for (const item of defaultItems) {
       const created = await this.addItem(item);
       if (created) inserted += 1;
     }
 
-    // 4. Sync listeners.
     await this.reloadAuthoritative();
     return inserted;
+  }
+
+  // =========================================================
+  // Cache control
+  // =========================================================
+
+  /** Force-clear the cached menu for a tenant. */
+  clearTenantCache(slug?: string): void {
+    const target = slug ?? this.tenantSlug;
+    if (!target) return;
+    clearCache(target);
+    if (target === this.tenantSlug) {
+      this.knownVersion = null;
+    }
   }
 }
 

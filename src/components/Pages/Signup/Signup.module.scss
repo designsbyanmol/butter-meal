@@ -7,7 +7,7 @@
    ========================================================= */
 .page {
   background: $bg;
-  padding: $space-10 $space-6;
+  padding: $space-6 $space-6;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,41 +18,97 @@
 }
 
 /* =========================================================
-   PAGE HEADER
+   Page header — back-to-home + brand logo
    ========================================================= */
 .pageHeader {
   width: 100%;
   max-width: $container-xl;
   margin: 0 0 $space-8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
 
   @include tablet($bp-lg) {
     margin-bottom: $space-5;
   }
+
+  @include mobile {
+    margin-bottom: $space-4;
+  }
 }
 
-.pageTitle {
-  margin: 0 0 $space-2;
-  font-size: $font-size-3xl;
-  font-weight: $font-weight-extrabold;
+/* ---------- Back to home ---------- */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid $border;
+  border-radius: $radius-pill;
+  background: #fff;
   color: $text;
-  letter-spacing: $letter-spacing-tight;
-  line-height: $line-height-tight;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background $t-fast,
+    border-color $t-fast,
+    color $t-fast;
 
+  svg {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: $bg-subtle;
+    border-color: $border-strong;
+  }
+
+  &:active {
+    background: $bg-muted;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.25);
+    border-color: $primary;
+  }
+
+  /* On mobile, drop the text and shrink to a circular icon button. */
   @include mobile {
-    font-size: $font-size-2xl;
+    gap: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
   }
 }
 
-.pageSubtitle {
-  margin: 0;
-  font-size: $font-size-md;
-  color: $text-muted;
-  line-height: $line-height-normal;
+.backLinkText {
+  white-space: nowrap;
 
   @include mobile {
-    font-size: $font-size-base;
+    display: none;
   }
 }
+
+/* ---------- Brand logo ---------- */
+.headerLogo {
+  display: block;
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 120px;
+  }
+}
+
 
 /* =========================================================
    TWO-COLUMN SHELL
@@ -301,7 +357,6 @@
     color: $text;
     letter-spacing: -0.2px;
     line-height: $line-height-snug;
-    text-align: center;
   }
 
   p {
@@ -309,7 +364,6 @@
     font-size: $font-size-md;
     color: $text-muted;
     line-height: $line-height-normal;
-    text-align: center;
   }
 }
 
@@ -556,4 +610,74 @@
 }
 .summaryTax {
   color: $text-muted;
+}
+
+/* ========== Category description banner (signup details step) ========== */
+.categoryBanner {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-top: 10px;
+  border-radius: $radius-md;
+  background: $primary-tint;
+  border: 1px solid rgba($primary, 0.2);
+  animation: categoryFade 0.2s ease-out;
+}
+
+@keyframes categoryFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.categoryBannerIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  background: #fff;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.categoryBannerText {
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: $primary-dark;
+    margin-bottom: 2px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: $text-muted;
+  }
+}
+
+@include mobile {
+  .categoryBanner {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .categoryBannerIcon {
+    width: 36px;
+    height: 36px;
+  }
 }

@@ -1,0 +1,58 @@
+// components/Home/sections/Features.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.section {
+  background: #fff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+
+  @include tablet(900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @include mobile(600px) { grid-template-columns: 1fr; }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  transition: transform $t-fast, box-shadow $t-fast, border-color $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+    border-color: rgba($primary, 0.3);
+  }
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, $green-500, $green-700);
+  color: #fff;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 800;
+  color: $text;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: $text-muted;
+}

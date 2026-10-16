@@ -1,57 +1,31 @@
 // src/components/Payments/PlanCard.tsx
-import React from 'react';
-import { Plan, DurationMonths } from '../../types';
-import { computePlanPrice, formatRupees } from '../../utils/subscription';
-import { CheckIcon, CloseIcon } from '../../assets/svgs';
-import local from './PlanCard.module.scss';
+import React from "react";
+import { Plan, DurationMonths } from "../../types";
+import {
+  computePlanPrice,
+  formatRupees,
+  FIRST_MONTH_PRICE,
+} from "../../utils/subscription";
+import { CheckIcon, CloseIcon } from "../../assets/svgs";
+import { getPlanDefinition } from "../../data/plans";
+import local from "./PlanCard.module.scss";
 
 interface PlanCardProps {
   plan: Plan;
   months: DurationMonths;
   selected: boolean;
-  /** Render with the green "Popular" ribbon + green header band. */
   featured?: boolean;
-  /** Render with the blue header band (used for the "dynamic" tier). */
   blue?: boolean;
-  /** Optional small tag rendered top-left (e.g. "Current"). */
   cornerTag?: React.ReactNode;
   onSelect: () => void;
-  /** Optional footer CTA label override. Default is Selected / Select Plan. */
   ctaLabel?: (isSelected: boolean) => React.ReactNode;
+  /**
+   * When true, the card renders the promotional first-month layout:
+   * "₹1 for the first month, then ₹XX/month".
+   * Used by the signup flow, where every plan is a first purchase.
+   */
+  firstMonthMode?: boolean;
 }
-
-export const PLAN_BULLETS: Record<
-  string,
-  { included: string[]; excluded?: string[] }
-> = {
-  basic: {
-    included: [
-      'Menu display only',
-      'Editable menu items',
-      'Store & product info',
-    ],
-    excluded: ['No WhatsApp ordering', 'No reviews & ratings', 'No wishlist'],
-  },
-  dynamic: {
-    included: [
-      'Everything in Basic',
-      'WhatsApp ordering',
-      'Add-to-cart & cart flow',
-      'Custom message on items',
-      'Edit Fields & Store Manager',
-    ],
-    excluded: ['No reviews & ratings', 'No wishlist'],
-  },
-  professional: {
-    included: [
-      'Everything in Dynamic',
-      'Reviews & ratings',
-      'Wishlist for customers',
-      'User Management',
-      'Premium setup support',
-    ],
-  },
-};
 
 const PlanCard: React.FC<PlanCardProps> = ({
   plan,
@@ -62,30 +36,30 @@ const PlanCard: React.FC<PlanCardProps> = ({
   cornerTag,
   onSelect,
   ctaLabel,
+  firstMonthMode = false,
 }) => {
-  // Cards display the pre-tax price. Tax is only added in the summary
-  // at the bottom of the plan step / plan-change modal.
-  const breakdown = computePlanPrice(plan, months, 0);
-  const perMonth = Math.round(breakdown.finalAmount / breakdown.months);
-  const bullets = PLAN_BULLETS[plan.id];
-  const includedBullets = bullets?.included ?? [];
-  const excludedBullets = bullets?.excluded ?? [];
+  const def = getPlanDefinition(plan.id);
+
+  const breakdown = computePlanPrice(plan, months, 0, firstMonthMode);
+  const regularPerMonth = plan.monthlyPrice;
+  const billedTotal = breakdown.finalAmount;
+  const isFeatured = featured ?? def.featured;
 
   return (
     <div
       className={[
         local.pcard,
-        blue ? local.pcardDynamic : '',
-        featured ? local.pcardFeatured : '',
-        selected ? local.pcardSelected : '',
+        blue ? local.pcardDynamic : "",
+        isFeatured ? local.pcardFeatured : "",
+        selected ? local.pcardSelected : "",
       ]
         .filter(Boolean)
-        .join(' ')}
+        .join(" ")}
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect();
         }
@@ -93,53 +67,68 @@ const PlanCard: React.FC<PlanCardProps> = ({
     >
       {cornerTag}
 
-      {/* ---------- Header band ---------- */}
       <div
-        className={`${local.pcardHeader} ${
-          featured ? local.pcardHeaderFeatured : ''
-        }`}
-      >
-        <div className={local.pcardTitleRow}>
-          <span className={local.pcardName}>{plan.name}</span>
-          {featured && (
-            <span className={local.pcardPopularTag}>Popular</span>
-          )}
-        </div>
+  className={`${local.pcardHeader} ${
+    isFeatured ? local.pcardHeaderFeatured : ''
+  }`}
+>
+  <div className={local.pcardTitleRow}>
+    <span className={local.pcardName}>{plan.name}</span>
+    {isFeatured && (
+      <span className={local.pcardPopularTag}>Popular</span>
+    )}
+  </div>
 
-        <div className={local.pcardPrice}>
-          <span className={local.pcardPriceAmount}>
-            {formatRupees(perMonth)}
-          </span>
-          <span className={local.pcardPriceUnit}>/ month</span>
-        </div>
-
-        {months > 1 && (
-          <div className={local.pcardBilledYearly}>
-            Billed {formatRupees(breakdown.finalAmount)}{' '}
-            {months === 12 ? '/ year' : `/ ${months} months`}
-          </div>
-        )}
+  {firstMonthMode ? (
+    <>
+      <div className={local.pcardPrice}>
+        <span className={local.pcardPriceAmount}>
+          {formatRupees(FIRST_MONTH_PRICE)}
+        </span>
+        <span className={local.pcardPriceUnit}>first month</span>
       </div>
+      <div className={local.pcardBilledYearly}>
+        <span className={local.pcardPromoStrike}>
+          {formatRupees(regularPerMonth)}
+        </span>{' '} from month 2
+      </div>
+    </>
+  ) : (
+    <div className={local.pcardPrice}>
+      <span className={local.pcardPriceAmount}>
+        {formatRupees(regularPerMonth)}
+      </span>
+      <span className={local.pcardPriceUnit}>/ month</span>
+    </div>
+  )}
 
-      {/* ---------- Feature list ---------- */}
+  {months > 1 && (
+    <div className={local.pcardBilledYearly}>
+      Billed {formatRupees(billedTotal)}{' '}
+      {months === 12 ? '/ year' : `/ ${months} months`}
+      {firstMonthMode && ' (including the ₹1 first month)'}
+    </div>
+  )}
+</div>
+
       <ul className={local.pcardFeatures}>
-        {includedBullets.map((line) => (
+        {def.included.map((line) => (
           <li key={line} className={local.pcardFeature}>
             <span
               className={`${local.pcardFeatureIcon} ${
-                featured ? local.pcardFeatureIconFeatured : ''
+                isFeatured ? local.pcardFeatureIconFeatured : ""
               }`}
             >
               <CheckIcon
                 width={12}
                 height={12}
-                fill={featured ? '#ffffff' : '#3caa46'}
+                fill={isFeatured ? "#ffffff" : "#3caa46"}
               />
             </span>
             <span>{line}</span>
           </li>
         ))}
-        {excludedBullets.map((line) => (
+        {def.excluded?.map((line) => (
           <li
             key={line}
             className={`${local.pcardFeature} ${local.pcardFeatureOff}`}
@@ -152,18 +141,17 @@ const PlanCard: React.FC<PlanCardProps> = ({
         ))}
       </ul>
 
-      {/* ---------- Bottom CTA ---------- */}
       <div className={local.pcardCta}>
         <span
           className={`${local.pcardCtaLabel} ${
-            featured ? local.pcardCtaLabelFeatured : ''
+            isFeatured ? local.pcardCtaLabelFeatured : ""
           }`}
         >
           {ctaLabel
             ? ctaLabel(selected)
             : selected
-            ? 'Selected'
-            : 'Select Plan'}
+              ? "Selected"
+              : "Select Plan"}
         </span>
       </div>
     </div>

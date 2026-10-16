@@ -3,8 +3,12 @@ import React, { useMemo, useState } from 'react';
 import { MenuItem } from '../../types';
 import { DEFAULT_FORM_SCHEMA, normalizeOptions } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
+import { useWishlist } from '../../hooks/useWishlist';
+import { usePlan } from '../../hooks/usePlan';
 import { Input, IconButton, Chip, Button } from '../ui';
 import { FilterIcon, SearchIcon } from '../../assets/svgs';
+import WishlistIcon from '../../assets/svgs/WishlistIcon';
+import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
 import MenuFilterPopup from './MenuFilterPopup';
 import { MenuFilterState } from './menuFilters.types';
 import { getStoreLabels } from '../../utils/storeLabels';
@@ -14,17 +18,24 @@ interface MenuFiltersProps {
   items: MenuItem[];
   filters: MenuFilterState;
   onChange: (next: MenuFilterState) => void;
+  /** Opens the wishlist panel. Only wired when the plan allows wishlist. */
+  onOpenWishlist?: () => void;
 }
 
 const MenuFilters: React.FC<MenuFiltersProps> = ({
   items,
   filters,
   onChange,
+  onOpenWishlist,
 }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const { tenant } = useTenant();
+  const plan = usePlan();
+  const { count: wishlistCount } = useWishlist();
   const schema = tenant?.formSchema ?? DEFAULT_FORM_SCHEMA;
   const labels = getStoreLabels(tenant?.storeCategory);
+
+  const showWishlist = plan.canWishlist && !!onOpenWishlist;
 
   const categories = useMemo(() => {
     const catField = schema.fields.find((f) => f.key === 'category');
@@ -100,6 +111,29 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
         >
           Filters
         </Button>
+
+        {showWishlist && (
+          <div className={local.wishlistWrap}>
+            <IconButton
+              variant="soft"
+              size="md"
+              aria-label="Open wishlist"
+              tooltip="Wishlist"
+              onClick={onOpenWishlist}
+            >
+              {wishlistCount > 0 ? (
+                <WishlistFilledIcon width={20} height={20} fill="#e23744" />
+              ) : (
+                <WishlistIcon width={20} height={20} fill="#1e1e1e" />
+              )}
+            </IconButton>
+            {wishlistCount > 0 && (
+              <span className={local.wishlistBadge}>
+                {wishlistCount > 99 ? '99+' : wishlistCount}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {categories.length > 0 && (
@@ -127,24 +161,6 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
             </Chip>
           ))}
         </div>
-      )}
-
-      {hasAnyFilter && categories.length > 0 && (
-        <button
-          type="button"
-          className={local.clearAll}
-          onClick={() =>
-            onChange({
-              search: '',
-              category: null,
-              types: new Set(),
-              sort: 'default',
-              stock: 'all',
-            })
-          }
-        >
-          Clear all
-        </button>
       )}
 
       <MenuFilterPopup

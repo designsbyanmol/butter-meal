@@ -1,7 +1,7 @@
 // components/Pages/Signup/Steps/PlanStep.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Plan, DurationMonths, StoreCategory } from "../../../../types";
-import { computePlanPrice, formatRupees } from "../../../../utils/subscription";
+import { computePlanPrice, formatRupees, FIRST_MONTH_PRICE } from "../../../../utils/subscription";
 import { planService } from "../../../../services/plan.service";
 import { usePlatformTax } from "../../../../hooks/usePlatformTax";
 import { Button, Card, Skeleton, Banner } from "../../../ui";
@@ -73,12 +73,12 @@ const PlanStep: React.FC<PlanStepProps> = ({
   );
 
   const breakdown = useMemo(
-    () =>
-      selectedPlan
-        ? computePlanPrice(selectedPlan, months, taxPercent)
-        : null,
-    [selectedPlan, months, taxPercent],
-  );
+  () =>
+    selectedPlan
+      ? computePlanPrice(selectedPlan, months, taxPercent, true)
+      : null,
+  [selectedPlan, months, taxPercent],
+);
 
   const expiresAtIso = useMemo(() => {
     const d = new Date();
@@ -218,47 +218,72 @@ const PlanStep: React.FC<PlanStepProps> = ({
             <div className={local.planGrid}>
         {plans.map((plan) => (
           <PlanCard
-            key={plan.id}
-            plan={plan}
-            months={months}
-            selected={plan.id === selectedPlanId}
-            featured={plan.id === "professional"}
-            blue={plan.id === "dynamic"}
-            onSelect={() => {
-              setSelectedPlanId(plan.id);
-              resetInvoice();
-            }}
-          />
+  key={plan.id}
+  plan={plan}
+  months={months}
+  selected={plan.id === selectedPlanId}
+  featured={plan.id === 'professional'}
+  blue={plan.id === 'dynamic'}
+  firstMonthMode
+  onSelect={() => {
+    setSelectedPlanId(plan.id);
+    resetInvoice();
+  }}
+/>
         ))}
       </div>
 
       {selectedPlan && breakdown && (
-        <Card padding="md" className={local.summaryCard}>
-          <div className={local.summaryRow}>
-            <span>
-              {selectedPlan.name} x {breakdown.months} month
-              {breakdown.months > 1 ? "s" : ""}
-            </span>
-            <span>{formatRupees(breakdown.baseAmount)}</span>
-          </div>
-          {breakdown.discountAmount > 0 && (
-            <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
-              <span>Discount ({breakdown.discountPct}%)</span>
-              <span>- {formatRupees(breakdown.discountAmount)}</span>
-            </div>
-          )}
-          {breakdown.taxAmount > 0 && (
-            <div className={`${local.summaryRow} ${local.summaryTax}`}>
-              <span>GST ({breakdown.taxPercent}%)</span>
-              <span>+ {formatRupees(breakdown.taxAmount)}</span>
-            </div>
-          )}
-          <div className={`${local.summaryRow} ${local.summaryTotal}`}>
-            <span>Total payable</span>
-            <span>{formatRupees(breakdown.finalAmount)}</span>
-          </div>
-        </Card>
-      )}
+  <Card padding="md" className={local.summaryCard}>
+    <div className={local.summaryRow}>
+      <span>
+        {selectedPlan.name} × {breakdown.months} month
+        {breakdown.months > 1 ? 's' : ''}
+      </span>
+      <span>{formatRupees(breakdown.baseAmount)}</span>
+    </div>
+
+    {breakdown.isFirstMonth && breakdown.months === 1 && (
+      <div className={`${local.summaryRow} ${local.summaryPromo}`}>
+        <span>First-month offer</span>
+        <span>{formatRupees(FIRST_MONTH_PRICE)}</span>
+      </div>
+    )}
+
+    {breakdown.isFirstMonth && breakdown.months > 1 && (
+      <div className={`${local.summaryRow} ${local.summaryPromo}`}>
+        <span>First-month offer (month 1)</span>
+        <span>{formatRupees(FIRST_MONTH_PRICE)}</span>
+      </div>
+    )}
+
+    {breakdown.discountAmount > 0 && (
+      <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
+        <span>Duration discount ({breakdown.discountPct}%)</span>
+        <span>− {formatRupees(breakdown.discountAmount)}</span>
+      </div>
+    )}
+
+    {breakdown.taxAmount > 0 && (
+      <div className={`${local.summaryRow} ${local.summaryTax}`}>
+        <span>GST ({breakdown.taxPercent}%)</span>
+        <span>+ {formatRupees(breakdown.taxAmount)}</span>
+      </div>
+    )}
+
+    <div className={`${local.summaryRow} ${local.summaryTotal}`}>
+      <span>Total payable today</span>
+      <span>{formatRupees(breakdown.finalAmount)}</span>
+    </div>
+
+    {breakdown.isFirstMonth && (
+      <div className={local.summaryNote}>
+        Then {formatRupees(breakdown.regularMonthlyPrice)}/month
+        {' '}from month 2 onward.
+      </div>
+    )}
+  </Card>
+)}
 
       {error && (
         <Banner
