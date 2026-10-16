@@ -1,0 +1,4 @@
+DELETE FROM star_veg_dinein_events;
+DELETE FROM star_veg_dinein_orders;
+DELETE FROM star_veg_dinein_tables;
+DELETE FROM star_veg_dinein_order_counter;

@@ -1,0 +1,53 @@
+Open Supabase > Login > Go to Project > Select your project > Go to project Settings > Go to API Keys > Copy Publisher Key and Paste in your code's .env file as (VITE_SUPABASE_ANON_KEY) > Now Copy the
+
+Run in this exact order in Supabase SQL Editor:
+01_star_veg_users.sql
+02_star_veg_menu_items.sql
+03_star_veg_store_settings.sql
+04_validation_and_triggers.sql
+05_seed_admin.sql
+05a_Add sort.sql
+06_Delete_duplicate.sql - if duplicate items seen in menu list
+07_Verify Duplicate Removed - if duplicate
+08_rewrite update - optional if edits are not visible
+09_check_store_open_close - optional
+10_schedule store close.sql
+11_check admin - option
+12_Delete extra tables - optional
+
+SuperAdmin url: http://localhost:5173/?_smart-admin
+Phone: 8004608952
+Password: $5#$,,ADC123
+
+test card:
+4100 2800 0000 1007
+12/34
+123
+
+
+/// Plan
+
+Updates in the app
+Store offer banner is not getting uploaded
+Upload image during edit for menu item it not replacing the thumbnail image but if added to second image it is uploading
+Any input field which is 0 should be blank when clicked on it during adding an item or editing any item
+I changed quantity to 3 and clicked add to cart from menu detail but in cart it is showing 1 quantity only.
+The main admin tenant user should not show remove button but the users created by this tenant should show the remove button
+On reload on the signup process everything filled in the inputs and select and if the tenant creating account is on step 2 then after reload also he should be at the same step not going to step 1 and making all empty.
+In signup process also there should be month and year for plan select option like it has for the main smart admin. if toggle is at billed monthly then it should show badges like 1 month as default, 3 month with 10% off, 6 month with 15% off, 1 year as 20% off and 2 year as 25% off
+Improve the layout of the main admin for the store plan upgrade popup
+Every tenant admin should have a button to refetch the sample menu items
+Make two cards in the main admin dashboard one for reviews and another for stores. when clicked any card should open the modal and this will have everything of review or stores list
+For not authenticated users or anyone who has not entered it's name during place order and also for admin tenant should show an option alert to install this as an web app to your phone for quick actions.
+Downloaded credentials should be in PDF
+Also add two QRs (admin url and customer url)
+Aenant admin url is showing header correct but instead of menu listing and filter it should show feature cards with their links to the features they target according to the plan.
+After 10s of showing Your store is ready screen there should be a close icon at the top right on the page and on clicking this the tenant created should reach it's tenant admin url in this same page
+Add store button should also have the plan select option that work same as the change plan feature as already available in the store listing.
+For every new review on any tenant store item the tenant and main admin should be get notified but tenant could not remove it but main admin can. on tenant admin url dashboard there should be a card of reviews on clicking which should show a complete screen with close icon with all reviews listed in cards like in main admin's dashboard. each review card will have a button as raise dispute. when tenant admin clicks a confirmation and then if yes a pop message appears saying dispute raised! and after 2s popup closes and main admin gets one notification count on notification icon that should be there on each store in the dashboard where review overview is there storewise.
+Main admin when clicks open admin of any store should not ask to loggin and store should be loggedin automatically
+Only the stores which have selected professional plan should be listed in review overview list.
+Main Admin's Manage Stores should have filter pills of plans and stores count in that plan.
+Enable Disable Reviews Feature for professional plan tenant admins.
+Search feature in store listing of the main super admin's store listing modal
+There should be 10min plan toggle option along with month and year for basic,dynamic and professional for tenant during signup which is only for testing and every plan card could be enabled and disabled by main admin dashboard. In 10 min plan it is testing purpose so tenant admin should have a warning message on it's admin url dashboard saying a countdown saying "Only 7 minutes are left to renew else your store will be paused". Similar there should be for every plan's duration in months and years. Show this notice when 7 days are left to the plan expiry. If the plan expires then show the store is closed due to some maintainance work and this close is also pause in the main admin's store listed. tenant when again selects the plan or renews then only the store should open and tenant admin could perform anything according to the plan selected.
