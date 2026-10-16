@@ -833,6 +833,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       isOpen={true}
       onClose={onClose}
       title="Customize Item Form"
+      mobileFullScreen
       size="lg"
       footer={
         <>

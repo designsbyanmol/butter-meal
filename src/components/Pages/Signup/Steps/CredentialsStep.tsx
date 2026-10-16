@@ -146,7 +146,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
         >
           {busy === 'credentials'
-            ? 'Preparing PDF…'
+            ? 'Preparing PDF...'
             : 'Download credentials'}
         </Button>
 
@@ -157,7 +157,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           disabled={busy !== null && busy !== 'adminQr'}
           leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
         >
-          {busy === 'adminQr' ? 'Preparing…' : 'Admin QR (PDF)'}
+          {busy === 'adminQr' ? 'Preparing...' : 'Admin QR (PDF)'}
         </Button>
 
         <Button
@@ -167,7 +167,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           disabled={busy !== null && busy !== 'publicQr'}
           leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
         >
-          {busy === 'publicQr' ? 'Preparing…' : 'Public QR (PDF)'}
+          {busy === 'publicQr' ? 'Preparing...' : 'Public QR (PDF)'}
         </Button>
       </div>
 
@@ -183,7 +183,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           className={local.credActions}
           style={{ marginTop: 12, justifyContent: 'center' }}
         >
-          <Button onClick={onDone}>Done — I've saved these</Button>
+          <Button onClick={onDone}>Done - I've saved these</Button>
         </div>
       )}
     </div>

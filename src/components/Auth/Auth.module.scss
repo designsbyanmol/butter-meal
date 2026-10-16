@@ -1,46 +1,336 @@
 // components/Auth/Auth.module.scss
 @use '../../styles/tokens' as *;
 
-.modalTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+/* =========================================================
+   Login modal — matches the Dozzelo reference
+   ========================================================= */
+.loginWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 340px;
+  margin: auto;
+  gap: 0;                     // spacing is per-element below
+  padding: $space-8 $space-4;
+}
 
-  img {
-    display: block;
-    border-radius: 4px;
+.loginModal{
+
+  :global(header) {
+    border: none;
+    background: transparent;
   }
 }
-
-.subtitle {
-  margin: -4px 0 20px;
-  text-align: center;
-  color: $text-muted;
-  font-size: 12.5px;
-  line-height: 1.4;
+/* ---------- Brand ---------- */
+.brandBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: $space-8 0 0;
 }
 
+.brandLogo {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* ---------- Form ---------- */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  width: 100%;
+
+  .loginBtn {
+    width: 100%;
+    padding: $space-3;
+  }
 }
 
-/* Country code prefix inside the phone input's leftIcon slot */
-.countryCode {
-  padding: 0 10px 0 2px;
+/* Overrides on top of the Input component's own styles so the two
+   fields match the mock's slightly larger, softer look. */
+.fieldInput {
+  border-radius: $radius-sm !important;
+  border: 1px solid $border !important;
+  background: #fff !important;
+  
+  &::placeholder {
+    color: $gray-300 !important;
+    font-weight: 400;
+  }
+  &.fieldPhone {
+    margin-bottom: $space-4;
+  }
+}
+/* ---------- Password eye toggle ---------- */
+.eyeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  transition: background $t-fast;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.2);
+  }
+}
+
+/* ---------- Submit ---------- */
+.submitRow {
+  display: flex;
+  justify-content: center;
+  margin: $space-6 0 $space-3;
+}
+
+/* ---------- Contact-admin line ---------- */
+.contactLine {
+  margin: 0;
+  font-size: $font-size-md;
+  color: $text;
+  text-align: center;
+  font-weight: 400;
+  padding: 0 4px;
+}
+
+.contactLink {
+  display: inline;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: $text;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover {
+    color: $primary-dark;
+  }
+}
+
+/* =========================================================
+   Contact-admin modal (unchanged from previous message)
+   ========================================================= */
+.contactBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 4px 0 6px;
+}
+
+.emailImage {
+  max-width: 60px;
+}
+
+.contactLead {
+  margin: 0;
+  font-size: $font-size-md;
+  line-height: 1.55;
+  color: $text-muted;
+  max-width: 320px;
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  width: 100%;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.contactEmail {
+  font-family: $font-family-mono;
+  font-size: $font-size-md;
+  color: $text;
+  word-break: break-all;
+  min-width: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.contactMailBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: $radius-sm;
+  background: $primary;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background $t-fast;
+
+  &:hover {
+    background: $primary-dark;
+  }
+}
+
+.contactFootnote {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-faint;
+  max-width: 320px;
+}
+
+/* ---------- Store identity ---------- */
+.storeBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0 24px;
+  text-align: center;
+}
+
+.storeLabel {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: $text-faint;
+}
+
+.storeName {
+  font-size: $font-size-2xl;
+  font-weight: 600;
+  color: $text;
+  text-transform: capitalize;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+
+  /* Long store names wrap gracefully instead of overflowing. */
+  max-width: 100%;
+  word-break: break-word;
+
+  @media (max-width: 480px) {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   Welcome popup
+   ========================================================= */
+.welcomeOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;                        // above Modal ($z-modal = 1100)
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  animation: welcomeFadeIn 0.22s ease-out;
+}
+
+@keyframes welcomeFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.welcomeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 32px 28px 28px;
+  background: #fff;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-xl;
+  max-width: 380px;
+  width: 100%;
+  animation: welcomePop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes welcomePop {
+  from { transform: translateY(12px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+/* ---------- Progress ring ---------- */
+.welcomeRingWrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.welcomeRingSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Smooth the ring's shrink so it doesn't step at each 50ms tick. */
+  transition: stroke-dashoffset 0.05s linear;
+}
+
+.welcomeCheck {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: $primary-tint;
+}
+
+/* ---------- Copy ---------- */
+.welcomeTitle {
+  margin: 0;
+  font-size: 20px;
   font-weight: 700;
   color: $text;
-  font-size: 13px;
-  border-right: 1px solid $border;
-  margin-right: 6px;
-  line-height: 1;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
-.helpText {
-  margin: 16px 0 0;
-  text-align: center;
-  font-size: 11px;
+.welcomeSubtitle {
+  margin: 0;
+  font-size: 14px;
+  color: $text-muted;
+  line-height: 1.5;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.welcomeHint {
+  margin: 8px 0 0;
+  font-size: 12px;
   color: $text-faint;
-  line-height: 1.4;
+  letter-spacing: 0.2px;
 }

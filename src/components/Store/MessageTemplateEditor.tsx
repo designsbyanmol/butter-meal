@@ -182,6 +182,7 @@ const MessageTemplateEditor: React.FC<MessageTemplateEditorProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="WhatsApp Message Template"
+      mobileFullScreen
       size="xl"
       footer={footerContent}
     >

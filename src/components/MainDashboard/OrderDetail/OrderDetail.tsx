@@ -15,6 +15,7 @@ import { formatRupees } from "../../../utils/subscription";
 import { printReceiptNode } from "../../../utils/printReceipt";
 import Receipt from "./Receipt";
 import local from "./OrderDetail.module.scss";
+import { CheckIcon } from "../../../assets/svgs";
 
 interface OrderDetailProps {
   isOpen: boolean;
@@ -108,22 +109,24 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
 
   // ---------- Staff-side Mark Paid / Pay Online ----------
   const handleStaffMarkPaid = async () => {
-  setBusy(true);
-  setError('');
-  try {
-    const updated = await supabaseService.confirmDineinPayment(
-      orderState.id,
-      'online',
-    );
-    if (!updated) throw new Error('Failed to confirm payment');
-    setOrderState(updated);
-    onRefresh?.();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Failed to confirm payment');
-  } finally {
-    setBusy(false);
-  }
-};
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await supabaseService.confirmDineinPayment(
+        orderState.id,
+        "online",
+      );
+      if (!updated) throw new Error("Failed to confirm payment");
+      setOrderState(updated);
+      onRefresh?.();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to confirm payment",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // ---------- Send Pay Link ----------
   const handleSendPayLink = async () => {
@@ -165,7 +168,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       return;
     }
     setOrderState(updated);
-    // No onRefresh here — this is a fine-grained change that only
+    // No onRefresh here - this is a fine-grained change that only
     // affects this modal's item list. The parent will pick it up on
     // its next poll or on close.
   };
@@ -298,8 +301,9 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
     <>
       <Modal
         isOpen={isOpen}
+        mobileFullScreen
         onClose={onClose}
-        title={`Order — ${tableHeading}`}
+        title={`Order - ${tableHeading}`}
         size="md"
         footer={
           <>
@@ -324,22 +328,30 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
             )}
 
             {payLinkIdle && (
-  <Button variant="primary" onClick={handleSendPayLink} loading={busy}>
-    Send Pay Link
-  </Button>
-)}
+              <Button
+                variant="primary"
+                onClick={handleSendPayLink}
+                loading={busy}
+              >
+                Send Pay Link
+              </Button>
+            )}
 
-{payLinkActive && !orderState.customerPaidClaimed && (
-  <Button variant="ghost" disabled>
-    Waiting for customer…
-  </Button>
-)}
+            {payLinkActive && !orderState.customerPaidClaimed && (
+              <Button variant="ghost" disabled>
+                Waiting for customer...
+              </Button>
+            )}
 
-{payLinkActive && orderState.customerPaidClaimed && (
-  <Button variant="success" onClick={handleStaffMarkPaid} loading={busy}>
-    Confirm Payment
-  </Button>
-)}
+            {payLinkActive && orderState.customerPaidClaimed && (
+              <Button
+                variant="success"
+                onClick={handleStaffMarkPaid}
+                loading={busy}
+              >
+                Confirm Payment
+              </Button>
+            )}
           </>
         }
       >
@@ -380,12 +392,23 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
           )}
 
           {isBillRequested && (
-            <Badge tone={orderState.payOnline ? "info" : "warning"} size="sm">
-              {orderState.payOnline
-                ? "Online payment pending"
-                : "Offline bill requested"}
-            </Badge>
-          )}
+  <Badge
+    tone={
+      orderState.payOnline || orderState.payOnlineRequested
+        ? 'info'
+        : 'warning'
+    }
+    size="sm"
+  >
+    {orderState.payOnline && orderState.customerPaidClaimed
+      ? 'Customer says paid — verify'
+      : orderState.payOnline
+        ? 'Online payment pending'
+        : orderState.payOnlineRequested
+          ? 'Online bill requested'
+          : 'Offline bill requested'}
+  </Badge>
+)}
         </div>
 
         <div className={local.metaBlock}>
@@ -419,15 +442,15 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
             {orderState.items.map((it, i) => (
               <div key={i} className={local.itemRow}>
                 <span
-      className={
-        it.served
-          ? local.checkmarkStatic
-          : local.checkmarkStaticEmpty
-      }
-      aria-hidden
-    >
-      ✓
-    </span>
+                  className={
+                    it.served
+                      ? local.checkmarkStatic
+                      : local.checkmarkStaticEmpty
+                  }
+                  aria-hidden
+                >
+                  <CheckIcon width={14} height={14} fill="#1e7e34" />
+                </span>
                 <span className={local.itemRowMain}>
                   <span className={local.itemRowName}>
                     {it.name} x {it.quantity}
@@ -446,7 +469,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
                         <span className={local.itemCustom}>
                           {Object.entries(it.customizations)
                             .map(([k, v]) => `${k}: ${v}`)
-                            .join(" · ")}
+                            .join(" . ")}
                         </span>
                       )}
                     {it.customMessage && it.customMessage.trim() && (
@@ -515,6 +538,15 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
             </div>
           )}
 
+          {(orderState.staffTip ?? 0) > 0 && (
+  <div className={`${local.summaryRow} ${local.summaryTip}`}>
+    <span className={local.summaryLabel}>Staff tip</span>
+    <span className={local.summaryValue}>
+      {formatRupees(orderState.staffTip ?? 0)}
+    </span>
+  </div>
+)}
+
           <div className={`${local.summaryRow} ${local.summaryTotal}`}>
             <span className={local.summaryLabel}>Total</span>
             <span className={local.summaryValue}>
@@ -539,7 +571,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
           )}
         </div>
 
-        {/* Hidden printable receipt — kept in the DOM so Generate Bill
+        {/* Hidden printable receipt - kept in the DOM so Generate Bill
             can render it into a new print window. */}
         <div className={local.hiddenReceipt} aria-hidden>
           <div ref={receiptRef}>

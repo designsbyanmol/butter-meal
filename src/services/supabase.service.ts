@@ -39,6 +39,72 @@ export const invalidateTenantsCache = () => {
   tenantsCache = null;
 };
 
+// =========================================================
+// Dine-in cleared-before cursor cache
+//
+// getDineinEventsSince / getDineinEvents both read the tenant's
+// `dinein_events_cleared_before` column on every call. That's one
+// extra SELECT per poll per open drawer. The cursor only changes
+// when the tenant admin taps "Clear all", which also calls
+// `invalidateDineinCursorCache(tenantSlug)` - so a 60s TTL is
+// safe and cuts a full round-trip out of the hot path.
+// =========================================================
+const dineinCursorCache = new Map<
+  string,
+  { value: string | null; at: number }
+>();
+const DINEIN_CURSOR_TTL_MS = 60_000;
+
+function getCachedDineinCursor(tenantSlug: string): {
+  hit: boolean;
+  value: string | null;
+} {
+  const entry = dineinCursorCache.get(tenantSlug);
+  if (!entry) return { hit: false, value: null };
+  if (Date.now() - entry.at > DINEIN_CURSOR_TTL_MS) {
+    dineinCursorCache.delete(tenantSlug);
+    return { hit: false, value: null };
+  }
+  return { hit: true, value: entry.value };
+}
+
+function setCachedDineinCursor(tenantSlug: string, value: string | null) {
+  dineinCursorCache.set(tenantSlug, { value, at: Date.now() });
+}
+
+/** Call after clearDineinEvents so the next poll sees the new cursor. */
+export const invalidateDineinCursorCache = (tenantSlug: string) => {
+  dineinCursorCache.delete(tenantSlug);
+};
+
+// =========================================================
+// Dispute cleared-before cursor caches
+//
+// getDisputesWithReviews / getResolvedDisputesForTenant read
+// the cursor column on every poll. 60s TTL is safe because the
+// only writers are clearPlatformDisputes / clearTenantDisputes,
+// which both invalidate this cache explicitly.
+// =========================================================
+let platformDisputesCursorCache: {
+  value: string | null;
+  at: number;
+} | null = null;
+
+const tenantDisputesCursorCache = new Map<
+  string,
+  { value: string | null; at: number }
+>();
+
+const DISPUTES_CURSOR_TTL_MS = 60_000;
+
+export const invalidatePlatformDisputesCursor = () => {
+  platformDisputesCursorCache = null;
+};
+
+export const invalidateTenantDisputesCursor = (tenantSlug: string) => {
+  tenantDisputesCursorCache.delete(tenantSlug);
+};
+
 /**
  * Normalizes a raw `customization_options` value from Supabase into
  * the canonical `CustomizationOption[]` shape. Handles both:
@@ -758,36 +824,48 @@ class SupabaseService {
   }
 
   async getAllTenants(): Promise<Tenant[]> {
-  const client = this.getClient();
-  if (!client) return [];
+    // Serve from the 30s cache when fresh. Three admin screens call
+    // this on mount; without the cache that's three identical full-
+    // table SELECTs within a few seconds.
+    if (tenantsCache && Date.now() - tenantsCache.at < TENANTS_CACHE_MS) {
+      return tenantsCache.data;
+    }
 
-  const { data, error } = await client
-    .from('star_veg_tenants')
-    .select(
-      'id, slug, display_name, is_active, whatsapp_phone, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, created_at, store_category',
-    )
-    .order('created_at', { ascending: true });
+    const client = this.getClient();
+    if (!client) return [];
 
-  if (error) {
-    console.error('getAllTenants error:', error);
-    return [];
+    const { data, error } = await client
+      .from("star_veg_tenants")
+      .select(
+        "id, slug, display_name, is_active, whatsapp_phone, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, created_at, store_category",
+      )
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("getAllTenants error:", error);
+      // Fall back to the last-known-good snapshot if we have one.
+      return tenantsCache?.data ?? [];
+    }
+
+    const mapped: Tenant[] = (data || []).map((row: any) => ({
+      id: row.id,
+      slug: row.slug,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url || undefined,
+      whatsappPhone: row.whatsapp_phone || undefined,
+      isActive: row.is_active,
+      reviewsEnabled: row.reviews_enabled !== false,
+      planId: row.plan_id ?? "professional",
+      subscriptionStatus: row.subscription_status ?? "active",
+      subscriptionStartedAt: row.subscription_started_at ?? undefined,
+      subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
+      createdAt: row.created_at,
+      storeCategory: (row.store_category ?? "food-beverage") as any,
+    }));
+
+    tenantsCache = { data: mapped, at: Date.now() };
+    return mapped;
   }
-
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    slug: row.slug,
-    displayName: row.display_name,
-    whatsappPhone: row.whatsapp_phone || undefined,
-    isActive: row.is_active,
-    reviewsEnabled: row.reviews_enabled !== false,
-    planId: row.plan_id ?? 'professional',
-    subscriptionStatus: row.subscription_status ?? 'active',
-    subscriptionStartedAt: row.subscription_started_at ?? undefined,
-    subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
-    createdAt: row.created_at,
-    storeCategory: (row.store_category ?? 'food-beverage') as any,
-  }));
-}
 
   /**
    * Returns the tenants whose plan allows reviews (currently
@@ -1052,364 +1130,385 @@ class SupabaseService {
    * Rich dispute list for the platform-admin dashboard.
    */
   async getDisputesWithReviews(opts: {
-  status?: 'pending' | 'resolved' | 'rejected' | 'all';
-  tenantSlug?: string;
-} = {}): Promise<
-  Array<{
-    disputeId: string;
-    reviewId: string;
-    tenantSlug: string;
-    tenantName: string;
-    raisedBy: string;
-    reason: string;
-    status: string;
-    createdAt: string;
-    resolvedAt?: string;
-    resolvedBy?: string;
-    platformSeenAt?: string;
-    review: {
-      itemId: number;
-      itemName: string;
-      itemCategory: string;
-      rating: number;
-      comment: string;
-      customerName: string;
+    status?: "pending" | "resolved" | "rejected" | "all";
+    tenantSlug?: string;
+  } = {}): Promise<
+    Array<{
+      disputeId: string;
+      reviewId: string;
+      tenantSlug: string;
+      tenantName: string;
+      raisedBy: string;
+      reason: string;
+      status: string;
       createdAt: string;
-    } | null;
-  }>
-> {
-  const client = this.getClient();
-  if (!client) return [];
+      resolvedAt?: string;
+      resolvedBy?: string;
+      platformSeenAt?: string;
+      review: {
+        itemId: number;
+        itemName: string;
+        itemCategory: string;
+        rating: number;
+        comment: string;
+        customerName: string;
+        createdAt: string;
+      } | null;
+    }>
+  > {
+    const client = this.getClient();
+    if (!client) return [];
 
-  const status = opts.status ?? 'pending';
+    const status = opts.status ?? "pending";
 
-  // Read the platform-wide cleared-before cursor from the 'main'
-  // tenant row. Anything older than this is hidden from the bell.
-  let clearedBefore: string | null = null;
-  try {
-    const { data } = await client
-      .from('star_veg_tenants')
-      .select('platform_disputes_cleared_before')
-      .eq('slug', 'main')
-      .maybeSingle();
-    clearedBefore = data?.platform_disputes_cleared_before ?? null;
-  } catch {
-    /* ignore — treat as no cursor */
-  }
-
-  let q = client
-    .from('star_veg_review_disputes')
-    .select(
-      'id, review_id, tenant_slug, raised_by, reason, status, created_at, resolved_at, resolved_by, platform_seen_at',
-    )
-    .order('created_at', { ascending: false });
-
-  if (clearedBefore) q = q.gt('created_at', clearedBefore);
-  if (status !== 'all') q = q.eq('status', status);
-  if (opts.tenantSlug) q = q.eq('tenant_slug', opts.tenantSlug);
-
-  const { data: disputeRows, error } = await q;
-  if (error) {
-    console.error('getDisputesWithReviews error:', error);
-    return [];
-  }
-  if (!disputeRows || disputeRows.length === 0) return [];
-
-  const tenantSlugs = Array.from(
-    new Set(disputeRows.map((d: any) => d.tenant_slug)),
-  );
-
-  const reviewIds = Array.from(
-    new Set(
-      disputeRows
-        .map((d: any) => d.review_id)
-        .filter(
-          (id: unknown): id is string =>
-            typeof id === 'string' && id.length > 0,
-        ),
-    ),
-  );
-
-  let reviewRows: any[] | null = null;
-  if (reviewIds.length > 0) {
-    const { data, error: rErr } = await client
-      .from('star_veg_reviews')
-      .select('id, item_id, rating, comment, customer_name, created_at')
-      .in('id', reviewIds);
-    if (rErr) {
-      console.warn('getDisputesWithReviews review join failed:', rErr);
+    // Read the platform-wide cleared-before cursor from the 'main'
+    // tenant row, using a 60s cache.
+    let clearedBefore: string | null;
+    if (
+      platformDisputesCursorCache &&
+      Date.now() - platformDisputesCursorCache.at < DISPUTES_CURSOR_TTL_MS
+    ) {
+      clearedBefore = platformDisputesCursorCache.value;
     } else {
-      reviewRows = data ?? null;
+      clearedBefore = null;
+      try {
+        const { data } = await client
+          .from("star_veg_tenants")
+          .select("platform_disputes_cleared_before")
+          .eq("slug", "main")
+          .maybeSingle();
+        clearedBefore = data?.platform_disputes_cleared_before ?? null;
+        platformDisputesCursorCache = { value: clearedBefore, at: Date.now() };
+      } catch {
+        /* ignore - treat as no cursor */
+      }
     }
-  }
 
-  // Fetch item names/categories.
-  const itemIds = Array.from(
-    new Set((reviewRows || []).map((r: any) => r.item_id)),
-  );
-  const itemMap: Record<number, { name: string; category: string }> = {};
-  if (itemIds.length > 0) {
-    const { data: items } = await client
-      .from('star_veg_menu_items')
-      .select('id, name, category')
-      .in('id', itemIds);
-    (items || []).forEach((it: any) => {
-      itemMap[it.id] = { name: it.name, category: it.category ?? '' };
-    });
-  }
+    let q = client
+      .from("star_veg_review_disputes")
+      .select(
+        "id, review_id, tenant_slug, raised_by, reason, status, created_at, resolved_at, resolved_by, platform_seen_at",
+      )
+      .order("created_at", { ascending: false });
 
-  // Fetch tenant display names.
-  const tenantNameMap: Record<string, string> = {};
-  if (tenantSlugs.length > 0) {
-    const { data: tenants } = await client
-      .from('star_veg_tenants')
-      .select('slug, display_name')
-      .in('slug', tenantSlugs);
-    (tenants || []).forEach((t: any) => {
-      tenantNameMap[t.slug] = t.display_name ?? t.slug;
-    });
-  }
+    if (clearedBefore) q = q.gt("created_at", clearedBefore);
+    if (status !== "all") q = q.eq("status", status);
+    if (opts.tenantSlug) q = q.eq("tenant_slug", opts.tenantSlug);
 
-  const reviewMap: Record<string, any> = {};
-  (reviewRows || []).forEach((r: any) => {
-    reviewMap[r.id] = r;
-  });
+    const { data: disputeRows, error } = await q;
+    if (error) {
+      console.error("getDisputesWithReviews error:", error);
+      return [];
+    }
+    if (!disputeRows || disputeRows.length === 0) return [];
 
-  return disputeRows.map((d: any) => {
-    const r = reviewMap[d.review_id];
-    const item = r ? itemMap[r.item_id] : undefined;
-    return {
-      disputeId: d.id,
-      reviewId: d.review_id,
-      tenantSlug: d.tenant_slug,
-      tenantName: tenantNameMap[d.tenant_slug] ?? d.tenant_slug,
-      raisedBy: d.raised_by ?? '',
-      reason: d.reason ?? '',
-      status: d.status,
-      createdAt: d.created_at,
-      resolvedAt: d.resolved_at ?? undefined,
-      resolvedBy: d.resolved_by ?? undefined,
-      platformSeenAt: d.platform_seen_at ?? undefined,
-      review: r
-        ? {
-            itemId: r.item_id,
-            itemName: item?.name ?? `Item #${r.item_id}`,
-            itemCategory: item?.category ?? '',
-            rating: Number(r.rating) || 0,
-            comment: r.comment ?? '',
-            customerName: r.customer_name ?? '',
-            createdAt: r.created_at,
-          }
-        : null,
-    };
-  });
-}
-
- /**
- * Returns resolved + rejected disputes for one tenant. Used by the
- * tenant-admin notifications bell.
- *
- * `outcome` is derived here so the UI can render a single label:
- *   - 'deleted'  → the review was removed by the platform admin
- *   - 'rejected' → the dispute was rejected but the review survives
- *
- * Respects the tenant's cleared-before cursor: rows whose resolution
- * predates the last Clear-all on that tenant's bell are hidden.
- */
-async getResolvedDisputesForTenant(tenantSlug: string): Promise<
-  Array<{
-    disputeId: string;
-    reviewId: string;
-    status: 'resolved' | 'rejected';
-    outcome: 'deleted' | 'rejected';
-    reason: string;
-    createdAt: string;
-    resolvedAt?: string;
-    resolvedBy?: string;
-    tenantSeenAt?: string;
-    review: {
-      itemName: string;
-      rating: number;
-      comment: string;
-    } | null;
-  }>
-> {
-  const client = this.getClient();
-  if (!client) return [];
-
-  // Read the tenant's cleared-before cursor.
-  let clearedBefore: string | null = null;
-  try {
-    const { data } = await client
-      .from('star_veg_tenants')
-      .select('tenant_disputes_cleared_before')
-      .eq('slug', tenantSlug)
-      .maybeSingle();
-    clearedBefore = data?.tenant_disputes_cleared_before ?? null;
-  } catch {
-    /* ignore */
-  }
-
-  let q = client
-    .from('star_veg_review_disputes')
-    .select(
-      'id, review_id, status, reason, created_at, resolved_at, resolved_by, item_id, item_name, item_rating, review_comment, review_created_at, tenant_seen_at',
-    )
-    .eq('tenant_slug', tenantSlug)
-    .in('status', ['resolved', 'rejected'])
-    .order('resolved_at', { ascending: false, nullsFirst: false });
-
-  if (clearedBefore) {
-    // Use resolved_at when present; fall back to created_at for
-    // legacy rows that were resolved before the column was added.
-    q = q.or(
-      `resolved_at.gt.${clearedBefore},and(resolved_at.is.null,created_at.gt.${clearedBefore})`,
+    const tenantSlugs = Array.from(
+      new Set(disputeRows.map((d: any) => d.tenant_slug)),
     );
-  }
 
-  const { data: rows, error } = await q;
-  if (error) {
-    console.error('getResolvedDisputesForTenant error:', error);
-    return [];
-  }
-  if (!rows || rows.length === 0) return [];
+    const reviewIds = Array.from(
+      new Set(
+        disputeRows
+          .map((d: any) => d.review_id)
+          .filter(
+            (id: unknown): id is string =>
+              typeof id === "string" && id.length > 0,
+          ),
+      ),
+    );
 
-  // Skip nulls — FK is ON DELETE SET NULL, and PostgREST rejects
-  // `id=in.(null,...)` with a 400.
-  const reviewIds = Array.from(
-    new Set(
-      rows
-        .map((r: any) => r.review_id)
-        .filter(
-          (id: unknown): id is string =>
-            typeof id === 'string' && id.length > 0,
-        ),
-    ),
-  );
+    let reviewRows: any[] | null = null;
+    if (reviewIds.length > 0) {
+      const { data, error: rErr } = await client
+        .from("star_veg_reviews")
+        .select("id, item_id, rating, comment, customer_name, created_at")
+        .in("id", reviewIds);
+      if (rErr) {
+        console.warn("getDisputesWithReviews review join failed:", rErr);
+      } else {
+        reviewRows = data ?? null;
+      }
+    }
 
-  let reviews: any[] | null = null;
-  if (reviewIds.length > 0) {
-    const { data } = await client
-      .from('star_veg_reviews')
-      .select('id, item_id, rating, comment')
-      .in('id', reviewIds);
-    reviews = data ?? null;
-  }
+    // Fetch item names/categories.
+    const itemIds = Array.from(
+      new Set((reviewRows || []).map((r: any) => r.item_id)),
+    );
+    const itemMap: Record<number, { name: string; category: string }> = {};
+    if (itemIds.length > 0) {
+      const { data: items } = await client
+        .from("star_veg_menu_items")
+        .select("id, name, category")
+        .in("id", itemIds);
+      (items || []).forEach((it: any) => {
+        itemMap[it.id] = { name: it.name, category: it.category ?? "" };
+      });
+    }
 
-  const itemIds = Array.from(
-    new Set(
-      (reviews || [])
-        .map((r: any) => r.item_id)
-        .filter((id: unknown): id is number => typeof id === 'number'),
-    ),
-  );
-  const itemMap: Record<number, string> = {};
-  if (itemIds.length > 0) {
-    const { data: items } = await client
-      .from('star_veg_menu_items')
-      .select('id, name')
-      .in('id', itemIds);
-    (items || []).forEach((it: any) => {
-      itemMap[it.id] = it.name;
+    // Fetch tenant display names.
+    const tenantNameMap: Record<string, string> = {};
+    if (tenantSlugs.length > 0) {
+      const { data: tenants } = await client
+        .from("star_veg_tenants")
+        .select("slug, display_name")
+        .in("slug", tenantSlugs);
+      (tenants || []).forEach((t: any) => {
+        tenantNameMap[t.slug] = t.display_name ?? t.slug;
+      });
+    }
+
+    const reviewMap: Record<string, any> = {};
+    (reviewRows || []).forEach((r: any) => {
+      reviewMap[r.id] = r;
+    });
+
+    return disputeRows.map((d: any) => {
+      const r = reviewMap[d.review_id];
+      const item = r ? itemMap[r.item_id] : undefined;
+      return {
+        disputeId: d.id,
+        reviewId: d.review_id,
+        tenantSlug: d.tenant_slug,
+        tenantName: tenantNameMap[d.tenant_slug] ?? d.tenant_slug,
+        raisedBy: d.raised_by ?? "",
+        reason: d.reason ?? "",
+        status: d.status,
+        createdAt: d.created_at,
+        resolvedAt: d.resolved_at ?? undefined,
+        resolvedBy: d.resolved_by ?? undefined,
+        platformSeenAt: d.platform_seen_at ?? undefined,
+        review: r
+          ? {
+              itemId: r.item_id,
+              itemName: item?.name ?? `Item #${r.item_id}`,
+              itemCategory: item?.category ?? "",
+              rating: Number(r.rating) || 0,
+              comment: r.comment ?? "",
+              customerName: r.customer_name ?? "",
+              createdAt: r.created_at,
+            }
+          : null,
+      };
     });
   }
 
-  const reviewMap: Record<string, any> = {};
-  (reviews || []).forEach((r: any) => {
-    reviewMap[r.id] = r;
-  });
+  /**
+   * Returns resolved + rejected disputes for one tenant. Used by the
+   * tenant-admin notifications bell.
+   *
+   * `outcome` is derived here so the UI can render a single label:
+   *   - 'deleted'  → the review was removed by the platform admin
+   *   - 'rejected' → the dispute was rejected but the review survives
+   *
+   * Respects the tenant's cleared-before cursor: rows whose resolution
+   * predates the last Clear-all on that tenant's bell are hidden.
+   */
+  async getResolvedDisputesForTenant(tenantSlug: string): Promise<
+    Array<{
+      disputeId: string;
+      reviewId: string;
+      status: "resolved" | "rejected";
+      outcome: "deleted" | "rejected";
+      reason: string;
+      createdAt: string;
+      resolvedAt?: string;
+      resolvedBy?: string;
+      tenantSeenAt?: string;
+      review: {
+        itemName: string;
+        rating: number;
+        comment: string;
+      } | null;
+    }>
+  > {
+    const client = this.getClient();
+    if (!client) return [];
 
-  return rows.map((d: any) => {
-    const r = reviewMap[d.review_id];
-    const status: 'resolved' | 'rejected' =
-      d.status === 'rejected' ? 'rejected' : 'resolved';
+    // Read the tenant's cleared-before cursor, using the 60s cache.
+    let clearedBefore: string | null;
+    const cached = tenantDisputesCursorCache.get(tenantSlug);
+    if (cached && Date.now() - cached.at < DISPUTES_CURSOR_TTL_MS) {
+      clearedBefore = cached.value;
+    } else {
+      clearedBefore = null;
+      try {
+        const { data } = await client
+          .from("star_veg_tenants")
+          .select("tenant_disputes_cleared_before")
+          .eq("slug", tenantSlug)
+          .maybeSingle();
+        clearedBefore = data?.tenant_disputes_cleared_before ?? null;
+        tenantDisputesCursorCache.set(tenantSlug, {
+          value: clearedBefore,
+          at: Date.now(),
+        });
+      } catch {
+        /* ignore */
+      }
+    }
 
-    const outcome: 'deleted' | 'rejected' =
-      status === 'rejected' || r ? 'rejected' : 'deleted';
+    let q = client
+      .from("star_veg_review_disputes")
+      .select(
+        "id, review_id, status, reason, created_at, resolved_at, resolved_by, item_id, item_name, item_rating, review_comment, review_created_at, tenant_seen_at",
+      )
+      .eq("tenant_slug", tenantSlug)
+      .in("status", ["resolved", "rejected"])
+      .order("resolved_at", { ascending: false, nullsFirst: false });
 
-    // Prefer the live review; fall back to the snapshot for deleted ones.
-    const review = r
-      ? {
-          itemName: itemMap[r.item_id] ?? `Item #${r.item_id}`,
-          rating: Number(r.rating) || 0,
-          comment: r.comment ?? '',
-        }
-      : d.item_name
-      ? {
-          itemName: d.item_name,
-          rating: Number(d.item_rating) || 0,
-          comment: d.review_comment ?? '',
-        }
-      : null;
+    if (clearedBefore) {
+      // Use resolved_at when present; fall back to created_at for
+      // legacy rows that were resolved before the column was added.
+      q = q.or(
+        `resolved_at.gt.${clearedBefore},and(resolved_at.is.null,created_at.gt.${clearedBefore})`,
+      );
+    }
 
-    return {
-      disputeId: d.id,
-      reviewId: d.review_id,
-      status,
-      outcome,
-      reason: d.reason ?? '',
-      createdAt: d.created_at,
-      resolvedAt: d.resolved_at ?? undefined,
-      resolvedBy: d.resolved_by ?? undefined,
-      tenantSeenAt: d.tenant_seen_at ?? undefined,
-      review,
-    };
-  });
-}
+    const { data: rows, error } = await q;
+    if (error) {
+      console.error("getResolvedDisputesForTenant error:", error);
+      return [];
+    }
+    if (!rows || rows.length === 0) return [];
 
-/** Platform admin marks a pending dispute notification as seen. */
-async markDisputePlatformSeen(disputeId: string): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('mark_dispute_platform_seen', {
-    dispute_id_in: disputeId,
-  });
-  if (error) {
-    console.warn('mark_dispute_platform_seen error:', error);
-    return false;
+    // Skip nulls - FK is ON DELETE SET NULL, and PostgREST rejects
+    // `id=in.(null,...)` with a 400.
+    const reviewIds = Array.from(
+      new Set(
+        rows
+          .map((r: any) => r.review_id)
+          .filter(
+            (id: unknown): id is string =>
+              typeof id === "string" && id.length > 0,
+          ),
+      ),
+    );
+
+    let reviews: any[] | null = null;
+    if (reviewIds.length > 0) {
+      const { data } = await client
+        .from("star_veg_reviews")
+        .select("id, item_id, rating, comment")
+        .in("id", reviewIds);
+      reviews = data ?? null;
+    }
+
+    const itemIds = Array.from(
+      new Set(
+        (reviews || [])
+          .map((r: any) => r.item_id)
+          .filter((id: unknown): id is number => typeof id === "number"),
+      ),
+    );
+    const itemMap: Record<number, string> = {};
+    if (itemIds.length > 0) {
+      const { data: items } = await client
+        .from("star_veg_menu_items")
+        .select("id, name")
+        .in("id", itemIds);
+      (items || []).forEach((it: any) => {
+        itemMap[it.id] = it.name;
+      });
+    }
+
+    const reviewMap: Record<string, any> = {};
+    (reviews || []).forEach((r: any) => {
+      reviewMap[r.id] = r;
+    });
+
+    return rows.map((d: any) => {
+      const r = reviewMap[d.review_id];
+      const status: "resolved" | "rejected" =
+        d.status === "rejected" ? "rejected" : "resolved";
+
+      const outcome: "deleted" | "rejected" =
+        status === "rejected" || r ? "rejected" : "deleted";
+
+      // Prefer the live review; fall back to the snapshot for deleted ones.
+      const review = r
+        ? {
+            itemName: itemMap[r.item_id] ?? `Item #${r.item_id}`,
+            rating: Number(r.rating) || 0,
+            comment: r.comment ?? "",
+          }
+        : d.item_name
+          ? {
+              itemName: d.item_name,
+              rating: Number(d.item_rating) || 0,
+              comment: d.review_comment ?? "",
+            }
+          : null;
+
+      return {
+        disputeId: d.id,
+        reviewId: d.review_id,
+        status,
+        outcome,
+        reason: d.reason ?? "",
+        createdAt: d.created_at,
+        resolvedAt: d.resolved_at ?? undefined,
+        resolvedBy: d.resolved_by ?? undefined,
+        tenantSeenAt: d.tenant_seen_at ?? undefined,
+        review,
+      };
+    });
   }
-  return true;
-}
 
-/** Tenant admin marks a resolved/rejected dispute notification as seen. */
-async markDisputeTenantSeen(disputeId: string): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client.rpc('mark_dispute_tenant_seen', {
-    dispute_id_in: disputeId,
-  });
-  if (error) {
-    console.warn('mark_dispute_tenant_seen error:', error);
-    return false;
+  /** Platform admin marks a pending dispute notification as seen. */
+  async markDisputePlatformSeen(disputeId: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("mark_dispute_platform_seen", {
+      dispute_id_in: disputeId,
+    });
+    if (error) {
+      console.warn("mark_dispute_platform_seen error:", error);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
-/** Platform admin clears their dispute notification list. */
-async clearPlatformDisputes(): Promise<string | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('clear_platform_disputes');
-  if (error) {
-    console.warn('clear_platform_disputes error:', error);
-    return null;
+  /** Tenant admin marks a resolved/rejected dispute notification as seen. */
+  async markDisputeTenantSeen(disputeId: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.rpc("mark_dispute_tenant_seen", {
+      dispute_id_in: disputeId,
+    });
+    if (error) {
+      console.warn("mark_dispute_tenant_seen error:", error);
+      return false;
+    }
+    return true;
   }
-  return typeof data === 'string' ? data : null;
-}
 
-/** Tenant admin clears their dispute notification list. */
-async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('clear_tenant_disputes', {
-    tenant_slug_in: tenantSlug,
-  });
-  if (error) {
-    console.warn('clear_tenant_disputes error:', error);
-    return null;
+  /** Platform admin clears their dispute notification list. */
+  async clearPlatformDisputes(): Promise<string | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("clear_platform_disputes");
+    if (error) {
+      console.warn("clear_platform_disputes error:", error);
+      return null;
+    }
+    invalidatePlatformDisputesCursor();
+    return typeof data === "string" ? data : null;
   }
-  return typeof data === 'string' ? data : null;
-}
+
+  /** Tenant admin clears their dispute notification list. */
+  async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("clear_tenant_disputes", {
+      tenant_slug_in: tenantSlug,
+    });
+    if (error) {
+      console.warn("clear_tenant_disputes error:", error);
+      return null;
+    }
+    invalidateTenantDisputesCursor(tenantSlug);
+    return typeof data === "string" ? data : null;
+  }
 
   /** Returns true if the given phone+password pair authenticates. */
   async verifyPassword(phone: string, password: string): Promise<boolean> {
@@ -1857,7 +1956,6 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
     return this.mapDineinOrder(data);
   }
 
-  /** Append items to an existing open order for the same table. */
   async appendDineinOrderItems(
     orderId: string,
     newItems: DineinOrderItem[],
@@ -1878,20 +1976,49 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
     // Recompute totals. Packing is always 0 for dine-in.
     const PACKING = 0;
     const subtotal = merged.reduce((s, i) => s + i.lineTotal, 0);
-    const gstAmount = Math.round(subtotal * (Number(order.gst_percent) / 100));
+    const gstAmount = Math.round(
+      subtotal * (Number(order.gst_percent) / 100),
+    );
+    // Preserve any tip the customer set; it inflates the total but is
+    // not itemized anywhere else.
+    const existingTip = Number(order.staff_tip) || 0;
     const totalAmount =
-      subtotal + gstAmount + PACKING - Number(order.storewide_discount);
+      subtotal +
+      gstAmount +
+      PACKING +
+      existingTip -
+      Number(order.storewide_discount);
+
+    // If the order had already reached `served` or `bill_requested`,
+    // appending new items invalidates the previous bill. Reset the
+    // status to `preparing` so the kitchen sees the new items and the
+    // customer requests the bill again once everything is done.
+    const needsReset =
+      order.status === "served" || order.status === "bill_requested";
+
+    const update: Record<string, any> = {
+      items: merged,
+      subtotal,
+      gst_amount: gstAmount,
+      packing_charge: PACKING,
+      total_amount: totalAmount,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (needsReset) {
+      update.status = "preparing";
+      update.bill_requested = false;
+      update.bill_requested_at = null;
+      update.pay_online = false;
+      update.pay_online_requested = false;
+      update.customer_paid_claimed = false;
+      update.customer_paid_claimed_at = null;
+      update.settled_offline_after_failure = false;
+    }
 
     const { data, error } = await client
       .from("star_veg_dinein_orders")
-      .update({
-        items: merged,
-        subtotal,
-        gst_amount: gstAmount,
-        packing_charge: PACKING,
-        total_amount: totalAmount,
-        updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq("id", orderId)
       .select()
       .single();
@@ -1931,51 +2058,80 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
     return (data || []).map((row) => this.mapDineinOrder(row));
   }
 
-  async getDineinEventsSince(
-  tenantSlug: string,
-  sinceIso: string | null,
-  limit = 20,
-): Promise<DineinEvent[]> {
-  const client = this.getClient();
-  if (!client) return [];
-
-  // 1. Read the tenant's cleared-before cursor. Cheap single-row read.
-  let clearedBefore: string | null = null;
-  try {
-    const { data } = await client
-      .from('star_veg_tenants')
-      .select('dinein_events_cleared_before')
-      .eq('slug', tenantSlug)
-      .maybeSingle();
-    clearedBefore = data?.dinein_events_cleared_before ?? null;
-  } catch {
-    /* ignore — treat as no cursor */
+  /**
+   * Customer sets the staff tip on their own order. Tip is added to
+   * total_amount; it is not itemized on the receipt or in history.
+   */
+  async setDineinStaffTip(
+    orderId: string,
+    tip: number,
+  ): Promise<DineinOrder | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("set_dinein_staff_tip", {
+      order_id_in: orderId,
+      tip_in: Math.max(0, Number(tip) || 0),
+    });
+    if (error) {
+      console.error("set_dinein_staff_tip error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapDineinOrder(row) : null;
   }
 
-  // 2. Fetch the events.
-  let q = client
-    .from('star_veg_dinein_events')
-    .select('id, order_id, table_label, kind, payload, created_at, read_at')
-    .eq('tenant_slug', tenantSlug)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  async getDineinEventsSince(
+    tenantSlug: string,
+    sinceIso: string | null,
+    limit = 20,
+  ): Promise<DineinEvent[]> {
+    const client = this.getClient();
+    if (!client) return [];
 
-  if (sinceIso) q = q.gt('created_at', sinceIso);
-  if (clearedBefore) q = q.gt('created_at', clearedBefore);
+    // 1. Read the tenant's cleared-before cursor, using the 60s cache.
+    let clearedBefore: string | null;
+    const cached = getCachedDineinCursor(tenantSlug);
+    if (cached.hit) {
+      clearedBefore = cached.value;
+    } else {
+      clearedBefore = null;
+      try {
+        const { data } = await client
+          .from("star_veg_tenants")
+          .select("dinein_events_cleared_before")
+          .eq("slug", tenantSlug)
+          .maybeSingle();
+        clearedBefore = data?.dinein_events_cleared_before ?? null;
+        setCachedDineinCursor(tenantSlug, clearedBefore);
+      } catch {
+        /* ignore - treat as no cursor */
+      }
+    }
 
-  const { data, error } = await q;
-  if (error) return [];
+    // 2. Fetch the events.
+    let q = client
+      .from("star_veg_dinein_events")
+      .select("id, order_id, table_label, kind, payload, created_at, read_at")
+      .eq("tenant_slug", tenantSlug)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    orderId: row.order_id,
-    tableLabel: row.table_label,
-    kind: row.kind,
-    payload: row.payload ?? {},
-    createdAt: row.created_at,
-    readAt: row.read_at ?? null,
-  }));
-}
+    if (sinceIso) q = q.gt("created_at", sinceIso);
+    if (clearedBefore) q = q.gt("created_at", clearedBefore);
+
+    const { data, error } = await q;
+    if (error) return [];
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      orderId: row.order_id,
+      tableLabel: row.table_label,
+      kind: row.kind,
+      payload: row.payload ?? {},
+      createdAt: row.created_at,
+      readAt: row.read_at ?? null,
+    }));
+  }
 
   /**
    * Lightweight query for fields that affect the customer-side layout
@@ -1985,26 +2141,25 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
   async getTenantRuntimeFlags(slug: string): Promise<{
     isActive: boolean;
     dineinEnabled: boolean;
+    staffTippingEnabled: boolean;
     subscriptionStatus: string;
     planId: string;
     reviewsEnabled: boolean;
   } | null> {
     const client = this.getClient();
     if (!client) return null;
-
     const { data, error } = await client
       .from("star_veg_tenants")
       .select(
-        "is_active, dinein_enabled, subscription_status, plan_id, reviews_enabled",
+        "is_active, dinein_enabled, staff_tipping_enabled, subscription_status, plan_id, reviews_enabled",
       )
       .eq("slug", slug)
       .maybeSingle();
-
     if (error || !data) return null;
-
     return {
       isActive: data.is_active !== false,
       dineinEnabled: data.dinein_enabled === true,
+      staffTippingEnabled: data.staff_tipping_enabled === true,
       subscriptionStatus: data.subscription_status ?? "active",
       planId: data.plan_id ?? "professional",
       reviewsEnabled: data.reviews_enabled !== false,
@@ -2013,7 +2168,7 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
 
   /**
    * Minimal read for the customer banner. Only two columns, served
-   * from the primary-key index — cheap on the wire and cheap in the
+   * from the primary-key index - cheap on the wire and cheap in the
    * Postgres log. The caller compares `updatedAt` against the last
    * value it saw and only fetches the full row when it changed.
    */
@@ -2183,7 +2338,7 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
   /**
    * Fetch the most recent open order this device placed at this tenant.
    *
-   * The select is deliberately trimmed — the caller only needs the
+   * The select is deliberately trimmed - the caller only needs the
    * id / table identity / status, not the full items JSONB. Cuts
    * egress significantly versus `select('*')`.
    */
@@ -2212,7 +2367,7 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
    * Return paid dine-in orders for a tenant between two ISO timestamps.
    * Ordered newest first.
    *
-   * The select is trimmed to what the history UI actually renders —
+   * The select is trimmed to what the history UI actually renders -
    * no `items`, no unused columns. For a busy tenant this is the
    * single largest egress win in the service.
    */
@@ -2247,7 +2402,7 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
   /**
    * Customer requests the bill for a single order. Records the
    * customer's intent (`pay_online_requested`) but does NOT enable
-   * online payment — the admin must approve via `setDineinPayOnline`.
+   * online payment - the admin must approve via `setDineinPayOnline`.
    */
   async requestDineinBill(
     orderId: string,
@@ -2287,44 +2442,44 @@ async clearTenantDisputes(tenantSlug: string): Promise<string | null> {
   }
 
   /**
- * Customer says "I've paid". Records the claim but does NOT change
- * the order status — the admin verifies and calls `confirmDineinPayment`.
- */
-async claimDineinPayment(orderId: string): Promise<DineinOrder | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('claim_dinein_payment', {
-    order_id_in: orderId,
-  });
-  if (error) {
-    console.error('claim_dinein_payment error:', error);
-    return null;
+   * Customer says "I've paid". Records the claim but does NOT change
+   * the order status - the admin verifies and calls `confirmDineinPayment`.
+   */
+  async claimDineinPayment(orderId: string): Promise<DineinOrder | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("claim_dinein_payment", {
+      order_id_in: orderId,
+    });
+    if (error) {
+      console.error("claim_dinein_payment error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapDineinOrder(row) : null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? this.mapDineinOrder(row) : null;
-}
 
-/**
- * Admin confirms the customer's payment. Flips the order to `paid`
- * and clears the claim flag.
- */
-async confirmDineinPayment(
-  orderId: string,
-  paymentRef: string,
-): Promise<DineinOrder | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('confirm_dinein_payment', {
-    order_id_in: orderId,
-    payment_ref_in: paymentRef,
-  });
-  if (error) {
-    console.error('confirm_dinein_payment error:', error);
-    return null;
+  /**
+   * Admin confirms the customer's payment. Flips the order to `paid`
+   * and clears the claim flag.
+   */
+  async confirmDineinPayment(
+    orderId: string,
+    paymentRef: string,
+  ): Promise<DineinOrder | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("confirm_dinein_payment", {
+      order_id_in: orderId,
+      payment_ref_in: paymentRef,
+    });
+    if (error) {
+      console.error("confirm_dinein_payment error:", error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? this.mapDineinOrder(row) : null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? this.mapDineinOrder(row) : null;
-}
 
   /**
    * Customer ends their session. Order stays in the DB but drops out
@@ -2362,7 +2517,7 @@ async confirmDineinPayment(
     return row ? this.mapDineinOrder(row) : null;
   }
 
-  /** Customer backs out of online payment — keeps the bill requested. */
+  /** Customer backs out of online payment - keeps the bill requested. */
   async setDineinSettleOffline(orderId: string): Promise<DineinOrder | null> {
     const client = this.getClient();
     if (!client) return null;
@@ -2378,43 +2533,54 @@ async confirmDineinPayment(
   }
 
   /** Recent dine-in events for the header notification icon. */
-  async getDineinEvents(tenantSlug: string, limit = 30): Promise<DineinEvent[]> {
-  const client = this.getClient();
-  if (!client) return [];
+  async getDineinEvents(
+    tenantSlug: string,
+    limit = 30,
+  ): Promise<DineinEvent[]> {
+    const client = this.getClient();
+    if (!client) return [];
 
-  let clearedBefore: string | null = null;
-  try {
-    const { data } = await client
-      .from('star_veg_tenants')
-      .select('dinein_events_cleared_before')
-      .eq('slug', tenantSlug)
-      .maybeSingle();
-    clearedBefore = data?.dinein_events_cleared_before ?? null;
-  } catch {
-    /* ignore */
+    // Use the 60s cursor cache instead of re-reading on every call.
+    let clearedBefore: string | null;
+    const cached = getCachedDineinCursor(tenantSlug);
+    if (cached.hit) {
+      clearedBefore = cached.value;
+    } else {
+      clearedBefore = null;
+      try {
+        const { data } = await client
+          .from("star_veg_tenants")
+          .select("dinein_events_cleared_before")
+          .eq("slug", tenantSlug)
+          .maybeSingle();
+        clearedBefore = data?.dinein_events_cleared_before ?? null;
+        setCachedDineinCursor(tenantSlug, clearedBefore);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    let q = client
+      .from("star_veg_dinein_events")
+      .select("id, order_id, table_label, kind, payload, created_at, read_at")
+      .eq("tenant_slug", tenantSlug)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (clearedBefore) q = q.gt("created_at", clearedBefore);
+
+    const { data, error } = await q;
+    if (error) return [];
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      orderId: row.order_id,
+      tableLabel: row.table_label,
+      kind: row.kind,
+      payload: row.payload ?? {},
+      createdAt: row.created_at,
+      readAt: row.read_at ?? null,
+    }));
   }
-
-  let q = client
-    .from('star_veg_dinein_events')
-    .select('id, order_id, table_label, kind, payload, created_at, read_at')
-    .eq('tenant_slug', tenantSlug)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (clearedBefore) q = q.gt('created_at', clearedBefore);
-
-  const { data, error } = await q;
-  if (error) return [];
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    orderId: row.order_id,
-    tableLabel: row.table_label,
-    kind: row.kind,
-    payload: row.payload ?? {},
-    createdAt: row.created_at,
-    readAt: row.read_at ?? null,
-  }));
-}
 
   /** Mark a single dine-in event as read. Non-blocking. */
   async markDineinEventRead(eventId: string): Promise<boolean> {
@@ -2445,22 +2611,24 @@ async confirmDineinPayment(
   }
 
   /**
- * Advance the tenant's "cleared before" cursor to NOW. Hides every
- * event up to this moment from the drawer, on every device. Does
- * NOT change individual `read_at` values.
- */
-async clearDineinEvents(tenantSlug: string): Promise<string | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('clear_dinein_events', {
-    tenant_slug_in: tenantSlug,
-  });
-  if (error) {
-    console.warn('clear_dinein_events error:', error);
-    return null;
+   * Advance the tenant's "cleared before" cursor to NOW. Hides every
+   * event up to this moment from the drawer, on every device. Does
+   * NOT change individual `read_at` values.
+   */
+  async clearDineinEvents(tenantSlug: string): Promise<string | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("clear_dinein_events", {
+      tenant_slug_in: tenantSlug,
+    });
+    if (error) {
+      console.warn("clear_dinein_events error:", error);
+      return null;
+    }
+    // Drop the cached cursor so the next poll re-reads it.
+    invalidateDineinCursorCache(tenantSlug);
+    return typeof data === "string" ? data : null;
   }
-  return typeof data === 'string' ? data : null;
-}
 
   private mapDineinTable(row: any): DineinTable {
     return {
@@ -2511,8 +2679,9 @@ async clearDineinEvents(tenantSlug: string): Promise<string | null> {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       settledOfflineAfterFailure: row.settled_offline_after_failure === true,
+      staffTip: Number(row.staff_tip) || 0,
       customerPaidClaimed: row.customer_paid_claimed === true,
-customerPaidClaimedAt: row.customer_paid_claimed_at ?? undefined,
+      customerPaidClaimedAt: row.customer_paid_claimed_at ?? undefined,
     };
   }
 }

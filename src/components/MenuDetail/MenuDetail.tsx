@@ -28,6 +28,7 @@ import OrderConfirmModal from '../Dinein/OrderConfirmModal';
 import { supabaseService } from '../../services/supabase.service';
 import { getEffectiveDeviceId } from '../../utils/deviceId';
 import { getCustomerName } from '../../utils/customerName';
+import { addPendingItem } from '../../utils/dineinPendingItems';
 import local from './MenuDetail.module.scss';
 
 interface MenuDetailProps {
@@ -87,6 +88,8 @@ const OPEN_ORDER_STATUSES: DineinOrderStatus[] = [
   'placed',
   'accepted',
   'preparing',
+  'served',
+  'bill_requested',
 ];
 
 // Imported as a type-only reference from types.
@@ -341,7 +344,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
  *
  * Tab-scoped state lives in `sessionStorage` under the key
  * `dinein-active-order::<deviceId>`. We deliberately do NOT fall back
- * to "latest order for this device" — `deviceId` lives in
+ * to "latest order for this device" - `deviceId` lives in
  * `localStorage`, which is shared between all tabs of the same
  * browser, so a fallback would leak one customer's table into
  * another customer's session on the same device.
@@ -390,7 +393,7 @@ const handlePlaceOrder = async () => {
         return;
       }
 
-      // The order is gone, done, or not ours — clear the stale key.
+      // The order is gone, done, or not ours - clear the stale key.
       try {
         sessionStorage.removeItem(`dinein-active-order::${deviceId}`);
       } catch {
@@ -438,72 +441,77 @@ const handlePlaceOrder = async () => {
   };
 
   const handleConfirmDinein = async () => {
-    if (!tenant || !item || !table) return;
-    setDineinBusy(true);
-    setDineinError('');
+  if (!tenant || !item || !table) return;
+  setDineinBusy(true);
+  setDineinError('');
 
-    const lineItems: DineinOrderItem[] = [
-      {
-        itemId: item.id,
-        name: item.name,
-        quantity,
-        unitPrice: effectiveUnitPrice,
-        addons: getAddonPrice(),
-        discountPct: hasDiscount ? discount : 0,
-        customizations:
-          Object.keys(selectedCustomizations).length > 0
-            ? selectedCustomizations
-            : undefined,
-        customMessage: customMessage?.trim() || undefined,
-        lineTotal: (effectiveUnitPrice + getAddonPrice()) * quantity,
-        served: false,
-      },
-    ];
-
-    try {
-      if (openOrderId) {
-        const updated = await supabaseService.appendDineinOrderItems(
-          openOrderId,
-          lineItems,
-        );
-        if (!updated) throw new Error('Failed to add items');
-      } else {
-        const gstPercent = tenant.gstPercent ?? 0;
-        const subtotal = lineItems.reduce((s, i) => s + i.lineTotal, 0);
-        const gstAmount = Math.round(subtotal * (gstPercent / 100));
-        const created = await supabaseService.createDineinOrder({
-          tenantSlug: tenant.slug,
-          tableId: table.id,
-          tableLabel: table.label,
-          tableLabelKind: table.kind,
-          customerName: getCustomerName() || 'Guest',
-          deviceId: deviceId ?? undefined,
-          items: lineItems,
-          subtotal,
-          gstPercent,
-          gstAmount,
-          storewideDiscount: 0,
-          totalAmount: subtotal + gstAmount,
-        });
-        if (!created) throw new Error('Failed to place order');
-
-        try {
-          sessionStorage.setItem(
-            `dinein-active-order::${deviceId ?? 'anon'}`,
-            created.id,
-          );
-        } catch {
-          /* ignore */
-        }
-      }
-      setConfirmModalOpen(false);
-      onClose();
-    } catch (err) {
-      setDineinError(err instanceof Error ? err.message : 'Failed');
-    } finally {
-      setDineinBusy(false);
-    }
+  const lineItem: DineinOrderItem = {
+    itemId: item.id,
+    name: item.name,
+    quantity,
+    unitPrice: effectiveUnitPrice,
+    addons: getAddonPrice(),
+    discountPct: hasDiscount ? discount : 0,
+    customizations:
+      Object.keys(selectedCustomizations).length > 0
+        ? selectedCustomizations
+        : undefined,
+    customMessage: customMessage?.trim() || undefined,
+    lineTotal: (effectiveUnitPrice + getAddonPrice()) * quantity,
+    served: false,
   };
+
+  try {
+    let activeOrderId: string;
+
+    if (openOrderId) {
+      // Append path. The customer gets a 60-second grace window to
+      // remove the item from their View Order sheet before it commits
+      // to the server. We stash the item locally and let the commit
+      // scheduler flush it.
+      const pending = addPendingItem(openOrderId, lineItem);
+      activeOrderId = openOrderId;
+      void pending; // reserved for future use
+    } else {
+      const gstPercent = tenant.gstPercent ?? 0;
+      const subtotal = lineItem.lineTotal;
+      const gstAmount = Math.round(subtotal * (gstPercent / 100));
+      const created = await supabaseService.createDineinOrder({
+        tenantSlug: tenant.slug,
+        tableId: table.id,
+        tableLabel: table.label,
+        tableLabelKind: table.kind,
+        customerName: getCustomerName() || 'Guest',
+        deviceId: deviceId ?? undefined,
+        items: [lineItem],
+        subtotal,
+        gstPercent,
+        gstAmount,
+        storewideDiscount: 0,
+        totalAmount: subtotal + gstAmount,
+      });
+      if (!created) throw new Error('Failed to place order');
+      activeOrderId = created.id;
+    }
+
+    // Track this order for the customer's status banner.
+    try {
+      sessionStorage.setItem(
+        `dinein-active-order::${deviceId ?? 'anon'}`,
+        activeOrderId,
+      );
+    } catch {
+      /* ignore */
+    }
+
+    setConfirmModalOpen(false);
+    onClose();
+  } catch (err) {
+    setDineinError(err instanceof Error ? err.message : 'Failed');
+  } finally {
+    setDineinBusy(false);
+  }
+};
 
   const getAddonPrice = (): number => {
     let total = 0;
@@ -1030,6 +1038,7 @@ const handlePlaceOrder = async () => {
           isOpen={isOpen}
           onClose={onClose}
           title={item.name}
+          mobileFullScreen
           maxHeightVh={85}
           footer={footerContent}
         >
@@ -1039,6 +1048,7 @@ const handlePlaceOrder = async () => {
         <Modal
           isOpen={isOpen}
           onClose={onClose}
+          mobileFullScreen
           title={item.name}
           size="lg"
           footer={footerContent}

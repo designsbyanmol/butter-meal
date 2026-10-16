@@ -77,6 +77,15 @@ const paymentMode = (order: DineinOrder): string => {
   return 'Cash';
 };
 
+/**
+ * Amounts displayed in order history intentionally exclude the
+ * customer's staff tip. The tip is already part of `totalAmount`
+ * (so the customer pays it), but it should not appear on history
+ * surfaces. Subtract it wherever a total is shown.
+ */
+const tipExcludedTotal = (order: DineinOrder): number =>
+  Number(order.totalAmount || 0) - Number(order.staffTip ?? 0);
+
 const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { tenant } = useTenant();
   const [range, setRange] = useState<RangeKey>('7d');
@@ -111,9 +120,15 @@ const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
   }, [isOpen, range, load]);
 
   const totals = useMemo(() => {
-    const itemTotal = orders.reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    // `subtotal` never contains the tip, so `itemTotal` is already
+    // tip-free. `totalAmount` DOES contain the tip, so we subtract it
+    // per-order before summing.
+    const itemTotal = orders.reduce(
+      (s, o) => s + Number(o.subtotal || 0),
+      0,
+    );
     const totalWithTax = orders.reduce(
-      (s, o) => s + Number(o.totalAmount || 0),
+      (s, o) => s + tipExcludedTotal(o),
       0,
     );
     return {
@@ -140,6 +155,7 @@ const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      mobileFullScreen
       title={
         <>
           Order History
@@ -224,13 +240,13 @@ const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <span className={local.topLine}>
                   <span className={local.orderNo}>#{o.orderNo}</span>
                   <span className={local.amount}>
-                    {formatRupees(o.totalAmount)}
+                    {formatRupees(tipExcludedTotal(o))}
                   </span>
                 </span>
 
                 <span className={local.metaLine}>
                   <span className={local.mode}>{paymentMode(o)}</span>
-                  <span className={local.dot}>·</span>
+                  <span className={local.dot}>.</span>
                   <span className={local.table}>
                     {o.tableLabelKind === 'number'
                       ? `Table ${o.tableLabel}`
@@ -239,7 +255,7 @@ const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </span>
 
                 <span className={local.dateLine}>
-                  {fmtDate(o.createdAt)} · {fmtTime(o.createdAt)}
+                  {fmtDate(o.createdAt)} . {fmtTime(o.createdAt)}
                 </span>
               </span>
             </li>

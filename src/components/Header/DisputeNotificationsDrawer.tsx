@@ -52,7 +52,7 @@ export interface DisputeNotificationsDrawerProps {
   pollMs?: number;
 }
 
-const DEFAULT_POLL_MS = 60_000;
+const DEFAULT_POLL_MS = 120_000;
 
 const formatNotifTime = (iso: string): string => {
   const d = new Date(iso);
@@ -72,8 +72,8 @@ const formatNotifTime = (iso: string): string => {
     hour12: true,
   });
 
-  if (d >= startOfToday) return `Today · ${time}`;
-  if (d >= startOfYesterday) return `Yesterday · ${time}`;
+  if (d >= startOfToday) return `Today . ${time}`;
+  if (d >= startOfYesterday) return `Yesterday . ${time}`;
 
   const sameYear = d.getFullYear() === now.getFullYear();
   const dateStr = d.toLocaleDateString('en-IN', {
@@ -81,7 +81,7 @@ const formatNotifTime = (iso: string): string => {
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
-  return `${dateStr} · ${time}`;
+  return `${dateStr} . ${time}`;
 };
 
 export const DisputeNotificationsDrawer: React.FC<
@@ -137,40 +137,67 @@ export const DisputeNotificationsDrawer: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
-  // Always-on poll with hidden-tab pause.
-  useEffect(() => {
-    if (!enabled) return;
+  // src/components/Header/DisputeNotificationsDrawer.tsx
+// ---------------------------------------------------------
+// Poll ONLY while the drawer is open. The previous version polled
+// continuously whenever `enabled` was true, which meant an idle
+// admin tab generated 5+ PostgREST log lines every minute - for
+// days at a time. Polling only when the drawer is open removes
+// essentially all of that.
+// ---------------------------------------------------------
+useEffect(() => {
+  if (!enabled || !isOpen) return;
 
-    let cancelled = false;
-    let timer: number | null = null;
+  let cancelled = false;
+  let timer: number | null = null;
 
-    const schedule = () => {
+  const schedule = () => {
+    if (cancelled) return;
+    timer = window.setTimeout(async () => {
       if (cancelled) return;
-      timer = window.setTimeout(async () => {
-        if (cancelled) return;
-        if (!(typeof document !== 'undefined' && document.hidden)) {
-          await load();
-        }
-        schedule();
-      }, pollMs);
-    };
+      if (!(typeof document !== "undefined" && document.hidden)) {
+        await load();
+      }
+      schedule();
+    }, pollMs);
+  };
 
-    schedule();
+  schedule();
 
-    const onVisibility = () => {
-      if (document.hidden) return;
-      if (timer !== null) window.clearTimeout(timer);
-      load().finally(schedule);
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+  const onVisibility = () => {
+    if (document.hidden) return;
+    if (timer !== null) window.clearTimeout(timer);
+    load().finally(schedule);
+  };
+  document.addEventListener("visibilitychange", onVisibility);
 
-    return () => {
-      cancelled = true;
-      if (timer !== null) window.clearTimeout(timer);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, pollMs, load]);
+  return () => {
+    cancelled = true;
+    if (timer !== null) window.clearTimeout(timer);
+    document.removeEventListener("visibilitychange", onVisibility);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [enabled, isOpen, pollMs, load]);
+
+// src/components/Header/DisputeNotificationsDrawer.tsx
+// Refresh the badge once on focus. No interval.
+useEffect(() => {
+  if (!enabled) return;
+  if (isOpen) return; // drawer is already polling
+
+  const onFocus = () => {
+    if (document.hidden) return;
+    load();
+  };
+
+  document.addEventListener("visibilitychange", onFocus);
+  window.addEventListener("focus", onFocus);
+  return () => {
+    document.removeEventListener("visibilitychange", onFocus);
+    window.removeEventListener("focus", onFocus);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [enabled, isOpen, load]);
 
   // Immediate refresh when the drawer opens.
   useEffect(() => {

@@ -191,6 +191,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({
       onClose={onClose}
       title="Invoice"
       size="md"
+      mobileFullScreen
       footer={footerContent}
     >
       <div className={local.summaryCard}>

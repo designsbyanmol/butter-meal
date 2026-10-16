@@ -372,7 +372,7 @@
    Card state highlights (Served tab)
    ========================================================= */
 
-/* Customer requested the bill — full blue highlight + pulse. */
+/* Customer requested the bill - full blue highlight + pulse. */
 .cardBillRequested {
   background: $blue-50 !important;
   border-radius: $radius;
@@ -422,7 +422,7 @@
   }
 }
 
-/* Customer's online payment failed and they settled offline —
+/* Customer's online payment failed and they settled offline -
    full red highlight + pulse. */
 .cardPaymentFailed {
   background: $red-50 !important;
@@ -453,4 +453,26 @@
   50% {
     box-shadow: 0 0 0 8px rgba($danger, 0.05);
   }
+}
+
+/* Row of actions on a served, not-yet-billed card. */
+.servedActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed $border-soft;
+}
+
+/* Staff tip note on paid cards */
+.tipLine {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: $radius-pill;
+  background: rgba($primary, 0.08);
+  color: $primary-dark;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
 }

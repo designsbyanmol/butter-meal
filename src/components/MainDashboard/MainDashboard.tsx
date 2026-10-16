@@ -1,17 +1,18 @@
-// src/components/MainDashboard/MainDashboard.tsx
-import React, { useState } from 'react';
+// components/MainDashboard/MainDashboard.tsx
+import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui';
 import LoginModal from '../Auth/LoginModal';
 import AdminDashboardCards from './AdminDashboardCards';
-
+import SuperAdminShell from './SuperAdminShell';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import local from './MainDashboard.module.scss';
 
 const MainDashboard: React.FC = () => {
   const { isAuthenticated, user, isAdmin } = useAuth();
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
+  const isMobile = useIsMobile(900);
 
-  // ---------- Unauthenticated ----------
   if (!isAuthenticated) {
     return (
       <>
@@ -34,7 +35,6 @@ const MainDashboard: React.FC = () => {
             </p>
           </div>
         </div>
-
         <LoginModal
           isOpen={isLoginOpen}
           onClose={() => setIsLoginOpen(false)}
@@ -43,7 +43,6 @@ const MainDashboard: React.FC = () => {
     );
   }
 
-  // ---------- Authenticated, not admin ----------
   if (!isAdmin) {
     return (
       <div className={local.dashboard}>
@@ -52,15 +51,17 @@ const MainDashboard: React.FC = () => {
           <p className={local.subtitle}>
             You don't have admin access on this page.
           </p>
-          <p className={local.hint}>
-            Please visit your store's direct URL to continue.
-          </p>
         </div>
       </div>
     );
   }
 
-  // ---------- Admin ----------
+  // Desktop shell.
+  if (!isMobile) {
+    return <SuperAdminShell />;
+  }
+
+  // Mobile fallback — the legacy card grid.
   return (
     <div className={local.dashboard}>
       <div className={local.hero}>

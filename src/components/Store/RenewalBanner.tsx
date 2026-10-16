@@ -5,6 +5,7 @@ import { planService } from '../../services/plan.service';
 import { Banner, Button, Modal } from '../ui';
 import PlanChangeModal from '../Payments/PlanChangeModal';
 import local from './RenewalBanner.module.scss';
+import InfoIcon from '../../assets/svgs/InfoIcon';
 
 interface RenewalBannerProps {
   onRefresh?: () => void;
@@ -46,7 +47,7 @@ const RenewalBanner: React.FC<RenewalBannerProps> = ({ onRefresh }) => {
     <>
       <Banner
         variant="warning"
-        icon={<span className={local.icon}>⚠️</span>}
+        icon={<InfoIcon className={local.icon} width={24} height={24}/>}
         className={local.banner}
       >
         <div className={local.body}>
@@ -87,6 +88,7 @@ const RenewalBanner: React.FC<RenewalBannerProps> = ({ onRefresh }) => {
       <Modal
         isOpen={showRenewInfo}
         onClose={() => setShowRenewInfo(false)}
+        mobileFullScreen
         title="Renew your plan"
         size="sm"
         footer={

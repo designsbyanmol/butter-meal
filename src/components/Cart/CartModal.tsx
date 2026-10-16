@@ -271,6 +271,7 @@ const CartModal: React.FC<CartModalProps> = ({
     <Sheet
       isOpen={isOpen}
       onClose={onClose}
+      mobileFullScreen
       className={local.cartPopup}
       title={
         <>
@@ -288,6 +289,7 @@ const CartModal: React.FC<CartModalProps> = ({
   ) : (
     <Modal
       isOpen={isOpen}
+      mobileFullScreen
       onClose={onClose}
       title={
         <>

@@ -40,7 +40,7 @@ const TenantDashboardCards: React.FC = () => {
 
   if (!tenant) return null;
 
-  // The full card set — filtered below by role.
+  // The full card set - filtered below by role.
   const allCards: CardDef[] = [
     {
       key: 'info',

@@ -88,7 +88,7 @@
 }
 
 /* =========================================================
-   Minimized pill — top-left corner
+   Minimized pill - top-left corner
    ========================================================= */
 .minimizedPill {
   position: fixed;
@@ -429,4 +429,124 @@
     color: $text-muted;
     font-weight: 700;
   }
+}
+
+/* ---------- Pending items in the View Order sheet ---------- */
+.sheetSection {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed $border;
+}
+
+.sheetSectionLabel {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $text-muted;
+}
+
+.sheetSectionHint {
+  font-size: 11px;
+  color: $text-faint;
+}
+
+.sheetRowPending {
+  padding: 10px 12px;
+  background: $amber-50;
+  border: 1px solid rgba($amber-500, 0.35);
+  border-radius: $radius-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pendingFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pendingCountdown {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: $amber-800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Staff tip pills ---------- */
+.bannerTipBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tipLabel {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.2px;
+}
+
+.tipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tipPill {
+  padding: 6px 12px;
+  border-radius: $radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background $t-fast, border-color $t-fast, transform $t-fast;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.tipPillActive {
+  background: $primary !important;
+  border-color: $primary !important;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark !important;
+    border-color: $primary-dark !important;
+  }
+}
+
+.tipSelectedNote {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+}
+
+/* Breakdown caption below the Pay button when a tip is included. */
+.bannerBreakdown {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: left;
 }

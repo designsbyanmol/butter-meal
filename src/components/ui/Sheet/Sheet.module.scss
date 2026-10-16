@@ -81,3 +81,74 @@
   flex-direction: column;
 }
 }
+
+/* =========================================================
+   Header actions + back arrow
+   ========================================================= */
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 4px;
+
+  &:hover {
+    background: $bg-subtle;
+  }
+}
+
+/* =========================================================
+   Mobile full-screen mode
+   ========================================================= */
+@include mobile($bp-sm) {
+  .mobileFullScreen {
+    position: fixed !important;
+    inset: 0;
+    max-width: none !important;
+    max-height: none !important;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0 !important;
+    animation: none;
+  }
+
+  /* Hide the regular close X; the back arrow takes over. */
+  .mobileFullScreen .closeBtn {
+    display: none;
+  }
+
+  .mobileFullScreen .headerMobile {
+    padding: 10px 12px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .mobileFullScreen .title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+  }
+
+  .mobileFullScreen .footer {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
+}

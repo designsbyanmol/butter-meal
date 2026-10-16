@@ -2,7 +2,7 @@
 @use '../../../styles/mixins' as *;
 
 /* =========================================================
-   Thermal receipt — 80mm roll
+   Thermal receipt - 80mm roll
    ========================================================= */
 @page {
   size: 80mm auto;
@@ -25,7 +25,7 @@
 }
 
 /* =========================================================
-   Header (slightly larger — anchors the slip)
+   Header (slightly larger - anchors the slip)
    ========================================================= */
 .header {
   text-align: center;
@@ -208,7 +208,7 @@ $grid-gap: 3px;
 }
 
 /* =========================================================
-   Print — thermal roll
+   Print - thermal roll
    ========================================================= */
 @media print {
   @page {

@@ -28,8 +28,8 @@
 }
 
 // ---------- SIZES ----------
-.sm { max-width: 400px; }
-.md { max-width: 560px; }
+.sm { max-width: 440px; }
+.md { max-width: 532px; }
 .lg { max-width: 720px; }
 .xl { max-width: 920px; }
 
@@ -72,7 +72,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: $radius-sm;
+  border-radius: $radius-pill;
   cursor: pointer;
   transition: background $t-fast;
   flex-shrink: 0;
@@ -102,5 +102,89 @@
   .footer {
     flex-direction: column-reverse;
     button { width: 100%; }
+  }
+}
+
+// ...existing rules...
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  justify-content: space-between;
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Back arrow shown in the mobile full-screen layout. */
+.backBtn {
+  background: transparent;
+  border: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 4px;
+
+  &:hover {
+    background: $bg-subtle;
+  }
+}
+
+  .mobileFullScreen .backBtn {
+    display: none;
+  }
+
+/* =========================================================
+   Mobile full-screen mode
+   ========================================================= */
+@include mobile($bp-sm) {
+  .mobileFullScreen {
+    position: fixed !important;
+    inset: 0;
+    max-width: none !important;
+    max-height: none !important;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+    animation: none;
+  }
+
+  /* Show the back arrow only when the flag is on. */
+  .mobileFullScreen .backBtn {
+    display: inline-flex;
+  }
+
+  /* Hide the regular close X on mobile full-screen; the back arrow
+     takes over. */
+  .mobileFullScreen .closeBtn {
+    display: none;
+  }
+
+  /* Make the header taller and align items for touch. */
+  .mobileFullScreen .headerMobile {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  /* Footer sticks to the bottom on mobile. */
+  .mobileFullScreen .footer {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
   }
 }

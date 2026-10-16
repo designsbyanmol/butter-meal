@@ -112,7 +112,7 @@ class AuthService {
   }
 
   // =========================================================
-  // SESSION LIFECYCLE — no bridge, no cross-key scan
+  // SESSION LIFECYCLE - no bridge, no cross-key scan
   // =========================================================
   private loadSessionFromCache(
     slug: string | null,
@@ -362,42 +362,62 @@ class AuthService {
   // LOGOUT
   // =========================================================
   logout(): void {
-    const slug = this.currentSlug;
-    const isAdminView = this.currentIsAdminView;
-    const isSmartAdminHost = this.currentIsSmartAdminHost;
+  const slug = this.currentSlug;
+  const isAdminView = this.currentIsAdminView;
+  const isSmartAdminHost = this.currentIsSmartAdminHost;
 
-    if (slug) {
-      credentialCache.remove(slug);
-    }
-    this.clearSession(slug, isAdminView, isSmartAdminHost);
-
-    this.authState = {
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    };
-    this.notifyListeners();
+  if (slug) {
+    credentialCache.remove(slug);
   }
+  this.clearSession(slug, isAdminView, isSmartAdminHost);
+
+  // Reset the dashboard shell's persisted active section so the
+  // next login lands on the welcome screen rather than deep-linking
+  // back into the last section the user visited.
+  try {
+    const scope = slug ?? '__platform';
+    sessionStorage.removeItem(`dashboard:active-section:v1::${scope}`);
+  } catch {
+    /* ignore */
+  }
+
+  this.authState = {
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+  };
+  this.notifyListeners();
+}
 
   logoutAll(): void {
-    try {
-      const keys: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(SESSION_PREFIX)) keys.push(k);
-      }
-      keys.forEach((k) => localStorage.removeItem(k));
-    } catch {
-      /* ignore */
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(SESSION_PREFIX)) keys.push(k);
     }
-    credentialCache.clearAll();
-    this.authState = {
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    };
-    this.notifyListeners();
+    keys.forEach((k) => localStorage.removeItem(k));
+
+    // Wipe every dashboard section key too.
+    const sectionKeys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith('dashboard:active-section:v1::')) {
+        sectionKeys.push(k);
+      }
+    }
+    sectionKeys.forEach((k) => sessionStorage.removeItem(k));
+  } catch {
+    /* ignore */
   }
+  credentialCache.clearAll();
+  this.authState = {
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+  };
+  this.notifyListeners();
+}
 
   // =========================================================
   // TENANT SCOPE ENFORCEMENT

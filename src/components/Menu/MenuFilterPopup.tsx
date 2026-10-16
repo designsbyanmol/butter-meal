@@ -121,6 +121,7 @@ const MenuFilterPopup: React.FC<MenuFilterPopupProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Filters"
+      mobileFullScreen
       maxHeightVh={86}
       className={local.filterFooter}
       footer={

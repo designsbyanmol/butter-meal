@@ -10,7 +10,7 @@ type PayChoice = 'online' | 'offline';
 interface Props {
   /**
    * The specific order this button should request a bill for. Always
-   * required — never derive it from "the latest order for this device",
+   * required - never derive it from "the latest order for this device",
    * because that would pull in unrelated orders.
    */
   orderId: string;
@@ -49,7 +49,7 @@ const CustomerRequestBillButton: React.FC<Props> = ({
   if (requested) {
     return (
       <Button size="sm" variant="ghost" disabled>
-        Bill Requested…
+        Bill Requested...
       </Button>
     );
   }
@@ -91,8 +91,8 @@ const CustomerRequestBillButton: React.FC<Props> = ({
       setRequested(true);
       setSuccess(
         choice === 'online'
-          ? 'Bill requested — the staff will confirm shortly.'
-          : 'Bill requested — the waiter will bring the bill to your table.',
+          ? 'Bill requested - the staff will confirm shortly.'
+          : 'Bill requested - the waiter will bring the bill to your table.',
       );
       setTimeout(() => {
         setSuccess('');
@@ -205,7 +205,7 @@ const CustomerRequestBillButton: React.FC<Props> = ({
 
             {eligible.length > 0 && (
               <p className={local.hint}>
-                Order #{eligible[0].orderNo} — total{' '}
+                Order #{eligible[0].orderNo} - total{' '}
                 {eligible[0].totalAmount.toLocaleString('en-IN', {
                   style: 'currency',
                   currency: 'INR',

@@ -63,6 +63,7 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Plan Details"
+        mobileFullScreen
         size="sm"
         footer={
           <>

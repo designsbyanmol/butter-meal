@@ -1,7 +1,7 @@
 // src/components/ui/Sheet/Sheet.tsx
 import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseIcon } from '../../../assets/svgs';
+import { CloseIcon, LeftArrowIcon } from '../../../assets/svgs';
 import { pushEsc, popEsc, isTopEsc } from '../_escStack';
 import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import styles from './Sheet.module.scss';
@@ -10,8 +10,10 @@ export interface SheetProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
+  /** Optional element rendered on the header's right edge. */
+  headerActions?: React.ReactNode;
   footer?: React.ReactNode;
-  /** Max height in vh. Default 86. */
+  /** Max height in vh. Default 86. Ignored when `mobileFullScreen` is on. */
   maxHeightVh?: number;
   /** Lock body scroll while open. Default: true. */
   lockScroll?: boolean;
@@ -21,11 +23,16 @@ export interface SheetProps {
   hideCloseButton?: boolean;
   /**
    * Override the overlay's z-index. By default the overlay uses the
-   * `$z-modal` layer (1100). Pass a number when the sheet must sit
-   * above another high-z element, e.g. the customer order-status
-   * banner which uses `$z-toast` (2000).
+   * `$z-modal` layer (1100).
    */
   overlayZIndex?: number;
+  /**
+   * When true, on mobile (<= $bp-sm) the sheet fills the viewport
+   * with a back arrow top-left, the title next to it, and
+   * `headerActions` on the right. Desktop keeps the bottom-anchored
+   * card look.
+   */
+  mobileFullScreen?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -34,18 +41,20 @@ const Sheet: React.FC<SheetProps> = ({
   isOpen,
   onClose,
   title,
+  headerActions,
   footer,
   maxHeightVh = 86,
   lockScroll = true,
   disableBackdropClose = false,
   hideCloseButton = false,
   overlayZIndex,
+  mobileFullScreen = false,
   className,
   children,
 }) => {
   const instanceId = useId();
 
-  // Esc - topmost only
+  // Esc - topmost only.
   useEffect(() => {
     if (!isOpen || disableBackdropClose) return;
 
@@ -66,7 +75,7 @@ const Sheet: React.FC<SheetProps> = ({
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll (reference-counted)
+  // Reference-counted body scroll lock.
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
     lockBodyScroll();
@@ -81,6 +90,16 @@ const Sheet: React.FC<SheetProps> = ({
     if (!disableBackdropClose) onClose();
   };
 
+  const sheetClasses = [
+    styles.sheet,
+    mobileFullScreen ? styles.mobileFullScreen : '',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const showHeader = !!title || !hideCloseButton || !!headerActions;
+
   const content = (
     <div
       className={styles.overlay}
@@ -92,17 +111,42 @@ const Sheet: React.FC<SheetProps> = ({
       }
     >
       <div
-        className={[styles.sheet, className ?? '']
-          .filter(Boolean)
-          .join(' ')}
-        style={{ maxHeight: `${maxHeightVh}vh` }}
+        className={sheetClasses}
+        style={
+          mobileFullScreen
+            ? undefined
+            : { maxHeight: `${maxHeightVh}vh` }
+        }
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        {(title || !hideCloseButton) && (
-          <header className={styles.header}>
+        {showHeader && (
+          <header
+            className={`${styles.header} ${
+              mobileFullScreen ? styles.headerMobile : ''
+            }`}
+          >
+            {/* Mobile-only back arrow, replaces the close icon. */}
+            {mobileFullScreen && !hideCloseButton && (
+              <button
+                type="button"
+                className={styles.backBtn}
+                onClick={onClose}
+                aria-label="Back"
+              >
+                <LeftArrowIcon width={20} height={20} fill="#1e1e1e" />
+              </button>
+            )}
+
             {title && <h3 className={styles.title}>{title}</h3>}
+
+            {/* Right-side CTAs / links. */}
+            {headerActions && (
+              <div className={styles.headerActions}>{headerActions}</div>
+            )}
+
+            {/* Desktop close button; hidden on mobile when full screen. */}
             {!hideCloseButton && (
               <button
                 type="button"

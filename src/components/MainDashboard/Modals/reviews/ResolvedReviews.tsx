@@ -349,12 +349,12 @@ const ResolvedReviews: React.FC = () => {
                               <strong>{row.tenantName}</strong>
                             </div>
                             <div className={local.disputeMeta}>
-                              Resolved by {row.resolvedBy || 'admin'} ·{' '}
+                              Resolved by {row.resolvedBy || 'admin'} .{' '}
                               {row.resolvedAt
                                 ? new Date(
                                     row.resolvedAt,
                                   ).toLocaleString()
-                                : '—'}
+                                : '-'}
                             </div>
                           </div>
                           {row.outcome === 'deleted' ? (
@@ -375,7 +375,7 @@ const ResolvedReviews: React.FC = () => {
                               {row.review.itemCategory && (
                                 <span className={local.reviewCat}>
                                   {' '}
-                                  · {row.review.itemCategory}
+                                  . {row.review.itemCategory}
                                 </span>
                               )}
                             </div>
@@ -410,13 +410,13 @@ const ResolvedReviews: React.FC = () => {
                         <div className={local.reasonBlock}>
                           <div className={local.reasonLabel}>
                             {row.status === 'rejected'
-                              ? 'Dispute rejected — tenant reason'
+                              ? 'Dispute rejected - tenant reason'
                               : 'Dispute reason'}
                           </div>
                           <div className={local.reasonText}>
                             {row.reason?.trim()
                               ? row.reason
-                              : '— no reason provided —'}
+                              : '- no reason provided -'}
                           </div>
                         </div>
                       </Card>

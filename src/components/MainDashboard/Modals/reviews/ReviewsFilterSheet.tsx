@@ -36,7 +36,7 @@ export interface ReviewsFilterSheetProps {
   onReset: () => void;
   /**
    * Heterogeneous groups (each one may have a different `T`). The
-   * sheet itself doesn't care about the value's type — it just calls
+   * sheet itself doesn't care about the value's type - it just calls
    * `onChange` with the clicked chip's key.
    */
   groups: FilterGroup<any>[];
@@ -63,6 +63,7 @@ const ReviewsFilterSheet: React.FC<ReviewsFilterSheetProps> = ({
     <Sheet
       isOpen={isOpen}
       onClose={onClose}
+      mobileFullScreen
       title="Filters"
       maxHeightVh={86}
       className={local.filterFooter}

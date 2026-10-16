@@ -246,7 +246,7 @@ export const downloadBillPdf = (
       const cs = Object.entries(line.customizations)
         .map(([k, v]) => `${k}: ${v}`)
         .join(', ');
-      const csLines = pdf.splitTextToSize(`· ${cs}`, COL_NAME_MM);
+      const csLines = pdf.splitTextToSize(`. ${cs}`, COL_NAME_MM);
       csLines.forEach((ln: string) => {
         pdf.text(ln, X_NAME_LEFT, y);
         y += subGap;
@@ -304,7 +304,8 @@ export const downloadBillPdf = (
 
   solidLine(pdf, y - 1);
   y += 1.5;
-  totalRow('Total', rupees(order.totalAmount), true);
+  const billTotal = order.totalAmount - (order.staffTip ?? 0);
+totalRow('Total', rupees(billTotal), true);
 
   // =========================================================
   // Footer

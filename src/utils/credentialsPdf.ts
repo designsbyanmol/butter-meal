@@ -111,7 +111,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(11);
   pdf.setTextColor(...TEXT_MUTED);
-  pdf.text('Account Credentials · Store Login Details', MARGIN, y);
+  pdf.text('Account Credentials . Store Login Details', MARGIN, y);
   y += 20;
 
   // Confidential pill (top-right)
@@ -131,7 +131,7 @@ export const downloadCredentialsPdf = async (
   y += 8;
 
   // =========================================================
-  // Plan summary — two soft-colored cards side by side
+  // Plan summary - two soft-colored cards side by side
   // =========================================================
   const cardGap = 12;
   const cardW = (CONTENT_W - cardGap) / 2;
@@ -152,7 +152,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFontSize(10);
   pdf.setTextColor(...TEXT_MUTED);
   pdf.text(
-    `· ${months} month${months > 1 ? 's' : ''}`,
+    `. ${months} month${months > 1 ? 's' : ''}`,
     MARGIN + 24 + pdf.getTextWidth(`${planName}`) + 8,
     y + 36,
   );
@@ -334,7 +334,7 @@ export const downloadCredentialsPdf = async (
   // =========================================================
   const notes = [
     'Click the two buttons above, or scan the QR codes, to open the store URLs.',
-    'Keep these credentials safe — do not share them with anyone.',
+    'Keep these credentials safe - do not share them with anyone.',
     'Admin URL is where you sign in to manage your store.',
     'Public URL is what you share with customers.',
   ];
@@ -376,7 +376,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFontSize(8.5);
   pdf.setTextColor(...TEXT_FAINT);
   pdf.text(`Generated: ${gen}`, MARGIN, y + 14);
-  pdf.text('— Butter Meal', PAGE_W - MARGIN, y + 14, { align: 'right' });
+  pdf.text('- Butter Meal', PAGE_W - MARGIN, y + 14, { align: 'right' });
 
   // ---------- Save ----------
   pdf.save(`${slugify(storeName)}-credentials.pdf`);

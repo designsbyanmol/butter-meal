@@ -134,7 +134,7 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
   const handleGenerate = async () => {
     if (!selectedPlan || !quote) return;
 
-    // Free change — apply directly, no invoice.
+    // Free change - apply directly, no invoice.
     if (taxedTotal <= 0) {
       try {
         await planService.changePlan(tenantSlug, selectedPlan.id, quote.months);
@@ -211,6 +211,7 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         onClose={onClose}
         title={mode === 'admin' ? 'Change Plan' : 'Change / Renew Plan'}
         size="md"
+        mobileFullScreen
         footer={footerCta}
       >
         <div className={local.tenantLine}>

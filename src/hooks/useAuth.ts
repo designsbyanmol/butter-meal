@@ -21,7 +21,7 @@ export const useAuth = () => {
   // load, `tenant` is null and `isLoading` is true on the first
   // render; calling `bindTenant(null, ...)` at that moment would
   // rebind the service to the platform key and wipe the tenant
-  // admin's session in memory — which the header would then render
+  // admin's session in memory - which the header would then render
   // as "logged out".
   useEffect(() => {
     if (isLoading) return;

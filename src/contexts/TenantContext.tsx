@@ -41,6 +41,7 @@ export interface Tenant {
   deliveryCharge?: number;
   storewideDiscount?: number;
   ownerPhone?: string;
+  avatarUrl?: string
 
   // ---------- new ----------
   gstPercent?: number;
@@ -61,6 +62,8 @@ export interface Tenant {
   pauseRequested?: boolean;
   pauseRequestedAt?: string;
   daysUntilExpiry?: number;
+
+  staffTippingEnabled?: boolean;
 
   infoDefaults?: Partial<
     Record<
@@ -374,12 +377,17 @@ const buildTenant = (
     dineinEnabled:
   (row.store_category ?? "restaurant") === "food-beverage" &&
   row.dinein_enabled === true,
+  staffTippingEnabled:
+  (row.store_category ?? "food-beverage") === "food-beverage" &&
+  row.dinein_enabled === true &&
+  row.staff_tipping_enabled === true,
     displayName: pickString(row.display_name, ShopInfo.Shop_name),
     storeCategory: (row.store_category ?? "food-beverage") as StoreCategory,
     whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
     bannerUrl: isBlank(row.banner_url)
       ? ShopInfo.Shop_banner || undefined
       : String(row.banner_url),
+      avatarUrl: isBlank(row.avatar_url) ? undefined : String(row.avatar_url),
     storeTagline: pickString(
       row.store_tagline,
       row.store_category
@@ -449,8 +457,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       supabase
         .from("star_veg_tenants")
         .select(
-          "id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled",
-        )
+  'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, avatar_url',
+)
         .eq("slug", slug)
         .maybeSingle(),
       supabase
@@ -643,96 +651,40 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------------------------------------------------
-  // Live poll for runtime flags (customer side).
-  //
-  // The customer's open tab needs to react within ~10s when the
-  // admin toggles dine-in on/off (or the plan / reviews setting
-  // changes). This poll fetches only the small subset of fields
-  // that affect the customer layout, so it's cheap — one narrow
-  // SELECT per ~10s while the tab is visible.
-  //
-  // Skipped entirely when the tab is hidden.
-  // ---------------------------------------------------------
-  useEffect(() => {
-    const { slug } = resolveSlugFromUrl();
-    if (!slug) return;
+  // src/contexts/TenantContext.tsx
+// ---------------------------------------------------------
+// Refresh-on-focus only. No interval polling.
+//
+// Rationale: the previous 10-second interval produced one
+// PostgREST SELECT per 10s per open tab - ~8,600 rows/day
+// toward Supabase log ingestion, for every tab, forever.
+//
+// The customer layout only needs to react when the tab becomes
+// visible again (or the user focuses back in). Admin-side flag
+// changes still propagate because:
+//   - the admin's own row updates through refreshTenant()
+//   - plan changes broadcast via planService (see effect above)
+//   - `refreshTenant()` is exposed on context and can be called
+//     by any screen after it mutates tenant state
+// ---------------------------------------------------------
+useEffect(() => {
+  const { slug } = resolveSlugFromUrl();
+  if (!slug) return;
 
-    let cancelled = false;
-    let timer: number | null = null;
+  const onFocus = () => {
+    if (document.hidden) return;
+    if (!tenantRef.current) return;
+    refreshTenant();
+  };
 
-    const POLL_MS = 10_000;
-
-    const schedule = (ms: number) => {
-      if (cancelled) return;
-      timer = window.setTimeout(tick, ms);
-    };
-
-    const tick = async () => {
-      if (cancelled) return;
-
-      if (typeof document !== "undefined" && document.hidden) {
-        schedule(POLL_MS);
-        return;
-      }
-
-      // Wait until the initial tenant load has completed.
-      if (!tenantRef.current) {
-        schedule(POLL_MS);
-        return;
-      }
-
-      try {
-        const flags = await supabaseService.getTenantRuntimeFlags(slug);
-        if (cancelled) return;
-        if (!flags) {
-          schedule(POLL_MS);
-          return;
-        }
-
-        // Read the freshest tenant from the ref, not the closure.
-        const current = tenantRef.current;
-        if (!current) {
-          schedule(POLL_MS);
-          return;
-        }
-
-        const changed =
-          (current.isActive !== false) !== flags.isActive ||
-          (current.dineinEnabled === true) !== flags.dineinEnabled ||
-          (current.subscriptionStatus ?? "active") !==
-            flags.subscriptionStatus ||
-          (current.planId ?? "professional") !== flags.planId ||
-          (current.reviewsEnabled !== false) !== flags.reviewsEnabled;
-
-        if (changed) {
-          await refreshTenant();
-        }
-      } catch (err) {
-        console.warn("[TenantContext] runtime-flag poll failed:", err);
-      } finally {
-        schedule(POLL_MS);
-      }
-    };
-
-    // First check waits one interval so the initial load has time
-    // to settle.
-    schedule(POLL_MS);
-
-    const onVisibility = () => {
-      if (document.hidden) return;
-      if (timer !== null) window.clearTimeout(timer);
-      tick();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      cancelled = true;
-      if (timer !== null) window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  document.addEventListener("visibilitychange", onFocus);
+  window.addEventListener("focus", onFocus);
+  return () => {
+    document.removeEventListener("visibilitychange", onFocus);
+    window.removeEventListener("focus", onFocus);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   return (
     <TenantContext.Provider

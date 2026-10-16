@@ -42,6 +42,7 @@ const MarkPaidModal: React.FC<Props> = ({
       onClose={busy ? () => {} : onCancel}
       title="Mark Paid"
       size="sm"
+      mobileFullScreen
       overlayZIndex={3100}
       footer={
         <>
@@ -66,7 +67,7 @@ const MarkPaidModal: React.FC<Props> = ({
 
       <p className={local.lead}>
         Confirm the payment mode for order{' '}
-        <strong>#{order.orderNo}</strong> —{' '}
+        <strong>#{order.orderNo}</strong> -{' '}
         <strong>{formatRupees(order.totalAmount)}</strong>.
       </p>
 

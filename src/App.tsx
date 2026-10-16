@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "./hooks/useCart";
 import { useAuth } from "./hooks/useAuth";
 import { useMenu } from "./hooks/useMenu";
+import { useIsMobile } from "./hooks/useIsMobile";
 import { menuService } from "./services/menu.service";
 import { db } from "./services/database.service";
 import { supabaseService } from "./services/supabase.service";
@@ -33,14 +34,47 @@ import PausedScreen from "./components/Store/PausedScreen";
 import ExpiredScreen from "./components/Store/ExpiredScreen";
 import RenewalBanner from "./components/Store/RenewalBanner";
 import SignupPage from "./components/Pages/Signup/SignupPage";
+import TenantDashboardCards from "./components/MainDashboard/TenantDashboardCards";
+import TenantAdminShell from "./components/MainDashboard/TenantAdminShell";
+import LoginModal from "./components/Auth/LoginModal";
+import CustomerOrderStatus from "./components/Dinein/CustomerOrderStatus";
 import { getCustomerName } from "./utils/customerName";
 import { getStoreLabels } from "./utils/storeLabels";
 import { getCategoryDefaults } from "./data/storeDefaults";
-import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
-import styles from "./App.module.scss";
-import TenantDashboardCards from './components/MainDashboard/TenantDashboardCards';
 import { getCategoryLabel } from "./data/storeCategories";
-import CustomerOrderStatus from "./components/Dinein/CustomerOrderStatus";
+import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
+import {
+  getAllPendingItems,
+  dropCommittedPendingItem,
+} from "./utils/dineinPendingItems";
+import styles from "./App.module.scss";
+
+// =========================================================
+// Layout helpers
+// =========================================================
+
+/**
+ * The customer-facing Header is redundant on desktop admin routes
+ * because the admin shell provides its own chrome (sidebar, avatar,
+ * notifications, logout). Hide it only when the shell is going to
+ * take over — mobile and customer URLs still get the Header.
+ */
+const shouldHideHeader = (
+  hasTenant: boolean,
+  isAdminView: boolean,
+  isMobile: boolean,
+): boolean => {
+  if (isMobile) return false;
+  if (!hasTenant) return true; // platform admin host
+  return isAdminView;
+};
+
+/** Desktop renders the shell; mobile falls back to the legacy card grid. */
+const TenantDashboardSwitch: React.FC = () => {
+  const isMobile = useIsMobile(900);
+  if (isMobile) return <TenantDashboardCards />;
+  return <TenantAdminShell />;
+};
 
 // =========================================================
 // Database status notice (admin only)
@@ -63,21 +97,18 @@ const DatabaseStatusNotice: React.FC<{
     <div
       className={`${styles.dbStatusNotice} ${
         isConnected ? styles.connected : styles.disconnected
-      }`}
+      }`} title={isConnected ? "Working" : "Reconnecting"}
     >
       <span className={styles.statusDot}></span>
       <span className={styles.statusText}>
-        {isConnected ? "Working!" : "Wait"}
+        {isConnected ? "" : ""}
       </span>
-      {!isConnected && (
-        <span className={styles.reconnectingText}> - Reconnecting...</span>
-      )}
     </div>
   );
 };
 
 // =========================================================
-// Signup route detection
+// Route / display helpers
 // =========================================================
 const isSignupRoute = (): boolean => {
   if (typeof window === "undefined") return false;
@@ -89,9 +120,6 @@ const isSignupRoute = (): boolean => {
   }
 };
 
-// =========================================================
-// Standalone (installed-app) detection
-// =========================================================
 const isStandaloneDisplay = (): boolean => {
   if (typeof window === "undefined") return false;
   const mq = window.matchMedia?.("(display-mode: standalone)").matches;
@@ -119,6 +147,9 @@ const AppContent: React.FC = () => {
   } = useStore();
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
 
+  const isMobile = useIsMobile(900);
+  const hideHeader = shouldHideHeader(!!tenant, isAdminView, isMobile);
+
   const labels = getStoreLabels(tenant?.storeCategory);
 
   const {
@@ -145,7 +176,7 @@ const AppContent: React.FC = () => {
     GST_PERCENT,
     RESTAURANT_PHONE,
     isLoaded: cartLoaded,
-    clearCart
+    clearCart,
   } = useCart();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -157,6 +188,7 @@ const AppContent: React.FC = () => {
   const [customerName, setCustomerName] = useState<string>(() =>
     getCustomerName(),
   );
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -187,10 +219,7 @@ const AppContent: React.FC = () => {
 
   const resetFilters = () => setFilters(createEmptyFilters());
 
-    // ---- Connection check ----
-  // Runs once on mount, then keeps retrying every 15s while the DB is
-  // unreachable. Also subscribes to the service's maintenance state so
-  // any check triggered elsewhere updates the badge.
+  // ---- Connection check ----
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setIsConnected(true);
@@ -232,6 +261,68 @@ const AppContent: React.FC = () => {
       if (interval !== null) window.clearInterval(interval);
     };
   }, []);
+
+  // ---- Force-open login on tenant admin URLs when signed out ----
+  const mustLogin =
+    !!tenant && isAdminView && !isAuthenticated && !authLoading;
+
+  useEffect(() => {
+    if (mustLogin) setIsLoginOpen(true);
+  }, [mustLogin]);
+
+  // ---- Dine-in pending items flush ----
+  useEffect(() => {
+    if (!tenant) return;
+
+    let cancelled = false;
+    let flushing = false;
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (flushing) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+
+      const all = getAllPendingItems();
+      if (all.length === 0) return;
+
+      const now = Date.now();
+      const expired = all.filter((p) => p.addedAt + 60_000 <= now);
+      if (expired.length === 0) return;
+
+      flushing = true;
+      try {
+        const byOrder = new Map<string, typeof expired>();
+        expired.forEach((p) => {
+          const list = byOrder.get(p.orderId) ?? [];
+          list.push(p);
+          byOrder.set(p.orderId, list);
+        });
+
+        for (const [orderId, items] of byOrder) {
+          const updated = await supabaseService.appendDineinOrderItems(
+            orderId,
+            items.map((p) => p.item),
+          );
+          if (updated) {
+            items.forEach((p) => dropCommittedPendingItem(p.pendingId));
+          }
+        }
+      } catch (err) {
+        console.warn("[pending-items] flush failed:", err);
+      } finally {
+        flushing = false;
+      }
+    };
+
+    const timer = window.setInterval(tick, 2000);
+    void tick();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug]);
 
   // ---- Tenant-scoped initialization ----
   useEffect(() => {
@@ -290,22 +381,19 @@ const AppContent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, selectedItem?.id]);
 
-  // When dine-in gets enabled for this tenant, the delivery cart
-// is meaningless — the customer orders directly at the table. Wipe
-// the cart so the floating button disappears and no stale items
-// linger. Flipping back to false restores normal delivery flow.
-useEffect(() => {
-  if (tenant?.dineinEnabled === true && getTotalItems() > 0) {
-    clearCart();
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [tenant?.dineinEnabled]);
+  // Dine-in makes the delivery cart meaningless.
+  useEffect(() => {
+    if (tenant?.dineinEnabled === true && getTotalItems() > 0) {
+      clearCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.dineinEnabled]);
 
-useEffect(() => {
-  if (tenant?.dineinEnabled === true && isCartOpen) {
-    setIsCartOpen(false);
-  }
-}, [tenant?.dineinEnabled, isCartOpen]);
+  useEffect(() => {
+    if (tenant?.dineinEnabled === true && isCartOpen) {
+      setIsCartOpen(false);
+    }
+  }, [tenant?.dineinEnabled, isCartOpen]);
 
   // ---- Filtering ----
   const filteredItems = useMemo(() => {
@@ -601,6 +689,28 @@ useEffect(() => {
   const isExpired = subscriptionStatus === "expired" || daysLeft < 0;
   const isPaused = subscriptionStatus === "paused";
 
+  /**
+   * True when the desktop admin shell is the thing rendering in the
+   * container. Used to strip the container's max-width and padding so
+   * the shell spans the full viewport.
+   *
+   * The shell only renders when the tenant is fully usable, so we
+   * also require the app to be past loading, the tenant to exist and
+   * be active, and the subscription not to be paused or expired.
+   * Otherwise the paused / expired / skeleton / not-found screens
+   * would render full-bleed and look wrong.
+   */
+  const shellActive =
+    !isMobile &&
+    !isAppLoading &&
+    !tenantNotFound &&
+    !isDeactivated &&
+    !isPaused &&
+    !isExpired &&
+    isAuthenticated &&
+    isAdmin &&
+    ((!!tenant && isAdminView) || !tenant);
+
   // ---- Render ----
   return (
     <>
@@ -613,7 +723,7 @@ useEffect(() => {
 
       {!isAuthenticated && tenant?.dineinEnabled && <CustomerOrderStatus />}
 
-      {!tenantNotFound && !isAppLoading && (
+      {!tenantNotFound && !isAppLoading && !hideHeader && (
         <Header
           companyName={tenant?.displayName ?? "Teckut"}
           year={2026}
@@ -625,15 +735,15 @@ useEffect(() => {
       )}
 
       {!isAppLoading &&
-          tenant &&
-          !isDeactivated &&
-          !isPaused &&
-          isExpired && <ExpiredScreen />}
+        tenant &&
+        !isDeactivated &&
+        !isPaused &&
+        isExpired && <ExpiredScreen />}
 
       <div
         className={`${styles.container} ${
           getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
-        }`}
+        } ${shellActive ? styles.shellActive : ""}`}
       >
         {!tenant && !tenantLoading && <MainDashboard />}
 
@@ -658,27 +768,23 @@ useEffect(() => {
           !isPaused &&
           !isExpired && (
             <>
-                {isAuthenticated && isAdmin && <RenewalBanner />}
+              {isAuthenticated && isAdmin && <RenewalBanner />}
 
-{isAuthenticated && tenant && (
-  <TenantDashboardCards />
+{isAuthenticated && tenant && <TenantDashboardSwitch />}
+
+{!isAuthenticated && (
+  <BrandInfo
+    brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+    brandDesc={
+      tenant?.infoDefaults?.storeTagline
+        ? getCategoryLabel(tenant?.storeCategory)
+        : tenant?.storeTagline ??
+          getCategoryLabel(tenant?.storeCategory)
+    }
+  />
 )}
 
-<BrandInfo
-  brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-  brandDesc={
-    tenant?.infoDefaults?.storeTagline
-      ? getCategoryLabel(tenant?.storeCategory)
-      : tenant?.storeTagline ??
-        getCategoryLabel(tenant?.storeCategory)
-  }
-  // Hide the store banner for any authenticated tenant user
-  // (admin or staff). The banner is only meant for customers.
-  hideBanner={isAuthenticated}
-/>
-
-
-              {!isStoreOpen && <StoreBanner />}
+{!isStoreOpen && <StoreBanner />}
 
               {isStoreOpen && !isAuthenticated && (
                 <>
@@ -797,6 +903,14 @@ useEffect(() => {
           acceptingOrders={isAcceptingOrders}
           cart={cart}
         />
+
+        {tenant && isAdminView && (
+          <LoginModal
+            isOpen={isLoginOpen}
+            onClose={() => setIsLoginOpen(false)}
+            forceOpen={mustLogin}
+          />
+        )}
       </div>
     </>
   );

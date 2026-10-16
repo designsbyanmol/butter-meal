@@ -57,7 +57,7 @@ const TenantNotificationsDrawer: React.FC<Props> = ({ onOpenReview }) => {
         {reviewItemName && (
           <>
             {' '}
-            — <em>{reviewItemName}</em>
+            - <em>{reviewItemName}</em>
           </>
         )}
         <span className={shared.rowMeta}>

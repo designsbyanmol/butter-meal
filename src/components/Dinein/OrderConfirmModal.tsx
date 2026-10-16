@@ -1,3 +1,4 @@
+// src/components/Dinein/OrderConfirmModal.tsx
 import React from 'react';
 import { Modal, Button, Banner } from '../ui';
 import { formatRupees } from '../../utils/subscription';
@@ -14,7 +15,14 @@ interface Props {
 }
 
 const OrderConfirmModal: React.FC<Props> = ({
-  isOpen, tableLabel, mode, itemsTotal, onConfirm, onCancel, busy, error,
+  isOpen,
+  tableLabel,
+  mode,
+  itemsTotal,
+  onConfirm,
+  onCancel,
+  busy,
+  error,
 }) => (
   <Modal
     isOpen={isOpen}
@@ -32,12 +40,25 @@ const OrderConfirmModal: React.FC<Props> = ({
       </>
     }
   >
-    {error && <Banner variant="error" onDismiss={() => {}}>{error}</Banner>}
-    <p>
+    {error && (
+      <Banner variant="error" onDismiss={() => {}}>
+        {error}
+      </Banner>
+    )}
+
+    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#6d5c72' }}>
       {mode === 'first'
-        ? `Placing your first order for Table ${tableLabel}. Total so far: ${formatRupees(itemsTotal)}.`
+        ? `Placing your first order for Table ${tableLabel}. Total so far: ${formatRupees(
+            itemsTotal,
+          )}.`
         : `This table already has an open order. Your items will be added to it.`}
     </p>
+
+    {mode === 'append' && (
+      <Banner variant="info" inline>
+        You have 1 minute to remove this item from View Order.
+      </Banner>
+    )}
   </Modal>
 );
 

@@ -48,6 +48,7 @@ const PauseRequestIcon: React.FC<PauseRequestIconProps> = ({
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Pause Request"
+        mobileFullScreen
         size="sm"
         footer={
           <>

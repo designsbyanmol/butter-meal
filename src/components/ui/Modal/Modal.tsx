@@ -1,7 +1,7 @@
 // src/components/ui/Modal/Modal.tsx
 import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseIcon } from '../../../assets/svgs';
+import { CloseIcon, LeftArrowIcon } from '../../../assets/svgs';
 import { pushEsc, popEsc, isTopEsc } from '../_escStack';
 import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import styles from './Modal.module.scss';
@@ -25,11 +25,16 @@ export interface ModalProps {
   className?: string;
   /**
    * Override the overlay's z-index. By default the overlay uses the
-   * `$z-modal` layer (1100). Pass a number when the modal must sit
-   * above another high-z element, e.g. the customer order-status
-   * banner which uses `$z-toast` (2000).
+   * `$z-modal` layer (1100).
    */
   overlayZIndex?: number;
+  /**
+   * When true, the modal renders as a full-screen sheet on mobile
+   * (<= $bp-sm) with a back arrow in the top-left corner and the
+   * `headerRight` slot in the top-right. Desktop rendering is
+   * unchanged.
+   */
+  mobileFullScreen?: boolean;
   children: React.ReactNode;
 }
 
@@ -45,12 +50,12 @@ const Modal: React.FC<ModalProps> = ({
   footer,
   className,
   overlayZIndex,
+  mobileFullScreen = false,
   children,
 }) => {
-  // Stable per-instance identifier for the Esc stack
   const instanceId = useId();
 
-  // Esc to close - only the topmost open modal reacts
+  // Esc to close - topmost only.
   useEffect(() => {
     if (!isOpen || disableBackdropClose) return;
 
@@ -71,7 +76,7 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll (reference-counted so nested modals nest correctly)
+  // Reference-counted body scroll lock.
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
     lockBodyScroll();
@@ -86,6 +91,17 @@ const Modal: React.FC<ModalProps> = ({
     if (!disableBackdropClose) onClose();
   };
 
+  const dialogClasses = [
+    styles.dialog,
+    styles[size],
+    mobileFullScreen ? styles.mobileFullScreen : '',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const showHeader = !!title || !!headerRight || !hideCloseButton;
+
   const content = (
     <div
       className={styles.overlay}
@@ -97,19 +113,37 @@ const Modal: React.FC<ModalProps> = ({
       }
     >
       <div
-        className={[styles.dialog, styles[size], className ?? '']
-          .filter(Boolean)
-          .join(' ')}
+        className={dialogClasses}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        {(title || headerRight || !hideCloseButton) && (
-          <header className={styles.header}>
+        {showHeader && (
+          <header
+            className={`${styles.header} ${
+              mobileFullScreen ? styles.headerMobile : ''
+            }`}
+          >
+            {/* Mobile-only back arrow, replaces the close icon. */}
+            {mobileFullScreen && !hideCloseButton && (
+              <button
+                type="button"
+                className={styles.backBtn}
+                onClick={onClose}
+                aria-label="Back"
+              >
+                <LeftArrowIcon width={20} height={20} fill="#1e1e1e" />
+              </button>
+            )}
+
             <div className={styles.headerRight}>
               {title && <h3 className={styles.title}>{title}</h3>}
-              {headerRight}
+              {headerRight && (
+                <div className={styles.headerActions}>{headerRight}</div>
+              )}
             </div>
+
+            {/* Desktop close button; hidden on mobile when full screen. */}
             {!hideCloseButton && (
               <button
                 type="button"

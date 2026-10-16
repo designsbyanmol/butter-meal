@@ -771,7 +771,7 @@ export const menuItems: MenuItem[] = [
     id: 15,
     inStock: true,
     name: "Paneer Bhurji",
-    desc: "A popular North Indian breakfast dish of crumbled paneer sautéed with onions, tomatoes, and a blend of aromatic spices. It’s quick, flavorful, and pairs wonderfully with bread or parathas",
+    desc: "A popular North Indian breakfast dish of crumbled paneer sautéed with onions, tomatoes, and a blend of aromatic spices. It's quick, flavorful, and pairs wonderfully with bread or parathas",
     costPrice: 80,
     price: 65,
     img: "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/menu-items/paneerBhurji.webp",

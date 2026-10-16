@@ -7,7 +7,7 @@ import { DineinOrder } from '../types';
 
 interface UseDineinCustomerOptions {
   /**
-   * When false, the hook does nothing — no fetch, no state updates.
+   * When false, the hook does nothing - no fetch, no state updates.
    * Set to true when the caller actually needs the data.
    */
   enabled?: boolean;
@@ -15,12 +15,12 @@ interface UseDineinCustomerOptions {
   /**
    * Scope the hook to a single order. When set, `openOrders` will
    * contain at most this one order, and `requestBill` will only affect
-   * it. This is the correct mode for the customer-facing bill flow —
+   * it. This is the correct mode for the customer-facing bill flow -
    * it prevents the bill from sweeping up unrelated orders that happen
    * to share the same device id (e.g. two tabs of the same browser).
    *
    * When null/undefined, the hook falls back to "all open orders for
-   * this device" — useful for a dashboard-style overview, not for the
+   * this device" - useful for a dashboard-style overview, not for the
    * customer bill button.
    */
   orderId?: string | null;
@@ -53,7 +53,7 @@ export const useDineinCustomer = (
     setLoading(true);
     try {
       // -----------------------------------------------------
-      // Mode 1 — scoped to one specific order.
+      // Mode 1 - scoped to one specific order.
       // -----------------------------------------------------
       if (orderId) {
         const one = await supabaseService.getDineinOrderById(orderId);
@@ -75,7 +75,7 @@ export const useDineinCustomer = (
       }
 
       // -----------------------------------------------------
-      // Mode 2 — all open orders for this device.
+      // Mode 2 - all open orders for this device.
       // -----------------------------------------------------
       if (!deviceId) {
         setOpenOrders([]);

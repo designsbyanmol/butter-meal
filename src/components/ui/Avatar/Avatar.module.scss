@@ -6,7 +6,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: $primary-dark;
   color: #fff;
   font-weight: 800;
   border: 2px solid #fff;
@@ -22,7 +21,7 @@ button.avatar {
   transition: transform $t-fast, background $t-fast;
   font-family: inherit;
 
-  &:hover { transform: scale(1.06); background: $green-800; }
+  &:hover { transform: scale(1.06); }
   &:active { transform: scale(0.95); }
 }
 

@@ -1,34 +1,32 @@
 // components/Header/Header.tsx
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { useTenant } from '../../contexts/TenantContext';
-import { useWishlist } from '../../hooks/useWishlist';
-import { useCustomerName } from '../../hooks/useCustomerName';
-import { usePlan } from '../../hooks/usePlan';
-import { MenuItem } from '../../types';
-import LoginModal from '../Auth/LoginModal';
-import UserManagement from '../Admin/UserManagement';
-import AdminPanel from '../Admin/AdminPanel';
-import StoreModal from '../Store/StoreModal';
-import TenantManager from '../Admin/TenantManager';
-import WishlistPanel from '../Menu/WishlistPanel';
-import InfoPopup from '../Store/InfoPopup';
-import PlanBadgeInline from '../Store/PlanBadgeInline';
-import WishlistIcon from '../../assets/svgs/WishlistIcon';
-import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
-import { Avatar, Badge, IconButton, Button } from '../ui';
-import { MenuIcon, UsersIcon, StoreIcon } from '../../assets/svgs';
-import {
-  subscribeAdminAction,
-  AdminAction,
-} from '../../utils/adminEvents';
-import ReviewsAdminModal from '../MainDashboard/ReviewsAdminModal';
-import AdminNotificationsDrawer from './AdminNotificationsDrawer';
-import TenantNotificationsDrawer from './TenantNotificationsDrawer';
-import DineinNotificationsDrawer from './DineinNotificationsDrawer';
-import ReviewsModal from '../MainDashboard/Modals/ReviewsModal';
-import DineinOrdersModal from '../MainDashboard/DineinOrdersModal';
-import local from './Header.module.scss';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useTenant } from "../../contexts/TenantContext";
+import { useWishlist } from "../../hooks/useWishlist";
+import { useCustomerName } from "../../hooks/useCustomerName";
+import { usePlan } from "../../hooks/usePlan";
+import { MenuItem } from "../../types";
+import LoginModal from "../Auth/LoginModal";
+import UserManagement from "../Admin/UserManagement";
+import AdminPanel from "../Admin/AdminPanel";
+import StoreModal from "../Store/StoreModal";
+import TenantManager from "../Admin/TenantManager";
+import WishlistPanel from "../Menu/WishlistPanel";
+import InfoPopup from "../Store/InfoPopup";
+import PlanBadgeInline from "../Store/PlanBadgeInline";
+import WishlistIcon from "../../assets/svgs/WishlistIcon";
+import WishlistFilledIcon from "../../assets/svgs/WishlistFilledIcon";
+import { Avatar, Badge, IconButton, Button } from "../ui";
+import { MenuIcon, UsersIcon, StoreIcon } from "../../assets/svgs";
+import { subscribeAdminAction, AdminAction } from "../../utils/adminEvents";
+import ReviewsAdminModal from "../MainDashboard/ReviewsAdminModal";
+import AdminNotificationsDrawer from "./AdminNotificationsDrawer";
+import TenantNotificationsDrawer from "./TenantNotificationsDrawer";
+import DineinNotificationsDrawer from "./DineinNotificationsDrawer";
+import ReviewsModal from "../MainDashboard/Modals/ReviewsModal";
+import DineinOrdersModal from "../MainDashboard/DineinOrdersModal";
+import WelcomePopup from "../Auth/WelcomePopup";
+import local from "./Header.module.scss";
 
 interface HeaderProps {
   companyName: string;
@@ -39,18 +37,18 @@ interface HeaderProps {
 interface FocusDispute {
   disputeId: string;
   reviewId: string;
-  outcome: 'deleted' | 'rejected';
+  outcome: "deleted" | "rejected";
   reviewItemName: string | null;
 }
 
 const AVATAR_COLORS = [
-  '#3caa46', // primary green
-  '#2563eb', // blue
-  '#9333ea', // purple
-  '#f59e0b', // amber
-  '#dc3545', // red
-  '#0f766e', // teal
-  '#c2410c', // orange-brown
+  "#3caa46", // primary green
+  "#2563eb", // blue
+  "#9333ea", // purple
+  "#f59e0b", // amber
+  "#dc3545", // red
+  "#0f766e", // teal
+  "#c2410c", // orange-brown
 ] as const;
 
 const colorForSlug = (slug: string | undefined): string => {
@@ -100,28 +98,46 @@ const Header: React.FC<HeaderProps> = ({
     null,
   );
 
+  const [welcome, setWelcome] = useState<{
+    userName: string;
+    storeName?: string;
+  } | null>(null);
+
+  const isForcedLogin =
+    isAdminView &&
+    !isAuthenticated &&
+    !authLoading &&
+    !isDeactivated &&
+    !!tenant;
+
+  useEffect(() => {
+    if (isForcedLogin) {
+      setIsLoginOpen(true);
+    }
+  }, [isForcedLogin]);
+
   useEffect(() => {
     const unsubscribe = subscribeAdminAction((action: AdminAction) => {
       switch (action) {
-        case 'open-menu-panel':
+        case "open-menu-panel":
           setIsMenuPanelOpen(true);
           break;
-        case 'open-store-settings':
+        case "open-store-settings":
           setIsStoreModalOpen(true);
           break;
-        case 'open-user-management':
+        case "open-user-management":
           if (isAdmin) setIsUserManagementOpen(true);
           break;
-        case 'open-info-popup':
+        case "open-info-popup":
           if (isAdmin) setIsInfoOpen(true);
           break;
-        case 'open-tenant-manager':
+        case "open-tenant-manager":
           setIsTenantManagerOpen(true);
           break;
-        case 'open-reviews':
+        case "open-reviews":
           if (isAdmin) setIsReviewsOpen(true);
           break;
-        case 'open-orders':
+        case "open-orders":
           setIsDineinOrdersOpen(true);
           break;
       }
@@ -140,24 +156,23 @@ const Header: React.FC<HeaderProps> = ({
   const showAdminAvatar = isAuthenticated && !!tenant && !isDeactivated;
 
   const isAdminContext = isSmartAdminHost || isAdminView;
-  const hasCustomerName =
-    !isAuthenticated && customerName.trim().length > 0;
+  const hasCustomerName = !isAuthenticated && customerName.trim().length > 0;
 
   const showPlatformBell = isAuthenticated && isPlatformAdminOnHost;
   const showTenantBell =
-  isAuthenticated &&
-  isAdmin &&
-  !!tenant &&
-  !isDeactivated &&
-  !isPlatformAdmin &&
-  plan.canReview;
+    isAuthenticated &&
+    isAdmin &&
+    !!tenant &&
+    !isDeactivated &&
+    !isPlatformAdmin &&
+    plan.canReview;
 
   const showDineinBell =
-  isAuthenticated &&
-  isAdmin &&
-  !!tenant &&
-  tenant.dineinEnabled === true &&
-  !isPlatformAdmin;
+    isAuthenticated &&
+    isAdmin &&
+    !!tenant &&
+    tenant.dineinEnabled === true &&
+    !isPlatformAdmin;
 
   const showLogout = isAuthenticated && !isPlatformAdminViewingTenant;
 
@@ -169,7 +184,7 @@ const Header: React.FC<HeaderProps> = ({
   const handleLogin = () => setIsLoginOpen(true);
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
+    if (window.confirm("Are you sure you want to logout?")) {
       logout();
     }
   };
@@ -179,29 +194,29 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const avatarInitial = (() => {
-  const storeName = tenant?.displayName?.trim();
-  if (storeName && storeName.length > 0) {
-    return storeName.charAt(0).toUpperCase();
-  }
-  const userName = user?.name?.trim();
-  if (userName && userName.length > 0) {
-    return userName.charAt(0).toUpperCase();
-  }
-  return '?';
-})();
+    const storeName = tenant?.displayName?.trim();
+    if (storeName && storeName.length > 0) {
+      return storeName.charAt(0).toUpperCase();
+    }
+    const userName = user?.name?.trim();
+    if (userName && userName.length > 0) {
+      return userName.charAt(0).toUpperCase();
+    }
+    return "?";
+  })();
 
   const renderBrandText = () => {
     if (isAuthenticated && user?.name) {
       return (
         <>
           <span className={local.tagline}>{user.name}</span>
-          {tenant && !isPlatformAdminOnHost && (
-            isAdmin ? (
+          {tenant &&
+            !isPlatformAdminOnHost &&
+            (isAdmin ? (
               <PlanBadgeInline onClick={() => setIsInfoOpen(true)} />
             ) : (
               <PlanBadgeInline />
-            )
-          )}
+            ))}
         </>
       );
     }
@@ -244,22 +259,23 @@ const Header: React.FC<HeaderProps> = ({
         <div className={local.container}>
           <div className={local.brand}>
             {showAdminAvatar && (
-  <span className={local.avatarWrap}>
-    <Avatar
-      name={avatarInitial}
-      size="md"
-      bgColor={colorForSlug(tenant?.slug)}
-      onClick={isAdmin ? () => setIsInfoOpen(true) : undefined}
-    />
-    <span
-      className={`${local.roleBadge} ${
-        isAdmin ? local.roleBadgeAdmin : local.roleBadgeStaff
-      }`}
-    >
-      {isAdmin ? 'Admin' : 'Staff'}
-    </span>
-  </span>
-)}
+              <span className={local.avatarWrap}>
+                <Avatar
+                  name={avatarInitial}
+                  src={isAdmin ? tenant?.avatarUrl || undefined : undefined}
+                  role={isAdmin ? "admin" : "staff"}
+                  size="md"
+                  onClick={isAdmin ? () => setIsInfoOpen(true) : undefined}
+                />
+                <span
+                  className={`${local.roleBadge} ${
+                    isAdmin ? local.roleBadgeAdmin : local.roleBadgeStaff
+                  }`}
+                >
+                  {isAdmin ? "Admin" : "Staff"}
+                </span>
+              </span>
+            )}
             {!isAuthenticated && (
               <span className={local.brandText}>{renderBrandText()}</span>
             )}
@@ -288,18 +304,14 @@ const Header: React.FC<HeaderProps> = ({
                   onClick={() => setIsWishlistOpen(true)}
                 >
                   {wishlistCount > 0 ? (
-                    <WishlistFilledIcon
-                      width={20}
-                      height={20}
-                      fill="#e23744"
-                    />
+                    <WishlistFilledIcon width={20} height={20} fill="#e23744" />
                   ) : (
                     <WishlistIcon width={20} height={20} fill="#1e1e1e" />
                   )}
                 </IconButton>
                 {wishlistCount > 0 && (
                   <span className={local.wishlistBadge}>
-                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                    {wishlistCount > 99 ? "99+" : wishlistCount}
                   </span>
                 )}
               </div>
@@ -412,11 +424,22 @@ const Header: React.FC<HeaderProps> = ({
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
+        forceOpen={isForcedLogin}
+        onLoginSuccess={(info) => {
+          setIsLoginOpen(false);
+          setWelcome(info);
+        }}
+      />
+
+      <WelcomePopup
+        isOpen={!!welcome}
+        userName={welcome?.userName ?? ""}
+        storeName={welcome?.storeName}
+        onDismiss={() => setWelcome(null)}
       />
 
       {isUserManagementOpen && tenant && isAdmin && (
         <UserManagement
-          tenantSlug={tenant.slug}
           onClose={() => setIsUserManagementOpen(false)}
         />
       )}
@@ -453,10 +476,7 @@ const Header: React.FC<HeaderProps> = ({
       )}
 
       {showAdminAvatar && isAdmin && isInfoOpen && (
-        <InfoPopup
-          isOpen={isInfoOpen}
-          onClose={() => setIsInfoOpen(false)}
-        />
+        <InfoPopup isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
       )}
 
       {isReviewsModalOpen && (
@@ -471,16 +491,16 @@ const Header: React.FC<HeaderProps> = ({
       )}
 
       {isDineinOrdersOpen && tenant && isAdmin && (
-  <DineinOrdersModal
-    isOpen={isDineinOrdersOpen}
-    onClose={() => {
-      setIsDineinOrdersOpen(false);
-      setFocusDineinOrderId(null);
-    }}
-    focusOrderId={focusDineinOrderId}
-    mode="admin"
-  />
-)}
+        <DineinOrdersModal
+          isOpen={isDineinOrdersOpen}
+          onClose={() => {
+            setIsDineinOrdersOpen(false);
+            setFocusDineinOrderId(null);
+          }}
+          focusOrderId={focusDineinOrderId}
+          mode="admin"
+        />
+      )}
     </>
   );
 };

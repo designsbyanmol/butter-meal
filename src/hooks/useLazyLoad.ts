@@ -6,10 +6,10 @@ import { useEffect, useRef, useState } from 'react';
  * Subsequent opens use the cached value unless you call `reload`.
  *
  * Returns:
- *   - `data`      — the loaded value (or null before first load)
- *   - `isLoading` — true while the loader is running
- *   - `error`     — the last error, if any
- *   - `reload`    — force a re-fetch (e.g. after a mutation)
+ *   - `data`      - the loaded value (or null before first load)
+ *   - `isLoading` - true while the loader is running
+ *   - `error`     - the last error, if any
+ *   - `reload`    - force a re-fetch (e.g. after a mutation)
  */
 export const useLazyLoad = <T>(
   isOpen: boolean,

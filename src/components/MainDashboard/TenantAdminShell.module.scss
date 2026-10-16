@@ -1,0 +1,27 @@
+// components/MainDashboard/TenantAdminShell.module.scss
+@use '../../styles/tokens' as *;
+
+.greeting {
+  padding: 8px 4px;
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 800;
+    color: $text;
+    letter-spacing: -0.3px;
+    line-height: 1.25;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: $text-muted;
+    line-height: 1.5;
+
+    strong {
+      color: $text;
+      font-weight: 700;
+    }
+  }
+}

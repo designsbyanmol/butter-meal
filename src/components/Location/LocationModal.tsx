@@ -18,6 +18,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
   return (
     <Sheet
       isOpen={isOpen}
+      mobileFullScreen
       onClose={onClose}
       title="Confirm Location"
       maxHeightVh={60}

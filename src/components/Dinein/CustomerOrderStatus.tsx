@@ -1,24 +1,31 @@
 // src/components/Dinein/CustomerOrderStatus.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { useTenant } from '../../contexts/TenantContext';
-import { supabaseService } from '../../services/supabase.service';
-import { getEffectiveDeviceId } from '../../utils/deviceId';
-import CustomerRequestBillButton from '../Header/CustomerRequestBillButton';
-import { MinusIcon, DownloadIcon, CopyIcon } from '../../assets/svgs';
-import { DineinOrder } from '../../types';
-import { buildUpiUri } from '../../utils/upiQr';
-import { downloadBillPdf } from '../../utils/billPdf';
-import { Button, Banner, Sheet } from '../ui';
-import local from './CustomerOrderStatus.module.scss';
+import React, { useEffect, useRef, useState } from "react";
+import { useTenant } from "../../contexts/TenantContext";
+import { supabaseService } from "../../services/supabase.service";
+import { getEffectiveDeviceId } from "../../utils/deviceId";
+import CustomerRequestBillButton from "../Header/CustomerRequestBillButton";
+import { MinusIcon, DownloadIcon, CopyIcon } from "../../assets/svgs";
+import { DineinOrder } from "../../types";
+import { buildUpiUri } from "../../utils/upiQr";
+import { downloadBillPdf } from "../../utils/billPdf";
+import { Button, Banner, Sheet, ConfirmDialog } from "../ui";
+import {
+  PendingItem,
+  getPendingItemsForOrder,
+  removePendingItem,
+  remainingMs,
+  subscribePendingItems,
+} from "../../utils/dineinPendingItems";
+import local from "./CustomerOrderStatus.module.scss";
 
-const POLL_MS = 8_000;
+const POLL_MS = 30_000;
 
 const STAGE_COPY: Record<string, string> = {
-  placed: 'Order Placed — will be accepted soon',
-  accepted: 'Order Accepted',
-  preparing: 'Order is getting prepared',
-  served: 'Order Served — Enjoy!',
-  cancelled: 'Order could not be accepted',
+  placed: "Order Placed - will be accepted soon",
+  accepted: "Order Accepted",
+  preparing: "Order is getting prepared",
+  served: "Order Served - Enjoy!",
+  cancelled: "Order could not be accepted",
 };
 
 const formatElapsed = (totalSec: number): string => {
@@ -26,7 +33,7 @@ const formatElapsed = (totalSec: number): string => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, "0");
   if (h > 0) return `${h}h ${pad(m)}m ${pad(sec)}s`;
   if (m > 0) return `${m}m ${pad(sec)}s`;
   return `${sec}s`;
@@ -41,33 +48,35 @@ const secondsBetween = (fromIso?: string, toIso?: string): number => {
 };
 
 const ACTIVE_SET = new Set([
-  'placed',
-  'accepted',
-  'preparing',
-  'served',
-  'bill_requested',
-  'paid',
+  "placed",
+  "accepted",
+  "preparing",
+  "served",
+  "bill_requested",
+  "paid",
 ]);
 
 const MIN_SERVE_MINUTES = 15;
 
 const prepEtaCopy = (itemsCount: number): string => {
   if (itemsCount > 15) {
-    return 'please be patient — your items will be served as early as possible';
+    return "please be patient - your items will be served as early as possible";
   }
   const minutes =
     itemsCount <= 5
       ? MIN_SERVE_MINUTES
       : itemsCount <= 10
-      ? MIN_SERVE_MINUTES + 5
-      : MIN_SERVE_MINUTES + 10;
+        ? MIN_SERVE_MINUTES + 5
+        : MIN_SERVE_MINUTES + 10;
   return `will be served in ~${minutes} min`;
 };
 
-type PayFlowState = 'idle' | 'awaiting' | 'awaiting_no_vpa' | 'failed';
+type PayFlowState = "idle" | "awaiting" | "awaiting_no_vpa" | "failed";
+
+const TIP_OPTIONS = [10, 20, 50, 100, 150];
 
 const rupees = (n: number): string =>
-  `Rs ${Number(n).toLocaleString('en-IN', {
+  `Rs ${Number(n).toLocaleString("en-IN", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
@@ -83,9 +92,14 @@ const CustomerOrderStatus: React.FC = () => {
   const [isItemsOpen, setIsItemsOpen] = useState(false);
   const [isUpiSheetOpen, setIsUpiSheetOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [payFlow, setPayFlow] = useState<PayFlowState>('idle');
+  const [payFlow, setPayFlow] = useState<PayFlowState>("idle");
   const [payBusy, setPayBusy] = useState(false);
-  const [payError, setPayError] = useState('');
+  const [payError, setPayError] = useState("");
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [, setCountdownTick] = useState(0);
+  const [pendingToRemove, setPendingToRemove] = useState<PendingItem | null>(
+    null,
+  );
 
   const dismissTimerRef = useRef<number | null>(null);
   const lastUpdatedRef = useRef<string | null>(null);
@@ -98,8 +112,8 @@ const CustomerOrderStatus: React.FC = () => {
     setIsMinimized(false);
     setIsItemsOpen(false);
     setIsUpiSheetOpen(false);
-    setPayFlow('idle');
-    setPayError('');
+    setPayFlow("idle");
+    setPayError("");
     lastUpdatedRef.current = null;
     try {
       if (storageKey) sessionStorage.removeItem(storageKey);
@@ -128,7 +142,7 @@ const CustomerOrderStatus: React.FC = () => {
     try {
       summary = await supabaseService.getDineinOrderSummary(activeId);
     } catch (err) {
-      console.warn('[customer-order-status] summary failed:', err);
+      console.warn("[customer-order-status] summary failed:", err);
       fetchFailed = true;
     }
     if (fetchFailed) return;
@@ -144,7 +158,7 @@ const CustomerOrderStatus: React.FC = () => {
     try {
       fresh = await supabaseService.getDineinOrderById(activeId);
     } catch (err) {
-      console.warn('[customer-order-status] full fetch failed:', err);
+      console.warn("[customer-order-status] full fetch failed:", err);
       return;
     }
 
@@ -163,46 +177,84 @@ const CustomerOrderStatus: React.FC = () => {
     setIsVisible(true);
   };
 
+  // Sync pending items for the current order.
   useEffect(() => {
-    load();
+    if (!order) {
+      setPendingItems([]);
+      return;
+    }
+    const refresh = () => {
+      setPendingItems(getPendingItemsForOrder(order.id));
+    };
+    refresh();
+    const unsubscribe = subscribePendingItems(refresh);
+    return unsubscribe;
+  }, [order?.id]);
 
-    const poll = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      load();
+  // While the View Order sheet is open, tick every second so the
+  // countdown labels update.
+  useEffect(() => {
+    if (!isItemsOpen) return;
+    const id = window.setInterval(() => setCountdownTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [isItemsOpen]);
+
+  useEffect(() => {
+  load();
+
+  let cancelled = false;
+  let timer: number | null = null;
+
+  const schedule = () => {
+    if (cancelled) return;
+    timer = window.setTimeout(async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) {
+        schedule();
+        return;
+      }
+      await load();
+      schedule();
     }, POLL_MS);
+  };
 
-    const onFocus = () => {
-      if (document.hidden) return;
-      load();
-    };
-    document.addEventListener('visibilitychange', onFocus);
-    window.addEventListener('focus', onFocus);
+  schedule();
 
-    return () => {
-      window.clearInterval(poll);
-      document.removeEventListener('visibilitychange', onFocus);
-      window.removeEventListener('focus', onFocus);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.slug, tenant?.dineinEnabled, deviceId]);
+  const onFocus = () => {
+    if (document.hidden) return;
+    if (timer !== null) window.clearTimeout(timer);
+    load().finally(schedule);
+  };
+
+  document.addEventListener("visibilitychange", onFocus);
+  window.addEventListener("focus", onFocus);
+
+  return () => {
+    cancelled = true;
+    if (timer !== null) window.clearTimeout(timer);
+    document.removeEventListener("visibilitychange", onFocus);
+    window.removeEventListener("focus", onFocus);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [tenant?.slug, tenant?.dineinEnabled, deviceId]);
 
   useEffect(() => {
     if (!order) return;
     const ref =
-      order.status === 'served'
+      order.status === "served"
         ? order.servedAt
-        : order.status === 'preparing'
-        ? order.preparingAt
-        : order.status === 'accepted'
-        ? order.acceptedAt
-        : order.createdAt;
+        : order.status === "preparing"
+          ? order.preparingAt
+          : order.status === "accepted"
+            ? order.acceptedAt
+            : order.createdAt;
     const ts = ref ? new Date(ref).getTime() : Date.now();
     setElapsedSec(Math.max(0, Math.floor((Date.now() - ts) / 1000)));
   }, [order?.id, order?.status]);
 
   useEffect(() => {
     if (!isVisible || !order) return;
-    if (order.status !== 'placed') return;
+    if (order.status !== "placed") return;
     const id = window.setInterval(() => setElapsedSec((s) => s + 1), 1000);
     return () => window.clearInterval(id);
   }, [isVisible, order?.status, order?.id]);
@@ -213,7 +265,7 @@ const CustomerOrderStatus: React.FC = () => {
       window.clearTimeout(dismissTimerRef.current);
       dismissTimerRef.current = null;
     }
-    if (order.status === 'cancelled') {
+    if (order.status === "cancelled") {
       dismissTimerRef.current = window.setTimeout(() => {
         hideBanner();
       }, 4000);
@@ -228,61 +280,65 @@ const CustomerOrderStatus: React.FC = () => {
 
   useEffect(() => {
     if (!order) return;
-    if (order.status !== 'bill_requested' && order.status !== 'paid') {
-      setPayFlow('idle');
-      setPayError('');
+    if (order.status !== "bill_requested" && order.status !== "paid") {
+      setPayFlow("idle");
+      setPayError("");
       setIsUpiSheetOpen(false);
     }
   }, [order?.status]);
 
   if (!order || !isVisible) return null;
 
-  const itemsCount = order.items.reduce((s, i) => s + i.quantity, 0);
+  // Items count includes pending items already (both confirmed and
+  // pending contribute to what the customer sees in their order).
+  const itemsCount =
+    order.items.reduce((s, i) => s + i.quantity, 0) +
+    pendingItems.reduce((s, p) => s + p.item.quantity, 0);
   const timeToAcceptSec = secondsBetween(order.createdAt, order.acceptedAt);
 
   const elapsedCopy =
-    order.status === 'accepted' && order.acceptedAt
+    order.status === "accepted" && order.acceptedAt
       ? `in ${formatElapsed(timeToAcceptSec)}`
-      : '';
+      : "";
 
   const headline = (() => {
     switch (order.status) {
-      case 'accepted':
+      case "accepted":
         return `Order Accepted ${elapsedCopy}`;
-      case 'preparing':
-        return `Order is getting prepared — ${prepEtaCopy(itemsCount)}`;
-      case 'bill_requested':
+      case "preparing":
+        return `Order is getting prepared - ${prepEtaCopy(itemsCount)}`;
+      case "bill_requested":
         return order.payOnline
-          ? 'Bill ready — pay online to close your order'
-          : 'Bill Requested — the bill will be brought to your table';
-      case 'paid':
-        return 'Thanks for taking our service and have a nice day.';
+          ? "Bill ready - pay online to close your order"
+          : "Bill Requested - the bill will be brought to your table";
+      case "paid":
+        return "Thanks for taking our service and have a nice day.";
       default:
-        return STAGE_COPY[order.status] ?? 'Order in progress';
+        return STAGE_COPY[order.status] ?? "Order in progress";
     }
   })();
 
   const stageLine = (() => {
     switch (order.status) {
-      case 'placed':
-        return `Waiting · ${formatElapsed(elapsedSec)}`;
-      case 'accepted':
+      case "placed":
+        return `Waiting . ${formatElapsed(elapsedSec)}`;
+      case "accepted":
         return `Accepted in ${formatElapsed(timeToAcceptSec)}`;
-      case 'preparing':
-        return 'Preparing';
-      case 'served':
-        return 'Served';
-      case 'bill_requested':
-        if (!order.payOnlineRequested) return 'Waiting for the bill';
+      case "preparing":
+        return "Preparing";
+      case "served":
+        return "Served";
+      case "bill_requested":
+        if (!order.payOnlineRequested) return "Waiting for the bill";
         if (!order.payOnline)
-          return 'Waiting for staff to confirm online payment';
-        return 'Waiting for online payment';
-      case 'paid':
-        return 'Paid';
-      case 'cancelled':
-        return 'Cancelled';
+          return "Waiting for staff to confirm online payment";
+        return "Waiting for online payment";
+      case "paid":
+        return "Paid";
+      case "cancelled":
+        return "Cancelled";
       default:
-        return '';
+        return "";
     }
   })();
 
@@ -291,12 +347,12 @@ const CustomerOrderStatus: React.FC = () => {
   // ---------------------------------------------------------
   const openUpiSheet = () => {
     if (!tenant?.upiId) {
-      setPayError('');
-      setPayFlow('awaiting_no_vpa');
+      setPayError("");
+      setPayFlow("awaiting_no_vpa");
       return;
     }
     setCopied(false);
-    setPayError('');
+    setPayError("");
     setIsUpiSheetOpen(true);
   };
 
@@ -310,9 +366,9 @@ const CustomerOrderStatus: React.FC = () => {
       txnRef: order.orderNo,
     });
     try {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = uri;
-      a.rel = 'noopener noreferrer';
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -323,9 +379,8 @@ const CustomerOrderStatus: React.FC = () => {
         /* ignore */
       }
     }
-    // Sheet closes; the awaiting-confirm row appears inline in the banner.
     setIsUpiSheetOpen(false);
-    setPayFlow('awaiting');
+    setPayFlow("awaiting");
   };
 
   const copyUpiId = async () => {
@@ -350,45 +405,45 @@ const CustomerOrderStatus: React.FC = () => {
   };
 
   const handleConfirmPaid = async () => {
-  setPayBusy(true);
-  setPayError('');
-  try {
-    const updated = await supabaseService.claimDineinPayment(order.id);
-    if (!updated) throw new Error('Could not record payment');
-    setOrder(updated);
-    lastUpdatedRef.current = updated.updatedAt;
-    setPayFlow('idle');
-  } catch (err) {
-    setPayError(
-      err instanceof Error ? err.message : 'Failed to record payment',
-    );
-  } finally {
-    setPayBusy(false);
-  }
-};
+    setPayBusy(true);
+    setPayError("");
+    try {
+      const updated = await supabaseService.claimDineinPayment(order.id);
+      if (!updated) throw new Error("Could not record payment");
+      setOrder(updated);
+      lastUpdatedRef.current = updated.updatedAt;
+      setPayFlow("idle");
+    } catch (err) {
+      setPayError(
+        err instanceof Error ? err.message : "Failed to record payment",
+      );
+    } finally {
+      setPayBusy(false);
+    }
+  };
 
   const handlePaymentFailed = () => {
-    setPayFlow('failed');
-    setPayError('');
+    setPayFlow("failed");
+    setPayError("");
   };
 
   const handleRetry = () => {
-    setPayFlow('idle');
+    setPayFlow("idle");
     openUpiSheet();
   };
 
   const handleSettleOffline = async () => {
     setPayBusy(true);
-    setPayError('');
+    setPayError("");
     try {
       const updated = await supabaseService.setDineinSettleOffline(order.id);
-      if (!updated) throw new Error('Could not switch to offline');
+      if (!updated) throw new Error("Could not switch to offline");
       setOrder(updated);
       lastUpdatedRef.current = updated.updatedAt;
-      setPayFlow('idle');
+      setPayFlow("idle");
     } catch (err) {
       setPayError(
-        err instanceof Error ? err.message : 'Could not switch to offline',
+        err instanceof Error ? err.message : "Could not switch to offline",
       );
     } finally {
       setPayBusy(false);
@@ -409,14 +464,46 @@ const CustomerOrderStatus: React.FC = () => {
     hideBanner();
   };
 
+  const handleSelectTip = async (amount: number) => {
+    if (!order) return;
+    // The server only accepts tip changes while the order is still
+    // open (placed / accepted / preparing / served). Since the pills
+    // only render in the `served` state this is a sanity check.
+    if (
+      order.status !== "served" &&
+      order.status !== "preparing" &&
+      order.status !== "accepted" &&
+      order.status !== "placed"
+    ) {
+      return;
+    }
+    const current = order.staffTip ?? 0;
+    const next = current === amount ? 0 : amount;
+    setPayBusy(true);
+    setPayError("");
+    try {
+      const updated = await supabaseService.setDineinStaffTip(
+        order.id,
+        next,
+      );
+      if (!updated) throw new Error("Failed to update tip");
+      setOrder(updated);
+      lastUpdatedRef.current = updated.updatedAt;
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Failed to update tip");
+    } finally {
+      setPayBusy(false);
+    }
+  };
+
   // ---------------------------------------------------------
   // Banner action area
   // ---------------------------------------------------------
   const renderActions = () => {
     if (
-      order.status === 'placed' ||
-      order.status === 'accepted' ||
-      order.status === 'preparing'
+      order.status === "placed" ||
+      order.status === "accepted" ||
+      order.status === "preparing"
     ) {
       return (
         <div className={local.bannerBtnRow}>
@@ -431,19 +518,49 @@ const CustomerOrderStatus: React.FC = () => {
       );
     }
 
-    if (order.status === 'served' && !order.billRequested) {
+    if (order.status === "served" && !order.billRequested) {
+      const tip = order.staffTip ?? 0;
       return (
-        <div className={local.bannerBtnRow}>
-          <CustomerRequestBillButton forceVisible orderId={order.id} />
+        <div className={local.bannerTipBlock}>
+          {tenant?.staffTippingEnabled && (
+            <>
+              <div className={local.tipLabel}>
+                Add a tip for the staff serving you
+              </div>
+              <div className={local.tipRow}>
+                {TIP_OPTIONS.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    className={`${local.tipPill} ${
+                      tip === amount ? local.tipPillActive : ""
+                    }`}
+                    disabled={payBusy}
+                    onClick={() => handleSelectTip(amount)}
+                  >
+                    +{amount}
+                  </button>
+                ))}
+              </div>
+              {tip > 0 && (
+                <div className={local.tipSelectedNote}>
+                  Rs {tip} tip will be added to your total
+                </div>
+              )}
+            </>
+          )}
+          <div className={local.bannerBtnRow}>
+            <CustomerRequestBillButton forceVisible orderId={order.id} />
+          </div>
         </div>
       );
     }
 
-    if (order.status === 'bill_requested') {
+    if (order.status === "bill_requested") {
       if (!order.payOnlineRequested) {
         return (
           <div className={local.bannerNote}>
-            Waiting for staff to bring the bill…
+            Waiting for staff to bring the bill...
           </div>
         );
       }
@@ -451,38 +568,47 @@ const CustomerOrderStatus: React.FC = () => {
       if (!order.payOnline) {
         return (
           <div className={local.bannerNote}>
-            Waiting for staff to confirm online payment…
+            Waiting for staff to confirm online payment...
           </div>
         );
       }
 
       if (order.customerPaidClaimed) {
-  return (
-    <div className={local.bannerNote}>
-      Payment recorded — waiting for the staff to verify…
-    </div>
-  );
-}
-
-      if (payFlow === 'idle') {
         return (
-          <div className={local.bannerBtnRow}>
-            <Button size="sm" onClick={openUpiSheet}>
-              Pay {rupees(order.totalAmount)}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDownloadBill}
-              leftIcon={<DownloadIcon width={14} height={14} fill="#fff" />}
-            >
-              Download Bill
-            </Button>
+          <div className={local.bannerNote}>
+            Payment recorded - waiting for the staff to verify...
           </div>
         );
       }
 
-      if (payFlow === 'awaiting_no_vpa') {
+      if (payFlow === "idle") {
+  const tip = order.staffTip ?? 0;
+  const baseAmount = order.totalAmount - tip;
+  return (
+    <div className={local.bannerConfirmBlock}>
+      <div className={local.bannerBtnRow}>
+        <Button size="sm" onClick={openUpiSheet}>
+          Pay {rupees(order.totalAmount)}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleDownloadBill}
+          leftIcon={<DownloadIcon width={14} height={14} fill="#fff" />}
+        >
+          Download Bill
+        </Button>
+      </div>
+      {tip > 0 && (
+        <div className={local.bannerBreakdown}>
+          Rs {baseAmount} (Items + GST) + Rs {tip} Tip
+        </div>
+      )}
+    </div>
+  );
+}
+
+      if (payFlow === "awaiting_no_vpa") {
         return (
           <div className={local.bannerConfirmBlock}>
             <div className={local.bannerNote}>
@@ -493,7 +619,7 @@ const CustomerOrderStatus: React.FC = () => {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setPayFlow('idle')}
+                onClick={() => setPayFlow("idle")}
               >
                 Back
               </Button>
@@ -510,12 +636,10 @@ const CustomerOrderStatus: React.FC = () => {
         );
       }
 
-      if (payFlow === 'awaiting') {
+      if (payFlow === "awaiting") {
         return (
           <div className={local.bannerConfirmBlock}>
-            <div className={local.bannerNote}>
-              Did the payment go through?
-            </div>
+            <div className={local.bannerNote}>Did the payment go through?</div>
             <div className={local.bannerBtnRow}>
               <Button
                 size="sm"
@@ -523,7 +647,7 @@ const CustomerOrderStatus: React.FC = () => {
                 onClick={handleConfirmPaid}
                 loading={payBusy}
               >
-                Yes, I’ve paid
+                Yes, I've paid
               </Button>
               <Button
                 size="sm"
@@ -535,7 +659,7 @@ const CustomerOrderStatus: React.FC = () => {
               </Button>
             </div>
             {payError && (
-              <Banner variant="error" inline onDismiss={() => setPayError('')}>
+              <Banner variant="error" inline onDismiss={() => setPayError("")}>
                 {payError}
               </Banner>
             )}
@@ -543,11 +667,11 @@ const CustomerOrderStatus: React.FC = () => {
         );
       }
 
-      if (payFlow === 'failed') {
+      if (payFlow === "failed") {
         return (
           <div className={local.bannerConfirmBlock}>
             {payError && (
-              <Banner variant="error" inline onDismiss={() => setPayError('')}>
+              <Banner variant="error" inline onDismiss={() => setPayError("")}>
                 {payError}
               </Banner>
             )}
@@ -569,7 +693,7 @@ const CustomerOrderStatus: React.FC = () => {
       }
     }
 
-    if (order.status === 'paid') {
+    if (order.status === "paid") {
       return (
         <div className={local.bannerBtnRow}>
           <Button
@@ -592,22 +716,22 @@ const CustomerOrderStatus: React.FC = () => {
 
   const minimizedLabel = (() => {
     switch (order.status) {
-      case 'placed':
-        return 'New';
-      case 'accepted':
-        return 'Accepted';
-      case 'preparing':
-        return 'Preparing';
-      case 'served':
-        return 'Served';
-      case 'bill_requested':
-        return 'Bill Req.';
-      case 'paid':
-        return 'Paid';
-      case 'cancelled':
-        return 'Cancelled';
+      case "placed":
+        return "New";
+      case "accepted":
+        return "Accepted";
+      case "preparing":
+        return "Preparing";
+      case "served":
+        return "Served";
+      case "bill_requested":
+        return "Bill Req.";
+      case "paid":
+        return "Paid";
+      case "cancelled":
+        return "Cancelled";
       default:
-        return '';
+        return "";
     }
   })();
 
@@ -650,12 +774,13 @@ const CustomerOrderStatus: React.FC = () => {
       {/* ---- View Order sheet ---- */}
       <Sheet
         isOpen={isItemsOpen}
+        mobileFullScreen
         onClose={() => setIsItemsOpen(false)}
         title={
           <>
             Your Order
             <span className={local.sheetCount}>
-              {itemsCount} item{itemsCount === 1 ? '' : 's'}
+              {itemsCount} item{itemsCount === 1 ? "" : "s"}
             </span>
           </>
         }
@@ -667,6 +792,58 @@ const CustomerOrderStatus: React.FC = () => {
           </Button>
         }
       >
+        {pendingItems.length > 0 && (
+          <>
+            <div className={local.sheetSection}>
+              <span className={local.sheetSectionLabel}>
+                Pending ({pendingItems.length})
+              </span>
+              <span className={local.sheetSectionHint}>
+                Remove within 1 min to cancel
+              </span>
+            </div>
+
+            <ul className={local.sheetList}>
+              {pendingItems.map((p) => {
+                const ms = remainingMs(p);
+                const sec = Math.ceil(ms / 1000);
+                return (
+                  <li key={p.pendingId} className={local.sheetRowPending}>
+                    <div className={local.sheetRowTop}>
+                      <span className={local.sheetRowName}>
+                        {p.item.name}
+                      </span>
+                      <span className={local.sheetRowQty}>
+                        x {p.item.quantity}
+                      </span>
+                      <span className={local.sheetRowPrice}>
+                        {rupees(p.item.lineTotal)}
+                      </span>
+                    </div>
+
+                    <div className={local.pendingFooter}>
+                      <span className={local.pendingCountdown}>
+                        Remove within {sec}s
+                      </span>
+                      <Button
+                        size="xs"
+                        variant="danger"
+                        onClick={() => setPendingToRemove(p)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className={local.sheetSection}>
+              <span className={local.sheetSectionLabel}>Confirmed</span>
+            </div>
+          </>
+        )}
+
         <ul className={local.sheetList}>
           {order.items.map((it, i) => (
             <li key={i} className={local.sheetRow}>
@@ -683,7 +860,7 @@ const CustomerOrderStatus: React.FC = () => {
                   <div className={local.sheetRowCustom}>
                     {Object.entries(it.customizations)
                       .map(([k, v]) => `${k}: ${v}`)
-                      .join(' · ')}
+                      .join(" · ")}
                   </div>
                 )}
 
@@ -726,9 +903,37 @@ const CustomerOrderStatus: React.FC = () => {
         </div>
       </Sheet>
 
+      <ConfirmDialog
+        isOpen={!!pendingToRemove}
+        title="Remove this item?"
+        message={
+          pendingToRemove ? (
+            <>
+              Remove <strong>{pendingToRemove.item.name}</strong> x{" "}
+              {pendingToRemove.item.quantity} from your order? This item
+              will not be sent to the kitchen.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmText="Yes, Remove"
+        cancelText="Keep"
+        variant="danger"
+        overlayZIndex={3100}
+        onConfirm={() => {
+          if (pendingToRemove) {
+            removePendingItem(pendingToRemove.pendingId);
+          }
+          setPendingToRemove(null);
+        }}
+        onCancel={() => setPendingToRemove(null)}
+      />
+
       {/* ---- Pay via UPI sheet ---- */}
       <Sheet
         isOpen={isUpiSheetOpen}
+        mobileFullScreen
         onClose={() => setIsUpiSheetOpen(false)}
         title="Pay via UPI"
         maxHeightVh={80}
@@ -747,31 +952,25 @@ const CustomerOrderStatus: React.FC = () => {
       >
         <div className={local.upiSheet}>
           <p className={local.upiSheetLead}>
-            Pay <strong>{rupees(order.totalAmount)}</strong> to{' '}
-            <strong>{tenant?.displayName}</strong> using any UPI app
-            (GPay, PhonePe, Paytm, BHIM).
+            Pay <strong>{rupees(order.totalAmount)}</strong> to{" "}
+            <strong>{tenant?.displayName}</strong> using any UPI app (GPay,
+            PhonePe, Paytm, BHIM).
           </p>
 
           <div className={local.upiDetailCard}>
             <div className={local.upiDetailRow}>
               <span className={local.upiDetailLabel}>UPI ID</span>
               <div className={local.upiDetailValueRow}>
-                <span className={local.upiDetailValue}>
-                  {tenant?.upiId}
-                </span>
+                <span className={local.upiDetailValue}>{tenant?.upiId}</span>
                 <Button
                   size="xs"
                   variant="ghost"
                   onClick={copyUpiId}
                   leftIcon={
-                    <CopyIcon
-                      width={14}
-                      height={14}
-                      fill="currentColor"
-                    />
+                    <CopyIcon width={14} height={14} fill="currentColor" />
                   }
                 >
-                  {copied ? 'Copied' : 'Copy'}
+                  {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
             </div>
@@ -787,11 +986,7 @@ const CustomerOrderStatus: React.FC = () => {
                   variant="ghost"
                   onClick={copyAmount}
                   leftIcon={
-                    <CopyIcon
-                      width={14}
-                      height={14}
-                      fill="currentColor"
-                    />
+                    <CopyIcon width={14} height={14} fill="currentColor" />
                   }
                 >
                   Copy
@@ -808,9 +1003,9 @@ const CustomerOrderStatus: React.FC = () => {
           </div>
 
           <p className={local.upiSheetHint}>
-            On mobile, tap <strong>Open UPI App</strong> below — your
-            phone will show a list of installed UPI apps. On desktop,
-            copy the UPI ID and pay from your bank&apos;s app.
+            On mobile, tap <strong>Open UPI App</strong> below - your phone
+            will show a list of installed UPI apps. On desktop, copy the UPI
+            ID and pay from your bank&apos;s app.
           </p>
 
           <Button block onClick={fireUpiDeepLink}>
@@ -818,7 +1013,7 @@ const CustomerOrderStatus: React.FC = () => {
           </Button>
 
           <p className={local.upiSheetNote}>
-            After paying, tap <strong>Cancel</strong> and then{' '}
+            After paying, tap <strong>Cancel</strong> and then{" "}
             <strong>I&apos;ve paid</strong> to confirm the order.
           </p>
         </div>

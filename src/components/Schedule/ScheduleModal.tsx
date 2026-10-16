@@ -33,6 +33,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({
     <Sheet
       isOpen={isOpen}
       onClose={onClose}
+      mobileFullScreen
       title={
         <span className={local.titleRow}>
           <CalendarIcon width={20} height={20} fill="#1e1e1e" />

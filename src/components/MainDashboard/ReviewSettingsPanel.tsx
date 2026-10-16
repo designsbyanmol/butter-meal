@@ -226,8 +226,8 @@ const ReviewSettingsPanel: React.FC = () => {
             Per-store overrides
             <span className={local.perTenantHint}>
               {draft.globalEnabled
-                ? 'Global is ON — toggle individual stores off below.'
-                : 'Global is OFF — all stores are hidden. Turn the master on to enable per-store control.'}
+                ? 'Global is ON - toggle individual stores off below.'
+                : 'Global is OFF - all stores are hidden. Turn the master on to enable per-store control.'}
             </span>
           </div>
 

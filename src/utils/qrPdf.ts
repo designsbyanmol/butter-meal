@@ -237,7 +237,7 @@ export const downloadQrPdf = async (
   pdf.setFontSize(8.5);
   pdf.setTextColor(...TEXT_FAINT);
   pdf.text(`Generated: ${gen}`, MARGIN, footerY - 2);
-  pdf.text('— Butter Meal', PAGE_W - MARGIN, footerY - 2, {
+  pdf.text('- Butter Meal', PAGE_W - MARGIN, footerY - 2, {
     align: 'right',
   });
 
@@ -250,7 +250,7 @@ export const downloadAdminQrPdf = (opts: {
   generatedAt?: string;
 }) =>
   downloadQrPdf({
-    title: `${opts.storeName} — Admin QR`,
+    title: `${opts.storeName} - Admin QR`,
     subtitle: 'Scan to open the admin login for your store.',
     url: opts.url,
     variant: 'admin',
@@ -265,7 +265,7 @@ export const downloadPublicQrPdf = (opts: {
   generatedAt?: string;
 }) =>
   downloadQrPdf({
-    title: `${opts.storeName} — Public QR`,
+    title: `${opts.storeName} - Public QR`,
     subtitle: 'Scan to open the store menu.',
     url: opts.url,
     variant: 'public',

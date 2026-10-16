@@ -155,3 +155,92 @@
   line-height: 1.5;
   color: $text-muted;
 }
+
+/* Store avatar preview row inside the avatar editor sub-modal */
+.avatarPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid $border-soft;
+}
+
+.avatarPreviewImg {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: $bg-subtle;
+}
+
+.avatarPreviewHint {
+  font-size: 12.5px;
+  color: $text-muted;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+/* ---------- Avatar with edit badge (InfoPopup header) ---------- */
+.avatarHeaderBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: transform $t-fast;
+
+  &:hover {
+    transform: scale(1.05);
+
+    .avatarHeaderEditBadge {
+      transform: scale(1.1);
+    }
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.35);
+  }
+}
+
+.avatarHeaderImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: $bg-subtle;
+}
+
+.avatarHeaderEditBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: $white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background $t-fast, transform $t-fast;
+  pointer-events: none;
+}

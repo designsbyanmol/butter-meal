@@ -25,7 +25,7 @@ interface ReviewsToolbarProps {
 const ReviewsToolbar: React.FC<ReviewsToolbarProps> = ({
   search,
   onSearchChange,
-  searchPlaceholder = 'Search…',
+  searchPlaceholder = 'Search...',
   activeCount,
   onReset,
   groups,

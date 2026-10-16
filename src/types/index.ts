@@ -633,7 +633,7 @@ export interface DineinOrder {
   paymentRef?: string;
   sessionClosed?: boolean;
   closedAt?: string;
-  // NEW — stage timestamps
+  // NEW - stage timestamps
   acceptedAt?: string;
   preparingAt?: string;
   servedAt?: string;
@@ -642,6 +642,7 @@ export interface DineinOrder {
   settledOfflineAfterFailure?: boolean;
   customerPaidClaimed?: boolean;
 customerPaidClaimedAt?: string;
+staffTip?: number;
 }
 
 export interface DineinEvent {

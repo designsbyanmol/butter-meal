@@ -354,7 +354,7 @@ const DisputedReviews: React.FC<DisputedReviewsProps> = ({
                           <strong>{row.tenantName}</strong>
                         </div>
                         <div className={local.disputeMeta}>
-                          Raised by {row.raisedBy || 'owner'} ·{' '}
+                          Raised by {row.raisedBy || 'owner'} .{' '}
                           {new Date(row.createdAt).toLocaleString()}
                         </div>
                       </div>
@@ -381,7 +381,7 @@ const DisputedReviews: React.FC<DisputedReviewsProps> = ({
                           {row.review.itemCategory && (
                             <span className={local.reviewCat}>
                               {' '}
-                              · {row.review.itemCategory}
+                              . {row.review.itemCategory}
                             </span>
                           )}
                         </div>
@@ -410,7 +410,7 @@ const DisputedReviews: React.FC<DisputedReviewsProps> = ({
                       <div className={local.reasonText}>
                         {row.reason?.trim()
                           ? row.reason
-                          : '— no reason provided —'}
+                          : '- no reason provided -'}
                       </div>
                     </div>
 

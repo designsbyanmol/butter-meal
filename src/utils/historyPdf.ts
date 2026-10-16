@@ -82,13 +82,13 @@ export const downloadHistoryPdf = (payload: HistoryPdfPayload): void => {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(11);
   pdf.setTextColor(...TEXT_MUTED);
-  pdf.text('Sales Report · Paid Orders', MARGIN, y);
+  pdf.text('Sales Report . Paid Orders', MARGIN, y);
   y += 16;
 
   pdf.setFontSize(10);
   pdf.setTextColor(...TEXT_FAINT);
   pdf.text(
-    `Period: ${rangeLabel} · Generated ${new Date().toLocaleString('en-IN', {
+    `Period: ${rangeLabel} . Generated ${new Date().toLocaleString('en-IN', {
       dateStyle: 'medium',
       timeStyle: 'short',
     })}`,
@@ -178,7 +178,12 @@ export const downloadHistoryPdf = (payload: HistoryPdfPayload): void => {
     pdf.text(`#${o.orderNo}`, xOrder, y);
     pdf.text(fmtDateTime(o.createdAt), xDate, y);
     pdf.text(paymentMode(o), xMode, y);
-    pdf.text(rupees(o.totalAmount), xAmtRight, y, { align: 'right' });
+    pdf.text(
+  rupees(o.totalAmount - (o.staffTip ?? 0)),
+  xAmtRight,
+  y,
+  { align: 'right' },
+);
 
     y += rowH;
 

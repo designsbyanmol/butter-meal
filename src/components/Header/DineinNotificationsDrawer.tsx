@@ -40,8 +40,8 @@ const formatNotifTime = (iso: string): string => {
     hour12: true,
   });
 
-  if (d >= startOfToday) return `Today · ${time}`;
-  if (d >= startOfYesterday) return `Yesterday · ${time}`;
+  if (d >= startOfToday) return `Today . ${time}`;
+  if (d >= startOfYesterday) return `Yesterday . ${time}`;
 
   const sameYear = d.getFullYear() === now.getFullYear();
   const dateStr = d.toLocaleDateString('en-IN', {
@@ -49,7 +49,7 @@ const formatNotifTime = (iso: string): string => {
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
-  return `${dateStr} · ${time}`;
+  return `${dateStr} . ${time}`;
 };
 
 const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
@@ -237,7 +237,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
         const count = (payload as any).itemCount ?? 0;
         return (
           <>
-            Order placed from <strong>Table {ev.tableLabel}</strong> — {name}{' '}
+            Order placed from <strong>Table {ev.tableLabel}</strong> - {name}{' '}
             placed {count} item{count === 1 ? '' : 's'}
           </>
         );
