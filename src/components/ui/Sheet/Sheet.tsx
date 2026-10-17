@@ -122,7 +122,7 @@ const Sheet: React.FC<SheetProps> = ({
         aria-modal="true"
       >
         {showHeader && (
-          <header
+          <div
             className={`${styles.header} ${
               mobileFullScreen ? styles.headerMobile : ''
             }`}
@@ -157,7 +157,7 @@ const Sheet: React.FC<SheetProps> = ({
                 <CloseIcon width={18} height={18} fill="#4d4d4d" />
               </button>
             )}
-          </header>
+          </div>
         )}
 
         <section className={styles.body}>{children}</section>

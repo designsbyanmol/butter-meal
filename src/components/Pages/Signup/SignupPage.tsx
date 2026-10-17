@@ -141,7 +141,7 @@ const SignupPage: React.FC = () => {
       {/* =========================================================
           Page header - back to home on the left, brand logo on the right
          ========================================================= */}
-      <header className={local.pageHeader}>
+      <div className={local.pageHeader}>
         <button
           type="button"
           className={local.backLink}
@@ -158,7 +158,7 @@ const SignupPage: React.FC = () => {
           className={local.headerLogo}
           draggable={false}
         />
-      </header>
+      </div>
 
       <div className={local.shell}>
         <aside className={local.stepper}>

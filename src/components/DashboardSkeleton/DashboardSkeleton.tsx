@@ -42,7 +42,7 @@ const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   return (
     <div className={local.wrap} aria-busy="true" aria-live="polite">
       {!hideHeader && (
-        <header className={local.header}>
+        <div className={local.header}>
           <div className={local.headerInner}>
             <Skeleton width={100} height={20} />
             <div className={local.headerActions}>
@@ -52,7 +52,7 @@ const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               <Skeleton width={60} height={24} />
             </div>
           </div>
-        </header>
+        </div>
       )}
 
       <main className={local.main}>

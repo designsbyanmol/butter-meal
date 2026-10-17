@@ -137,7 +137,7 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
   );
 
   return (
-    <header className={local.header}>
+    <div className={local.header}>
       <div className={local.headerInner}>
         <a
           className={local.headerBrand}
@@ -239,7 +239,7 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
           <div className={local.navLoaderBar} />
         </div>
       )}
-    </header>
+    </div>
   );
 };
 
