@@ -987,7 +987,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           />
           <div className={local.avatarPreviewHint}>
             Upload a square image. It will be resized to a maximum of
-            128×128 pixels and uploaded only when you press Save.
+            128x128 pixels and uploaded only when you press Save.
           </div>
         </div>
 

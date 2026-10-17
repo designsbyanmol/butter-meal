@@ -3,7 +3,7 @@ import React from 'react';
 import local from '../HomePage.module.scss';
 
 const SiteFooter: React.FC = () => (
-  <footer className={local.footer}>
+  <div className={local.footer}>
     <div className={local.footerInner}>
       <div className={local.footerGrid}>
         <div className={local.footerBrandCol}>
@@ -64,7 +64,7 @@ const SiteFooter: React.FC = () => (
         </div>
       </div>
     </div>
-  </footer>
+  </div>
 );
 
 export default SiteFooter;

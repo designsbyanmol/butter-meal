@@ -46,7 +46,7 @@ export interface PriceBreakdown {
  *   - Tax applies to the total.
  *
  * When `isFirstMonth` is false (renewals, upgrades, downgrades):
- *   - Behaves exactly as before - plan price × months, minus the
+ *   - Behaves exactly as before - plan price x months, minus the
  *     duration discount, plus tax.
  *
  * Every amount is rounded to 2 decimals so

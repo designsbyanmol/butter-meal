@@ -237,7 +237,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
   <Card padding="md" className={local.summaryCard}>
     <div className={local.summaryRow}>
       <span>
-        {selectedPlan.name} × {breakdown.months} month
+        {selectedPlan.name} x {breakdown.months} month
         {breakdown.months > 1 ? 's' : ''}
       </span>
       <span>{formatRupees(breakdown.baseAmount)}</span>

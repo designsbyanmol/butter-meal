@@ -64,7 +64,7 @@ const Vertical: React.FC = () => (
                   {it.served ? <CheckIcon width={14} height={14} fill="#fff" /> : ''}
                 </span>
                 <span className={local.tableItemName}>{it.name}</span>
-                <span className={local.tableItemQty}>× {it.qty}</span>
+                <span className={local.tableItemQty}>x {it.qty}</span>
               </div>
             ))}
           </div>

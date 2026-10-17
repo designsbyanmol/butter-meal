@@ -25,7 +25,6 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
           <Button
             size="lg"
             onClick={onSignup}
-            rightIcon={<RightArrow width={16} height={16} fill="#fff" />}
           >
             Create Free Store
           </Button>
@@ -34,7 +33,6 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
               size="lg"
               variant="ghost"
               onClick={onTrySample}
-              rightIcon={<RightArrow width={16} height={16} fill="#1e7e34" />}
             >
               Explore Sample Store
             </Button>
@@ -46,7 +44,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
         <h3 className={local.rightTitle}>What you get on signup</h3>
         <ul className={local.list}>
           {[
-            '₹1 for first month Any Plan',
+            'Rs1 for first month Any Plan',
             'Your store URL + QR',
             'No card, cancel anytime',
           ].map((line) => (

@@ -8,7 +8,7 @@ const QUOTES = [
   {
     label: 'Restaurant owner',
     badge: { text: '+42% orders', tone: 'success' as const },
-    text: '“We put Dozzelo QRs on all 24 tables. Orders flow straight to WhatsApp, bills print in one tap, and my captains finally stopped juggling notebooks.”',
+    text: '"We put Dozzelo QRs on all 24 tables. Orders flow straight to WhatsApp, bills print in one tap, and my captains finally stopped juggling notebooks."',
     name: 'Rahul Mehta',
     role: 'Owner . Spice Route, Pune',
     avatar:
@@ -17,7 +17,7 @@ const QUOTES = [
   {
     label: 'Cloud kitchen',
     badge: { text: 'Zero commission', tone: 'warning' as const },
-    text: '“I moved off the big delivery apps. Direct WhatsApp orders now cover 70% of my day. Same customer, same food - but I keep the full amount.”',
+    text: '"I moved off the big delivery apps. Direct WhatsApp orders now cover 70% of my day. Same customer, same food - but I keep the full amount."',
     name: 'Elena D\'Souza',
     role: 'Chef-owner . Elena Bakes, Goa',
     avatar:

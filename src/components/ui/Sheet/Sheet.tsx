@@ -162,7 +162,7 @@ const Sheet: React.FC<SheetProps> = ({
 
         <section className={styles.body}>{children}</section>
 
-        {footer && <footer className={styles.footer}>{footer}</footer>}
+        {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   );

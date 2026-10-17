@@ -277,7 +277,7 @@ useEffect(() => {
         async () => {
           if (cancelled) return;
           if (document.hidden) {
-            // Back off 4× while hidden - the customer can't see the
+            // Back off 4x while hidden - the customer can't see the
             // banner anyway.
             schedule();
             return;
