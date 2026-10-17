@@ -41,7 +41,7 @@ export interface Tenant {
   deliveryCharge?: number;
   storewideDiscount?: number;
   ownerPhone?: string;
-  avatarUrl?: string
+  avatarUrl?: string;
 
   // ---------- new ----------
   gstPercent?: number;
@@ -362,8 +362,7 @@ const buildTenant = (
   // When the plan row is missing or disabled, expose a marker on the
   // features object so any consumer that reads `planFeatures.isActive`
   // sees the disabled state explicitly.
-  const planFeatures: PlanFeatures = (planRow?.features ??
-    {}) as PlanFeatures;
+  const planFeatures: PlanFeatures = (planRow?.features ?? {}) as PlanFeatures;
   if (!planActive) {
     (planFeatures as any).isActive = false;
   }
@@ -375,19 +374,19 @@ const buildTenant = (
     packingCharge: pickNumber(row.packing_charge, 0),
     upiId: isBlank(row.upi_id) ? undefined : String(row.upi_id),
     dineinEnabled:
-  (row.store_category ?? "restaurant") === "food-beverage" &&
-  row.dinein_enabled === true,
-  staffTippingEnabled:
-  (row.store_category ?? "food-beverage") === "food-beverage" &&
-  row.dinein_enabled === true &&
-  row.staff_tipping_enabled === true,
+      (row.store_category ?? "restaurant") === "food-beverage" &&
+      row.dinein_enabled === true,
+    staffTippingEnabled:
+      (row.store_category ?? "food-beverage") === "food-beverage" &&
+      row.dinein_enabled === true &&
+      row.staff_tipping_enabled === true,
     displayName: pickString(row.display_name, ShopInfo.Shop_name),
     storeCategory: (row.store_category ?? "food-beverage") as StoreCategory,
     whatsappPhone: pickString(row.whatsapp_phone, ShopInfo.Store_whatsapp),
     bannerUrl: isBlank(row.banner_url)
       ? ShopInfo.Shop_banner || undefined
       : String(row.banner_url),
-      avatarUrl: isBlank(row.avatar_url) ? undefined : String(row.avatar_url),
+    avatarUrl: isBlank(row.avatar_url) ? undefined : String(row.avatar_url),
     storeTagline: pickString(
       row.store_tagline,
       row.store_category
@@ -457,8 +456,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       supabase
         .from("star_veg_tenants")
         .select(
-  'id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, avatar_url',
-)
+          "id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, avatar_url",
+        )
         .eq("slug", slug)
         .maybeSingle(),
       supabase
@@ -516,9 +515,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
           });
 
           if (seen.size > 0) {
-            const merged = Array.from(seen).sort((a, b) =>
-              a.localeCompare(b),
-            );
+            const merged = Array.from(seen).sort((a, b) => a.localeCompare(b));
             const seeded: FormSchema = {
               ...formSchema,
               fields: formSchema.fields.map((f) =>
@@ -605,40 +602,76 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initial tenant resolution.
-  useEffect(() => {
-    const smartAdmin = isSmartAdminUrl();
-    setIsSmartAdminHost(smartAdmin);
+  // Initial tenant resolution - gated on auth for admin URLs.
+useEffect(() => {
+  const smartAdmin = isSmartAdminUrl();
+  setIsSmartAdminHost(smartAdmin);
 
-    const { slug, isAdminView: adminView } = resolveSlugFromUrl();
-    setIsAdminView(adminView);
+  const { slug, isAdminView: adminView } = resolveSlugFromUrl();
+  setIsAdminView(adminView);
 
-    if (!slug) {
-      setIsAdminHost(true);
-      setTenantNotFound(false);
+  if (!slug) {
+    setIsAdminHost(true);
+    setTenantNotFound(false);
+    setIsLoading(false);
+    authService.enforceTenantScope(null, false, smartAdmin);
+    return;
+  }
+
+  // If this is an admin URL, we must wait until authentication resolves
+  // before fetching the tenant. Otherwise the store data leaks behind
+  // the login modal.
+  const resolveAndFetch = async () => {
+    if (!supabase) {
+      console.warn("Supabase not configured - cannot resolve tenant");
+      setTenant(null);
+      setTenantNotFound(true);
       setIsLoading(false);
       authService.enforceTenantScope(null, false, smartAdmin);
       return;
     }
 
-    (async () => {
-      if (!supabase) {
-        console.warn("Supabase not configured - cannot resolve tenant");
+    // For admin URLs, block on auth. For customer URLs, fetch immediately.
+    if (adminView) {
+      const authState = authService.getState();
+      // If auth is still loading, wait for it.
+      if (authState.isLoading) {
+        const unsubscribe = authService.subscribe((state) => {
+          if (state.isLoading) return; // still waiting
+          unsubscribe(); // got a result, proceed
+          proceedWithFetch(state.isAuthenticated);
+        });
+        return;
+      }
+      // Auth already resolved.
+      proceedWithFetch(authState.isAuthenticated);
+    } else {
+      // Customer URL, fetch immediately.
+      proceedWithFetch(true);
+    }
+
+    async function proceedWithFetch(canFetch: boolean) {
+      if (!canFetch) {
+        // Not authenticated on an admin URL. Don't fetch the tenant.
+        // The LoginModal will handle the login flow. Once they
+        // authenticate, this effect will re-run (because we'll listen
+        // for auth changes below).
         setTenant(null);
-        setTenantNotFound(true);
+        setIsDeactivated(false);
+        setTenantNotFound(false);
         setIsLoading(false);
-        authService.enforceTenantScope(null, false, smartAdmin);
+        authService.enforceTenantScope(null, adminView, smartAdmin);
         return;
       }
 
-      const resolved = await fetchTenant(slug);
+      const resolved = await fetchTenant(slug!);
 
       if (!resolved) {
         console.warn("Tenant not found:", slug);
         setTenant(null);
         setIsDeactivated(false);
         setTenantNotFound(true);
-        authService.enforceTenantScope(null, false, smartAdmin);
+        authService.enforceTenantScope(null, adminView, smartAdmin);
       } else {
         tenantRef.current = resolved;
         setTenant(resolved);
@@ -647,48 +680,90 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
         authService.enforceTenantScope(resolved.slug, adminView, smartAdmin);
       }
       setIsLoading(false);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // src/contexts/TenantContext.tsx
-// ---------------------------------------------------------
-// Refresh-on-focus only. No interval polling.
-//
-// Rationale: the previous 10-second interval produced one
-// PostgREST SELECT per 10s per open tab - ~8,600 rows/day
-// toward Supabase log ingestion, for every tab, forever.
-//
-// The customer layout only needs to react when the tab becomes
-// visible again (or the user focuses back in). Admin-side flag
-// changes still propagate because:
-//   - the admin's own row updates through refreshTenant()
-//   - plan changes broadcast via planService (see effect above)
-//   - `refreshTenant()` is exposed on context and can be called
-//     by any screen after it mutates tenant state
-// ---------------------------------------------------------
-const lastFocusRefreshRef = useRef(0);
-useEffect(() => {
-  const { slug } = resolveSlugFromUrl();
-  if (!slug) return;
-
-
-const onFocus = () => {
-  if (document.hidden) return;
-  const now = Date.now();
-  if (now - lastFocusRefreshRef.current < 15_000) return;
-  lastFocusRefreshRef.current = now;
-  refreshTenant();
-};
-
-  document.addEventListener("visibilitychange", onFocus);
-  window.addEventListener("focus", onFocus);
-  return () => {
-    document.removeEventListener("visibilitychange", onFocus);
-    window.removeEventListener("focus", onFocus);
+    }
   };
+
+  resolveAndFetch();
+}, []);
+
+// Watch for auth state changes (login success, logout) and refetch the
+// tenant when authentication flips on an admin URL.
+useEffect(() => {
+  const { isAdminView: adminView, slug } = resolveSlugFromUrl();
+  if (!adminView || !slug) return;
+
+  let previousAuth = authService.getState().isAuthenticated;
+
+  const unsubscribe = authService.subscribe((state) => {
+    // If we just transitioned from logged-out to logged-in, refetch.
+    if (!previousAuth && state.isAuthenticated) {
+      // Trigger a refetch by resetting loading and calling the fetch.
+      (async () => {
+        if (!supabase) return;
+        setIsLoading(true);
+        const resolved = await fetchTenant(slug);
+        if (resolved) {
+          tenantRef.current = resolved;
+          setTenant(resolved);
+          setIsDeactivated(resolved.isActive === false);
+          setTenantNotFound(false);
+          authService.enforceTenantScope(resolved.slug, adminView, false);
+        }
+        setIsLoading(false);
+      })();
+    }
+
+    // If we just transitioned from logged-in to logged-out, clear the
+    // tenant so the login modal shows over an empty page.
+    if (previousAuth && !state.isAuthenticated) {
+      setTenant(null);
+      tenantRef.current = null;
+    }
+
+    previousAuth = state.isAuthenticated;
+  });
+
+  return unsubscribe;
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
+
+  // src/contexts/TenantContext.tsx
+  // ---------------------------------------------------------
+  // Refresh-on-focus only. No interval polling.
+  //
+  // Rationale: the previous 10-second interval produced one
+  // PostgREST SELECT per 10s per open tab - ~8,600 rows/day
+  // toward Supabase log ingestion, for every tab, forever.
+  //
+  // The customer layout only needs to react when the tab becomes
+  // visible again (or the user focuses back in). Admin-side flag
+  // changes still propagate because:
+  //   - the admin's own row updates through refreshTenant()
+  //   - plan changes broadcast via planService (see effect above)
+  //   - `refreshTenant()` is exposed on context and can be called
+  //     by any screen after it mutates tenant state
+  // ---------------------------------------------------------
+  const lastFocusRefreshRef = useRef(0);
+  useEffect(() => {
+    const { slug } = resolveSlugFromUrl();
+    if (!slug) return;
+
+    const onFocus = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastFocusRefreshRef.current < 15_000) return;
+      lastFocusRefreshRef.current = now;
+      refreshTenant();
+    };
+
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <TenantContext.Provider

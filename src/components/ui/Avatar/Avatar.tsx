@@ -22,7 +22,7 @@ export interface AvatarProps {
   /**
    * Optional background color override. Applied as an inline style so
    * it beats the CSS-module default (`$primary-dark`). Only used when
-   * the avatar renders the name initial — an image is never tinted.
+   * the avatar renders the name initial - an image is never tinted.
    */
   bgColor?: string;
   className?: string;

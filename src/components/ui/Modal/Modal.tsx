@@ -1,12 +1,12 @@
 // src/components/ui/Modal/Modal.tsx
-import React, { useEffect, useId } from 'react';
-import { createPortal } from 'react-dom';
-import { CloseIcon, LeftArrowIcon } from '../../../assets/svgs';
-import { pushEsc, popEsc, isTopEsc } from '../_escStack';
-import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
-import styles from './Modal.module.scss';
+import React, { useEffect, useId } from "react";
+import { createPortal } from "react-dom";
+import { CloseIcon, LeftArrowIcon } from "../../../assets/svgs";
+import { pushEsc, popEsc, isTopEsc } from "../_escStack";
+import { lockBodyScroll, unlockBodyScroll } from "../_scrollLock";
+import styles from "./Modal.module.scss";
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -43,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   headerRight,
-  size = 'md',
+  size = "md",
   disableBackdropClose = false,
   hideCloseButton = false,
   lockScroll = true,
@@ -62,16 +62,16 @@ const Modal: React.FC<ModalProps> = ({
     pushEsc(instanceId);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== "Escape") return;
       if (!isTopEsc(instanceId)) return;
       e.stopPropagation();
       onClose();
     };
 
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
 
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
       popEsc(instanceId);
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
@@ -94,11 +94,11 @@ const Modal: React.FC<ModalProps> = ({
   const dialogClasses = [
     styles.dialog,
     styles[size],
-    mobileFullScreen ? styles.mobileFullScreen : '',
-    className ?? '',
+    mobileFullScreen ? styles.mobileFullScreen : "",
+    className ?? "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   const showHeader = !!title || !!headerRight || !hideCloseButton;
 
@@ -107,9 +107,7 @@ const Modal: React.FC<ModalProps> = ({
       className={styles.overlay}
       onClick={handleBackdrop}
       style={
-        overlayZIndex !== undefined
-          ? { zIndex: overlayZIndex }
-          : undefined
+        overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined
       }
     >
       <div
@@ -119,9 +117,9 @@ const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
       >
         {showHeader && (
-          <header
+          <div
             className={`${styles.header} ${
-              mobileFullScreen ? styles.headerMobile : ''
+              mobileFullScreen ? styles.headerMobile : ""
             }`}
           >
             {/* Mobile-only back arrow, replaces the close icon. */}
@@ -154,17 +152,21 @@ const Modal: React.FC<ModalProps> = ({
                 <CloseIcon width={18} height={18} fill="#4d4d4d" />
               </button>
             )}
-          </header>
+          </div>
         )}
 
         <section className={styles.body}>{children}</section>
 
-        {footer && <footer className={styles.footer}>{footer}</footer>}
+        {footer && (
+          <div className={styles.footer}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
 
-  return typeof document !== 'undefined'
+  return typeof document !== "undefined"
     ? createPortal(content, document.body)
     : content;
 };

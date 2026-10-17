@@ -59,11 +59,6 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
-  /**
-   * Optimistic overlay of just-clicked event IDs. These grey out
-   * instantly without waiting for the next poll. Server's `readAt`
-   * becomes the source of truth on the next fetch.
-   */
   const [optimisticRead, setOptimisticRead] = useState<Set<string>>(
     new Set(),
   );
@@ -109,7 +104,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
     }
   }, [tenant?.slug]);
 
-  // Reset on tenant change.
+  // Reset on tenant change
   useEffect(() => {
     const slug = tenant?.slug ?? null;
     if (currentSlugRef.current === slug) return;
@@ -119,10 +114,14 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
     newestSeenRef.current = null;
   }, [tenant?.slug]);
 
-  // Always-on poll with idle backoff and hidden-tab pause.
+  // Polling effect - now fully pauses when hidden
   useEffect(() => {
     if (!tenant?.slug) return;
-
+    // Only poll if the drawer is actually open, OR if we need to keep 
+    // the badge updated. Since the badge needs to be accurate, we run
+    // this while the tab is visible. But we kill the timer entirely 
+    // when the tab is hidden.
+    
     let cancelled = false;
     let idleStreak = 0;
     let timer: number | null = null;
@@ -136,8 +135,8 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
     const tick = async () => {
       if (cancelled) return;
 
+      // If hidden, stop scheduling. The visibility handler will restart.
       if (typeof document !== 'undefined' && document.hidden) {
-        schedule(IDLE_POLL_MS);
         return;
       }
 
@@ -153,14 +152,25 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
       schedule(next);
     };
 
+    // Start the poll loop
     tick();
 
     const onVisibility = () => {
-      if (document.hidden) return;
+      // If hidden, clear the timer so no background activity happens.
+      if (document.hidden) {
+        if (timer !== null) {
+          window.clearTimeout(timer);
+          timer = null;
+        }
+        return;
+      }
+      
+      // If visible again, restart immediately
       idleStreak = 0;
       if (timer !== null) window.clearTimeout(timer);
       tick();
     };
+    
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
@@ -171,7 +181,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, load]);
 
-  // Immediate refresh when the drawer is opened.
+  // Immediate refresh when drawer is opened
   useEffect(() => {
     if (!isOpen) return;
     load();
@@ -189,14 +199,11 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
   );
 
   const handleClick = (ev: DineinEvent) => {
-    // Instant UI feedback.
     setOptimisticRead((prev) => {
       const next = new Set(prev);
       next.add(ev.id);
       return next;
     });
-    // Persist to the server. Any admin of this tenant sees the event
-    // as read on the next poll, on any device.
     if (tenant?.slug) {
       supabaseService.markDineinEventRead(ev.id).catch(() => {
         /* best-effort */
@@ -221,8 +228,6 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
     setOptimisticRead(new Set());
     newestSeenRef.current = new Date().toISOString();
     if (tenant?.slug) {
-      // Advance the tenant's cleared-before cursor. Every device
-      // will stop showing these events after their next fetch.
       supabaseService.clearDineinEvents(tenant.slug).catch(() => {
         /* best-effort */
       });

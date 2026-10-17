@@ -1,3 +1,4 @@
+// assets/svgs/StarIcon.tsx
 import React from 'react';
 
 interface SVGProps {
@@ -7,18 +8,18 @@ interface SVGProps {
   className?: string;
 }
 
-const StarIcon: React.FC<SVGProps> = ({ 
-  width = 24, 
-  height = 24, 
+const StarIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
   fill = 'currentColor',
-  className 
+  className,
 }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={width} 
-      height={height} 
-      viewBox="0 0 24 24" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
       fill="none"
       stroke={fill}
       strokeWidth="2"
@@ -26,7 +27,15 @@ const StarIcon: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      <g clipPath="url(#clip0_78_29235)">
+        <path
+          d="M12 2L15.1035 8.72839L22.4616 9.60081L17.0215 14.6316L18.4656 21.8992L12 18.28L5.53431 21.8992L6.97837 14.6316L1.53833 9.60081L8.89645 8.72839L12 2Z"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      </g>
+
     </svg>
   );
 };

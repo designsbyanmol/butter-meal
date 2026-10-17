@@ -251,7 +251,7 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
               ))}
             </div>
             <p className={local.renewNote}>
-  Renewals and plan changes are charged at the plan&apos;s regular price.
+  Renewals and plan changes are charged at the plan's regular price.
 </p>
 
             {quoteLoading && (

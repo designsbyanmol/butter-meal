@@ -33,3 +33,6 @@ export { default as EyeIcon } from './EyeIcon';
 export { default as EyeOffIcon } from './EyeOffIcon';
 export { default as EmailIcon } from './EmailIcon';
 export { default as PowerIcon } from './PowerIcon';
+export { default as SettingsIcon } from './SettingsIcon';
+export { default as UpArrowIcon } from './UpArrowIcon';
+export { default as RupeeIcon } from './RupeeIcon';

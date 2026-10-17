@@ -27,8 +27,53 @@ const FilterIcon: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-      {/* Funnel outline */}
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      <g clipPath="url(#clip0_78_29130)">
+        <path
+          d="M8 20V11"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8 7L8 4"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16 13L16 4"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16 20V17"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="16"
+          cy="15"
+          r="2"
+          transform="rotate(-90 16 15)"
+          stroke={fill}
+          strokeWidth="2"
+        />
+        <circle
+          cx="8"
+          cy="9"
+          r="2"
+          transform="rotate(-90 8 9)"
+          stroke={fill}
+          strokeWidth="2"
+        />
+      </g>
+
     </svg>
   );
 };

@@ -27,8 +27,23 @@ const BellIcon: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      <g clipPath="url(#clip0_78_29105)">
+        <path
+          d="M6 19V10C6 6.68629 8.68629 4 12 4C15.3137 4 18 6.68629 18 10V19M6 19H18M6 19H4M18 19H20"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M11 22L13 22"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="3" r="1" stroke={fill} strokeWidth="2" />
+      </g>
     </svg>
   );
 };

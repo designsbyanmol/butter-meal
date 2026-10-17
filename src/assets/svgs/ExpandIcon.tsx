@@ -13,24 +13,53 @@ const ExpandIcon: React.FC<SVGProps> = ({
   height = 24,
   fill = 'currentColor',
   className,
-}) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={width}
-    height={height}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={fill}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <polyline points="15 3 21 3 21 9" />
-    <polyline points="9 21 3 21 3 15" />
-    <line x1="21" y1="3" x2="14" y2="10" />
-    <line x1="3" y1="21" x2="10" y2="14" />
-  </svg>
-);
+}) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={fill}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <g clipPath="url(#clip0_78_29497)">
+        <path
+          d="M4 9L4 6C4 4.89543 4.89543 4 6 4L9 4"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M20 15V18C20 19.1046 19.1046 20 18 20H15"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M15 4L18 4C19.1046 4 20 4.89543 20 6L20 9"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 20L6 20C4.89543 20 4 19.1046 4 18L4 15"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
+    </svg>
+  );
+};
 
 export default ExpandIcon;

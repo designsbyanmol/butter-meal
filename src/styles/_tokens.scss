@@ -4,17 +4,17 @@
 // =========================================================
 // BRAND
 // =========================================================
-$green-50:  #f4fbf5;
-$green-100: #e6f5e9;
-$green-200: #d1ead6;
-$green-300: #a8d9b1;
-$green-400: #6dc17a;
-$green-500: #3caa46;   // primary
-$green-600: #2e9c37;
-$green-700: #1e7e34;   // primary-dark
-$green-800: #17642a;
-$green-900: #085b1b;
-$green-950: #064a16;
+$primary-50:  #f4fbf5;
+$primary-100: #e6f5e9;
+$primary-200: #d1ead6;
+$primary-300: #a8d9b1;
+$primary-400: #6dc17a;
+$primary-500: #3caa46;   // primary
+$primary-600: #2e9c37;
+$primary-700: #1e7e34;   // primary-dark
+$primary-800: #17642a;
+$primary-900: #085b1b;
+$primary-950: #064a16;
 
 $red-50:  #fff5f5;
 $red-100: #ffe5e5;
@@ -88,11 +88,11 @@ $gray-950: #0F172A;
 // =========================================================
 // SEMANTIC
 // =========================================================
-$primary:        $green-500;
-$primary-medium: $green-600;
-$primary-dark:   $green-900;
-$primary-soft:   $green-100;
-$primary-tint:   $green-50;
+$primary:        $primary-500;
+$primary-medium: $primary-600;
+$primary-dark:   $primary-900;
+$primary-soft:   $primary-100;
+$primary-tint:   $primary-50;
 
 $danger:      $red-500;
 $danger-dark: $red-600;
@@ -106,8 +106,8 @@ $info:      $blue-500;
 $info-dark: $blue-600;
 $info-soft: $blue-50;
 
-$success:      $green-700;
-$success-soft: $green-100;
+$success:      $primary-700;
+$success-soft: $primary-100;
 
 // =========================================================
 // TEXT

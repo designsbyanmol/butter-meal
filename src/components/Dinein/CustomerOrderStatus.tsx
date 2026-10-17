@@ -199,8 +199,10 @@ const CustomerOrderStatus: React.FC = () => {
     return () => window.clearInterval(id);
   }, [isItemsOpen]);
 
-  useEffect(() => {
-  load();
+  // In CustomerOrderStatus.tsx
+useEffect(() => {
+  if (!order) return;
+  if (order.status === 'paid' || order.status === 'cancelled') return;
 
   let cancelled = false;
   let timer: number | null = null;
@@ -209,10 +211,13 @@ const CustomerOrderStatus: React.FC = () => {
     if (cancelled) return;
     timer = window.setTimeout(async () => {
       if (cancelled) return;
+      
+      // If the tab is hidden, do not fetch. Just reschedule.
       if (typeof document !== "undefined" && document.hidden) {
         schedule();
         return;
       }
+      
       await load();
       schedule();
     }, POLL_MS);
@@ -220,26 +225,20 @@ const CustomerOrderStatus: React.FC = () => {
 
   schedule();
 
-  const lastFocusRef = useRef(0);
-const onFocus = () => {
-  if (document.hidden) return;
-  const now = Date.now();
-  if (now - lastFocusRef.current < 15_000) return;
-  lastFocusRef.current = now;
-  load();
-};
-
-  document.addEventListener("visibilitychange", onFocus);
-  window.addEventListener("focus", onFocus);
+  const onVisibility = () => {
+    if (document.hidden) return; // Do not fetch on hide
+    if (timer !== null) window.clearTimeout(timer);
+    load().finally(schedule); // Fetch immediately on show
+  };
+  
+  document.addEventListener("visibilitychange", onVisibility);
 
   return () => {
     cancelled = true;
     if (timer !== null) window.clearTimeout(timer);
-    document.removeEventListener("visibilitychange", onFocus);
-    window.removeEventListener("focus", onFocus);
+    document.removeEventListener("visibilitychange", onVisibility);
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [tenant?.slug, tenant?.dineinEnabled, deviceId]);
+}, [order?.id, order?.status]);
 
   useEffect(() => {
     if (!order) return;
@@ -264,45 +263,48 @@ const onFocus = () => {
 
   const POLL_MS = 30_000;
 
-useEffect(() => {
-  if (!order) return;
-  // Stop polling for terminal states.
-  if (order.status === 'paid' || order.status === 'cancelled') return;
+  useEffect(() => {
+    if (!order) return;
+    // Stop polling for terminal states.
+    if (order.status === "paid" || order.status === "cancelled") return;
 
-  let cancelled = false;
-  let timer: number | null = null;
+    let cancelled = false;
+    let timer: number | null = null;
 
-  const schedule = () => {
-    if (cancelled) return;
-    timer = window.setTimeout(async () => {
+    const schedule = () => {
       if (cancelled) return;
-      if (document.hidden) {
-        // Back off 4× while hidden — the customer can't see the
-        // banner anyway.
-        schedule();
-        return;
-      }
-      await load();
-      schedule();
-    }, document.hidden ? POLL_MS * 4 : POLL_MS);
-  };
+      timer = window.setTimeout(
+        async () => {
+          if (cancelled) return;
+          if (document.hidden) {
+            // Back off 4× while hidden - the customer can't see the
+            // banner anyway.
+            schedule();
+            return;
+          }
+          await load();
+          schedule();
+        },
+        document.hidden ? POLL_MS * 4 : POLL_MS,
+      );
+    };
 
-  schedule();
+    schedule();
 
-  const onVisibility = () => {
-    if (document.hidden) return;
-    if (timer !== null) window.clearTimeout(timer);
-    load().finally(schedule);
-  };
-  document.addEventListener('visibilitychange', onVisibility);
+    const onVisibility = () => {
+      if (document.hidden) return;
+      if (timer !== null) window.clearTimeout(timer);
+      load().finally(schedule);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
-  return () => {
-    cancelled = true;
-    if (timer !== null) window.clearTimeout(timer);
-    document.removeEventListener('visibilitychange', onVisibility);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [order?.id, order?.status]);
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.status]);
 
   useEffect(() => {
     if (!order) return;
@@ -508,10 +510,7 @@ useEffect(() => {
     setPayBusy(true);
     setPayError("");
     try {
-      const updated = await supabaseService.setDineinStaffTip(
-        order.id,
-        next,
-      );
+      const updated = await supabaseService.setDineinStaffTip(order.id, next);
       if (!updated) throw new Error("Failed to update tip");
       setOrder(updated);
       lastUpdatedRef.current = updated.updatedAt;
@@ -608,37 +607,37 @@ useEffect(() => {
       }
 
       if (payFlow === "idle") {
-  const tip = order.staffTip ?? 0;
-  const baseAmount = order.totalAmount - tip;
-  return (
-    <div className={local.bannerConfirmBlock}>
-      <div className={local.bannerBtnRow}>
-        <Button size="sm" onClick={openUpiSheet}>
-          Pay {rupees(order.totalAmount)}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleDownloadBill}
-          leftIcon={<DownloadIcon width={14} height={14} fill="#fff" />}
-        >
-          Download Bill
-        </Button>
-      </div>
-      {tip > 0 && (
-        <div className={local.bannerBreakdown}>
-          Rs {baseAmount} (Items + GST) + Rs {tip} Tip
-        </div>
-      )}
-    </div>
-  );
-}
+        const tip = order.staffTip ?? 0;
+        const baseAmount = order.totalAmount - tip;
+        return (
+          <div className={local.bannerConfirmBlock}>
+            <div className={local.bannerBtnRow}>
+              <Button size="sm" onClick={openUpiSheet}>
+                Pay {rupees(order.totalAmount)}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDownloadBill}
+                leftIcon={<DownloadIcon width={14} height={14} fill="#fff" />}
+              >
+                Download Bill
+              </Button>
+            </div>
+            {tip > 0 && (
+              <div className={local.bannerBreakdown}>
+                Rs {baseAmount} (Items + GST) + Rs {tip} Tip
+              </div>
+            )}
+          </div>
+        );
+      }
 
       if (payFlow === "awaiting_no_vpa") {
         return (
           <div className={local.bannerConfirmBlock}>
             <div className={local.bannerNote}>
-              The store hasn&apos;t set up their UPI ID yet. Please ask the
+              The store hasn't set up their UPI ID yet. Please ask the
               staff for the bill.
             </div>
             <div className={local.bannerBtnRow}>
@@ -836,9 +835,7 @@ useEffect(() => {
                 return (
                   <li key={p.pendingId} className={local.sheetRowPending}>
                     <div className={local.sheetRowTop}>
-                      <span className={local.sheetRowName}>
-                        {p.item.name}
-                      </span>
+                      <span className={local.sheetRowName}>{p.item.name}</span>
                       <span className={local.sheetRowQty}>
                         x {p.item.quantity}
                       </span>
@@ -886,7 +883,7 @@ useEffect(() => {
                   <div className={local.sheetRowCustom}>
                     {Object.entries(it.customizations)
                       .map(([k, v]) => `${k}: ${v}`)
-                      .join(" · ")}
+                      .join(" . ")}
                   </div>
                 )}
 
@@ -936,8 +933,8 @@ useEffect(() => {
           pendingToRemove ? (
             <>
               Remove <strong>{pendingToRemove.item.name}</strong> x{" "}
-              {pendingToRemove.item.quantity} from your order? This item
-              will not be sent to the kitchen.
+              {pendingToRemove.item.quantity} from your order? This item will
+              not be sent to the kitchen.
             </>
           ) : (
             ""
@@ -1029,9 +1026,9 @@ useEffect(() => {
           </div>
 
           <p className={local.upiSheetHint}>
-            On mobile, tap <strong>Open UPI App</strong> below - your phone
-            will show a list of installed UPI apps. On desktop, copy the UPI
-            ID and pay from your bank&apos;s app.
+            On mobile, tap <strong>Open UPI App</strong> below - your phone will
+            show a list of installed UPI apps. On desktop, copy the UPI ID and
+            pay from your bank's app.
           </p>
 
           <Button block onClick={fireUpiDeepLink}>
@@ -1040,7 +1037,7 @@ useEffect(() => {
 
           <p className={local.upiSheetNote}>
             After paying, tap <strong>Cancel</strong> and then{" "}
-            <strong>I&apos;ve paid</strong> to confirm the order.
+            <strong>I've paid</strong> to confirm the order.
           </p>
         </div>
       </Sheet>

@@ -1,16 +1,16 @@
 // src/services/auth.service.ts
-import { User, AuthState } from '../types';
-import { isSupabaseConfigured } from '../config/env';
-import { supabase } from './supabase.client';
-import { credentialCache } from './credentialCache';
+import { User, AuthState } from "../types";
+import { isSupabaseConfigured } from "../config/env";
+import { supabase } from "./supabase.client";
+import { credentialCache } from "./credentialCache";
 
 // =========================================================
 // Session storage keys
 // =========================================================
-const SESSION_PREFIX = 'restaurant_auth_session';
+const SESSION_PREFIX = "restaurant_auth_session";
 const PLATFORM_KEY = `${SESSION_PREFIX}::platform`;
 const SMART_ADMIN_KEY = `${SESSION_PREFIX}::smart_admin`;
-const ADMIN_SUFFIX = '_admin';
+const ADMIN_SUFFIX = "_admin";
 
 /**
  * Session key resolution:
@@ -25,14 +25,14 @@ const keyFor = (
   isSmartAdminHost: boolean,
 ): string => {
   if (!slug) return isSmartAdminHost ? SMART_ADMIN_KEY : PLATFORM_KEY;
-  return `${SESSION_PREFIX}::${slug}${isAdminView ? ADMIN_SUFFIX : ''}`;
+  return `${SESSION_PREFIX}::${slug}${isAdminView ? ADMIN_SUFFIX : ""}`;
 };
 
 interface RawAuthRow {
   id: string;
   phone: string;
   name: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
   is_active: boolean;
   tenant_id: string;
   tenant_slug: string;
@@ -71,13 +71,13 @@ class AuthService {
   // URL PARSING
   // =========================================================
   private readContextFromUrl(): UrlContext {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return { slug: null, isAdminView: false, isSmartAdminHost: false };
     }
     try {
       const url = new URL(window.location.href);
-      const isSmartAdminHost = url.searchParams.has('_smart-admin');
-      const qp = url.searchParams.get('t');
+      const isSmartAdminHost = url.searchParams.has("_smart-admin");
+      const qp = url.searchParams.get("t");
       if (!qp) {
         return { slug: null, isAdminView: false, isSmartAdminHost };
       }
@@ -153,11 +153,11 @@ class AuthService {
     if (u.isPlatformAdmin === false) return u;
 
     const looksLikePlatformAdmin =
-      u.role === 'admin' &&
-      (u.tenantSlug === 'main' ||
+      u.role === "admin" &&
+      (u.tenantSlug === "main" ||
         u.tenantSlug === undefined ||
         u.tenantSlug === null ||
-        u.tenantSlug === '');
+        u.tenantSlug === "");
 
     return { ...u, isPlatformAdmin: looksLikePlatformAdmin };
   }
@@ -213,11 +213,11 @@ class AuthService {
         );
       }
     };
-    window.addEventListener('storage', onStorage);
+    window.addEventListener("storage", onStorage);
 
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
-      window.removeEventListener('storage', onStorage);
+      window.removeEventListener("storage", onStorage);
     };
   }
 
@@ -244,8 +244,8 @@ class AuthService {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
         const parsed = JSON.parse(raw) as User;
-        if (!parsed || typeof parsed !== 'object') continue;
-        if (parsed.role !== 'admin') continue;
+        if (!parsed || typeof parsed !== "object") continue;
+        if (parsed.role !== "admin") continue;
         if (parsed.isActive === false) continue;
 
         const withFlag = this.withPlatformFlag(parsed);
@@ -278,51 +278,58 @@ class AuthService {
     if (!phone || !password) {
       return {
         success: false,
-        error: 'Phone number and password are required',
+        error: "Phone number and password are required",
       };
     }
     if (!isSupabaseConfigured || !supabase) {
       return {
         success: false,
-        error: 'Service temporarily unavailable. Please try again.',
+        error: "Service temporarily unavailable. Please try again.",
       };
     }
 
-    const { data, error } = await supabase.rpc('verify_password', {
+    const { data, error } = await supabase.rpc("verify_password", {
       phone_in: phone,
       pw: password,
+      tenant_slug_in: currentTenantSlug, // null for smart admin
     });
 
     if (error) {
-      console.error('verify_password error:', error);
-      return { success: false, error: 'Invalid phone number or password' };
+      const msg = error.message || "";
+
+      // If the error is our custom lockout message, pass it through
+      if (msg.includes("Too many failed attempts")) {
+        return { success: false, error: msg };
+      }
+
+      return { success: false, error: "Invalid phone number or password" };
     }
 
     const row: RawAuthRow | undefined = Array.isArray(data) ? data[0] : data;
     if (!row) {
-      return { success: false, error: 'Invalid phone number or password' };
+      return { success: false, error: "Invalid phone number or password" };
     }
     if (!row.is_active) {
       return {
         success: false,
-        error: 'Account is deactivated. Please contact admin.',
+        error: "Account is deactivated. Please contact admin.",
       };
     }
 
     const isPlatformAdminCandidate =
-      row.role === 'admin' && row.tenant_slug === 'main';
+      row.role === "admin" && row.tenant_slug === "main";
 
-    if (!isPlatformAdminCandidate && row.role !== 'admin') {
+    if (!isPlatformAdminCandidate && row.role !== "admin") {
       if (!currentTenantSlug) {
         return {
           success: false,
-          error: 'Staff accounts must log in from their store URL.',
+          error: "Staff accounts must log in from their store URL.",
         };
       }
       if (row.tenant_slug !== currentTenantSlug) {
         return {
           success: false,
-          error: 'This account belongs to a different store.',
+          error: "URL already taken",
         };
       }
     }
@@ -331,7 +338,7 @@ class AuthService {
       id: row.id,
       phone: row.phone,
       name: row.name,
-      password: '',
+      password: "",
       role: row.role,
       isActive: row.is_active,
       tenantId: row.tenant_id,
@@ -342,7 +349,7 @@ class AuthService {
     };
 
     try {
-      await supabase.rpc('touch_last_login', { user_id: row.id });
+      await supabase.rpc("touch_last_login", { user_id: row.id });
     } catch {
       /* ignore */
     }
@@ -358,66 +365,89 @@ class AuthService {
     return { success: true };
   }
 
+  /**
+   * Checks if a login attempt would be blocked by a lockout.
+   * Returns the number of minutes remaining (0 if not locked).
+   */
+  async checkLockout(
+    phone: string,
+    currentTenantSlug: string | null,
+  ): Promise<number> {
+    if (!phone || !supabase) return 0;
+
+    const { data, error } = await supabase.rpc('check_login_lockout', {
+      phone_in: phone,
+      tenant_slug_in: currentTenantSlug,
+    });
+
+    if (error) {
+      console.error('[auth] check_lockout error:', error);
+      return 0;
+    }
+
+    return Number(data) || 0;
+  }
+
   // =========================================================
   // LOGOUT
   // =========================================================
   logout(): void {
-  const slug = this.currentSlug;
-  const isAdminView = this.currentIsAdminView;
-  const isSmartAdminHost = this.currentIsSmartAdminHost;
+    const slug = this.currentSlug;
+    const isAdminView = this.currentIsAdminView;
+    const isSmartAdminHost = this.currentIsSmartAdminHost;
 
-  if (slug) {
-    credentialCache.remove(slug);
+    if (slug) {
+      credentialCache.remove(slug);
+    }
+    this.clearSession(slug, isAdminView, isSmartAdminHost);
+
+    // Reset the dashboard shell's persisted active section so the
+    // next login lands on the welcome screen rather than deep-linking
+    // back into the last section the user visited.
+    try {
+      const scope = slug ?? "__platform";
+      sessionStorage.removeItem(`dashboard:active-section:v1::${scope}`);
+    } catch {
+      /* ignore */
+    }
+
+    this.authState = {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+    this.notifyListeners();
   }
-  this.clearSession(slug, isAdminView, isSmartAdminHost);
-
-  // Reset the dashboard shell's persisted active section so the
-  // next login lands on the welcome screen rather than deep-linking
-  // back into the last section the user visited.
-  try {
-    const scope = slug ?? '__platform';
-    sessionStorage.removeItem(`dashboard:active-section:v1::${scope}`);
-  } catch {
-    /* ignore */
-  }
-
-  this.authState = {
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-  };
-  this.notifyListeners();
-}
 
   logoutAll(): void {
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(SESSION_PREFIX)) keys.push(k);
-    }
-    keys.forEach((k) => localStorage.removeItem(k));
-
-    // Wipe every dashboard section key too.
-    const sectionKeys: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const k = sessionStorage.key(i);
-      if (k && k.startsWith('dashboard:active-section:v1::')) {
-        sectionKeys.push(k);
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(SESSION_PREFIX)) keys.push(k);
       }
+      keys.forEach((k) => localStorage.removeItem(k));
+
+      // Wipe every dashboard section key too.
+      const sectionKeys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith("dashboard:active-section:v1::")) {
+          sectionKeys.push(k);
+        }
+      }
+      sectionKeys.forEach((k) => sessionStorage.removeItem(k));
+    } catch {
+      /* ignore */
     }
-    sectionKeys.forEach((k) => sessionStorage.removeItem(k));
-  } catch {
-    /* ignore */
+    credentialCache.clearAll();
+    this.authState = {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+    this.notifyListeners();
   }
-  credentialCache.clearAll();
-  this.authState = {
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-  };
-  this.notifyListeners();
-}
 
   // =========================================================
   // TENANT SCOPE ENFORCEMENT
@@ -445,8 +475,8 @@ class AuthService {
     if (!this.isUserValidForTenant(currentTenantSlug)) {
       try {
         sessionStorage.setItem(
-          'logged_out_reason',
-          'You were signed out because this URL belongs to a different store.',
+          "logged_out_reason",
+          "You were signed out because this URL belongs to a different store.",
         );
       } catch {
         /* ignore */
@@ -462,7 +492,7 @@ class AuthService {
     updates: Partial<User>,
   ): Promise<{ success: boolean; error?: string }> {
     if (!this.authState.user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: "Not authenticated" };
     }
     const updatedUser = { ...this.authState.user, ...updates };
     this.authState.user = updatedUser;
@@ -486,7 +516,7 @@ class AuthService {
     return this.authState.user;
   }
   isAdmin(): boolean {
-    return this.authState.user?.role === 'admin';
+    return this.authState.user?.role === "admin";
   }
 }
 

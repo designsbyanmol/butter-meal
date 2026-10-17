@@ -15,13 +15,13 @@ const Vertical: React.FC = () => (
         </h2>
         <p className={shell.lead} style={{ margin: 0 }}>
           Guests scan a QR at their table, order in seconds, and see what
-          they&apos;ve ordered — while your staff tracks each item as it
+          they've ordered - while your staff tracks each item as it
           leaves the kitchen.
         </p>
 
         <ul className={local.list}>
           {[
-            'QR placed on each table — no waiter needed to take orders',
+            'QR placed on each table - no waiter needed to take orders',
             'Item-by-item served tracking so nothing gets missed',
             'One-tap bill requests, pay online via UPI or settle offline',
             'Staff tips shown to customers on the bill screen',
@@ -61,7 +61,7 @@ const Vertical: React.FC = () => (
                   }
                   aria-hidden
                 >
-                  {it.served ? '✓' : ''}
+                  {it.served ? <CheckIcon width={14} height={14} fill="#fff" /> : ''}
                 </span>
                 <span className={local.tableItemName}>{it.name}</span>
                 <span className={local.tableItemQty}>× {it.qty}</span>
@@ -70,7 +70,7 @@ const Vertical: React.FC = () => (
           </div>
           <div className={local.tableCardFoot}>
             <span>Subtotal</span>
-            <span className={local.tableCardTotal}>₹1,140</span>
+            <span className={local.tableCardTotal}>Rs1,140</span>
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@
  *
  * Pricing and `isActive` state live in the database (`star_veg_plans`);
  * this module owns the *what's included* copy that must be identical
- * everywhere a plan card is shown — homepage, signup, plan change
+ * everywhere a plan card is shown - homepage, signup, plan change
  * modal, super-admin plan tab.
  *
  * When a plan's features change, update it here once. Every consumer
@@ -31,7 +31,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
   basic: {
     tagline: 'Menu-only, always free to try',
     description:
-      'A clean digital menu and catalogue for your shop. Showcase items, prices and photos behind a shareable link and QR code — perfect for getting online without committing to ordering or billing features.',
+      'A clean digital menu and catalogue for your shop. Showcase items, prices and photos behind a shareable link and QR code - perfect for getting online without committing to ordering or billing features.',
     included: [
       'Digital menu & catalogue',
       'Editable items, prices, photos',
@@ -52,7 +52,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
   dynamic: {
     tagline: 'For shops taking WhatsApp orders',
     description:
-      'Everything in Basic plus a full WhatsApp ordering flow. Customers build a cart, add customizations, leave notes, and place the order — you get a neatly formatted message on your store number.',
+      'Everything in Basic plus a full WhatsApp ordering flow. Customers build a cart, add customizations, leave notes, and place the order - you get a neatly formatted message on your store number.',
     included: [
       'Everything in Basic',
       'Direct WhatsApp ordering',
@@ -73,7 +73,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
   professional: {
     tagline: 'For restaurants running dine-in + billing',
     description:
-      'The full Avoca experience. Dine-in QR ordering, per-item served tracking, instant thermal bills, staff tips, customer reviews, wishlist, and multi-user access with role-based controls.',
+      'The full Dozzelo experience. Dine-in QR ordering, per-item served tracking, instant thermal bills, staff tips, customer reviews, wishlist, and multi-user access with role-based controls.',
     included: [
       'Everything in Dynamic',
       'Dine-in QR ordering & live tables',
@@ -100,7 +100,7 @@ const FALLBACK_DEFINITION: PlanDefinition = {
 };
 
 /**
- * Safe lookup. Never returns undefined — unknown ids fall back to an
+ * Safe lookup. Never returns undefined - unknown ids fall back to an
  * empty definition so the UI degrades gracefully when a plan is added
  * in the DB without a matching copy block.
  */

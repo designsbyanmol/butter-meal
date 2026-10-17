@@ -1,15 +1,44 @@
+// assets/svgs/MenuIcon.tsx
 import React from 'react';
-interface MenuIconProps {
-    width: number;
-    height: number;
-    color: string;
+
+interface SVGProps {
+  width?: number | string;
+  height?: number | string;
+  fill?: string;
+  className?: string;
 }
-const MenuIcon:React.FC<MenuIconProps> = ({width,height,color}) => {
+
+const MenuIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
+  fill = 'currentColor',
+  className,
+}) => {
   return (
-    <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 13H11V15H3V13ZM3 17H11V19H3V17ZM3 9H11V11H3V9ZM3 5H11V7H3V5ZM19 7V17H15V7H19ZM21 5H13V19H21V5Z" fill={color}/>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={fill}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <g clipPath="url(#clip0_78_29831)">
+        <path
+          d="M3 6H21M3 12H21M3 18H21"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
     </svg>
-  )
-}
+  );
+};
 
 export default MenuIcon;

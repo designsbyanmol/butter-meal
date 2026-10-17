@@ -7,7 +7,7 @@ import { db } from "./database.service";
  * the fetched items and the tenant's `menu_version` at the time of
  * the fetch. On subsequent loads, comparing the cached version
  * against the tenant's current `menu_version` tells us whether the
- * cache is still valid — no menu fetch needed if it is.
+ * cache is still valid - no menu fetch needed if it is.
  */
 const CACHE_PREFIX = 'menu:cache:v2';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days hard cap
@@ -48,7 +48,7 @@ function writeCache(slug: string, version: number, items: MenuItem[]): void {
       JSON.stringify({ version, items, savedAt: Date.now() }),
     );
   } catch {
-    /* quota / private mode — ignore */
+    /* quota / private mode - ignore */
   }
 }
 
@@ -142,7 +142,7 @@ class MenuService {
       console.warn('menu.service: version check failed:', err);
     }
 
-    // Tenant changed while we were fetching — bail.
+    // Tenant changed while we were fetching - bail.
     if (this.tenantSlug !== slug) return;
 
     // Couldn't reach the server: trust the cache if we have one.
@@ -151,7 +151,7 @@ class MenuService {
         this.notifyListeners();
         return;
       }
-      // No cache and no server — let the fallback path try a full load.
+      // No cache and no server - let the fallback path try a full load.
       await this.loadMenuItems(true);
       return;
     }
@@ -334,6 +334,134 @@ class MenuService {
     }
   }
 
+  /**
+ * Download every menu item for the current tenant as a JSON file.
+ * The file format is stable and round-trips through `importItems`.
+ */
+async exportItems(): Promise<void> {
+  if (!this.tenantSlug) return;
+
+  const items = this.menuItems.map((item) => ({
+    name: item.name,
+    desc: item.desc,
+    price: item.price,
+    costPrice: item.costPrice,
+    discount: item.discount,
+    img: item.img,
+    gallery: item.gallery,
+    category: item.category,
+    isVeg: item.isVeg,
+    isSpicy: item.isSpicy,
+    isGlutenFree: item.isGlutenFree,
+    preparationTime: item.preparationTime,
+    calories: item.calories,
+    ingredients: item.ingredients,
+    nutritionalInfo: item.nutritionalInfo,
+    attributes: item.attributes,
+    customizationOptions: item.customizationOptions,
+    inStock: item.inStock,
+  }));
+
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    tenant: this.tenantSlug,
+    items,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${this.tenantSlug}-menu-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 800);
+}
+
+/**
+ * Diff an imported list against the current menu.
+ * Returns `null` when the file is malformed.
+ */
+async previewImport(file: File): Promise<
+  | null
+  | {
+      newItems: Omit<MenuItem, 'id'>[];
+      existingItems: { imported: Omit<MenuItem, 'id'>; existing: MenuItem }[];
+      invalidCount: number;
+    }
+> {
+  let parsed: any;
+  try {
+    const text = await file.text();
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.items)) {
+    return null;
+  }
+
+  const byName = new Map<string, MenuItem>();
+  this.menuItems.forEach((it) => {
+    byName.set(it.name.trim().toLowerCase(), it);
+  });
+
+  const newItems: Omit<MenuItem, 'id'>[] = [];
+  const existingItems: { imported: Omit<MenuItem, 'id'>; existing: MenuItem }[] = [];
+  let invalidCount = 0;
+
+  for (const raw of parsed.items) {
+    const clean = sanitizeImportedItem(raw);
+    if (!clean) {
+      invalidCount += 1;
+      continue;
+    }
+    const key = clean.name.trim().toLowerCase();
+    const existing = byName.get(key);
+    if (existing) {
+      existingItems.push({ imported: clean, existing });
+    } else {
+      newItems.push(clean);
+    }
+  }
+
+  return { newItems, existingItems, invalidCount };
+}
+
+/**
+ * Commit the imported items.
+ *  - `replaceNames` are names the user chose to overwrite.
+ *  - Everything else already existing is skipped.
+ *  - All new items are added.
+ */
+async importItems(
+  newItems: Omit<MenuItem, 'id'>[],
+  replacements: { imported: Omit<MenuItem, 'id'>; existing: MenuItem }[],
+): Promise<{ added: number; replaced: number }> {
+  if (!this.tenantSlug) return { added: 0, replaced: 0 };
+
+  let added = 0;
+  let replaced = 0;
+
+  for (const item of newItems) {
+    const created = await this.addItem(item);
+    if (created) added += 1;
+  }
+
+  for (const { imported, existing } of replacements) {
+    const updated = await this.updateItem(existing.id, imported);
+    if (updated) replaced += 1;
+  }
+
+  await this.reloadAuthoritative();
+  return { added, replaced };
+}
+
   // =========================================================
   // Sync (no-op by design)
   // =========================================================
@@ -444,7 +572,7 @@ class MenuService {
 
     // If we already have a valid cache, skip the seed check entirely.
     // The version check in setTenant has already confirmed the menu
-    // is up to date — there's nothing to initialize.
+    // is up to date - there's nothing to initialize.
     if (this.isInitialized && this.menuItems.length > 0) {
       return;
     }
@@ -499,5 +627,60 @@ class MenuService {
     }
   }
 }
+
+const sanitizeImportedItem = (
+  raw: any,
+): Omit<MenuItem, 'id'> | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const name = String(raw.name ?? '').trim();
+  const price = Number(raw.price);
+  if (!name || !Number.isFinite(price) || price < 0) return null;
+
+  return {
+    name,
+    desc: typeof raw.desc === 'string' ? raw.desc : '',
+    price,
+    costPrice:
+      typeof raw.costPrice === 'number' && raw.costPrice > 0
+        ? raw.costPrice
+        : undefined,
+    discount:
+      typeof raw.discount === 'number' && raw.discount > 0
+        ? raw.discount
+        : 0,
+    img: typeof raw.img === 'string' ? raw.img : '',
+    gallery: Array.isArray(raw.gallery) ? raw.gallery : undefined,
+    category:
+      typeof raw.category === 'string' && raw.category.trim()
+        ? raw.category.trim()
+        : undefined,
+    isVeg: raw.isVeg === true,
+    isSpicy: raw.isSpicy === true,
+    isGlutenFree: raw.isGlutenFree === true,
+    preparationTime:
+      typeof raw.preparationTime === 'string'
+        ? raw.preparationTime
+        : undefined,
+    calories:
+      typeof raw.calories === 'number' && raw.calories > 0
+        ? raw.calories
+        : undefined,
+    ingredients: Array.isArray(raw.ingredients)
+      ? raw.ingredients.filter((s: any) => typeof s === 'string')
+      : undefined,
+    nutritionalInfo:
+      raw.nutritionalInfo && typeof raw.nutritionalInfo === 'object'
+        ? raw.nutritionalInfo
+        : undefined,
+    attributes:
+      raw.attributes && typeof raw.attributes === 'object'
+        ? raw.attributes
+        : undefined,
+    customizationOptions: Array.isArray(raw.customizationOptions)
+      ? raw.customizationOptions
+      : undefined,
+    inStock: raw.inStock !== false,
+  };
+};
 
 export const menuService = new MenuService();

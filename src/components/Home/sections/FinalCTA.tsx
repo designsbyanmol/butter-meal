@@ -18,7 +18,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
         </h2>
         <p className={local.lead}>
           Sign up free and have your store, menu, QR and WhatsApp
-          ordering live in minutes. Upgrade only when you&apos;re ready.
+          ordering live in minutes. Upgrade only when you're ready.
         </p>
 
         <div className={local.actions}>
@@ -27,7 +27,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
             onClick={onSignup}
             rightIcon={<RightArrow width={16} height={16} fill="#fff" />}
           >
-            Create Your Free Store
+            Create Free Store
           </Button>
           {onTrySample && (
             <Button
@@ -36,7 +36,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
               onClick={onTrySample}
               rightIcon={<RightArrow width={16} height={16} fill="#1e7e34" />}
             >
-              Explore a Sample Store
+              Explore Sample Store
             </Button>
           )}
         </div>
@@ -46,11 +46,9 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
         <h3 className={local.rightTitle}>What you get on signup</h3>
         <ul className={local.list}>
           {[
-            'Your own store URL + QR code',
-            'Unlimited menu items during the free month',
-            'WhatsApp ordering enabled by default',
-            'Access to billing, dine-in and reviews whenever you upgrade',
-            'No credit card, no setup fee, cancel anytime',
+            '₹1 for first month Any Plan',
+            'Your store URL + QR',
+            'No card, cancel anytime',
           ].map((line) => (
             <li key={line}>
               <CheckIcon width={14} height={14} fill="#3caa46" />
@@ -59,7 +57,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
           ))}
         </ul>
         <div className={local.foot}>
-          <span>Setup time · 5 minutes</span>
+          <span>Setup time . 5 minutes</span>
           <span>Free for 30 days</span>
         </div>
       </div>

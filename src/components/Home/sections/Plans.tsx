@@ -1,7 +1,7 @@
 // components/Home/sections/Plans.tsx
 import React, { useState } from 'react';
 import { Button, Badge } from '../../ui';
-import { RightArrow, CheckIcon } from '../../../assets/svgs';
+import { RightArrow, CheckIcon, RupeeIcon } from '../../../assets/svgs';
 import {
   PLAN_DISPLAY_PRICES,
   getPlanDefinition,
@@ -32,7 +32,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
           <span className={shell.eyebrow}>Simple pricing</span>
           <h2 className={shell.title}>Plans that grow with your shop</h2>
           <p className={shell.lead}>
-            Start your first month for just ₹1. Pay full price only when
+            Start your first month for just Rs1. Pay full price only when
             you renew. Cancel anytime.
           </p>
         </div>
@@ -66,15 +66,15 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
 
                 <div className={local.promoPrice}>
                   <span className={local.promoStrike}>
-                    ₹{price}
+                    <RupeeIcon width={14} height={14} fill="#5c6b87" className='rupeeIcon'/>{price}
                   </span>
-                  <span className={local.promoBig}>₹1</span>
+                  <span className={local.promoBig}>1</span>
                   <span className={local.promoUnit}>
                     first month
                   </span>
                 </div>
                 <p className={local.promoNote}>
-                  Then ₹{price}/month from month 2
+                  Then Rs{price}/month from month 2
                 </p>
 
                 <ul className={local.features}>
@@ -100,17 +100,10 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
 
                 <Button
                   block
-                  variant={isHighlight ? 'primary' : 'secondary'}
+                  variant={isHighlight ? 'primary' : 'ghost'}
                   onClick={onSignup}
-                  rightIcon={
-                    <RightArrow
-                      width={16}
-                      height={16}
-                      fill={isHighlight ? '#fff' : '#1e7e34'}
-                    />
-                  }
                 >
-                  Start for ₹1
+                  Get this plan
                 </Button>
               </div>
             );
@@ -118,7 +111,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
         </div>
 
         <p className={local.footnote}>
-          ₹1 for your first month on any plan. Renew at the regular price.
+          Rs1 for your first month on any plan. Renew at the regular price.
           No lock-in.
         </p>
       </div>
@@ -133,7 +126,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
         onPrimaryAction={
           detailId
             ? {
-                label: `Start ${PLAN_NAMES[detailId] ?? detailId} for ₹1`,
+                label: `Start ${PLAN_NAMES[detailId] ?? detailId} for Rs1`,
                 onClick: () => {
                   setDetailId(null);
                   onSignup();

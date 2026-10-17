@@ -19,7 +19,7 @@ interface PlanDetailModalProps {
   onPrimaryAction?: { label: string; onClick: () => void };
   /**
    * When true, the price block shows the first-month promotion:
-   * "₹1 first month, then ₹XX/mo".
+   * "Rs1 first month, then RsXX/mo".
    */
   firstMonthPromo?: boolean;
 }
@@ -113,7 +113,7 @@ const PlanDetailModal: React.FC<PlanDetailModalProps> = ({
         )}
 
         <section className={local.section}>
-          <h4 className={local.sectionTitle}>What&apos;s included</h4>
+          <h4 className={local.sectionTitle}>What's included</h4>
           <ul className={local.list}>
             {def.included.map((line) => (
               <li key={line} className={local.listItem}>

@@ -46,12 +46,12 @@ const PlansModalBody: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Subscribe — but skip reloads triggered by our own save, and
+  // Subscribe - but skip reloads triggered by our own save, and
   // debounce rapid-fire broadcasts into a single reload.
   useEffect(() => {
     const unsubscribe = planService.subscribeToPlanChanges(() => {
       // If our own save fired this broadcast within the last second,
-      // skip the reload — we already have the correct state.
+      // skip the reload - we already have the correct state.
       if (Date.now() - lastSaveRef.current < 1000) return;
 
       // Debounce: multiple broadcasts within 400ms → one reload.

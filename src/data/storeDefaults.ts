@@ -103,7 +103,7 @@ const FOOD_BEVERAGE_ITEMS: MenuItem[] = [
         choices: [
           { name: 'Bacon', price: 60 },
           { name: 'Fried Egg', price: 40 },
-          { name: 'Avocado', price: 50 },
+          { name: 'Dozzelodo', price: 50 },
         ],
       },
     ],
@@ -854,7 +854,7 @@ const SERVICES_EVENTS_ITEMS: MenuItem[] = [
     attributes: { isLimited: true },
   }),
 
-  // --- Auto Parts (6) — keeps the "auto-parts" flavour from the original ---
+  // --- Auto Parts (6) - keeps the "auto-parts" flavour from the original ---
   it(19, 'Engine Oil 5W-30 (4L)', 2299, u('1632823393213-3c4e0a5b5a1a'), 'Fully synthetic, API SP'),
   it(20, 'Brake Pads (Front Pair)', 2499, u('1486263248352-3c4c2f5c6c1f'), 'Ceramic, low-dust'),
   it(21, 'Car Battery 12V 45Ah', 5999, u('1609091839311-d5365f9ff1c5'), 'Maintenance-free, 2-yr warranty'),
@@ -869,7 +869,7 @@ const SERVICES_EVENTS_ITEMS: MenuItem[] = [
 // tools & hardware, beverages.
 // =========================================================
 const OTHER_SHOPS_ITEMS: MenuItem[] = [
-  // --- Vegetables & Fruits (6) — NEW ---
+  // --- Vegetables & Fruits (6) - NEW ---
   it(1, 'Fresh Tomatoes (1 kg)', 40, u('1592924357228-91a4daadcfea'), 'Farm-fresh, ripe red tomatoes', {
     isVeg: true,
     attributes: { isPopular: true },

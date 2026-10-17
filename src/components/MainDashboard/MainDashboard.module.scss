@@ -54,7 +54,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.9px;
-  color: $green-500;
+  color: $primary-500;
   text-transform: uppercase;
 }
 
@@ -69,7 +69,7 @@
 }
 
 .heroName {
-  color: $green-500;
+  color: $primary-500;
 }
 
 .liveBadge {
@@ -93,15 +93,15 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: $green-500;
-  box-shadow: 0 0 0 0 rgba($green-500, 0.6);
+  background: $primary-500;
+  box-shadow: 0 0 0 0 rgba($primary-500, 0.6);
   animation: livePulse 1.6s ease-in-out infinite;
 }
 
 @keyframes livePulse {
-  0% { box-shadow: 0 0 0 0 rgba($green-500, 0.6); }
-  70% { box-shadow: 0 0 0 8px rgba($green-500, 0); }
-  100% { box-shadow: 0 0 0 0 rgba($green-500, 0); }
+  0% { box-shadow: 0 0 0 0 rgba($primary-500, 0.6); }
+  70% { box-shadow: 0 0 0 8px rgba($primary-500, 0); }
+  100% { box-shadow: 0 0 0 0 rgba($primary-500, 0); }
 }
 
 /* ---------- Footer strip ---------- */
@@ -122,7 +122,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: $green-50;
+  background: $primary-50;
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -149,7 +149,7 @@
 .footerStat {
   font-size: 13px;
   font-weight: 700;
-  color: $green-700;
+  color: $primary-700;
   flex-shrink: 0;
 }
 

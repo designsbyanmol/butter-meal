@@ -10,49 +10,36 @@ import { Drawer, EmptyState, ConfirmDialog } from '../ui';
 import { BellIcon } from '../../assets/svgs';
 import local from './DisputeNotificationsDrawer.module.scss';
 
-/**
- * Normalized notification row the drawer renders. Concrete drawers
- * map their own data shape into this.
- */
 export interface DisputeNotifRow {
-  /** Stable ID used as the React key and passed to markSeen. */
   id: string;
-  /** ISO timestamp used for the row's time label. */
   timeIso: string;
-  /** Server-side read marker. Non-null means the row renders as read. */
   seenAt?: string | null;
-  /** Arbitrary payload forwarded to `onRowClick` and the render props. */
   payload: any;
 }
 
 export interface DisputeNotificationsDrawerProps {
-  /** Whether the drawer should be mounted at all (permission gate). */
   enabled: boolean;
-  /** Fetch the current list of notifications. Called on poll and on open. */
   fetchRows: () => Promise<DisputeNotifRow[]>;
-  /** Mark a single row as read on the server. */
   markSeen: (id: string) => Promise<unknown>;
-  /** Clear-all handler. Persists the cursor on the server. */
   clearAll: () => Promise<unknown>;
-  /** Called when the user clicks a row. Receives `row.payload`. */
   onRowClick: (payload: any) => void;
-  /** Renders the primary text body of a row. */
   renderRowBody: (row: DisputeNotifRow) => React.ReactNode;
-  /**
-   * Optional second-line meta renderer. Rendered next to the time
-   * label (e.g. an outcome badge). Admin wrapper omits it.
-   */
   renderRowMeta?: (row: DisputeNotifRow) => React.ReactNode;
-  /** Copy for the Clear-all confirm dialog. */
   clearConfirmMessage: string;
-  /** Optional copy for the empty state. */
   emptyTitle?: string;
   emptyDescription?: string;
-  /** Cadence for the always-on poll, in ms. Default 60_000. */
   pollMs?: number;
+
+  /**
+   * Optional controlled open state. When provided, the component
+   * does NOT render its own bell trigger button - the parent is
+   * responsible for opening it.
+   */
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const DEFAULT_POLL_MS = 2 * 60 * 60 * 1000;
+const DEFAULT_POLL_MS = 120_000;
 
 const formatNotifTime = (iso: string): string => {
   const d = new Date(iso);
@@ -98,14 +85,35 @@ export const DisputeNotificationsDrawer: React.FC<
   emptyTitle = 'No notifications yet',
   emptyDescription,
   pollMs = DEFAULT_POLL_MS,
+  isOpen: controlledIsOpen,
+  onClose: controlledOnClose,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const isControlled =
+    controlledIsOpen !== undefined && controlledOnClose !== undefined;
+
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = isControlled ? controlledIsOpen! : internalIsOpen;
+  const setIsOpen = isControlled
+    ? (v: boolean) => {
+        if (!v) controlledOnClose?.();
+        else {
+          /* no-op: parent controls open */
+        }
+      }
+    : setInternalIsOpen;
+
+  const handleClose = () => {
+    if (isControlled) {
+      controlledOnClose?.();
+    } else {
+      setInternalIsOpen(false);
+    }
+  };
+
   const [rows, setRows] = useState<DisputeNotifRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
-  // Optimistic overlay for just-clicked rows; server's seenAt becomes
-  // the source of truth on the next fetch.
   const [optimisticRead, setOptimisticRead] = useState<Set<string>>(
     new Set(),
   );
@@ -128,7 +136,6 @@ export const DisputeNotificationsDrawer: React.FC<
     }
   }, [enabled, fetchRows]);
 
-  // Reset when `enabled` flips (e.g. tenant switch).
   useEffect(() => {
     if (!enabled) return;
     setRows([]);
@@ -137,69 +144,59 @@ export const DisputeNotificationsDrawer: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
-  // src/components/Header/DisputeNotificationsDrawer.tsx
-// ---------------------------------------------------------
-// Poll ONLY while the drawer is open. The previous version polled
-// continuously whenever `enabled` was true, which meant an idle
-// admin tab generated 5+ PostgREST log lines every minute - for
-// days at a time. Polling only when the drawer is open removes
-// essentially all of that.
-// ---------------------------------------------------------
-useEffect(() => {
-  if (!enabled || !isOpen) return;
+  // Polling while open
+  useEffect(() => {
+    if (!enabled || !isOpen) return;
 
-  let cancelled = false;
-  let timer: number | null = null;
+    let cancelled = false;
+    let timer: number | null = null;
 
-  const schedule = () => {
-    if (cancelled) return;
-    timer = window.setTimeout(async () => {
+    const schedule = () => {
       if (cancelled) return;
-      if (!(typeof document !== "undefined" && document.hidden)) {
-        await load();
-      }
-      schedule();
-    }, pollMs);
-  };
+      timer = window.setTimeout(async () => {
+        if (cancelled) return;
+        if (!(typeof document !== 'undefined' && document.hidden)) {
+          await load();
+        }
+        schedule();
+      }, pollMs);
+    };
 
-  schedule();
+    schedule();
 
-  const onVisibility = () => {
-    if (document.hidden) return;
-    if (timer !== null) window.clearTimeout(timer);
-    load().finally(schedule);
-  };
-  document.addEventListener("visibilitychange", onVisibility);
+    const onVisibility = () => {
+      if (document.hidden) return;
+      if (timer !== null) window.clearTimeout(timer);
+      load().finally(schedule);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
-  return () => {
-    cancelled = true;
-    if (timer !== null) window.clearTimeout(timer);
-    document.removeEventListener("visibilitychange", onVisibility);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [enabled, isOpen, pollMs, load]);
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, isOpen, pollMs, load]);
 
-// src/components/Header/DisputeNotificationsDrawer.tsx
-// Refresh the badge once on focus. No interval.
-useEffect(() => {
-  if (!enabled) return;
-  if (isOpen) return; // drawer is already polling
+  // Badge refresh on focus (only when not open)
+  useEffect(() => {
+    if (!enabled || isOpen) return;
 
-  const onFocus = () => {
-    if (document.hidden) return;
-    load();
-  };
+    const onFocus = () => {
+      if (document.hidden) return;
+      load();
+    };
 
-  document.addEventListener("visibilitychange", onFocus);
-  window.addEventListener("focus", onFocus);
-  return () => {
-    document.removeEventListener("visibilitychange", onFocus);
-    window.removeEventListener("focus", onFocus);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [enabled, isOpen, load]);
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, isOpen, load]);
 
-  // Immediate refresh when the drawer opens.
   useEffect(() => {
     if (!isOpen) return;
     load();
@@ -222,15 +219,13 @@ useEffect(() => {
       next.add(r.id);
       return next;
     });
-    void Promise.resolve(markSeen(r.id)).catch(() => {
-      /* best-effort */
-    });
-    setIsOpen(false);
+    void Promise.resolve(markSeen(r.id)).catch(() => {});
+    handleClose();
     onRowClick(r.payload);
   };
 
   const handleOpenBell = () => {
-    setIsOpen(true);
+    if (!isControlled) setInternalIsOpen(true);
   };
 
   const requestClearAll = () => {
@@ -253,28 +248,31 @@ useEffect(() => {
 
   return (
     <>
-      <button
-        type="button"
-        className={local.bellBtn}
-        onClick={handleOpenBell}
-        aria-label={
-          unreadCount > 0
-            ? `Notifications (${unreadCount} unread)`
-            : 'Notifications'
-        }
-        title="Notifications"
-      >
-        <BellIcon width={20} height={20} fill="#1e1e1e" />
-        {unreadCount > 0 && (
-          <span className={local.bellBadge}>
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
+      {/* Bell button only in uncontrolled mode */}
+      {!isControlled && (
+        <button
+          type="button"
+          className={local.bellBtn}
+          onClick={handleOpenBell}
+          aria-label={
+            unreadCount > 0
+              ? `Notifications (${unreadCount} unread)`
+              : 'Notifications'
+          }
+          title="Notifications"
+        >
+          <BellIcon width={20} height={20} fill="#1e1e1e" />
+          {unreadCount > 0 && (
+            <span className={local.bellBadge}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
 
       <Drawer
         isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={handleClose}
         side="right"
         title={
           <>

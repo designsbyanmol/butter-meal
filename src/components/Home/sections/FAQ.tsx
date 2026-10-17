@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import local from './FAQ.module.scss';
 import shell from '../HomePage.module.scss';
+import { MinusIcon, PlusIcon } from '../../../assets/svgs';
 
 const ITEMS = [
   {
@@ -13,7 +14,7 @@ const ITEMS = [
     a: 'Customers add items to their cart and place the order. The order arrives on your store WhatsApp number as a neatly formatted message with all items, quantities, notes and totals.',
   },
   {
-    q: 'Can I use Avoca for both dine-in and delivery?',
+    q: 'Can I use Dozzelo for both dine-in and delivery?',
     a: 'Yes. Dine-in mode is a switch inside your store settings. Turn it on for restaurants and tables, off for standard catalogue or WhatsApp-only ordering.',
   },
   {
@@ -57,7 +58,7 @@ const FAQ: React.FC = () => {
                 >
                   <span>{it.q}</span>
                   <span className={local.chevron} aria-hidden>
-                    {isOpen ? '−' : '+'}
+                    {isOpen ? <MinusIcon width={16} height={16}/> : <PlusIcon width={16} height={16}/>}
                   </span>
                 </button>
                 {isOpen && <p className={local.answer}>{it.a}</p>}

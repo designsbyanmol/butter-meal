@@ -40,14 +40,12 @@
 
 .headerBrand {
   text-decoration: none;
-}
-
-.brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-weight: 800;
   letter-spacing: -0.3px;
+  cursor: pointer;
 }
 
 .brandMark {
@@ -56,6 +54,12 @@
   border-radius: 50%;
   background: #4caf50;
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18);
+}
+
+.brandLogo {
+  max-width: 140px;
+  width: 100%;
+  height: auto;
 }
 
 .brandName {
@@ -143,12 +147,53 @@
 .mobileNavLink {
   padding: 12px 8px;
   border-radius: $radius-sm;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
   color: $text;
   text-decoration: none;
 
   &:hover { background: $bg-subtle; }
+}
+
+/* Active / loading nav states */
+.navLinkActive {
+  background: $bg-subtle;
+  color: $text;
+}
+
+.mobileNavLinkActive {
+  background: $bg-subtle;
+  color: $black;
+}
+
+.mobileNavLinkLoading {
+  position: relative;
+  color: $primary-dark;
+  pointer-events: none;
+}
+
+/* Top progress bar shown while a section is loading */
+.navLoader {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.navLoaderBar {
+  height: 100%;
+  width: 0;
+  background: $primary-dark;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
+  animation: navLoaderBar 2s ease-in-out forwards;
+}
+
+@keyframes navLoaderBar {
+  0%   { width: 0; }
+  60%  { width: 70%; }
+  100% { width: 100%; }
 }
 
 /* =========================================================
@@ -184,7 +229,7 @@
 .eyebrow {
   display: inline-block;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   color: $primary-dark;
@@ -249,9 +294,9 @@
 
 .footerBlurb {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
-  color: $text-muted;
+  color: $gray-500;
   max-width: 320px;
 }
 
@@ -282,7 +327,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
   padding-top: 20px;
   border-top: 1px solid $border-soft;
   font-size: 12px;
@@ -292,8 +337,14 @@
 
 .footerLegal {
   display: flex;
-  gap: 18px;
+  gap: 10px;
   flex-wrap: wrap;
+
+  @include mobile {
+    padding: $space-4;
+    background: $gray-200;
+    border-radius: $radius;
+  }
 
   a {
     color: $text-faint;

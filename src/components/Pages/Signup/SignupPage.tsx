@@ -107,7 +107,7 @@ const SignupPage: React.FC = () => {
   const handleBackToHome = () => {
     // Abandon the signup draft so the next visit starts clean. Then
     // navigate to the root URL (stripping `_sign-up` and any other
-    // query params) — the router-free `window.location` approach keeps
+    // query params) - the router-free `window.location` approach keeps
     // this consistent with how the signup route is entered.
     try {
       clearSignupState();
@@ -139,7 +139,7 @@ const SignupPage: React.FC = () => {
   return (
     <div className={local.page}>
       {/* =========================================================
-          Page header — back to home on the left, brand logo on the right
+          Page header - back to home on the left, brand logo on the right
          ========================================================= */}
       <header className={local.pageHeader}>
         <button
@@ -154,7 +154,7 @@ const SignupPage: React.FC = () => {
 
         <img
           src={LOGO_URL}
-          alt="Avoca"
+          alt="Dozzelo"
           className={local.headerLogo}
           draggable={false}
         />

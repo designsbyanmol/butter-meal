@@ -29,11 +29,18 @@ import DynamicField from './DynamicField';
 import FormBuilder from './FormBuilder';
 import { InlineSection } from '../Dashboard/inline';
 import { DownloadIcon } from '../../assets/svgs';
+import AdminPanelSettingsMenu from './AdminPanelSettingsMenu';
+import ImportMenuListModal from './ImportMenuListModal';
 import local from './AdminPanel.module.scss';
 
 type MenuItemFormValue = Omit<Partial<MenuItem>, 'img'> & {
   img?: string | string[];
 };
+
+interface AdminPanelBodyProps {
+  embedded?: boolean;
+  onHeaderActionsChange?: (actions: React.ReactNode) => void;
+}
 
 const UNCATEGORIZED = 'Uncategorized';
 
@@ -59,7 +66,7 @@ const emptyNewItem: MenuItemFormValue = {
   inStock: true,
 };
 
-const AdminPanelBody: React.FC = () => {
+const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({embedded = false, onHeaderActionsChange,}) => {
   const { tenant } = useTenant();
   const plan = usePlan();
   const { isAdmin } = useAuth();
@@ -85,6 +92,7 @@ const AdminPanelBody: React.FC = () => {
   const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>(
     {},
   );
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [customizationOptions, setCustomizationOptions] = useState<
@@ -664,6 +672,34 @@ const AdminPanelBody: React.FC = () => {
     [enabledFields],
   );
 
+  const headerActions =
+  isAdmin && plan.canEditFields ? (
+    <div className={local.btnWrap}>
+      <Button size="sm" onClick={handleAddNewItem}>
+        + Add
+      </Button>
+      <AdminPanelSettingsMenu
+        onEditLabels={() => setIsFormBuilderOpen(true)}
+        onExport={() => menuService.exportItems()}
+        onImport={() => setIsImportOpen(true)}
+        onSampleImport={handleReplaceSamplesClick}
+        sampleDisabled={isReplacing}
+        exportDisabled={items.length === 0}
+      />
+    </div>
+  ) : null;
+
+useEffect(() => {
+  if (onHeaderActionsChange) onHeaderActionsChange(headerActions);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [
+  isAdmin,
+  plan.canEditFields,
+  items.length,
+  isReplacing,
+  onHeaderActionsChange,
+]);
+
   // ---------------------------------------------------------
   // Render
   // ---------------------------------------------------------
@@ -671,34 +707,8 @@ const AdminPanelBody: React.FC = () => {
     <>
       <InlineSection
         title={`${labels.adminPanelTitle} (${items.length})`}
-        actions={
-          <div className={local.btnWrap}>
-            {isAdmin && plan.canEditFields && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleReplaceSamplesClick}
-                loading={isReplacing}
-                leftIcon={
-                  <DownloadIcon width={14} height={14} fill="#4d4d4d" />
-                }
-                title="Replace the current menu with sample items for your store type"
-              >
-                Samples
-              </Button>
-            )}
-            {isAdmin && plan.canEditFields && (
-              <Button size="sm" variant="ghost" onClick={() => setIsFormBuilderOpen(true)}>
-                Labels
-              </Button>
-            )}
-            {isAdmin && plan.canEditFields && (
-              <Button size="sm" onClick={handleAddNewItem}>
-                + Add
-              </Button>
-            )}
-          </div>
-        }
+        actions={headerActions}
+  embedded={embedded}
       >
         {/* Stats */}
         <div className={local.stats}>
@@ -825,7 +835,7 @@ const AdminPanelBody: React.FC = () => {
                           />
                           <div className={local.itemName}>
                             {item.name}
-                            {item.discount && item.discount > 0 && (
+                            {!!item.discount && item.discount > 0 && (
                               <Badge tone="warning" size="sm">
                                 -{item.discount}%
                               </Badge>
@@ -861,6 +871,17 @@ const AdminPanelBody: React.FC = () => {
           )}
         </div>
       </InlineSection>
+
+      <ImportMenuListModal
+  isOpen={isImportOpen}
+  onClose={() => setIsImportOpen(false)}
+  onComplete={(result) => {
+    showSuccess(
+      `Imported ${result.added} new . replaced ${result.replaced}.`,
+      2500,
+    );
+  }}
+/>
 
       {/* ============ Add new item modal ============ */}
       {isAdmin && (

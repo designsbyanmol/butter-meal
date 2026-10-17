@@ -11,7 +11,7 @@ const Audience: React.FC = () => (
         <span className={shell.eyebrow}>Built for your business</span>
         <h2 className={shell.title}>One platform, any shop</h2>
         <p className={shell.lead}>
-          Whether you run a busy restaurant or a small home kitchen, Avoca
+          Whether you run a busy restaurant or a small home kitchen, Dozzelo
           adapts to how you sell.
         </p>
       </div>
@@ -26,7 +26,6 @@ const Audience: React.FC = () => (
               <img src={c.image} alt={c.label} loading="lazy" />
             </div>
             <div className={local.cardBody}>
-              <span className={local.cardIcon} aria-hidden />
               <h3 className={local.cardTitle}>{c.label}</h3>
               <p className={local.cardDesc}>{c.description}</p>
             </div>

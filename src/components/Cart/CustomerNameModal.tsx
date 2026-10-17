@@ -123,7 +123,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
         /* ---- Greeting mode ---- */
         <div className={local.body}>
           <p className={local.greeting}>
-            Hey <strong>{savedName}</strong>! Let&apos;s proceed.
+            Hey <strong>{savedName}</strong>! Let's proceed.
           </p>
         </div>
       ) : (

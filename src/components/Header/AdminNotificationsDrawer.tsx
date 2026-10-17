@@ -8,9 +8,16 @@ import {
 
 interface Props {
   onOpenDispute: (disputeId: string) => void;
+  /** Optional controlled open state. */
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const AdminNotificationsDrawer: React.FC<Props> = ({ onOpenDispute }) => {
+const AdminNotificationsDrawer: React.FC<Props> = ({
+  onOpenDispute,
+  isOpen,
+  onClose,
+}) => {
   const fetchRows = useCallback(async (): Promise<DisputeNotifRow[]> => {
     const list = await supabaseService.getDisputesWithReviews({
       status: 'pending',
@@ -54,6 +61,8 @@ const AdminNotificationsDrawer: React.FC<Props> = ({ onOpenDispute }) => {
       clearConfirmMessage="This removes every pending dispute from this list on every device. New disputes will still appear as they come in."
       emptyTitle="No notifications yet"
       emptyDescription="Disputes raised by tenants will show up here."
+      isOpen={isOpen}
+      onClose={onClose}
     />
   );
 };

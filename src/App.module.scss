@@ -9,6 +9,10 @@
   padding: 0;
 }
 
+svg {
+  display: inline-block;
+}
+
 /* Remove handlebar start */
 /* width */
 ::-webkit-scrollbar {
@@ -500,4 +504,68 @@
     flex-direction: column;
     text-align: center;
   }
+}
+
+.lockoutFullScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: $gray-50;
+}
+
+.lockoutCard {
+  max-width: 420px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  padding: 36px 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.lockoutEmoji {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.lockoutHeading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.3px;
+}
+
+.lockoutSubtitle {
+  margin: 0;
+  font-size: 13.5px;
+  color: $text-muted;
+  line-height: 1.55;
+  max-width: 320px;
+}
+
+.lockoutCountdown {
+  font-family: $font-family-mono;
+  font-size: 40px;
+  font-weight: 800;
+  color: $danger;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  padding: 10px 0;
+}
+
+.lockoutFooter {
+  margin: 0;
+  font-size: 11.5px;
+  color: $text-faint;
+  line-height: 1.5;
 }

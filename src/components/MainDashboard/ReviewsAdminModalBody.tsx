@@ -7,6 +7,9 @@ import { supabaseService } from "../../services/supabase.service";
 import { Review, ReviewFilter } from "../../types";
 import { StarIcon } from "../../assets/svgs";
 import { InlineSection } from "../Dashboard/inline";
+import ReviewsFilterMenu, {
+  ReviewSortKey,
+} from './ReviewsFilterMenu';
 import local from "./ReviewsAdminModal.module.scss";
 
 interface FocusDispute {
@@ -19,6 +22,8 @@ interface FocusDispute {
 interface ReviewsAdminModalBodyProps {
   focusDispute?: FocusDispute | null;
   onClose?: () => void;
+  embedded?: boolean;
+  onHeaderActionsChange?: (actions: React.ReactNode) => void;
 }
 
 const FILTERS: { key: ReviewFilter; label: string }[] = [
@@ -55,6 +60,8 @@ interface CardItem {
 const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
   focusDispute = null,
   onClose: _onClose,
+  embedded = false,
+  onHeaderActionsChange,
 }) => {
   const { tenant } = useTenant();
   const { user } = useAuth();
@@ -208,51 +215,88 @@ const ReviewsAdminModalBody: React.FC<ReviewsAdminModalBodyProps> = ({
       setDisputingId(null);
     }
   };
+  const [sort, setSort] = useState<ReviewSortKey>('recent');
 
   const cards: CardItem[] = useMemo(() => {
-    const live: CardItem[] = reviews.map((r) => ({
-      kind: "live",
-      id: r.id,
-      disputeId: disputeMeta[r.id]?.disputeId,
-      itemName: r.itemName,
-      itemCategory: r.itemCategory,
-      rating: r.rating,
-      comment: r.comment,
-      customerName: r.customerName,
-      createdAt: r.createdAt,
-      outcome: disputeMeta[r.id]?.status,
-    }));
+  const live: CardItem[] = reviews.map((r) => ({
+    kind: 'live',
+    id: r.id,
+    disputeId: disputeMeta[r.id]?.disputeId,
+    itemName: r.itemName,
+    itemCategory: r.itemCategory,
+    rating: r.rating,
+    comment: r.comment,
+    customerName: r.customerName,
+    createdAt: r.createdAt,
+    outcome: disputeMeta[r.id]?.status,
+  }));
 
-    const stubs = [...removedStubs];
-    stubs.sort((a, b) => {
-      const aT = a.resolvedAt ? new Date(a.resolvedAt).getTime() : 0;
-      const bT = b.resolvedAt ? new Date(b.resolvedAt).getTime() : 0;
-      return bT - aT;
-    });
+  const stubs = [...removedStubs];
 
-    return [...live, ...stubs];
-  }, [reviews, disputeMeta, removedStubs]);
+  const combined = [...live, ...stubs];
+
+  combined.sort((a, b) => {
+    const aT = a.createdAt
+      ? new Date(a.createdAt).getTime()
+      : a.resolvedAt
+        ? new Date(a.resolvedAt).getTime()
+        : 0;
+    const bT = b.createdAt
+      ? new Date(b.createdAt).getTime()
+      : b.resolvedAt
+        ? new Date(b.resolvedAt).getTime()
+        : 0;
+
+    switch (sort) {
+      case 'oldest':
+        return aT - bT;
+      case 'ratingLow':
+        return a.rating - b.rating;
+      case 'ratingHigh':
+        return b.rating - a.rating;
+      default:
+        return bT - aT;
+    }
+  });
+
+  return combined;
+}, [reviews, disputeMeta, removedStubs, sort]);
 
   const filterLabel = FILTERS.find((f) => f.key === filter)?.label ?? "All";
 
+
+const activeFilterCount = useMemo(() => {
+  let n = 0;
+  if (filter !== 'all') n += 1;
+  if (sort !== 'recent') n += 1;
+  return n;
+}, [filter, sort]);
+
+const headerActions = (
+    <ReviewsFilterMenu
+      filter={filter}
+      onFilterChange={setFilter}
+      sort={sort}
+      onSortChange={setSort}
+      activeCount={activeFilterCount}
+      onReset={() => {
+        setFilter('all');
+        setSort('recent');
+      }}
+    />
+  );
+
+  useEffect(() => {
+    if (onHeaderActionsChange) onHeaderActionsChange(headerActions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, sort, activeFilterCount, onHeaderActionsChange]);
+
   return (
     <InlineSection
-      title="Review Management"
-      actions={
-        <div className={local.filterRow}>
-          {FILTERS.map((f) => (
-            <Chip
-              key={f.key}
-              tone="neutral"
-              active={filter === f.key}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </Chip>
-          ))}
-        </div>
-      }
-    >
+  title="Review Management"
+  actions={headerActions}
+      embedded={embedded}
+>
       {error && (
         <Banner variant="error" onDismiss={() => setError("")}>
           {error}

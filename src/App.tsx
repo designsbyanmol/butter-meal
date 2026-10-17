@@ -46,6 +46,7 @@ import { getStoreLabels } from "./utils/storeLabels";
 import { getCategoryDefaults } from "./data/storeDefaults";
 import { getCategoryLabel } from "./data/storeCategories";
 import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
+import { getLockoutUntil, clearLockout, setLockoutUntil } from "./utils/lockoutStorage";
 import {
   getAllPendingItems,
   dropCommittedPendingItem,
@@ -55,19 +56,16 @@ import styles from "./App.module.scss";
 // =========================================================
 // Layout helpers
 // =========================================================
-
-/**
- * The customer-facing Header is redundant on desktop admin routes
- * because the admin shell provides its own chrome (sidebar, avatar,
- * notifications, logout). Hide it only when the shell is going to
- * take over — mobile and customer URLs still get the Header.
- */
-const shouldHideHeader = (hasTenant: boolean, isMobile: boolean): boolean => {
-  if (hasTenant) return true;
+const shouldHideHeader = (
+  hasTenant: boolean,
+  isAdminView: boolean,
+  isMobile: boolean,
+): boolean => {
+  if (hasTenant && !isAdminView) return true;
+  if (!hasTenant) return !isMobile;
   return !isMobile;
 };
 
-/** Desktop renders the shell; mobile falls back to the legacy card grid. */
 const TenantDashboardSwitch: React.FC = () => {
   const isMobile = useIsMobile(900);
   if (isMobile) return <TenantDashboardCards />;
@@ -75,7 +73,7 @@ const TenantDashboardSwitch: React.FC = () => {
 };
 
 // =========================================================
-// Database status notice (admin only)
+// Database status notice
 // =========================================================
 const DatabaseStatusNotice: React.FC<{
   isConnected: boolean;
@@ -104,9 +102,6 @@ const DatabaseStatusNotice: React.FC<{
   );
 };
 
-// =========================================================
-// Route / display helpers
-// =========================================================
 const isSignupRoute = (): boolean => {
   if (typeof window === "undefined") return false;
   try {
@@ -125,7 +120,7 @@ const isStandaloneDisplay = (): boolean => {
 };
 
 // =========================================================
-// App content
+// App content (only mounts when authenticated or customer)
 // =========================================================
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
@@ -145,7 +140,7 @@ const AppContent: React.FC = () => {
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
 
   const isMobile = useIsMobile(900);
-  const hideHeader = shouldHideHeader(!!tenant, isMobile);
+  const hideHeader = shouldHideHeader(!!tenant, isAdminView, isMobile);
 
   const labels = getStoreLabels(tenant?.storeCategory);
 
@@ -210,54 +205,47 @@ const AppContent: React.FC = () => {
   });
 
   const [showFilterLoader, setShowFilterLoader] = useState(false);
-const filterLoaderTimerRef = useRef<number | null>(null);
+  const filterLoaderTimerRef = useRef<number | null>(null);
 
-useEffect(() => {
-  // Fires on every filter field change.
-  // Skip the very first render (mount) — no reason to show the
-  // skeleton before the customer has filtered anything.
-  if (
-    filters.search === '' &&
-    filters.category === null &&
-    filters.types.size === 0 &&
-    filters.sort === 'default' &&
-    filters.stock === 'all'
-  ) {
-    // Empty filter state: hide the loader if it was showing.
-    setShowFilterLoader(false);
+  useEffect(() => {
+    if (
+      filters.search === "" &&
+      filters.category === null &&
+      filters.types.size === 0 &&
+      filters.sort === "default" &&
+      filters.stock === "all"
+    ) {
+      setShowFilterLoader(false);
+      if (filterLoaderTimerRef.current !== null) {
+        window.clearTimeout(filterLoaderTimerRef.current);
+        filterLoaderTimerRef.current = null;
+      }
+      return;
+    }
+
+    setShowFilterLoader(true);
     if (filterLoaderTimerRef.current !== null) {
       window.clearTimeout(filterLoaderTimerRef.current);
-      filterLoaderTimerRef.current = null;
     }
-    return;
-  }
-
-  // Non-empty filter state: show the skeleton for exactly 2s,
-  // restarting the timer on every change.
-  setShowFilterLoader(true);
-  if (filterLoaderTimerRef.current !== null) {
-    window.clearTimeout(filterLoaderTimerRef.current);
-  }
-  filterLoaderTimerRef.current = window.setTimeout(() => {
-    setShowFilterLoader(false);
-    filterLoaderTimerRef.current = null;
-  }, 2000);
-
-  return () => {
-    if (filterLoaderTimerRef.current !== null) {
-      window.clearTimeout(filterLoaderTimerRef.current);
+    filterLoaderTimerRef.current = window.setTimeout(() => {
+      setShowFilterLoader(false);
       filterLoaderTimerRef.current = null;
-    }
-  };
-}, [
-  filters.search,
-  filters.category,
-  filters.types,
-  filters.sort,
-  filters.stock,
-]);
+    }, 2000);
 
-  // Filtering state — true when the customer has narrowed the menu.
+    return () => {
+      if (filterLoaderTimerRef.current !== null) {
+        window.clearTimeout(filterLoaderTimerRef.current);
+        filterLoaderTimerRef.current = null;
+      }
+    };
+  }, [
+    filters.search,
+    filters.category,
+    filters.types,
+    filters.sort,
+    filters.stock,
+  ]);
+
   const isFiltering =
     filters.search.trim() !== "" ||
     filters.category !== null ||
@@ -278,7 +266,6 @@ useEffect(() => {
 
   const menuTopRef = useRef<HTMLDivElement | null>(null);
 
-  // Skip the initial mount — no reason to scroll on first paint.
   const isFirstFilterRenderRef = useRef(true);
 
   useEffect(() => {
@@ -287,8 +274,6 @@ useEffect(() => {
       return;
     }
 
-    // Only scroll when the customer is actually filtering. Clearing
-    // filters shouldn't yank the page back to the top.
     if (!isFiltering) return;
 
     const el = menuTopRef.current;
@@ -787,17 +772,6 @@ useEffect(() => {
   const isExpired = subscriptionStatus === "expired" || daysLeft < 0;
   const isPaused = subscriptionStatus === "paused";
 
-  /**
-   * True when the desktop admin shell is the thing rendering in the
-   * container. Used to strip the container's max-width and padding so
-   * the shell spans the full viewport.
-   *
-   * The shell only renders when the tenant is fully usable, so we
-   * also require the app to be past loading, the tenant to exist and
-   * be active, and the subscription not to be paused or expired.
-   * Otherwise the paused / expired / skeleton / not-found screens
-   * would render full-bleed and look wrong.
-   */
   const shellActive =
     !isMobile &&
     !isAppLoading &&
@@ -811,7 +785,9 @@ useEffect(() => {
 
   const homeActive = !tenant && !tenantLoading && !isAuthenticated;
 
-  // ---- Render ----
+  // =========================================================
+  // Normal render
+  // =========================================================
   return (
     <>
       {isAuthenticated && isAdmin && !isAppLoading && (
@@ -865,7 +841,6 @@ useEffect(() => {
 
               {isAuthenticated && tenant && <TenantDashboardSwitch />}
 
-              {/* Brand info only shows when the customer isn't filtering. */}
               {!isAuthenticated && !isFiltering && (
                 <BrandInfo
                   brandName={tenant?.displayName ?? ShopInfo.Shop_name}
@@ -890,7 +865,12 @@ useEffect(() => {
                   />
 
                   {showFilterLoader ? (
-                    <DashboardSkeleton count={6} hideHeader hideBrand hidePill/>
+                    <DashboardSkeleton
+                      count={6}
+                      hideHeader
+                      hideBrand
+                      hidePill
+                    />
                   ) : filteredItems.length === 0 ? (
                     <div className={styles.emptyFilterState}>
                       <p>No {labels.items.toLowerCase()} match your filters.</p>
@@ -1024,7 +1004,181 @@ useEffect(() => {
 };
 
 // =========================================================
-// App root
+// Auth Gate (rendered OUTSIDE providers so it mounts instantly)
+// =========================================================
+const AuthGate: React.FC = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [storeIdentity, setStoreIdentity] = useState<{
+    slug: string;
+    displayName: string;
+  } | null>(null);
+  const [serverLockoutChecked, setServerLockoutChecked] = useState(false);
+
+  const urlSlug = useMemo(() => {
+    try {
+      const url = new URL(window.location.href);
+      const qp = url.searchParams.get("t");
+      if (!qp) return null;
+      const isAdmin = qp.endsWith("_admin");
+      return isAdmin ? qp.slice(0, -6) : qp;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isAdminUrl = useMemo(() => {
+    try {
+      const url = new URL(window.location.href);
+      const qp = url.searchParams.get("t");
+      return !!qp && qp.endsWith("_admin");
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Fetch store name (for the login modal label).
+  useEffect(() => {
+    if (!isAdminUrl || !urlSlug) return;
+    let cancelled = false;
+    supabaseService
+      .getTenantPublicIdentity(urlSlug)
+      .then((identity) => {
+        if (cancelled || !identity) return;
+        setStoreIdentity(identity);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdminUrl, urlSlug]);
+
+  // Ask the server once per page load whether this store is locked.
+  // If yes, write it to localStorage so subsequent reloads on this
+  // device are instant (no repeated server call).
+  useEffect(() => {
+    if (!isAdminUrl || !urlSlug) return;
+    let cancelled = false;
+    supabaseService
+      .getTenantLockoutMinutes(urlSlug)
+      .then((minutes) => {
+        if (cancelled) return;
+        if (minutes > 0) {
+          const until = Date.now() + minutes * 60 * 1000;
+          setLockoutUntil(urlSlug, until);
+          setLockoutUntilState(until);
+        }
+        setServerLockoutChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) setServerLockoutChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdminUrl, urlSlug]);
+
+  const initialLockout = urlSlug ? getLockoutUntil(urlSlug) : null;
+  const [lockoutUntil, setLockoutUntilState] = useState<number | null>(
+    initialLockout,
+  );
+  const [lockoutRemaining, setLockoutRemaining] = useState<string>("");
+
+  useEffect(() => {
+    if (!urlSlug) {
+      setLockoutUntilState(null);
+      return;
+    }
+    const check = () => setLockoutUntilState(getLockoutUntil(urlSlug));
+    check();
+    const onFocus = () => {
+      if (document.hidden) return;
+      check();
+    };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [urlSlug]);
+
+  useEffect(() => {
+    if (!lockoutUntil) {
+      setLockoutRemaining("");
+      return;
+    }
+    const update = () => {
+      const diff = lockoutUntil - Date.now();
+      if (diff <= 0) {
+        setLockoutUntilState(null);
+        if (urlSlug) clearLockout(urlSlug);
+        return;
+      }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setLockoutRemaining(`${pad(m)}:${pad(s)}`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [lockoutUntil, urlSlug]);
+
+  if (!isAdminUrl) {
+    return <AppContent />;
+  }
+
+  // Synchronous lockout gate - reads latest from localStorage every
+  // render so reloads never flash the login form.
+  const activeLockout = urlSlug ? getLockoutUntil(urlSlug) : null;
+  if (activeLockout && activeLockout > Date.now()) {
+    return (
+      <div className={styles.lockoutFullScreen}>
+        <div className={styles.lockoutCard}>
+          <div className={styles.lockoutEmoji}>🔒</div>
+          <h1 className={styles.lockoutHeading}>Store Login Locked</h1>
+          <p className={styles.lockoutSubtitle}>
+            This store admin URL has been locked because of 3 wrong login
+            attempts. Please wait before trying again.
+          </p>
+          <div className={styles.lockoutCountdown}>{lockoutRemaining}</div>
+          <p className={styles.lockoutFooter}>
+            No requests are being made while this screen is shown.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Wait for BOTH auth check AND server lockout check before deciding
+  // whether to show login or lock screen. This is what fixes Safari:
+  // if the server says locked, we never show the login modal.
+  if (authLoading || !serverLockoutChecked) {
+    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
+  }
+
+  if (!isAuthenticated) {
+    if (!storeIdentity) {
+      return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
+    }
+    return (
+      <>
+        <div style={{ minHeight: "100vh", background: "#f8fafc" }} />
+        <LoginModal
+          isOpen={true}
+          onClose={() => {}}
+          forceOpen={true}
+          storeIdentity={storeIdentity}
+        />
+      </>
+    );
+  }
+
+  return <AppContent />;
+};
+
+// =========================================================
+// App Root
 // =========================================================
 const App: React.FC = () => {
   if (isSignupRoute()) {
@@ -1034,7 +1188,7 @@ const App: React.FC = () => {
   return (
     <TenantProvider>
       <StoreProvider>
-        <AppContent />
+        <AuthGate />
       </StoreProvider>
     </TenantProvider>
   );

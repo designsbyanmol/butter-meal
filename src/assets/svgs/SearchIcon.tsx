@@ -1,4 +1,5 @@
-import React from "react";
+// assets/svgs/SearchIcon.tsx
+import React from 'react';
 
 interface SVGProps {
   width?: number | string;
@@ -10,16 +11,20 @@ interface SVGProps {
 const SearchIcon: React.FC<SVGProps> = ({
   width = 24,
   height = 24,
-  fill = "currentColor",
+  fill = 'currentColor',
   className,
 }) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke={fill}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <g clipPath="url(#clip0_78_29621)">
@@ -31,11 +36,7 @@ const SearchIcon: React.FC<SVGProps> = ({
           strokeLinejoin="round"
         />
       </g>
-      <defs>
-        <clipPath id="clip0_78_29621">
-          <rect width="24" height="24" fill="white" />
-        </clipPath>
-      </defs>
+
     </svg>
   );
 };

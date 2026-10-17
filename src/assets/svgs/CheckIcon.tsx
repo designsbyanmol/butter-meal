@@ -1,3 +1,4 @@
+// assets/svgs/CheckIcon.tsx
 import React from 'react';
 
 interface SVGProps {
@@ -7,18 +8,18 @@ interface SVGProps {
   className?: string;
 }
 
-const CheckIcon: React.FC<SVGProps> = ({ 
-  width = 24, 
-  height = 24, 
+const CheckIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
   fill = 'currentColor',
-  className 
+  className,
 }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={width} 
-      height={height} 
-      viewBox="0 0 24 24" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
       fill="none"
       stroke={fill}
       strokeWidth="2"
@@ -26,7 +27,15 @@ const CheckIcon: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-      <polyline points="20 6 9 17 4 12" />
+      <g clipPath="url(#clip0_78_29676)">
+        <path
+          d="M20 7L10 17L5 12"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 };

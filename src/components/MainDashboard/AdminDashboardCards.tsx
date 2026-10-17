@@ -43,7 +43,7 @@ const CARDS: CardDef[] = [
     key: 'settings',
     label: 'Settings',
     description: 'Global feature toggles',
-    icon: <UsersIcon width={22} height={22} color="#ffffff" />,
+    icon: <UsersIcon width={22} height={22} fill="#ffffff" />,
     accent: 'blue',
   },
 ];

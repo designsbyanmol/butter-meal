@@ -111,7 +111,7 @@ export const removePendingItem = (pendingId: string): void => {
 /**
  * Drop a pending item after it has been successfully committed to
  * the server. Same effect as `removePendingItem` but semantically
- * distinct — callers use whichever name matches the context.
+ * distinct - callers use whichever name matches the context.
  */
 export const dropCommittedPendingItem = (pendingId: string): void =>
   removePendingItem(pendingId);

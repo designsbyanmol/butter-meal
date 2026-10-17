@@ -51,15 +51,33 @@ export const useAuth = () => {
       }
     : state;
 
-  const login = async (phone: string, password: string) => {
-    return await authService.login(
-      phone,
-      password,
-      tenant?.slug ?? null,
-      isAdminView,
-      isSmartAdminHost,
-    );
-  };
+  // src/hooks/useAuth.ts
+const login = async (phone: string, password: string) => {
+  // Read the slug straight from the URL. Don't depend on
+  // `tenant?.slug` being loaded - on admin URLs, the tenant is
+  // intentionally not fetched until after login, so it's null
+  // when the user clicks Login.
+  let slugFromUrl: string | null = null;
+  try {
+    const url = new URL(window.location.href);
+    const qp = url.searchParams.get("t");
+    if (qp) {
+      slugFromUrl = qp.endsWith("_admin")
+        ? qp.slice(0, -6)
+        : qp;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return await authService.login(
+    phone,
+    password,
+    slugFromUrl,
+    isAdminView,
+    isSmartAdminHost,
+  );
+};
 
   const logout = () => {
     authService.logout();

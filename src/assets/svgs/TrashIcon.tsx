@@ -1,3 +1,4 @@
+// assets/svgs/TrashIcon.tsx
 import React from 'react';
 
 interface SVGProps {
@@ -7,18 +8,18 @@ interface SVGProps {
   className?: string;
 }
 
-const TrashIcon: React.FC<SVGProps> = ({ 
-  width = 24, 
-  height = 24, 
+const TrashIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
   fill = 'currentColor',
-  className 
+  className,
 }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={width} 
-      height={height} 
-      viewBox="0 0 24 24" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
       fill="none"
       stroke={fill}
       strokeWidth="2"
@@ -26,8 +27,44 @@ const TrashIcon: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <g clipPath="url(#clip0_78_30204)">
+        <path
+          d="M14 11V17"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M10 11V17"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6 7V19C6 20.1046 6.89543 21 8 21H16C17.1046 21 18 20.1046 18 19V7"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M4 7H20"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M7 7L9 3H15L17 7"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
     </svg>
   );
 };

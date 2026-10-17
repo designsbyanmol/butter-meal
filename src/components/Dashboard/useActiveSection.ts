@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
  * switching tenants never restores the wrong section.
  *
  * An empty sessionStorage value (or a missing one) means "no section
- * selected" — the shell will render its greeting. Logout clears the
+ * selected" - the shell will render its greeting. Logout clears the
  * key so the next login always starts at the greeting.
  */
 const STORAGE_KEY = 'dashboard:active-section:v1';
@@ -45,7 +45,7 @@ export const useActiveSection = (scope: string) => {
           sessionStorage.removeItem(keyFor(scope));
         }
       } catch {
-        /* private mode / quota — ignore */
+        /* private mode / quota - ignore */
       }
     },
     [scope],

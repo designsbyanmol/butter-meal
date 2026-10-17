@@ -1,7 +1,7 @@
 // components/Home/sections/Hero.tsx
 import React from 'react';
 import { Button, Badge } from '../../ui';
-import { RightArrow, CheckIcon } from '../../../assets/svgs';
+import { RightArrow, CheckIcon, UpArrowIcon } from '../../../assets/svgs';
 import local from './Hero.module.scss';
 
 interface HeroProps {
@@ -13,16 +13,16 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
   <section className={local.hero}>
     <div className={local.heroInner}>
       <div className={local.eyebrowRow}>
-        <Badge tone="primary" size="sm">Launch in 5 minutes</Badge>
+        <Badge tone="primary" size="md">Direct Launch</Badge>
         <span className={local.eyebrowText}>
-          No app downloads · Works on any phone
+          No app downloads . Works on any phone
         </span>
       </div>
 
       <h1 className={local.title}>
         Launch your <span className={local.accent}>online store</span>,
         <br />
-        menu &amp; dine-in billing — in minutes.
+        menu &amp; dine-in billing - in minutes.
       </h1>
 
       <p className={local.lead}>
@@ -36,7 +36,6 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
           size="lg"
           shape="pill"
           onClick={onSignup}
-          rightIcon={<RightArrow width={16} height={16} fill="#fff" />}
         >
           Create Your Free Store
         </Button>
@@ -46,7 +45,6 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
             shape="pill"
             variant="ghost"
             onClick={onTrySample}
-            rightIcon={<RightArrow width={16} height={16} fill="#1e7e34" />}
           >
             Try a Sample Store
           </Button>
@@ -75,7 +73,7 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
             <i className={local.dotGreen} />
           </span>
           <span className={local.previewUrl}>
-            yourstore.avoca.app — Live
+            yourstore.Dozzelo.app - Live
           </span>
           <span className={local.previewLive}>
             <i className={local.liveDot} />
@@ -86,11 +84,10 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
         <div className={local.previewGrid}>
           <div className={local.previewCard}>
             <span className={local.previewLabel}>Today</span>
-            <span className={local.previewBig}>128</span>
+            <span className={local.previewBig}>68</span>
             <span className={local.previewSub}>Orders received</span>
             <div className={local.barRow}>
-              <span>WhatsApp: 84</span>
-              <span>Dine-in: 44</span>
+              <span>Via Dine-in</span>
             </div>
             <div className={local.barTrack}>
               <div className={local.barFill} style={{ width: '66%' }} />
@@ -110,18 +107,18 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
               ))}
             </div>
             <span className={local.previewFoot}>
-              2,480 scans · 18% add-to-cart
+              280 scaned and open . 24% add-to-cart
             </span>
           </div>
 
           <div className={local.previewCard}>
-            <span className={local.previewLabel}>Today&apos;s Sales</span>
-            <span className={local.previewBigAlt}>₹24,860</span>
+            <span className={local.previewLabel}>Today's Sales</span>
+            <span className={local.previewBigAlt}>Rs24,860</span>
             <span className={local.previewSub}>
               Online + cash combined
             </span>
-            <Badge tone="success" size="sm">
-              ↑ +18% vs yesterday
+            <Badge tone="success" size="md">
+              <UpArrowIcon width={14} height={14}/> +18% vs yesterday
             </Badge>
           </div>
         </div>

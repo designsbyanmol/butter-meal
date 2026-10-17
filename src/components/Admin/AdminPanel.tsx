@@ -1,5 +1,5 @@
 // components/Admin/AdminPanel.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal } from '../ui';
 import { useTenant } from '../../contexts/TenantContext';
 import { getStoreLabels } from '../../utils/storeLabels';
@@ -13,15 +13,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { tenant } = useTenant();
   const labels = getStoreLabels(tenant?.storeCategory);
 
+  // The body computes its action cluster (Add + settings gear) and
+  // pushes it up via `onHeaderActionsChange`. We render it in the
+  // modal header so mobile shows one header, not two.
+  const [headerActions, setHeaderActions] =
+    useState<React.ReactNode>(null);
+
   return (
     <Modal
       isOpen={true}
       onClose={onClose}
       title={labels.adminPanelTitle}
+      headerRight={headerActions}
       mobileFullScreen
       size="xl"
     >
-      <AdminPanelBody />
+      <AdminPanelBody
+        embedded
+        onHeaderActionsChange={setHeaderActions}
+      />
     </Modal>
   );
 };

@@ -4,6 +4,7 @@ import styles from './Button.module.scss';
 
 export type ButtonVariant =
   | 'primary'
+  | 'dark'
   | 'secondary'
   | 'ghost'
   | 'danger'

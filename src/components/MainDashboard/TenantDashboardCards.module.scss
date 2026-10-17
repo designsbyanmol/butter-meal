@@ -96,8 +96,8 @@
 
 /* ---------- Accents ---------- */
 .green {
-  .icon { background: linear-gradient(135deg, $green-500, $green-700); }
-  &:hover { border-color: rgba($green-500, 0.4); }
+  .icon { background: linear-gradient(135deg, $primary-500, $primary-700); }
+  &:hover { border-color: rgba($primary-500, 0.4); }
 }
 .blue {
   .icon { background: linear-gradient(135deg, $blue-500, $blue-700); }

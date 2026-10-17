@@ -1,23 +1,56 @@
-import React from "react";
-interface LimitedIconProps {
-  width?: number;
-  height?: number;
+// assets/svgs/LimitedIcon.tsx
+import React from 'react';
+
+interface SVGProps {
+  width?: number | string;
+  height?: number | string;
+  fill?: string;
+  className?: string;
 }
 
-const LimitedIcon: React.FC<LimitedIconProps> = ({ width, height }) => {
+const LimitedIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
+  fill = 'currentColor',
+  className,
+}) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={width}
       height={height}
-      viewBox="0 0 65 65"
+      viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke={fill}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
     >
-      <circle cx="33" cy="33" r="25.5" fill="#DFDFDF" stroke="white" />
-      <path
-        d="M57.9999 33C57.9999 46.8071 46.807 58 32.9999 58C23.8405 58 15.8315 53.0743 11.4775 45.7272C14.8182 46.6364 25.2727 48.9091 40.2727 40.2727C46.1815 36.8707 48.9089 33 57.9999 33Z"
-        fill="#00C3D0"
-      />
+      <g clipPath="url(#clip0_78_29430)">
+        <path
+          d="M5.63593 18.364C9.15065 21.8787 14.8491 21.8787 18.3639 18.364C21.8786 14.8492 21.8786 9.15076 18.3639 5.63604C14.8491 2.12132 9.15065 2.12132 5.63593 5.63604C3.87745 7.39453 2.99877 9.69966 2.9999 12.0044L2.99988 14"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M1 12L3 14L5 12"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M11 8L11 13L16 13"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
     </svg>
   );
 };

@@ -366,7 +366,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
       return;
     }
     if (tenant.dineinEnabled !== true) {
-      setError("Enable dine-in first — staff tipping is a dine-in feature.");
+      setError("Enable dine-in first - staff tipping is a dine-in feature.");
       return;
     }
     setPendingToggle({ kind: "tipping", next });
@@ -545,7 +545,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                     </div>
                     <div className={local.value}>
                       Let customers place dine-in orders directly from their
-                      table. When on, the menu&apos;s Add-to-Cart becomes Place
+                      table. When on, the menu's Add-to-Cart becomes Place
                       Order.
                     </div>
                     {!hasUpi && (
@@ -734,7 +734,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 customer side.
               </li>
               <li>
-                The menu&apos;s <strong>Add to Cart</strong> button becomes{" "}
+                The menu's <strong>Add to Cart</strong> button becomes{" "}
                 <strong>Place Order</strong>.
               </li>
               <li>
@@ -743,7 +743,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 screen.
               </li>
               <li>
-                Online payment works only through the store&apos;s UPI ID
+                Online payment works only through the store's UPI ID
                 (which is already set).
               </li>
             </ul>
@@ -765,7 +765,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 The floating cart and delivery checkout return to the menu.
               </li>
               <li>
-                The menu&apos;s <strong>Place Order</strong> button becomes{" "}
+                The menu's <strong>Place Order</strong> button becomes{" "}
                 <strong>Add to Cart</strong> again.
               </li>
               <li>
@@ -790,12 +790,12 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
             <ul className={local.confirmList}>
               <li>
                 The tip amount is{" "}
-                <strong>added to the customer&apos;s total</strong> and
+                <strong>added to the customer's total</strong> and
                 included in the amount they pay.
               </li>
               <li>
                 The tip is only visible to you on the order card after the
-                order is paid — it is not itemized on receipts or order
+                order is paid - it is not itemized on receipts or order
                 history.
               </li>
               <li>
@@ -810,12 +810,12 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           <>
             <p className={local.confirmLead}>
               Turning off staff tips will <strong>hide the tip buttons</strong>{" "}
-              from the customer&apos;s bill screen.
+              from the customer's bill screen.
             </p>
             <ul className={local.confirmList}>
               <li>
                 Any tip already added to an in-progress order will still be
-                charged — the setting only affects new tip selections.
+                charged - the setting only affects new tip selections.
               </li>
               <li>
                 Existing paid orders with a tip keep the tip amount on their

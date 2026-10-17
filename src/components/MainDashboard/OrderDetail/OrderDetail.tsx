@@ -401,7 +401,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
     size="sm"
   >
     {orderState.payOnline && orderState.customerPaidClaimed
-      ? 'Customer says paid — verify'
+      ? 'Customer says paid - verify'
       : orderState.payOnline
         ? 'Online payment pending'
         : orderState.payOnlineRequested

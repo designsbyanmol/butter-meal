@@ -1,6 +1,6 @@
 // src/components/ui/Modal/Modal.module.scss
-@use '../../../styles/tokens' as *;
-@use '../../../styles/mixins' as *;
+@use "../../../styles/tokens" as *;
+@use "../../../styles/mixins" as *;
 
 .overlay {
   position: fixed;
@@ -17,7 +17,7 @@
 .dialog {
   width: 100%;
   background: $bg-elevated;
-  border-radius: $radius-lg;
+  border-radius: $radius-md;
   box-shadow: $shadow-lg;
   display: flex;
   flex-direction: column;
@@ -28,10 +28,18 @@
 }
 
 // ---------- SIZES ----------
-.sm { max-width: 440px; }
-.md { max-width: 532px; }
-.lg { max-width: 720px; }
-.xl { max-width: 920px; }
+.sm {
+  max-width: 440px;
+}
+.md {
+  max-width: 532px;
+}
+.lg {
+  max-width: 720px;
+}
+.xl {
+  max-width: 920px;
+}
 
 .header {
   display: flex;
@@ -45,12 +53,12 @@
 }
 
 .headerRight {
-      display: flex;
-    align-items: center;
-    flex: 1;
-    gap: 10px;
-    justify-content: space-between;
-    min-width: 0;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
 }
 
 .title {
@@ -77,13 +85,15 @@
   transition: background $t-fast;
   flex-shrink: 0;
 
-  &:hover { background: $border-soft; }
+  &:hover {
+    background: $gray-100;
+  }
 }
 
 .body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: $space-3;
 }
 
 .footer {
@@ -97,11 +107,19 @@
 }
 
 @include mobile(480px) {
-  .overlay { padding: 12px; }
-  .dialog { border-radius: $radius; max-height: 100%; width: 100%;}
+  .overlay {
+    padding: 12px;
+  }
+  .dialog {
+    border-radius: $radius;
+    max-height: 100%;
+    width: 100%;
+  }
   .footer {
     flex-direction: column-reverse;
-    button { width: 100%; }
+    button {
+      width: 100%;
+    }
   }
 }
 
@@ -142,9 +160,9 @@
   }
 }
 
-  .mobileFullScreen .backBtn {
-    display: none;
-  }
+.mobileFullScreen .backBtn {
+  display: none;
+}
 
 /* =========================================================
    Mobile full-screen mode

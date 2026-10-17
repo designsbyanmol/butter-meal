@@ -1,7 +1,5 @@
-// components/Home/HomePage.tsx
+// src/components/Home/HomePage.tsx
 import React, { useState } from 'react';
-import { Button } from '../ui';
-import { RightArrow } from '../../assets/svgs';
 import SiteHeader from './shared/SiteHeader';
 import SiteFooter from './shared/SiteFooter';
 import Hero from './sections/Hero';
@@ -13,23 +11,17 @@ import Plans from './sections/Plans';
 import Testimonials from './sections/Testimonials';
 import FAQ from './sections/FAQ';
 import FinalCTA from './sections/FinalCTA';
+import StoreLoginModal from '../Auth/StoreLoginModal'; // NEW IMPORT
 import local from './HomePage.module.scss';
 
 interface HomePageProps {
-  /**
-   * Called when the user clicks "Create Free Store" or any other
-   * signup-related CTA. Parent decides how to route.
-   */
   onSignup: () => void;
-  /**
-   * Called when the user clicks "Try a sample store". Actual behavior
-   * is TBD — parent decides.
-   */
   onTrySample?: () => void;
 }
 
 const HomePage: React.FC<HomePageProps> = ({ onSignup, onTrySample }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false); // NEW STATE
 
   const closeNav = () => setMobileNavOpen(false);
 
@@ -39,10 +31,14 @@ const HomePage: React.FC<HomePageProps> = ({ onSignup, onTrySample }) => {
         mobileNavOpen={mobileNavOpen}
         onToggleNav={() => setMobileNavOpen((v) => !v)}
         onCloseNav={closeNav}
-        onSignup={onSignup}
+        onStoreLogin={() => setIsLoginOpen(true)} // WIRED
       />
 
-      <Hero onSignup={onSignup} onTrySample={onTrySample} />
+      <Hero 
+        onSignup={onSignup} 
+        onTrySample={onTrySample} 
+      />
+      
       <Audience />
       <Features />
       <Workflow />
@@ -53,6 +49,12 @@ const HomePage: React.FC<HomePageProps> = ({ onSignup, onTrySample }) => {
       <FinalCTA onSignup={onSignup} onTrySample={onTrySample} />
 
       <SiteFooter />
+
+      {/* NEW MODAL */}
+      <StoreLoginModal 
+        isOpen={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)} 
+      />
     </div>
   );
 };

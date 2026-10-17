@@ -7,27 +7,14 @@ export interface NavItem {
   key: string;
   label: string;
   icon: React.ReactNode;
-  /** Which pane to render in the right side. */
   render: () => React.ReactNode;
-  /**
-   * Hidden entirely when false (plan gating).
-   *
-   * A `visible: false` item is still resolvable by `activeKey` — the
-   * right pane will render it — but it does not appear in the sidebar
-   * list. Useful for sections reachable only via a footer action
-   * (e.g. the "info" section opened by the avatar).
-   */
   visible?: boolean;
-  /** Optional right-side hint (e.g. count badge). */
   badge?: React.ReactNode;
 }
 
 export interface SidebarFooterSlot {
-  /** Bell(s) region — an existing drawer component or a bare button. */
   notifications?: React.ReactNode;
-  /** Avatar editor trigger. */
   avatar?: React.ReactNode;
-  /** Logout button. */
   logout?: React.ReactNode;
 }
 
@@ -35,23 +22,12 @@ interface DashboardShellProps {
   logoUrl: string;
   items: NavItem[];
   footer: SidebarFooterSlot;
-  /** Optional greeting content for the right pane when nothing is active. */
   greeting?: React.ReactNode;
-  /** Optional top-bar slot (search, breadcrumb, etc.). */
   topBar?: React.ReactNode;
-  /** Optional primary action rendered as the sidebar's + button. */
   onAdd?: (() => void) | null;
-
-  /**
-   * Currently active section key. The caller owns this so it can drive
-   * the shell from anywhere — including the sidebar footer (e.g.
-   * clicking the avatar can set the active section to "info").
-   *
-   * Pass `null` to let the shell auto-select the first visible item on
-   * mount.
-   */
   activeKey: string | null;
   onActiveKeyChange: (key: string) => void;
+  onLogoClick?: () => void;
 }
 
 const DashboardShell: React.FC<DashboardShellProps> = ({
@@ -63,6 +39,7 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
   onAdd,
   activeKey,
   onActiveKeyChange,
+  onLogoClick,
 }) => {
   const isMobile = useIsMobile(900);
 
@@ -71,40 +48,47 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
     [items],
   );
 
-  // All items, including `visible: false` ones — used to resolve the
-  // active section. A hidden item can still be the active key.
   const activeItem = useMemo(
     () => items.find((i) => i.key === activeKey) ?? null,
     [items, activeKey],
   );
 
-  // Auto-select the first visible item when nothing is active, or
-  // when the active item has become hidden due to a plan flip.
+  // Only handle the case where an active item becomes hidden.
+  // If activeKey is null or empty, we let it stay that way
+  // so the greeting screen shows.
   useEffect(() => {
-  // When nothing is selected we render the greeting — that's the
-  // intended "welcome screen" state, not a bug to auto-correct.
-  if (!activeKey) return;
+    if (!activeKey) return;
 
-  // If the selected item just became hidden (e.g. plan downgrade
-  // removed Reviews), reset to the greeting rather than silently
-  // jumping to another section.
-  const listedItem = items.find((i) => i.key === activeKey);
-  const wasListed = listedItem?.visible !== false;
-  const stillVisible = visibleItems.some((i) => i.key === activeKey);
+    const listedItem = items.find((i) => i.key === activeKey);
+    const wasListed = listedItem?.visible !== false;
+    const stillVisible = visibleItems.some((i) => i.key === activeKey);
 
-  if (wasListed && !stillVisible) {
-    onActiveKeyChange('');
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [activeKey, visibleItems]);
+    if (wasListed && !stillVisible) {
+      // The item was removed (e.g., plan downgrade). Reset to welcome.
+      onActiveKeyChange('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, visibleItems, items]);
 
   if (isMobile) return null;
 
   return (
     <div className={local.shell}>
-      {/* ---------- Sidebar ---------- */}
       <aside className={local.sidebar}>
-        <div className={local.logo}>
+        <div
+          className={local.logo}
+          onClick={onLogoClick}
+          role={onLogoClick ? 'button' : undefined}
+          tabIndex={onLogoClick ? 0 : undefined}
+          onKeyDown={(e) => {
+            if (onLogoClick && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              onLogoClick();
+            }
+          }}
+          style={{ cursor: onLogoClick ? 'pointer' : 'default' }}
+          title={onLogoClick ? 'Go to Home' : undefined}
+        >
           <img src={logoUrl} alt="Logo" draggable={false} />
         </div>
 
@@ -156,7 +140,6 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
         </div>
       </aside>
 
-      {/* ---------- Right pane ---------- */}
       <main className={local.main}>
         {topBar && <div className={local.topBar}>{topBar}</div>}
 

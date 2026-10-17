@@ -16,7 +16,7 @@ import { DineinOrder, DineinOrderItem } from '../../types';
 import { formatRupees } from '../../utils/subscription';
 import OrderDetail from './OrderDetail/OrderDetail';
 import OrderHistoryModal from './OrderHistoryModal';
-import { CheckIcon, ClockIcon } from '../../assets/svgs';
+import { CheckIcon, ClockIcon, InfoIcon } from '../../assets/svgs';
 import { InlineSection } from '../Dashboard/inline';
 import local from './DineinOrdersModal.module.scss';
 import MarkPaidModal from './MarkPaidModal';
@@ -235,7 +235,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   // Local-state helpers
   //
   // Every mutation returns the updated order. We splice it back into
-  // `orders` instead of refetching the whole list — that halves the
+  // `orders` instead of refetching the whole list - that halves the
   // API calls for every admin action.
   // ---------------------------------------------------------
   const applyOrderUpdate = (updated: DineinOrder) => {
@@ -249,7 +249,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   };
 
   // ---------------------------------------------------------
-  // Load — only called on mount, on manual refresh, and when the
+  // Load - only called on mount, on manual refresh, and when the
   // order set fundamentally changes (e.g. after a poll timer).
   // ---------------------------------------------------------
   const load = async () => {
@@ -386,7 +386,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   }, [printOrder]);
 
   // ---------------------------------------------------------
-  // Actions — each one updates local state from the returned row
+  // Actions - each one updates local state from the returned row
   // instead of triggering a full refetch.
   // ---------------------------------------------------------
   const handleGenerateBill = (order: DineinOrder) => {
@@ -794,7 +794,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
                       {isStaff && o.status === 'preparing' && (
                         <Banner variant="success" inline>
-                          Now start preparing - tick items as they&apos;re
+                          Now start preparing - tick items as they're
                           served.
                         </Banner>
                       )}
@@ -835,7 +835,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           if (ref === 'online' || ref.startsWith('upi'))
                             return 'Online (UPI)';
                           if (ref === 'cash') return 'Cash';
-                          return o.paymentRef || '—';
+                          return o.paymentRef || '-';
                         })()}
                       </div>
                     )}
@@ -844,21 +844,21 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       <>
                         {o.settledOfflineAfterFailure && (
                           <div className={local.failureNotice}>
-                            ⚠ Online payment failed — please settle offline
+                            <InfoIcon width={22} height={22} fill="currentColor" /> Online payment failed - please settle offline
                           </div>
                         )}
                         <div className={local.billLine}>
                           {o.payOnline && o.customerPaidClaimed
                             ? `Customer has paid ${formatRupees(
                                 o.totalAmount,
-                              )} — please confirm`
+                              )} - please confirm`
                             : o.payOnline
-                              ? 'Online payment approved · waiting for customer'
+                              ? 'Online payment approved . waiting for customer'
                               : o.payOnlineRequested
-                                ? 'Customer chose online · tap Send Pay Link'
+                                ? 'Customer chose online . tap Send Pay Link'
                                 : o.settledOfflineAfterFailure
-                                  ? 'Customer will pay offline — collect at the table'
-                                  : 'Offline bill · customer will pay at the table'}
+                                  ? 'Customer will pay offline - collect at the table'
+                                  : 'Offline bill . customer will pay at the table'}
                         </div>
                       </>
                     )}

@@ -306,6 +306,284 @@ async getMenuVersion(slug: string): Promise<number | null> {
   return Number(data.menu_version) || 0;
 }
 
+/**
+ * Fetch just enough of a tenant's public identity to render the login
+ * modal (display name + slug). One row, two columns - negligible
+ * egress, ~50ms on a warm connection.
+ *
+ * Safe to call unauthenticated: the tenants table is public-read.
+ */
+async getTenantPublicIdentity(
+  slug: string,
+): Promise<{ displayName: string; slug: string } | null> {
+  const client = this.getClient();
+  if (!client) return null;
+  const { data, error } = await client
+    .from("star_veg_tenants")
+    .select("slug, display_name")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    slug: data.slug,
+    displayName: data.display_name,
+  };
+}
+
+async getTenantLockoutMinutes(tenantSlug: string): Promise<number> {
+  const client = this.getClient();
+  if (!client) return 0;
+  const { data, error } = await client.rpc('get_tenant_login_lockout', {
+    tenant_slug_in: tenantSlug,
+  });
+  if (error) {
+    console.warn('[lockout] server check failed:', error);
+    return 0;
+  }
+  return Number(data) || 0;
+}
+
+  async getPlatformRevenueStats(): Promise<any | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc('get_platform_revenue_stats');
+    if (error) {
+      console.error('get_platform_revenue_stats error:', error);
+      return null;
+    }
+    return data;
+  }
+
+  /**
+ * One page of invoices for the platform-admin revenue tab, plus the
+ * total row count so the UI can render the pagination bar.
+ *
+ * Optional filters narrow the result set before pagination so the
+ * page numbers stay correct.
+ */
+async getPlatformInvoicesPaged(opts: {
+  page: number;                // 1-indexed
+  pageSize: number;
+  search?: string;             // matches tenant_slug or tenant_name
+  status?: 'paid' | 'pending' | 'cancelled' | 'all';
+  fromDate?: string;           // ISO
+  toDate?: string;             // ISO
+}): Promise<{
+  rows: Array<{
+    id: string;
+    tenant_slug: string;
+    tenant_name: string;
+    final_amount: number;
+    status: 'paid' | 'pending' | 'cancelled';
+    plan_id: string;
+    months: number;
+    created_at: string;
+  }>;
+  totalCount: number;
+}> {
+  const client = this.getClient();
+  if (!client) return { rows: [], totalCount: 0 };
+
+  const from = (opts.page - 1) * opts.pageSize;
+  const to = from + opts.pageSize - 1;
+
+  let query = client
+    .from('star_veg_invoices')
+    .select(
+      'id, tenant_slug, final_amount, status, plan_id, months, created_at',
+      { count: 'exact' },
+    )
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (opts.status && opts.status !== 'all') {
+    query = query.eq('status', opts.status);
+  }
+  if (opts.fromDate) {
+    query = query.gte('created_at', opts.fromDate);
+  }
+  if (opts.toDate) {
+    query = query.lte('created_at', opts.toDate);
+  }
+  if (opts.search && opts.search.trim()) {
+    const q = opts.search.trim();
+    query = query.or(
+      `tenant_slug.ilike.%${q}%,tenant_slug.ilike.%${q}%`,
+    );
+  }
+
+  const { data, error, count } = await query;
+  if (error) {
+    console.error('getPlatformInvoicesPaged error:', error);
+    return { rows: [], totalCount: 0 };
+  }
+
+  // Fetch tenant display names for the returned rows.
+  const slugs = Array.from(
+    new Set((data || []).map((r: any) => r.tenant_slug)),
+  );
+  const nameMap: Record<string, string> = {};
+  if (slugs.length > 0) {
+    const { data: tenants } = await client
+      .from('star_veg_tenants')
+      .select('slug, display_name')
+      .in('slug', slugs);
+    (tenants || []).forEach((t: any) => {
+      nameMap[t.slug] = t.display_name ?? t.slug;
+    });
+  }
+
+  return {
+    rows: (data || []).map((r: any) => ({
+      id: r.id,
+      tenant_slug: r.tenant_slug,
+      tenant_name: nameMap[r.tenant_slug] ?? r.tenant_slug,
+      final_amount: Number(r.final_amount) || 0,
+      status: r.status,
+      plan_id: r.plan_id,
+      months: r.months,
+      created_at: r.created_at,
+    })),
+    totalCount: count ?? 0,
+  };
+}
+
+/**
+ * All invoices within a date range, for the CSV export.
+ * No pagination - the caller can stream or chunk.
+ */
+async getPlatformInvoicesForExport(opts: {
+  status?: 'paid' | 'pending' | 'cancelled' | 'all';
+  fromDate?: string;
+  toDate?: string;
+}): Promise<Array<{
+  id: string;
+  tenant_slug: string;
+  tenant_name: string;
+  plan_id: string;
+  months: number;
+  base_amount: number;
+  final_amount: number;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+}>> {
+  const client = this.getClient();
+  if (!client) return [];
+
+  let query = client
+    .from('star_veg_invoices')
+    .select(
+      'id, tenant_slug, plan_id, months, base_amount, final_amount, status, created_at, paid_at',
+    )
+    .order('created_at', { ascending: false });
+
+  if (opts.status && opts.status !== 'all') {
+    query = query.eq('status', opts.status);
+  }
+  if (opts.fromDate) query = query.gte('created_at', opts.fromDate);
+  if (opts.toDate) query = query.lte('created_at', opts.toDate);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('getPlatformInvoicesForExport error:', error);
+    return [];
+  }
+
+  const slugs = Array.from(
+    new Set((data || []).map((r: any) => r.tenant_slug)),
+  );
+  const nameMap: Record<string, string> = {};
+  if (slugs.length > 0) {
+    const { data: tenants } = await client
+      .from('star_veg_tenants')
+      .select('slug, display_name')
+      .in('slug', slugs);
+    (tenants || []).forEach((t: any) => {
+      nameMap[t.slug] = t.display_name ?? t.slug;
+    });
+  }
+
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    tenant_slug: r.tenant_slug,
+    tenant_name: nameMap[r.tenant_slug] ?? r.tenant_slug,
+    plan_id: r.plan_id,
+    months: r.months,
+    base_amount: Number(r.base_amount) || 0,
+    final_amount: Number(r.final_amount) || 0,
+    status: r.status,
+    created_at: r.created_at,
+    paid_at: r.paid_at ?? null,
+  }));
+}
+
+async getPlatformRevenueStatsForDateRange(
+  fromDate?: string,
+  toDate?: string,
+): Promise<{
+  totalRevenue: number;
+  totalInvoices: number;
+  pendingInvoices: number;
+  pendingAmount: number;
+  paidInvoices: number;
+}> {
+  const client = this.getClient();
+  if (!client) {
+    return {
+      totalRevenue: 0,
+      totalInvoices: 0,
+      pendingInvoices: 0,
+      pendingAmount: 0,
+      paidInvoices: 0,
+    };
+  }
+
+  let query = client
+    .from('star_veg_invoices')
+    .select('final_amount, status');
+
+  if (fromDate) query = query.gte('created_at', fromDate);
+  if (toDate) query = query.lte('created_at', toDate);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('getPlatformRevenueStatsForDateRange error:', error);
+    return {
+      totalRevenue: 0,
+      totalInvoices: 0,
+      pendingInvoices: 0,
+      pendingAmount: 0,
+      paidInvoices: 0,
+    };
+  }
+
+  let totalRevenue = 0;
+  let totalInvoices = 0;
+  let pendingInvoices = 0;
+  let pendingAmount = 0;
+  let paidInvoices = 0;
+
+  (data || []).forEach((row: any) => {
+    const amount = Number(row.final_amount) || 0;
+    totalInvoices += 1;
+    if (row.status === 'paid') {
+      totalRevenue += amount;
+      paidInvoices += 1;
+    } else if (row.status === 'pending') {
+      pendingInvoices += 1;
+      pendingAmount += amount;
+    }
+  });
+
+  return {
+    totalRevenue,
+    totalInvoices,
+    pendingInvoices,
+    pendingAmount,
+    paidInvoices,
+  };
+}
   // ============ USERS ============
 
   async getUsers(tenantSlug: string): Promise<User[]> {

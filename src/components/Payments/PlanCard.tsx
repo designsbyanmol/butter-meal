@@ -21,7 +21,7 @@ interface PlanCardProps {
   ctaLabel?: (isSelected: boolean) => React.ReactNode;
   /**
    * When true, the card renders the promotional first-month layout:
-   * "₹1 for the first month, then ₹XX/month".
+   * "Rs1 for the first month, then RsXX/month".
    * Used by the signup flow, where every plan is a first purchase.
    */
   firstMonthMode?: boolean;
@@ -106,7 +106,7 @@ const PlanCard: React.FC<PlanCardProps> = ({
     <div className={local.pcardBilledYearly}>
       Billed {formatRupees(billedTotal)}{' '}
       {months === 12 ? '/ year' : `/ ${months} months`}
-      {firstMonthMode && ' (including the ₹1 first month)'}
+      {firstMonthMode && ' (including the Rs1 first month)'}
     </div>
   )}
 </div>

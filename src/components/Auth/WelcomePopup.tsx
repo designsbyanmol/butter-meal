@@ -93,7 +93,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({
 
         {storeName && (
           <p className={local.welcomeSubtitle}>
-            You&apos;re signed in to <strong>{storeName}</strong>
+            You're signed in to <strong>{storeName}</strong>
           </p>
         )}
 

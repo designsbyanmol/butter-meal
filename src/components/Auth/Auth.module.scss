@@ -1,8 +1,9 @@
 // components/Auth/Auth.module.scss
 @use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
 /* =========================================================
-   Login modal — matches the Dozzelo reference
+   Login modal - matches the Dozzelo reference
    ========================================================= */
 .loginWrap {
   display: flex;
@@ -126,7 +127,7 @@
 }
 
 /* =========================================================
-   Contact-admin modal (unchanged from previous message)
+   Contact-admin modal
    ========================================================= */
 .contactBody {
   display: flex;
@@ -223,14 +224,97 @@
   text-transform: capitalize;
   line-height: 1.25;
   letter-spacing: -0.2px;
-
-  /* Long store names wrap gracefully instead of overflowing. */
   max-width: 100%;
   word-break: break-word;
 
   @media (max-width: 480px) {
     font-size: 16px;
   }
+}
+
+/* ---------- Lockout Notice ---------- */
+.lockoutNotice {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  color: $text-faint;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   Locked Screen UI
+   ========================================================= */
+.lockoutScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 32px 16px 20px;
+}
+
+.lockoutIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: $red-50;
+  border: 2px solid rgba($danger, 0.2);
+  margin-bottom: 4px;
+}
+
+.lockoutTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.3px;
+}
+
+.lockoutMessage {
+  margin: 0;
+  font-size: 14px;
+  color: $text-muted;
+  line-height: 1.55;
+  max-width: 300px;
+}
+
+.lockoutTimer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 28px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  margin: 4px 0;
+}
+
+.lockoutTimerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: $text-faint;
+}
+
+.lockoutTimerValue {
+  font-family: $font-family-mono;
+  font-size: 28px;
+  font-weight: 800;
+  color: $danger;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lockoutHelp {
+  margin: 0;
+  font-size: 12.5px;
+  color: $text-faint;
+  line-height: 1.5;
 }
 
 /* =========================================================
@@ -333,4 +417,124 @@
   font-size: 12px;
   color: $text-faint;
   letter-spacing: 0.2px;
+}
+
+/* =========================================================
+   Store Login Modal
+   ========================================================= */
+.storeLoginBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 300px;
+}
+
+.searchWrap {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  padding-bottom: 4px;
+  z-index: 10;
+}
+
+.storeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  li {
+   flex: 1 0 45%;
+  }
+}
+
+.storeItem {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* The 10px gap between avatar and name */
+  width: 100%;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  text-align: left;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover {
+    background: $bg-subtle;
+    border-color: rgba($primary, 0.4);
+
+    .redirectIcon svg {
+      transform: translateX(2px);
+    }
+  }
+}
+
+.storeName {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text;
+  @include truncate;
+}
+
+.redirectIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    transition: transform $t-fast, fill $t-fast;
+  }
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  color: $text-muted;
+  font-size: 13.5px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid $border-soft;
+  border-top-color: $primary;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.emptySearch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  color: $text-muted;
+  gap: 12px;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+}
+
+.emptySearchHint {
+  font-size: 12px;
+  color: $text-faint;
+  margin-top: 4px;
 }

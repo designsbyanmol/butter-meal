@@ -198,7 +198,7 @@ const CustomerRequestBillButton: React.FC<Props> = ({
               >
                 <span className={local.choiceTitle}>Pay Online</span>
                 <span className={local.choiceSub}>
-                  We&apos;ll send you a secure pay link.
+                  We'll send you a secure pay link.
                 </span>
               </button>
             </div>

@@ -13,7 +13,7 @@ interface DashboardSkeletonProps {
   hideHeader?: boolean;
   /**
    * When true, skip the brand block (title + subtitle placeholders).
-   * Used when filtering — the brand info is hidden too.
+   * Used when filtering - the brand info is hidden too.
    */
   hideBrand?: boolean;
   hidePill?: boolean;

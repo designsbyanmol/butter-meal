@@ -51,7 +51,7 @@ const ContactAdminModal: React.FC<ContactAdminModalProps> = ({
         </div>
 
         <p className={local.contactLead}>
-          Need help signing in? Reach out to our admin team — we usually
+          Need help signing in? Reach out to our admin team - we usually
           reply within a few minutes.
         </p>
 

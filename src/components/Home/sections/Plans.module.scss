@@ -62,7 +62,7 @@
 
 .planName {
   margin: 0;
-  font-size: 17px;
+  font-size: 24px;
   font-weight: 800;
   color: $text;
 }
@@ -135,10 +135,11 @@
   margin-top: -6px;
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 600;
   color: $primary-dark;
   text-decoration: underline;
   text-underline-offset: 3px;
+  display: block;
+  width: 100%;
   cursor: pointer;
   text-align: left;
   align-self: flex-start;
@@ -159,21 +160,22 @@
   color: $text-faint;
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .promoBig {
   font-size: 38px;
   font-weight: 800;
-  color: $primary-dark;
+  color: $black;
   letter-spacing: -1px;
   line-height: 1;
 }
 
 .promoUnit {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: $primary-dark;
-  margin-left: 2px;
+  color: $black;
 }
 
 .promoNote {

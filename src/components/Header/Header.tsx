@@ -277,7 +277,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                       tooltip="Manage Menu"
                       onClick={() => setIsMenuPanelOpen(true)}
                     >
-                      <MenuIcon width={20} height={20} color="#1e1e1e" />
+                      <MenuIcon width={20} height={20} fill="#1e1e1e" />
                     </IconButton>
 
                     {plan.canManageUsers && isAdmin && (
@@ -288,7 +288,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                         tooltip="User Management"
                         onClick={() => setIsUserManagementOpen(true)}
                       >
-                        <UsersIcon width={20} height={20} color="#1e1e1e" />
+                        <UsersIcon width={20} height={20} fill="#1e1e1e" />
                       </IconButton>
                     )}
                   </>
@@ -365,7 +365,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
         </div>
       </div>
 
-      {/* Modals opened by the header — kept only for admin-mobile,
+      {/* Modals opened by the header - kept only for admin-mobile,
           where the shell doesn't render. */}
       {isUserManagementOpen && tenant && isAdmin && (
         <UserManagement onClose={() => setIsUserManagementOpen(false)} />

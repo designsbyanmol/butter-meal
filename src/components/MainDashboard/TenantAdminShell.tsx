@@ -74,7 +74,7 @@ const TenantAdminShell: React.FC = () => {
     {
       key: 'menu',
       label: 'Menu',
-      icon: <MenuIcon width={20} height={20} color="currentColor" />,
+      icon: <MenuIcon width={20} height={20} fill="currentColor" />,
       visible: plan.canEditFields || plan.canManageStore,
       render: () => <AdminPanelBody />,
     },
@@ -88,7 +88,7 @@ const TenantAdminShell: React.FC = () => {
     {
       key: 'users',
       label: 'Users',
-      icon: <UsersIcon width={20} height={20} color="currentColor" />,
+      icon: <UsersIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageUsers,
       render: () => <UserManagementBody />,
     },
@@ -136,7 +136,7 @@ const TenantAdminShell: React.FC = () => {
       key: 'menu',
       label: 'Menu Management',
       description: 'Items, prices & availability',
-      icon: <MenuIcon width={20} height={20} color="#ffffff" />,
+      icon: <MenuIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
       visible: plan.canEditFields || plan.canManageStore,
       target: 'menu',
@@ -154,7 +154,7 @@ const TenantAdminShell: React.FC = () => {
       key: 'users',
       label: 'User Management',
       description: 'Staff accounts & access',
-      icon: <UsersIcon width={20} height={20} color="#ffffff" />,
+      icon: <UsersIcon width={20} height={20} fill="#ffffff" />,
       accent: 'purple',
       visible: isAdmin && plan.canManageUsers,
       target: 'users',
@@ -220,7 +220,7 @@ const TenantAdminShell: React.FC = () => {
       <div className={shell.welcomeHead}>
         <h1>Welcome back, {user?.name}</h1>
         <p>
-          You&apos;re signed in to <strong>{tenant.displayName}</strong>.
+          You're signed in to <strong>{tenant.displayName}</strong>.
           Pick a section to get started.
         </p>
       </div>
@@ -257,6 +257,7 @@ const TenantAdminShell: React.FC = () => {
         onActiveKeyChange={setActiveKey}
         greeting={greetingContent}
         onAdd={null}
+        onLogoClick={() => setActiveKey('')}
         footer={{
           notifications: notificationsSlot,
           avatar: isAdmin ? (

@@ -7,14 +7,18 @@ const SiteFooter: React.FC = () => (
     <div className={local.footerInner}>
       <div className={local.footerGrid}>
         <div className={local.footerBrandCol}>
-          <span className={local.brand}>
-            <span className={local.brandMark} aria-hidden />
-            <span className={local.brandName}>avoca</span>
-          </span>
+          <img
+            src="https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/dozzelo-full-logo.webp"
+            alt="Dozzelo - Powered by Teckut"
+            className={local.brandLogo}
+            draggable={false}
+            height={60}
+            width={60}
+          />
           <p className={local.footerBlurb}>
-            Avoca helps cafes, restaurants, and shops launch a beautiful
+            Dozzelo helps cafes, restaurants, and shops launch a beautiful
             online catalogue, take orders on WhatsApp, and run their
-            dine-in billing — all in one place.
+            dine-in billing - all in one place.
           </p>
         </div>
 
@@ -52,7 +56,7 @@ const SiteFooter: React.FC = () => (
       </div>
 
       <div className={local.footerBottom}>
-        <span>© 2026 Avoca. All rights reserved.</span>
+        <span>© 2026 Dozzelo. All rights reserved.</span>
         <div className={local.footerLegal}>
           <a href="#top">Cookie Preferences</a>
           <a href="#top">Terms & Conditions</a>

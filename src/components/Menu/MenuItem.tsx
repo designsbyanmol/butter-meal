@@ -135,12 +135,6 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
               <span className={local.outOfStockBadge}>Out of Stock</span>
             </div>
           )}
-
-          {hasDiscount && !isOutOfStock && (
-            <Badge tone="danger" size="sm" className={local.discountRibbon}>
-              -{discount}%
-            </Badge>
-          )}
         </div>
 
         {!isOutOfStock && hasReviews && (
@@ -203,6 +197,11 @@ const MenuItemComponent: React.FC<MenuItemProps> = ({
         <div className={local.itemNameWrap}>
           {showVegBadge && <span className={`${local.badge} ${local.veg}`} />}
           <div className={local.itemName}>{item.name}</div>
+          {hasDiscount && !isOutOfStock && (
+            <Badge tone="danger" size="sm" className={local.discountRibbon}>
+              -{discount}%
+            </Badge>
+          )}
         </div>
       </div>
 

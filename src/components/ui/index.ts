@@ -55,3 +55,17 @@ export { default as SectionHeader } from './SectionHeader/SectionHeader';
 export type { SectionHeaderProps } from './SectionHeader/SectionHeader';
 export { default as ProgressBar } from './ProgressBar/ProgressBar';
 export type { ProgressBarProps } from './ProgressBar/ProgressBar';
+export {
+  default as DropdownMenu,
+  DropdownSection,
+  DropdownItem,
+  DropdownDivider,
+} from './DropdownMenu/DropdownMenu';
+export type {
+  DropdownMenuProps,
+  DropdownSectionProps,
+  DropdownItemProps,
+} from './DropdownMenu/DropdownMenu';
+
+export { default as Pagination } from './Pagination/Pagination';
+export type { PaginationProps } from './Pagination/Pagination';

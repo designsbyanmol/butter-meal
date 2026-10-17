@@ -49,7 +49,7 @@
   gap: 6px;
 }
 
-/* Small colored chip on the label — accent set per category */
+/* Small colored chip on the label - accent set per category */
 .cardIcon {
   width: 32px;
   height: 32px;
@@ -74,8 +74,8 @@
 
 /* ---------- Accents ---------- */
 .green {
-  .cardIcon { background: linear-gradient(135deg, $green-500, $green-700); }
-  &:hover { border-color: rgba($green-500, 0.4); }
+  .cardIcon { background: linear-gradient(135deg, $primary-500, $primary-700); }
+  &:hover { border-color: rgba($primary-500, 0.4); }
 }
 .blue {
   .cardIcon { background: linear-gradient(135deg, $blue-500, $blue-700); }

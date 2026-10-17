@@ -31,7 +31,7 @@ export interface PriceBreakdown {
   isFirstMonth: boolean;
   /**
    * The regular monthly price this plan will charge from month 2
-   * onward, or on renewal. Handy for "then ₹XX/mo" copy in the UI.
+   * onward, or on renewal. Handy for "then RsXX/mo" copy in the UI.
    */
   regularMonthlyPrice: number;
 }
@@ -40,13 +40,13 @@ export interface PriceBreakdown {
  * Compute a plan price for a given duration and optional tax rate.
  *
  * When `isFirstMonth` is true:
- *   - The first month's base is `FIRST_MONTH_PRICE` (₹1).
+ *   - The first month's base is `FIRST_MONTH_PRICE` (Rs1).
  *   - Any additional months in the bundle are charged at the plan's
  *     regular monthly price, with the normal duration discount.
  *   - Tax applies to the total.
  *
  * When `isFirstMonth` is false (renewals, upgrades, downgrades):
- *   - Behaves exactly as before — plan price × months, minus the
+ *   - Behaves exactly as before - plan price × months, minus the
  *     duration discount, plus tax.
  *
  * Every amount is rounded to 2 decimals so
@@ -64,7 +64,7 @@ export const computePrice = (
   let discountPct: number;
 
   if (isFirstMonth) {
-    // Month 1 is ₹1 flat, no duration discount on it.
+    // Month 1 is Rs1 flat, no duration discount on it.
     // Additional months (if any) are charged at the regular price
     // with the standard duration discount applied to those months.
     const extraMonths = Math.max(0, months - 1);

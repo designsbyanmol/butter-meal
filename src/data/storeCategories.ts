@@ -8,7 +8,7 @@ export interface StoreCategoryDef {
   label: string;
   /**
    * Short hint shown inside the option row (existing behavior).
-   * Keep it short — it appears inline with the label.
+   * Keep it short - it appears inline with the label.
    */
   hint: string;
   /**
@@ -24,7 +24,7 @@ export interface StoreCategoryDef {
   image: string;
   /**
    * Accent color used on the audience card's icon chip. Purely
-   * presentational — optional. Defaults handled in the component.
+   * presentational - optional. Defaults handled in the component.
    */
   accent: 'green' | 'blue' | 'amber' | 'purple' | 'rose' | 'teal';
 }
@@ -102,7 +102,7 @@ export const getCategoryLabel = (
   );
 };
 
-/** Full definition lookup — used by the signup banner and homepage. */
+/** Full definition lookup - used by the signup banner and homepage. */
 export const getCategoryDef = (
   value: StoreCategory | undefined,
 ): StoreCategoryDef | undefined =>

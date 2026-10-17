@@ -6,7 +6,8 @@ import { useActiveSection } from '../Dashboard/useActiveSection';
 import DashboardShell, { NavItem } from '../Dashboard/DashboardShell';
 import AdminNotificationsDrawer from '../Header/AdminNotificationsDrawer';
 import ContactAdminModal from '../Auth/ContactAdminModal';
-import { IconButton } from '../ui';
+import RevenueBody from './RevenueBody';
+import { IconButton, EmptyState } from '../ui';
 import {
   StoreIcon,
   StarIcon,
@@ -14,6 +15,7 @@ import {
   UsersIcon,
   PowerIcon,
   InfoIcon as SupportIcon,
+  InfoIcon, // NEW: Make sure to add this to your assets/svgs barrel
 } from '../../assets/svgs';
 import TenantManagerBody from '../Admin/TenantManagerBody';
 import ReviewsModalBody from './Modals/ReviewsModalBody';
@@ -69,9 +71,15 @@ const SuperAdminShell: React.FC = () => {
       render: () => <PlansModalBody />,
     },
     {
+      key: 'revenue',
+      label: 'Revenue',
+      icon: <InfoIcon width={22} height={22} fill="currentColor" />,
+      render: () => <RevenueBody />,
+    },
+    {
       key: 'settings',
       label: 'Settings',
-      icon: <UsersIcon width={22} height={22} color="currentColor" />,
+      icon: <UsersIcon width={22} height={22} fill="currentColor" />,
       render: () => <SettingsModalBody />,
     },
   ];
@@ -105,10 +113,19 @@ const SuperAdminShell: React.FC = () => {
       target: 'plans',
     },
     {
+      key: 'revenue',
+      label: 'Revenue & Billing',
+      description: 'Platform earnings & history',
+      icon: <InfoIcon width={20} height={20} fill="#ffffff" />,
+      accent: 'teal', // Using teal to differentiate from the others
+      visible: true,
+      target: 'revenue',
+    },
+    {
       key: 'settings',
       label: 'Settings',
       description: 'Global feature toggles',
-      icon: <UsersIcon width={20} height={20} color="#ffffff" />,
+      icon: <UsersIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
       visible: true,
       target: 'settings',
@@ -164,6 +181,7 @@ const SuperAdminShell: React.FC = () => {
         activeKey={activeKey}
         onActiveKeyChange={setActiveKey}
         greeting={greetingContent}
+        onLogoClick={() => setActiveKey('')}
         onAdd={null}
         footer={{
           notifications: (

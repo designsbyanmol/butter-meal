@@ -1,5 +1,5 @@
 // components/MainDashboard/ReviewsAdminModal.tsx
-import React from 'react';
+import React, { useState} from 'react';
 import { Modal } from '../ui';
 import ReviewsAdminModalBody from './ReviewsAdminModalBody';
 
@@ -18,19 +18,25 @@ interface ReviewsAdminModalProps {
 const ReviewsAdminModal: React.FC<ReviewsAdminModalProps> = ({
   onClose,
   focusDispute = null,
-}) => (
-  <Modal
-    isOpen={true}
-    onClose={onClose}
-    title="Reviews"
-    size="xl"
-    mobileFullScreen
-  >
-    <ReviewsAdminModalBody
-      focusDispute={focusDispute}
+}) => {
+  const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
+
+  return (
+    <Modal
+      isOpen={true}
       onClose={onClose}
-    />
-  </Modal>
-);
+      title="Review Management"
+      headerRight={headerActions}
+      size="xl"
+      mobileFullScreen
+    >
+      <ReviewsAdminModalBody
+        focusDispute={focusDispute}
+        embedded
+        onHeaderActionsChange={setHeaderActions}
+      />
+    </Modal>
+  );
+};
 
 export default ReviewsAdminModal;

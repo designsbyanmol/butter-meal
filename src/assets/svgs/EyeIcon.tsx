@@ -1,29 +1,44 @@
 // src/assets/svgs/EyeIcon.tsx
 import React from 'react';
 
-interface Props {
-  width?: number;
-  height?: number;
+interface SVGProps {
+  width?: number | string;
+  height?: number | string;
   fill?: string;
+  className?: string;
 }
 
-const EyeIcon: React.FC<Props> = ({
-  width = 20,
-  height = 20,
+const EyeIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
   fill = 'currentColor',
-}) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={width}
-    height={height}
-    viewBox="0 0 24 24"
-    fill="none"
-  >
-    <path
-      d="M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-2.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
-      fill={fill}
-    />
-  </svg>
-);
+  className,
+}) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={fill}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <g clipPath="url(#clip0_78_29243)">
+        <path
+          d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12ZM2 12C3.60014 7.90264 7.33603 5 12 5C16.664 5 20.3999 7.90264 22 12C20.3999 16.0974 16.664 19 12 19C7.33603 19 3.60014 16.0974 2 12Z"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
+    </svg>
+  );
+};
 
 export default EyeIcon;

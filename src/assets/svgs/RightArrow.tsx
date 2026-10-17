@@ -1,4 +1,5 @@
-import React from "react";
+// assets/svgs/RightArrow.tsx
+import React from 'react';
 
 interface SVGProps {
   width?: number | string;
@@ -10,7 +11,7 @@ interface SVGProps {
 const RightArrow: React.FC<SVGProps> = ({
   width = 24,
   height = 24,
-  fill = "currentColor",
+  fill = 'currentColor',
   className,
 }) => {
   return (
@@ -26,8 +27,22 @@ const RightArrow: React.FC<SVGProps> = ({
       strokeLinejoin="round"
       className={className}
     >
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+      <g clipPath="url(#clip0_78_30300)">
+        <path
+          d="M19 12L5 12"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M12 19L19 12L12 5"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 };

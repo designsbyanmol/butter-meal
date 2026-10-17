@@ -6,7 +6,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   font-family: inherit;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -47,7 +47,7 @@
 }
 
 .sm {
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 12px;
   min-height: 32px;
 }
@@ -95,10 +95,22 @@
   }
 }
 
+.dark {
+  background: $black;
+  color: #fff;
+  border-color: $black;
+
+  &:hover:not(:disabled) {
+    background: $gray-600;
+    border-color: $gray-600;
+    box-shadow: 0 4px 12px rgba($black, 0.3);
+  }
+}
+
 .secondary {
-  background: $green-50;
-  color: $green-950;
-  border-color: $green-950;
+  background: $primary-50;
+  color: $primary-950;
+  border-color: $primary-950;
 
   &:hover:not(:disabled) {
     background: $primary-soft;
@@ -158,8 +170,8 @@
   border-color: $success;
 
   &:hover:not(:disabled) {
-    background: $green-800;
-    border-color: $green-800;
+    background: $primary-800;
+    border-color: $primary-800;
   }
 }
 

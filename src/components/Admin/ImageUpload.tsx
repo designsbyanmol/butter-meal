@@ -359,7 +359,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
             return singlePreview ?? null;
           }
 
-          // Case 3: a fresh file is staged — upload it.
+          // Case 3: a fresh file is staged - upload it.
           setUploading(true);
           setError(null);
           setUploadProgress(30);
@@ -434,7 +434,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
         }
       }
 
-      // DEFERRED, SINGLE MODE — stage only.
+      // DEFERRED, SINGLE MODE - stage only.
       if (deferred && !multiple) {
         const file = files[0];
 
@@ -458,7 +458,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
         return;
       }
 
-      // Non-deferred / multi mode — upload immediately (unchanged).
+      // Non-deferred / multi mode - upload immediately (unchanged).
       if (multiple) {
         const remaining = maxImages - images.length;
         if (files.length > remaining) {
@@ -576,7 +576,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
     };
 
     // ---------------------------------------------------------
-    // REMOVE — the corrected handler
+    // REMOVE - the corrected handler
     //
     // Non-deferred: immediate removal, notify parent.
     // Deferred:     stage a removal, mark pending, let Save commit it.
@@ -591,7 +591,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
       if (deferred) {
         // Stage the removal. The preview goes empty immediately so
         // the user sees the effect; the parent's `currentImage` is
-        // intentionally NOT cleared yet — Save commits it.
+        // intentionally NOT cleared yet - Save commits it.
         removedStagedRef.current = true;
         setHasPending(true);
       } else {

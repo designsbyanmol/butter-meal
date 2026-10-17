@@ -26,7 +26,7 @@ const handleTrySample = () => {
   //   - Open a modal that shows a read-only demo store
   //   - Navigate to a hosted demo tenant URL
   //   - Show a video walkthrough
-  console.log('Try sample store — not yet implemented');
+  console.log('Try sample store - not yet implemented');
 };
 
 const MainDashboard: React.FC = () => {
@@ -60,7 +60,7 @@ const MainDashboard: React.FC = () => {
     return <SuperAdminShell />;
   }
 
-  // Mobile fallback — the legacy card grid.
+  // Mobile fallback - the legacy card grid.
   return (
     <div className={local.dashboard}>
       <div className={local.hero}>

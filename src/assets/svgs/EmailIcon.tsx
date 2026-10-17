@@ -1,51 +1,51 @@
+// assets/svgs/EmailIcon.tsx
 import React from 'react';
 
-interface EmailIconProps {
-  width?: number;
-  height?: number;
+interface SVGProps {
+  width?: number | string;
+  height?: number | string;
   fill?: string;
   className?: string;
-  'aria-hidden'?: boolean;
 }
 
-const EmailIcon: React.FC<EmailIconProps> = ({
-  width = 20,
-  height = 20,
+const EmailIcon: React.FC<SVGProps> = ({
+  width = 24,
+  height = 24,
   fill = 'currentColor',
   className,
-  'aria-hidden': ariaHidden,
-}) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={width}
-    height={height}
-    viewBox="0 0 24 24"
-    fill="none"
-    className={className}
-    aria-hidden={ariaHidden}
-  >
-    {/* Envelope outline */}
-    <rect
-      x="2.5"
-      y="4.5"
-      width="19"
-      height="15"
-      rx="2.5"
-      ry="2.5"
-      stroke={fill}
-      strokeWidth="1.7"
+}) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
       fill="none"
-    />
-    {/* Flap */}
-    <path
-      d="M3.5 6.5 L12 12.75 L20.5 6.5"
       stroke={fill}
-      strokeWidth="1.7"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-);
+      className={className}
+    >
+      <g clipPath="url(#clip0_78_29216)">
+        <path
+          d="M3 5H21V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V5Z"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M3 5L12 14L21 5"
+          stroke={fill}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+
+    </svg>
+  );
+};
 
 export default EmailIcon;
