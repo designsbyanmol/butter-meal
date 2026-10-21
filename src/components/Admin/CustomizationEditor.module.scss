@@ -1,0 +1,83 @@
+// components/Admin/CustomizationEditor.module.scss
+@use '../../styles/tokens' as *;
+
+.section {
+  margin-top: 10px;
+  padding: 16px;
+  background: $bg-subtle;
+  border-radius: $radius;
+  border: 1px solid $border-soft;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+
+  h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: $text;
+    letter-spacing: 0.1px;
+  }
+}
+
+.empty {
+  color: $text-faint;
+  font-size: 13px;
+  text-align: center;
+  padding: 18px;
+  background: #fff;
+  border-radius: $radius-sm;
+  margin: 0;
+  border: 1px dashed $border;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.item {
+  position: relative;
+  background: #fff;
+  padding: 14px;
+  border-radius: $radius;
+  border: 1px solid $border-soft;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color $t-fast;
+
+  &:hover { border-color: rgba($primary, 0.3); }
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 20px;
+  margin-bottom: -6px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choiceRow {
+  display: grid;
+  grid-template-columns: 1fr 100px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.priceInput {
+  text-align: right;
+}

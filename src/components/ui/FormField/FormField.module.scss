@@ -1,0 +1,44 @@
+// src/components/ui/FormField/FormField.module.scss
+@use '../../../styles/tokens' as *;
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-muted;
+  letter-spacing: 0.1px;
+}
+
+.required {
+  color: $danger;
+}
+
+.labelEnd {
+  font-size: 11px;
+  color: $text-faint;
+}
+
+.error {
+  font-size: 10px;
+  color: $danger;
+  font-weight: 400;
+}
+
+.hint {
+  font-size: 11.5px;
+  color: $text-faint;
+  line-height: 1.4;
+}

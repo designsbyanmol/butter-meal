@@ -1,0 +1,282 @@
+// components/Admin/ImageUpload.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  margin-bottom: 12px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-muted;
+  margin-bottom: 6px;
+}
+
+.area {
+  border: 1.5px dashed $border;
+  border-radius: $radius;
+  padding: 20px;
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-subtle;
+  transition: border-color $t-fast, background $t-fast;
+
+  &:hover {
+    border-color: $primary;
+    background: $primary-tint;
+  }
+}
+
+.hiddenFile { display: none; }
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.placeholderActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.divider {
+  color: $text-faint;
+  font-size: 12px;
+}
+
+.hintText {
+  font-size: 12px;
+  color: $text-faint;
+}
+
+// ---------- Single preview ----------
+.singlePreview {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+.singlePreviewImg {
+  width: 100%;
+  height: auto;
+  max-height: 170px;
+  object-fit: cover;
+  border-radius: $radius;
+  border: 2px solid $primary;
+  box-shadow: 0 4px 12px rgba($primary, 0.15);
+}
+
+.singleRemoveBtn {
+  position: absolute !important;
+  top: -10px;
+  right: -10px;
+  background: $danger !important;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: $shadow-md;
+
+  &:hover {
+    background: $danger-dark !important;
+  }
+}
+
+// ---------- URL input ----------
+.urlInputContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.urlInput {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &:focus { @include focus-ring; }
+}
+
+.urlActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+// ---------- Progress ----------
+.progressWrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.progressBar {
+  width: 100%;
+  max-width: 320px;
+  height: 6px;
+  background: $border-soft;
+  border-radius: $radius-pill;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $primary, $primary-medium);
+  border-radius: $radius-pill;
+  transition: width $t-slow;
+}
+
+.progressText {
+  font-size: 12px;
+  color: $text-muted;
+  font-weight: 500;
+}
+
+// ---------- Multi-image grid ----------
+.multiCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-muted;
+  margin-left: 4px;
+}
+
+.multiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: $bg-muted;
+  border: 1px solid $border;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.primaryBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: $primary-dark;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: $radius-xs;
+  letter-spacing: 0.3px;
+}
+
+.tileActions {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity $t-fast;
+}
+
+.tile:hover .tileActions { opacity: 1; }
+
+.tileBtn {
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: #fff !important;
+  width: 24px !important;
+  height: 24px !important;
+
+  &:hover { background: rgba(0, 0, 0, 0.75) !important; }
+}
+
+.tileArrow {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+
+.tileRemoveBtn {
+  background: rgba(166, 45, 45, 0.85) !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin-left: auto;
+
+  &:hover { background: $red-700 !important; }
+}
+
+.addTile {
+  aspect-ratio: 1 / 1;
+  border: 2px dashed $border-strong;
+  border-radius: $radius-md;
+  background: $bg-subtle;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: border-color $t-fast, background $t-fast;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    border-color: $primary;
+    background: $primary-tint;
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.addPlus {
+  font-size: 22px;
+  color: $primary-dark;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.addLabel {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.multiActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.multiHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: $text-faint;
+}
+
+@include mobile {
+  .singlePreview { max-width: 180px; }
+  .multiGrid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+}

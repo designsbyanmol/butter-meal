@@ -1,0 +1,25 @@
+// components/Cart/CustomerNameModal.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.body {
+  padding: 4px 0 8px;
+}
+
+.greeting {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: $gray-700;
+
+  strong {
+    color: $primary-dark;
+    font-weight: 800;
+  }
+}
+
+.confirmModal {
+   > footer {
+    flex-direction: row;
+  }
+}

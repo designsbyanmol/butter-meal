@@ -1,0 +1,31 @@
+// src/components/ui/Card/Card.module.scss
+@use '../../../styles/tokens' as *;
+
+.card {
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  box-shadow: $shadow-xs;
+  display: flex;
+  flex-direction: column;
+}
+
+.sm { padding: 12px; }
+.md { padding: 16px; }
+.lg { padding: 22px; }
+
+.interactive {
+  cursor: pointer;
+  transition: transform $t-fast, border-color $t-fast, box-shadow $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba($primary, 0.35);
+    box-shadow: $shadow-md;
+  }
+}
+
+.featured {
+  background: $primary-tint;
+  border-color: $primary-soft;
+}

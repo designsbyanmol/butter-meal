@@ -1,0 +1,11 @@
+// src/components/ui/ConfirmDialog/ConfirmDialog.module.scss
+@use '../../../styles/tokens' as *;
+
+.message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: $text-muted;
+
+  strong { color: $text; }
+}

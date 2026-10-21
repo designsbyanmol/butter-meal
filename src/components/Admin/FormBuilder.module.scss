@@ -1,0 +1,242 @@
+// components/Admin/FormBuilder.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+// ---------- Sections ----------
+.sectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text;
+}
+
+.sectionHint {
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+  margin: 4px 0 12px;
+}
+
+.customHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 24px 0 12px;
+}
+
+// ---------- Field cards ----------
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  background: #fff;
+  transition: border-color $t-fast;
+
+  &:hover { border-color: rgba($primary, 0.3); }
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  > :first-child { flex: 1; min-width: 0; }
+}
+
+.fieldName {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.lockedMark {
+  margin-left: 6px;
+  color: $danger;
+  font-weight: 700;
+}
+
+.fieldType {
+  font-size: 10px;
+  color: $text-faint;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+// ---------- Category manager ----------
+.categoryManager {
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px dashed $border;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+}
+
+.fieldHintLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chipGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.emptyCategories {
+  font-size: 12px;
+  color: $text-faint;
+}
+
+// ---------- Category chip ----------
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: $radius-pill;
+  font-size: 13px;
+  color: $text;
+  cursor: grab;
+
+  &:active { cursor: grabbing; }
+}
+
+.chipHandle {
+  display: inline-flex;
+  align-items: center;
+  padding-right: 4px;
+  font-size: 12px;
+  color: $text-faint;
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -2px;
+}
+
+.chipInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-family: inherit;
+  color: inherit;
+  min-width: 60px;
+  max-width: 180px;
+  padding: 3px 2px;
+  cursor: text;
+}
+
+.chipDragging {
+  opacity: 0.4;
+}
+
+.chipDropTarget {
+  border-color: $primary !important;
+  box-shadow: 0 0 0 2px rgba($primary, 0.2);
+}
+
+// ---------- Category add row ----------
+.categoryAddRow {
+  display: flex;
+  gap: 8px;
+
+  > :first-child { flex: 1; }
+}
+
+// ---------- Add field card ----------
+.addFieldCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: #fff;
+}
+
+.addFieldActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+// ---------- Nutrition list ----------
+.nutritionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.nutritionRow {
+  display: grid;
+  grid-template-columns: 22px 1fr 1fr 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &:hover {
+    border-color: rgba($primary, 0.3);
+  }
+}
+
+.nutritionName {
+  min-width: 0;
+}
+
+.nutritionValue {
+  min-width: 0;
+}
+
+// ---------- Badge rows ----------
+.badgeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  background: #fff;
+}
+
+.badgeRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  > :first-child { flex: 1; min-width: 0; }
+}
+
+.badgeImageRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+// ---------- Generic image field wrapper ----------
+.imageFieldWrap {
+  margin-top: 4px;
+}

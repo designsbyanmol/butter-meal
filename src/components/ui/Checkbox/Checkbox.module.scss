@@ -1,0 +1,63 @@
+// src/components/ui/Checkbox/Checkbox.module.scss
+@use '../../../styles/tokens' as *;
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: $text;
+  font-weight: 500;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.box {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid $border-strong;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background $t-fast, border-color $t-fast;
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+    opacity: 0;
+    transition: opacity $t-fast;
+  }
+}
+
+.input:checked + .box {
+  background: $primary;
+  border-color: $primary;
+
+  &::after { opacity: 1; }
+}
+
+.input:disabled + .box {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input:focus-visible + .box {
+  box-shadow: 0 0 0 4px rgba($primary, 0.15);
+}
+
+.label {
+  line-height: 1.3;
+}

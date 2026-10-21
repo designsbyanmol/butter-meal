@@ -1,0 +1,266 @@
+// components/Store/InfoPopup.module.scss
+@use '../../styles/tokens' as *;
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  &:nth-of-type(even) {
+    background: $gray-100;
+    margin: 0 -10px;
+    padding: 14px 10px;
+    border-radius: $radius-sm;
+  }
+
+  .qrButtonRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+  &:last-child { border-bottom: none; }
+  &:first-child { padding-top: 4px; }
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.defaultPill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: $primary-soft;
+  color: $primary-dark;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Action-required pill on the dine-in toggle row */
+.requiredPill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: $amber-50;
+  color: $amber-800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.value {
+  font-size: 14px;
+  color: $text;
+  word-break: break-word;
+  line-height: 1.4;
+
+  del {
+    color: $text-faint;
+    margin-right: 6px;
+  }
+}
+
+.empty {
+  color: $text-faint;
+  font-style: italic;
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: $text-faint;
+  line-height: 1.35;
+}
+
+.previewImg {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  border-radius: $radius-sm;
+  margin-top: 4px;
+  border: 1px solid $border-soft;
+}
+
+.emptyPreview {
+  padding: 14px;
+  border: 1px dashed $border;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  color: $text-faint;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.editorBanner {
+  margin-top: 10px;
+}
+
+/* ---------- Dine-in enable confirmation dialog ---------- */
+.confirmLead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+
+.confirmList {
+  margin: 0 0 14px;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: $text-muted;
+
+  li {
+    list-style: disc;
+
+    strong {
+      color: $text;
+      font-weight: 700;
+    }
+  }
+}
+
+.confirmNote {
+  margin: 0;
+  padding: 10px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+/* Store avatar preview row inside the avatar editor sub-modal */
+.avatarPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid $border-soft;
+}
+
+.avatarPreviewImg {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: $bg-subtle;
+}
+
+.avatarPreviewHint {
+  font-size: 12.5px;
+  color: $text-muted;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+/* ---------- Avatar with edit badge (InfoPopup header) ---------- */
+.avatarHeaderBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: transform $t-fast;
+
+  &:hover {
+    transform: scale(1.05);
+
+    .avatarHeaderEditBadge {
+      transform: scale(1.1);
+    }
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.35);
+  }
+}
+
+.avatarHeaderImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: $bg-subtle;
+}
+
+.avatarHeaderEditBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: $white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background $t-fast, transform $t-fast;
+  pointer-events: none;
+}
+
+/* ---------- QR download buttons ---------- */
+.qrButtonRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}

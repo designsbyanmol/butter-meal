@@ -1,0 +1,84 @@
+// components/Store/MessageTemplateEditor.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+
+  @include tablet(820px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editorCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.previewCol {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  padding: 14px;
+}
+
+.previewHeader {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $text-muted;
+}
+
+.previewBox {
+  margin: 0;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: $text;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ---------- Groups ---------- */
+.group {
+  margin-bottom: 22px;
+
+  &:last-child { margin-bottom: 0; }
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: $text-muted;
+  }
+}
+
+/* ---------- Checkbox grid ---------- */
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}

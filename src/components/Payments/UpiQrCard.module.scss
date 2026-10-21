@@ -1,0 +1,74 @@
+// components/Payments/UpiQrCard.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: flex-start;
+  background: $bg-subtle;
+  border-radius: $radius;
+  padding: 16px;
+
+  @include mobile(520px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+
+  img {
+    border-radius: $radius-md;
+    background: #fff;
+    border: 1px solid $border-soft;
+    padding: 6px;
+  }
+}
+
+.qrHint {
+  font-size: 11px;
+  color: $text-muted;
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+.details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detailLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.detailValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: $text;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

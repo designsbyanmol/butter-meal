@@ -1,0 +1,435 @@
+// src/components/Dashboard/DashboardShell.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.shell {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  min-height: 100vh;
+  background: $bg-subtle;
+}
+
+/* =========================================================
+   Sidebar
+   ========================================================= */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border-right: 1px solid $border-soft;
+  padding: 16px 8px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Top-of-sidebar cluster (logout + future actions). */
+.topActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+
+  > * {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: $radius-md !important;
+    background: transparent !important;
+
+    &:hover {
+      background: $bg-subtle !important;
+    }
+  }
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 22px;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+}
+
+/* ---------- Nav ---------- */
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.navItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 56px;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  border-radius: $radius-md;
+  cursor: pointer;
+  font-family: inherit;
+  color: $text-muted;
+  transition: background $t-fast, color $t-fast;
+
+  &:hover {
+    background: $bg-subtle;
+    color: $text;
+  }
+}
+
+.navItemActive {
+  background: $primary-tint;
+  color: $primary-dark;
+
+  &:hover {
+    background: $primary-tint;
+    color: $primary-dark;
+  }
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.navLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-align: center;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navBadge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: $radius-pill;
+  background: $danger;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ---------- Footer cluster ---------- */
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 1px solid $border-soft;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: $primary;
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba($primary, 0.3);
+  transition: background $t-fast, transform $t-fast;
+
+  &:hover {
+    background: $primary-dark;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.footerSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+
+  > button {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: $radius-md !important;
+    background: transparent !important;
+
+    &:hover {
+      background: $bg-subtle !important;
+    }
+  }
+}
+
+/* =========================================================
+   Right pane
+   ========================================================= */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid $border-soft;
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.section {
+  background: #fff;
+  border-radius: $radius-lg;
+  padding: 20px 22px;
+}
+
+.greeting {
+  padding: 8px 4px;
+}
+
+/* =========================================================
+   InlineSection (shared section chrome)
+   ========================================================= */
+.sectionWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid $border-soft;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.2px;
+}
+
+.sectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* =========================================================
+   Welcome card grid (shared between shells)
+   ========================================================= */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 4px 16px;
+
+  @include mobile {
+    padding: 8px 0 20px;
+  }
+}
+
+.welcomeHead {
+  h1 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 800;
+    color: $text;
+    letter-spacing: -0.3px;
+    line-height: 1.25;
+    span {
+      font-size: 24px;
+      color: $primary-dark;
+      text-transform: capitalize;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: $text-muted;
+    line-height: 1.5;
+
+    strong {
+      color: $text;
+      font-weight: 700;
+    }
+  }
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 18px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition:
+    transform $t-fast,
+    box-shadow $t-fast,
+    border-color $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.35);
+  }
+
+
+  @include mobile {
+    padding: 10px;
+  }
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  color: #fff;
+  @include mobile {
+    padding: 10px;
+    width: 100%;
+    height: 56px;
+    border-radius: 8px;
+  }
+}
+
+.cardLabel {
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+  line-height: 1.2;
+}
+
+.cardDesc {
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.35;
+}
+
+/* ---------- Accents ---------- */
+.green {
+  .cardIcon { background: linear-gradient(135deg, $primary-500, $primary-700); }
+  &:hover { border-color: rgba($primary-500, 0.4); }
+}
+.blue {
+  .cardIcon { background: linear-gradient(135deg, $blue-500, $blue-700); }
+  &:hover { border-color: rgba($blue-500, 0.4); }
+}
+.amber {
+  .cardIcon { background: linear-gradient(135deg, $amber-400, $amber-600); }
+  &:hover { border-color: rgba($amber-500, 0.4); }
+}
+.purple {
+  .cardIcon { background: linear-gradient(135deg, $purple-400, $purple-600); }
+  &:hover { border-color: rgba($purple-500, 0.4); }
+}
+.rose {
+  .cardIcon { background: linear-gradient(135deg, #f87171, #b91c1c); }
+  &:hover { border-color: rgba(#ef4444, 0.4); }
+}
+.teal {
+  .cardIcon { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+  &:hover { border-color: rgba(#14b8a6, 0.4); }
+}
+
+@include tablet(900px) {
+  .shell { display: none; }
+}

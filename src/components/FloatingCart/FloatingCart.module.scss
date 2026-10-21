@@ -1,0 +1,39 @@
+.floatingCart {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    z-index: 9;
+    background: #fff;
+    color: #fff;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    padding: 15px 15px 20px;
+    font-size: 14px;
+    border-radius: 8px 8px 0 0;
+
+  & .main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 15px;
+    background: #3caa46;
+    border-radius: 8px;
+
+    & .label {
+      color: #fff;
+
+    }
+    & .wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+
+      & .wrap_in {
+        color: #fff;
+      }
+    }
+  }
+}

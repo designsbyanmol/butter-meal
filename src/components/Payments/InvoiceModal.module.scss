@@ -1,0 +1,39 @@
+// components/Payments/InvoiceModal.module.scss
+@use '../../styles/tokens' as *;
+
+/* ---------- Summary card ---------- */
+.summaryCard {
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: $text-muted;
+}
+
+.summaryDiscount {
+  color: $primary-dark;
+}
+
+.summaryTotal {
+  border-top: 1px solid $border-soft;
+  margin-top: 6px;
+  padding-top: 10px;
+  font-weight: 800;
+  font-size: 15px;
+  color: $text;
+}
+
+.errorBanner {
+  margin-top: 12px;
+}

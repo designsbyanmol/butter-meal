@@ -1,0 +1,56 @@
+// components/Store/PausedScreen.module.scss
+@use '../../styles/tokens' as *;
+
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 24px 16px;
+}
+
+.card {
+  max-width: 460px;
+  width: 100%;
+  text-align: center;
+  padding: 32px 24px;
+
+  h1 {
+    margin: 12px 0 10px;
+    font-size: 22px;
+    font-weight: 800;
+    color: $text;
+  }
+
+  p {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: $text-muted;
+    line-height: 1.55;
+
+    strong { color: $primary-dark; }
+  }
+}
+
+.icon {
+  font-size: 42px;
+  line-height: 1;
+}
+
+.note {
+  font-size: 12.5px !important;
+  color: $text-muted !important;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  padding: 10px 14px;
+  text-align: left;
+  margin-bottom: 20px !important;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

@@ -1,0 +1,776 @@
+// components/Pages/Signup/Signup.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+/* =========================================================
+   PAGE WRAPPER
+   ========================================================= */
+.page {
+  background: $bg;
+  padding: $space-6 $space-6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @include mobile {
+    padding: $space-5 $space-3 $space-10;
+  }
+}
+
+/* =========================================================
+   Page header - back-to-home + brand logo
+   ========================================================= */
+.pageHeader {
+  width: 100%;
+  max-width: $container-xl;
+  margin: 0 0 $space-8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
+
+  @include tablet($bp-lg) {
+    margin-bottom: $space-5;
+  }
+
+  @include mobile {
+    margin-bottom: $space-4;
+  }
+}
+
+/* ---------- Back to home ---------- */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid $border;
+  border-radius: $radius-pill;
+  background: #fff;
+  color: $text;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background $t-fast,
+    border-color $t-fast,
+    color $t-fast;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: $bg-subtle;
+    border-color: $border-strong;
+  }
+
+  &:active {
+    background: $bg-muted;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.25);
+    border-color: $primary;
+  }
+
+  /* On mobile, drop the text and shrink to a circular icon button. */
+  @include mobile {
+    gap: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+}
+
+.backLinkText {
+  white-space: nowrap;
+
+  @include mobile {
+    display: none;
+  }
+}
+
+/* ---------- Brand logo ---------- */
+.headerLogo {
+  display: block;
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 120px;
+  }
+}
+
+
+/* =========================================================
+   TWO-COLUMN SHELL
+   ========================================================= */
+.shell {
+  width: 100%;
+  max-width: $container-xl;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: $space-6;
+  align-items: flex-start;
+
+  @include tablet($bp-lg) {
+    grid-template-columns: 1fr;
+    gap: $space-6;
+  }
+}
+
+/* =========================================================
+   LEFT - VERTICAL STEPPER
+   ========================================================= */
+.stepper {
+  position: sticky;
+  top: $space-10;
+  padding: $space-6;
+  background: $gray-100;
+  height: 100%;
+  border-radius: $radius;
+
+  @include tablet($bp-lg) {
+    position: static;
+    padding: $space-4;
+  }
+}
+
+.brand {
+  font-weight: $font-weight-extrabold;
+  color: $primary-dark;
+  font-size: $font-size-md;
+  letter-spacing: $letter-spacing-normal;
+  margin-bottom: $space-8;
+
+  @include tablet($bp-lg) {
+    margin-bottom: $space-4;
+    text-align: center;
+  }
+}
+
+.stepperList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  position: relative;
+
+  @include tablet($bp-lg) {
+    gap: $space-2;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 $space-2;
+  }
+}
+
+.stepperItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  padding: $space-2 0;
+  position: relative;
+  transition: opacity $t-fast;
+
+  &:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 40px;
+    bottom: -8px;
+    width: 2px;
+    background: $border;
+    border-radius: $border-width-thin;
+    transition: background $t-fast;
+  }
+
+  &.stepCompleted::before {
+    background: $primary;
+  }
+
+  @include tablet($bp-lg) {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: $space-2;
+    padding: 0;
+
+    &:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 70%;
+      top: 15px;
+      width: 70%;
+      height: 2px;
+      background: $border;
+      border-radius: $border-width-thin;
+      transition: background $t-fast;
+    }
+
+    &:last-child::before {
+      display: none;
+    }
+  }
+}
+
+.stepDot {
+  width: $input-height-sm;
+  height: $input-height-sm;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  background: $white;
+  color: $text-faint;
+  border: $border-width-thin solid $border;
+  transition:
+    background $t-fast,
+    border-color $t-fast,
+    color $t-fast,
+    transform $t-fast,
+    box-shadow $t-fast;
+
+  @include tablet($bp-lg) {
+    width: 28px;
+    height: 28px;
+    font-size: $font-size-sm;
+  }
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 5px;
+  min-width: 0;
+
+  @include tablet($bp-lg) {
+    padding-top: 0;
+    align-items: center;
+  }
+}
+
+.stepLabel {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: $text-faint;
+  letter-spacing: -0.1px;
+  line-height: $line-height-tight;
+  transition: color $t-fast;
+
+  @include tablet($bp-lg) {
+    font-size: $font-size-sm;
+  }
+}
+
+.stepSub {
+  font-size: $font-size-sm;
+  color: $text-faint;
+  line-height: 1.4;
+  transition: color $t-fast;
+
+  @include tablet($bp-lg) {
+    display: none;
+  }
+}
+
+.stepCompleted {
+  .stepDot {
+    background: $white;
+    border-color: $primary;
+    color: $primary;
+  }
+  .stepLabel {
+    color: $text;
+  }
+}
+
+.stepActive {
+  .stepDot {
+    background: $primary;
+    border-color: $primary-dark;
+    color: $text-invert;
+    animation: stepPulse 1.8s $ease-in-out infinite;
+  }
+  .stepLabel {
+    color: $gray-900;
+  }
+  .stepSub {
+    color: $gray-900;
+    opacity: $opacity-muted;
+  }
+}
+
+@keyframes stepPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba($primary-dark, 0.45);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba($primary-dark, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba($primary-dark, 0);
+  }
+}
+
+/* =========================================================
+   RIGHT - STEP PANEL
+   ========================================================= */
+.stepPanel {
+  min-width: 0;
+}
+
+.stepWrap {
+  background: $white;
+  padding: 0 $space-3;
+  position: relative;
+
+  @include mobile {
+    padding: 0 0 $space-4;
+  }
+}
+
+.stepHeader {
+  margin-bottom: $space-6;
+
+  h2 {
+    margin: 0 0 $space-2;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-extrabold;
+    color: $text;
+    letter-spacing: -0.2px;
+    line-height: $line-height-snug;
+  }
+
+  p {
+    margin: 0;
+    font-size: $font-size-md;
+    color: $text-muted;
+    line-height: $line-height-normal;
+  }
+}
+
+/* =========================================================
+   FORM GRIDS
+   ========================================================= */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $space-4;
+  margin-bottom: $space-2;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.passwordRow {
+  display: flex;
+  gap: $space-2;
+  align-items: stretch;
+
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.stepActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $space-3;
+  margin-top: $space-6;
+  flex-wrap: wrap;
+
+  button {
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+
+  @include mobile {
+    flex-direction: column-reverse;
+    position: unset;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+/* =========================================================
+   PLAN CARDS
+   ========================================================= */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-4;
+  align-items: stretch;
+
+  @include tablet($bp-lg) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Skeleton ---------- */
+.planSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  cursor: default;
+
+  &:hover {
+    transform: none;
+    border-color: $border;
+    box-shadow: $shadow-xs;
+  }
+}
+
+/* =========================================================
+   SUMMARY + ERROR
+   ========================================================= */
+.summaryCard {
+  margin-top: $space-5;
+  margin-bottom: $space-4;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: $font-size-md;
+  color: $text-muted;
+  padding: $space-1 + 2px 0;
+}
+
+.summaryDiscount {
+  color: $primary-dark;
+}
+
+.summaryTotal {
+  border-top: $border-width-thin solid $border-soft;
+  margin-top: $space-1 + 2px;
+  padding-top: $space-3;
+  font-weight: $font-weight-extrabold;
+  font-size: $font-size-lg;
+  color: $text;
+}
+
+.errorBanner {
+  margin-bottom: $space-3;
+}
+
+/* =========================================================
+   BUILDING STEP
+   ========================================================= */
+.buildingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.buildingCard {
+  background: $white;
+  border: $border-width-thin solid $border-soft;
+  border-radius: $radius-lg;
+  padding: $space-10 $space-8;
+  text-align: center;
+  max-width: $container-sm;
+  width: 100%;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.04);
+
+  h2 {
+    margin: $space-4 0 $space-2;
+    font-size: $font-size-2xl + 2px;
+    font-weight: $font-weight-extrabold;
+    color: $text;
+  }
+}
+
+.successIcon {
+  font-size: 48px;
+  line-height: 1;
+  text-align: center;
+}
+
+.buildingLead {
+  margin: 0 0 $space-2;
+  font-size: $font-size-lg - 1px;
+  color: $text-muted;
+  line-height: $line-height-normal;
+
+  strong {
+    color: $primary-dark;
+  }
+}
+
+.buildingSub {
+  margin: 0 0 $space-6;
+  font-size: $font-size-base;
+  color: $text-muted;
+  line-height: $line-height-normal;
+}
+
+/* =========================================================
+   CREDENTIALS STEP
+   ========================================================= */
+.credCard {
+  margin-bottom: $space-1;
+  gap: $space-3;
+}
+
+.credRow {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.credLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-normal;
+  color: $text-faint;
+}
+
+// components/Pages/Signup/Signup.module.scss
+
+.credLink {
+  display: inline-block;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+  transition: color $t-fast, text-decoration $t-fast;
+  border-radius: $radius-xs;
+
+  &:hover {
+    text-decoration: underline;
+
+    code {
+      color: $primary-dark;
+      background: $primary-soft;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.35);
+  }
+
+  code {
+    transition: color $t-fast, background $t-fast;
+  }
+}
+
+.credCopyBtn {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid $border;
+  background: #fff;
+  border-radius: $radius-xs;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: $primary-dark;
+  cursor: pointer;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover {
+    background: $primary-tint;
+    border-color: $primary;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.credValue {
+  font-size: $font-size-md;
+  color: $text;
+  word-break: break-all;
+  line-height: $line-height-normal;
+
+  code {
+    font-family: $font-family-mono;
+    font-size: $font-size-base;
+    color: $primary-dark;
+    background: $primary-soft;
+    padding: 2px 6px;
+    border-radius: $radius-xs;
+  }
+}
+
+.monoPassword {
+  font-family: $font-family-mono;
+  font-size: $font-size-lg - 1px;
+  font-weight: $font-weight-bold;
+  color: $primary-dark;
+  letter-spacing: 0.5px;
+}
+
+.credActions {
+  display: flex;
+  gap: $space-3;
+  margin-top: $space-5;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Credentials card wrapper: positions the top-right actions ── */
+.credCardWrap {
+  position: relative;
+  margin-bottom: $space-1;
+}
+
+/* Action cluster at the top-right of the card */
+.credTopActions {
+  position: absolute;
+  top: -22px;
+  right: 20px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  background: $white;
+  padding: 6px 8px;
+  border-radius: $radius-xs;
+
+  @include mobile {
+    top: -18px;
+    right: 10px;
+  }
+}
+
+/* ── Download modal body ── */
+.downloadModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 6px;
+}
+
+.downloadLead {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: $text-muted;
+}
+
+/* =========================================================
+   SLUG STATUS (used by DetailsStep)
+   ========================================================= */
+.slugError {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  color: $danger;
+  line-height: $line-height-snug;
+}
+
+.slugOk {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  color: $primary-dark;
+  line-height: $line-height-snug;
+}
+
+.slugInfo {
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  color: $text-muted;
+  line-height: $line-height-snug;
+}
+.summaryTax {
+  color: $text-muted;
+}
+
+/* ========== Category description banner (signup details step) ========== */
+.categoryBanner {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-top: 10px;
+  border-radius: $radius-md;
+  background: $primary-tint;
+  border: 1px solid rgba($primary, 0.2);
+  animation: categoryFade 0.2s ease-out;
+}
+
+@keyframes categoryFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.categoryBannerIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  background: #fff;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.categoryBannerText {
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: $primary-dark;
+    margin-bottom: 2px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: $text-muted;
+  }
+}
+
+@include mobile {
+  .categoryBanner {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .categoryBannerIcon {
+    width: 36px;
+    height: 36px;
+  }
+}

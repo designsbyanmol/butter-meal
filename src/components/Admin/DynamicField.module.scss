@@ -1,0 +1,40 @@
+// components/Admin/DynamicField.module.scss
+@use '../../styles/tokens' as *;
+
+.imageUploadError {
+  border: 1px dashed $danger;
+  border-radius: $radius;
+  padding: 10px;
+  background: $red-50;
+  box-shadow: 0 0 0 4px rgba($danger, 0.1);
+}
+// ---------- Nutritional info grid ----------
+.nutritionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.nutritionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nutritionLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.nutritionEmpty {
+  padding: 10px 12px;
+  background: $bg-subtle;
+  border: 1px dashed $border;
+  border-radius: $radius-sm;
+  font-size: 12.5px;
+  color: $text-muted;
+  line-height: 1.5;
+}

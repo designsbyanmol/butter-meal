@@ -1,0 +1,31 @@
+// src/styles/_tokens.module.scss
+@use './tokens' as *;
+
+:export {
+  primary: $primary;
+  primaryDark: $primary-dark;
+  primarySoft: $primary-soft;
+  primaryTint: $primary-tint;
+
+  danger: $danger;
+  warning: $warning;
+  success: $success;
+  info: $info;
+
+  text: $text;
+  textMuted: $text-muted;
+  textFaint: $text-faint;
+
+  border: $border;
+  borderHover: $border-hover;
+  borderSoft: $border-soft;
+
+  bg: $bg;
+  bgSubtle: $bg-subtle;
+  bgMuted: $bg-muted;
+
+  radiusSm: $radius-sm;
+  radius: $radius;
+  radiusLg: $radius-lg;
+  radiusPill: $radius-pill;
+}

@@ -1,0 +1,83 @@
+// src/styles/_mixins.scss
+@use './tokens' as *;
+
+// ---- Focus ring ----
+@mixin focus-ring($color: $primary, $width: 4px) {
+  outline: none;
+  border-color: $color;
+  box-shadow: 0 0 0 $width rgba($color, 0.12);
+}
+
+// ---- Truncate ----
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ---- Overlay backdrop ----
+@mixin backdrop($alpha: 0.55, $blur: 6px) {
+  background: rgba(15, 23, 42, $alpha);
+  backdrop-filter: blur($blur);
+}
+
+// ---- Centered flex ----
+@mixin center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ---- Responsive ----
+@mixin mobile($max: 640px) {
+  @media (max-width: $max) { @content; }
+}
+
+@mixin tablet($max: 900px) {
+  @media (max-width: $max) { @content; }
+}
+
+// ---- Shimmer placeholder ----
+@mixin shimmer {
+  background: linear-gradient(
+    90deg,
+    #ecebe8 0%,
+    #f5f4f1 50%,
+    #ecebe8 100%
+  );
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ui-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ---- Fade in + panel pop ----
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ui-panel-in {
+  from { transform: translateY(24px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+@keyframes ui-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes ui-slide-down {
+  from { transform: translateY(-6px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

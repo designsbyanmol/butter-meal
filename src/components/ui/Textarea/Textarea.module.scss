@@ -1,0 +1,38 @@
+// src/components/ui/Textarea/Textarea.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: $text;
+  background: #fff;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  resize: vertical;
+  min-height: 72px;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &::placeholder { color: $text-faint; }
+  &:hover:not(:disabled) { border-color: $border-hover; }
+  &:focus { @include focus-ring; }
+  &:disabled {
+    background: $bg-subtle;
+    color: $text-faint;
+    cursor: not-allowed;
+  }
+}
+
+.invalid {
+  border-color: $danger !important;
+  background-color: $red-50 !important;
+  box-shadow: 0 0 0 4px rgba($danger, 0.12) !important;
+
+  &:focus {
+    border-color: $danger !important;
+    box-shadow: 0 0 0 4px rgba($danger, 0.2) !important;
+  }
+}

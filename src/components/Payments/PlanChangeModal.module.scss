@@ -1,0 +1,108 @@
+// components/Payments/PlanChangeModal.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* ---------- Tenant line ---------- */
+.tenantLine {
+  font-size: 13px;
+  color: $text-muted;
+  padding: 8px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  margin-bottom: 14px;
+
+  strong { color: $text; }
+}
+
+.loading {
+  padding: 32px 0;
+  text-align: center;
+  color: $text-muted;
+  font-size: 13px;
+}
+
+/* ---------- Plan grid (3 cards on desktop, stacked on mobile) ---------- */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @include tablet(720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Corner tag shown on the current plan ---------- */
+.cornerTag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: $radius-pill;
+  backdrop-filter: blur(4px);
+}
+
+/* ---------- Summary ---------- */
+.summary {
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.discountRow {
+  color: $primary-dark;
+}
+
+.totalRow {
+  border-top: 1px solid $border-soft;
+  margin-top: 6px;
+  padding-top: 10px;
+  font-weight: 800;
+  font-size: 15px;
+  color: $text;
+}
+
+.expiryLine {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed $border;
+  font-size: 12.5px;
+  color: $text-muted;
+  text-align: center;
+
+  strong {
+    color: $text;
+    font-weight: 700;
+  }
+}
+.renewNote {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  font-size: 12.5px;
+  color: $text-muted;
+  text-align: center;
+  line-height: 1.5;
+}

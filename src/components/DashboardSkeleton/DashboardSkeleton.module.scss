@@ -1,0 +1,120 @@
+// components/DashboardSkeleton/DashboardSkeleton.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.wrap {
+  min-height: 100vh;
+  background: $bg-subtle;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
+/* ---------- Header ---------- */
+.header {
+  width: 100%;
+  background: #fff;
+  border-bottom: 1px solid $border-soft;
+  padding: 10px 15px;
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- Main ---------- */
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ---------- Brand ---------- */
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 4px 20px;
+}
+
+/* ---------- Filter bar ---------- */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.searchBox {
+  flex: 1;
+}
+
+/* ---------- Pills ---------- */
+.pillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.pill {
+  flex-shrink: 0;
+}
+
+/* ---------- Grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: $radius;
+  overflow: hidden;
+  box-shadow: $shadow-xs;
+}
+
+.cardImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+}
+
+.cardBody {
+  padding: 12px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 14px;
+}
+
+/* ---------- Responsive ---------- */
+@include mobile(480px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+}

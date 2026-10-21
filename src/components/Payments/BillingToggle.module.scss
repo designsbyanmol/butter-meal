@@ -1,0 +1,87 @@
+// src/components/Payments/BillingToggle.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.billingToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-3;
+  max-width: max-content;
+  padding: $space-2 $space-4;
+  background: $gray-100;
+  border-radius: $radius-pill;
+  margin: 0 auto $space-6;
+  flex-wrap: wrap;
+
+  @include mobile {
+    padding: $space-2 $space-3;
+    gap: $space-2;
+  }
+}
+
+.billingLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-regular;
+  color: $text-muted;
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  transition: color $t-fast;
+}
+
+.billingLabelActive {
+  color: $primary-dark;
+  font-weight: $font-weight-medium;
+}
+
+.billingSaveBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-regular;
+  padding: 2px $space-2 1px;
+  border-radius: $radius-pill;
+  background: $primary-dark;
+  color: $white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.billingSwitch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: $radius-pill;
+  border: none;
+  padding: 0;
+  background: $gray-200;
+  cursor: pointer;
+  transition: background $t-fast;
+  flex-shrink: 0;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: $shadow-focus;
+  }
+}
+
+.billingSwitchOn {
+  background: $primary-dark;
+}
+
+.billingSwitchKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: $white;
+  box-shadow: $shadow-sm;
+  transition: transform $t-fast;
+}
+
+.billingSwitchOn .billingSwitchKnob {
+  transform: translateX(20px);
+}

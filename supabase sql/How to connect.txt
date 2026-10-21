@@ -1,0 +1,327 @@
+How to Connect — Complete Project Setup Guide
+Complete end-to-end setup for a new instance of this project. Follow every step in order.
+
+Part 1 — Supabase Project Setup
+Go to https://supabase.com and log in.
+
+Create a New Project → choose an organization → enter a project name and a strong database password → pick the region closest to your users → Create new project.
+
+Wait for the project to finish provisioning (~2 minutes).
+
+Get your API keys
+In your project, go to Project Settings → API Keys.
+
+Copy the Project URL (looks like https://xxxx.supabase.co).
+
+Copy the Publishable / anon key (starts with eyJ...).
+
+Save both — you'll paste them into .env in Part 3.
+
+Enable the pgcrypto extension
+In Supabase, go to Database → Extensions → search pgcrypto → Enable it. (Required for password hashing.)
+
+Part 2 — Run the SQL Migrations
+In Supabase, open SQL Editor and run each file in the exact order below. Wait for each to say Success before starting the next one.
+
+Stage A — Base schema
+#	File	Purpose
+1	01_star_veg_users.sql	Users table + password helpers + RLS
+2	02_star_veg_menu_items.sql	Menu items table
+3	03_star_veg_store_settings.sql	Store settings singleton
+4	04_validation_and_triggers.sql	Triggers, constraints, verification
+Stage B — Multi-tenant upgrade
+#	File	Purpose
+5	Multi tenant Schema.sql	Tenants table + tenant_id columns + backfill
+6	Tenant Aware menu.sql	Tenant-scoped menu RPCs + resolve_tenant_id
+7	Tenant aware users.sql	Tenant-scoped user RPCs
+8	Tenant Store Settings.sql	Tenant-scoped settings RPC
+9	Conditional RLS.sql	RLS policies for tenants/menu/settings
+10	Enable RLS.sql	Enable RLS on core tables
+Stage C — Menu columns & editing
+#	File	Purpose
+11	Add the discount column.sql	discount column + add/update RPCs
+12	Add Sort Column.sql	sort_order + reorder RPC
+13	gallary colum.sql	gallery column + add/update RPCs
+14	Info Column tenant.sql	Banner/tagline/delivery/discount + update_tenant_info
+15	Add Accepting Orders Column.sql	accepting_orders + upsert RPC
+16	Update Whatsapp message.sql	message_template + update RPC
+17	Add Store Category to Tenant.sql	store_category column + create-tenant RPCs
+Stage D — Plans & subscriptions
+#	File	Purpose
+18	Plan Definations.sql	star_veg_plans, invoices, pause requests, subscription RPCs
+19	Update Plan Prices.sql	Set plan prices to 49 / 99 / 199
+20	Update Plan.sql	Plan feature flags
+21	new key for gst and packing.sql	Add gst/packing to plan edit fields
+22	Make New Store By Default open.sql	New tenants start open
+23	Compute Plan Change.sql	Prorated plan change quotes
+24	Fix RLS Plans.sql	RLS for plans/invoices/pause_requests
+25	Harden Tenant Invoice.sql	Invoice constraints & policies
+26	platformwise tax.sql	Platform-wide tax rate
+Stage E — GST & Packing
+#	File	Purpose
+27	add gst and packing.sql	gst_percent, packing_charge columns
+28	update tenant for gst and packing.sql	Extended update_tenant_info
+Stage F — Reviews
+#	File	Purpose
+29	Reviews Table.sql	Reviews table + submit/delete/get RPCs
+30	Device Fingerprint.sql	Device fingerprint column + submit RPC update
+31	Refilter table.sql	get_tenant_reviews_paged (paged RPC)
+32	Filter Review.sql	Same RPC with all filter fix
+33	Review dispute table.sql	star_veg_review_disputes table + RLS
+34	all three review set database.sql	get_reviews_admin_bundle RPC
+35	Enable Disable reviews.sql	Global + per-tenant review toggles
+36	dispute notification read.sql	platform_seen_at / tenant_seen_at
+37	dispute notification clear.sql	Clear-all cursors + RPCs
+Stage G — Dine-in system
+#	File	Purpose
+38	dinein orders.sql	Tables, orders, events, tenant flags
+39	dinein tracking.sql	order_no, status timestamps, counter
+40	dinein per items served.sql	Per-item served flag + RPC
+41	dine in pay flow.sql	pay_online_requested, session-close
+42	dine in bill payment.sql	set_dinein_pay_online, settle offline
+43	dine in offline settle.sql	Failure-then-offline handling
+44	dinein customer payment.sql	Customer "I've paid" claim + admin confirm
+45	dine in staff tip.sql	staff_tip column + tenant tipping flag
+46	seperate read from clear.sql	dinein_events_cleared_before cursor
+47	dine in events read.sql	read_at + mark-read RPCs
+Stage H — Login lockout
+#	File	Purpose
+48	Login attempt is 3.sql	verify_password with lockout after 3 failures
+49	check login lock.sql	check_login_lockout RPC
+50	get tenant logout minutes.sql	get_tenant_login_lockout RPC
+Stage I — Menu versioning & misc
+#	File	Purpose
+51	versioning menu.sql	menu_version column + triggers
+52	one row per tenant run.sql	get_tenant_owner_map RPC
+53	Allow avatar to be written.sql	avatar_url column + update RPC
+54	Main Admin edit allow.sql	update_tenant + reset_tenant_owner_password
+55	prevent duplicate phone.sql	Duplicate-phone validation in create_user
+56	revenue stats.sql	get_platform_revenue_stats RPC
+Stage J — Seed admin (last)
+#	File	Purpose
+57	Update Supe Admin.sql	Creates main tenant + platform admin
+After running Stage J, your platform admin is:
+
+Phone: 8004608951 (edit the file to change)
+
+Password: $5#$,,ADC123 (edit the file to change)
+
+Login URL: http://localhost:5173/?_smart-admin
+
+Optional / cleanup (only if needed)
+File	When to run
+Delete Duplicate Items.sql	If the menu shows duplicate items
+Verify Duplicate removed.sql	Verification query after dedupe
+Rewrite update items.sql	If edits aren't saving properly
+Menu Update.sql	Fallback add/update RPC without tenant awareness
+TenantManager reset helpers	As noted in the file headers
+Warning: Delete Extra Tables.sql drops every table except the 3 core ones. Do not run if you've already run the multi-tenant and feature migrations.
+
+Part 3 — Configure the Frontend
+3.1 Create .env at the project root
+env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...your-anon-key...
+Get these from Supabase → Project Settings → API Keys (part 1, steps 5–6).
+
+3.2 Update src/config/env.ts (if not using env vars)
+The project currently hardcodes the Supabase URL and key in src/config/env.ts. Either replace them with the values from your .env, or modify the file to read from import.meta.env:
+
+ts
+supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+Also update config.razorpay.keyId with your own Razorpay key if you plan to use payment.
+
+3.3 Brand & contact edits (optional)
+src/config/credentials.ts → ShopInfo (fallback store name, phone, delivery charge, etc.)
+
+src/components/Auth/LoginModal.tsx → ADMIN_EMAIL constant (support contact shown in the login modal)
+
+src/components/Home/shared/SiteHeader.tsx and SiteFooter.tsx → logo URL
+
+src/data/storeDefaults.ts → sample menu items per store category
+
+Part 4 — Install & Run the App
+bash
+# 1. Install dependencies
+npm install
+
+# 2. Start the development server
+npm run dev
+# → open http://localhost:5173
+
+# 3. Production build (single-file output)
+npm run build
+# → produces dist/index.html with everything inlined
+
+# 4. Preview the built file
+npm run preview
+Important: never open dist/index.html directly via file://. Always use npm run preview — the app needs a real HTTP server for Supabase CORS.
+
+Part 5 — First-Time Verification
+5.1 Platform admin login
+Open http://localhost:5173/?_smart-admin.
+
+Log in with the phone/password from Stage J.
+
+You should land on the Super Admin dashboard (Stores, Reviews, Plans, Revenue, Settings).
+
+5.2 Create a test store
+Open http://localhost:5173/?_sign-up=1.
+
+Fill store name, slug, category, owner phone, password.
+
+Pick a plan, pay (or use Razorpay test card below).
+
+Copy the credentials from the credentials step and confirm the admin URL works.
+
+5.3 Test card (Razorpay test mode)
+text
+Card number: 4100 2800 0000 1007
+Expiry:      12/34
+CVV:         123
+These only work if the Razorpay Test key is configured in src/config/env.ts and razorpay-create-order / razorpay-verify edge functions are deployed.
+
+Part 6 — Supabase Edge Functions (Razorpay only)
+The payment flow uses two Supabase Edge Functions. Deploy them with the Supabase CLI:
+
+bash
+# 1. Install the Supabase CLI
+npm install -g supabase
+
+# 2. Link to your project
+supabase login
+supabase link --project-ref your-project-ref
+
+# 3. Add the Razorpay secrets (server-side only, never commit these)
+supabase secrets set RAZORPAY_KEY_ID=rzp_test_xxxxx
+supabase secrets set RAZORPAY_KEY_SECRET=xxxxxxxxxx
+
+# 4. Deploy the two functions from supabase/functions/
+supabase functions deploy razorpay-create-order
+supabase functions deploy razorpay-verify
+If you skip this step, the free-signup flow still works (invoice is created as pending), but the online payment step will fail.
+
+Part 7 — Daily Operation
+URLs
+Purpose	URL
+Home page	http://localhost:5173/
+Signup	http://localhost:5173/?_sign-up=1
+Platform admin	http://localhost:5173/?_smart-admin
+Store admin	http://localhost:5173/?t=<slug>_admin
+Store customer page	http://localhost:5173/?t=<slug>
+Key credentials to remember
+Platform admin phone + password: created by Update Supe Admin.sql — edit before running.
+
+Every tenant's owner credentials: created automatically during signup and shown on the "Hurrey!" step + downloadable as PDF.
+
+Reset a stuck login lockout
+sql
+DELETE FROM auth_login_attempts
+WHERE tenant_slug = '<slug>';  -- or NULL for platform
+Reset a tenant's password manually
+sql
+SELECT reset_tenant_owner_password('<slug>', '<phone>', '<new-password>');
+Reset all orders (dev only)
+sql
+DELETE FROM star_veg_dinein_events;
+DELETE FROM star_veg_dinein_orders;
+DELETE FROM star_veg_dinein_tables;
+DELETE FROM star_veg_dinein_order_counter;
+Part 8 — Troubleshooting
+Symptom	Cause	Fix
+"Invalid phone number or password" on a known-good login	Lockout after 3 failures	DELETE FROM auth_login_attempts for that phone
+Store shows "Tenant not found"	Slug typo or is_active = FALSE	Check star_veg_tenants row
+Menu items not appearing	menu_version cache stale	Bump: UPDATE star_veg_tenants SET menu_version = menu_version + 1 WHERE slug = '<slug>'
+Edits not saving in the admin panel	Stale update_menu_item RPC	Re-run Rewrite update items.sql or the correct tenant-scoped version
+Signup fails at invoice step	Edge function missing or invoice RLS misconfigured	Deploy razorpay-create-order; re-run Harden Tenant Invoice.sql
+Reviews tab is empty for a tenant	Plan isn't professional OR reviews_enabled = FALSE	Check star_veg_tenants.reviews_enabled and plan_id
+Dine-in toggles don't save	dinein_enabled missing from update_tenant_info allowlist	Re-run Allow avatar to be written.sql (that version includes all fields)
+dist/index.html opens blank	Opened via file://	Use npm run preview
+Part 9 — Checklist Before Going Live
+□ All 57 SQL files ran without errors
+□ main tenant exists with a platform admin user
+□ .env has the correct Supabase URL + anon key
+□ src/config/env.ts points to the same Supabase project (or reads from .env)
+□ src/config/credentials.ts DEFAULT_ADMIN/SEED_USERS updated (or removed)
+□ Razorpay test key → production key swap done (if selling)
+□ Edge functions deployed with production secrets
+□ Branding: logo URLs, support email, store defaults
+□ npm run build produces a single dist/index.html
+□ npm run preview serves the app without errors
+□ You can sign up, log in as tenant admin, add a menu item, place a test order, and receive the WhatsApp message on your own number
+Part 10 — Project Layout Reference
+text
+project-root/
+├── .env                          ← Supabase keys (never commit)
+├── package.json
+├── vite.config.ts
+├── index.html                    ← Vite entry
+├── scripts/inline.js             ← Post-build single-file bundler
+├── src/
+│   ├── main.tsx                  ← React entry
+│   ├── App.tsx                   ← Root router / auth gate
+│   ├── config/                   ← env, credentials, tables
+│   ├── contexts/                 ← TenantContext, StoreContext
+│   ├── hooks/                    ← useAuth, useCart, useMenu, usePlan…
+│   ├── services/                 ← supabase.client, *.service.ts
+│   ├── data/                     ← plans, storeCategories, storeDefaults
+│   ├── types/                    ← shared TypeScript types
+│   ├── utils/                    ← PDF, QR, UPI, formatting, etc.
+│   ├── styles/                   ← design tokens + mixins
+│   └── components/
+│       ├── Admin/                ← menu editor, users, tenants, plans
+│       ├── Auth/                 ← login modals
+│       ├── Cart/                 ← cart modal, name prompt
+│       ├── Dashboard/            ← shell, welcome cards
+│       ├── Dinein/               ← table modal, live order status
+│       ├── Header/               ← header, notification drawers
+│       ├── Home/                 ← marketing landing page
+│       ├── MainDashboard/        ← tenant + super-admin dashboards
+│       ├── Menu/                 ← menu grid, filters, wishlist
+│       ├── MenuDetail/           ← item detail sheet
+│       ├── Payments/             ← plans, invoices, Razorpay
+│       ├── Store/                ← store settings, banners, info popup
+│       ├── ui/                   ← design system (Button, Modal, etc.)
+│       └── Pages/Signup/         ← 4-step signup flow
+└── supabase/
+    └── functions/                ← razorpay-create-order, razorpay-verify
+Part 11 — Deploying to Production
+Option A — Static hosting (Vercel / Netlify / Cloudflare Pages)
+npm run build → produces dist/index.html.
+
+Upload dist/ to your host.
+
+Set a rewrite rule so every route serves index.html (the app is client-routed).
+
+Add the deployed domain to Supabase Auth → URL Configuration → Site URL.
+
+Option B — Single-file deployment
+The dist/index.html after npm run build contains everything inlined (CSS, JS, images up to the inline limit). You can email it, drop it in a shared folder, or host it as a single file. The app must be served over HTTP(S) — never file://.
+
+Domain + Store URLs
+After deploying to https://yourdomain.com:
+
+Store admin URL becomes https://yourdomain.com/?t=<slug>_admin
+
+Store customer URL becomes https://yourdomain.com/?t=<slug>
+
+Platform admin URL becomes https://yourdomain.com/?_smart-admin
+
+Nothing needs to be re-run in SQL — the app derives all URLs from window.location.origin.
+
+Part 12 — Useful Commands
+bash
+# Restart the dev server clean
+rm -rf node_modules dist .vite && npm install && npm run dev
+
+# Build for production
+npm run build
+
+# Check the built file
+ls -lh dist/index.html   # should be a single file, no sibling folders
+
+# Tail Supabase edge-function logs
+supabase functions logs razorpay-create-order
+supabase functions logs razorpay-verify
+End of setup. If any SQL file fails, do not continue — read the error, fix the offending constraint/function, then re-run from the file that failed. Most files are idempotent, so re-running a stage is safe.

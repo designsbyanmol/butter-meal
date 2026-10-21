@@ -1,0 +1,99 @@
+// components/Home/sections/Audience.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+
+  @include tablet(900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @include mobile(600px) { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform $t-fast,
+    box-shadow $t-fast,
+    border-color $t-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.cardImage {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: $bg-subtle;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.cardBody {
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Small colored chip on the label - accent set per category */
+.cardIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  background: $bg-subtle;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: $text;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: $text-muted;
+}
+
+/* ---------- Accents ---------- */
+.green {
+  .cardIcon { background: linear-gradient(135deg, $primary-500, $primary-700); }
+  &:hover { border-color: rgba($primary-500, 0.4); }
+}
+.blue {
+  .cardIcon { background: linear-gradient(135deg, $blue-500, $blue-700); }
+  &:hover { border-color: rgba($blue-500, 0.4); }
+}
+.amber {
+  .cardIcon { background: linear-gradient(135deg, $amber-400, $amber-600); }
+  &:hover { border-color: rgba($amber-500, 0.4); }
+}
+.purple {
+  .cardIcon { background: linear-gradient(135deg, $purple-400, $purple-600); }
+  &:hover { border-color: rgba($purple-500, 0.4); }
+}
+.rose {
+  .cardIcon { background: linear-gradient(135deg, #f87171, #b91c1c); }
+  &:hover { border-color: rgba(#ef4444, 0.4); }
+}
+.teal {
+  .cardIcon { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+  &:hover { border-color: rgba(#14b8a6, 0.4); }
+}

@@ -1,0 +1,207 @@
+// components/MainDashboard/ReviewsOverview.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.wrap {
+  margin: 24px 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 800;
+    color: $text;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: $text-muted;
+  }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- Per-tenant section ---------- */
+.tenantSection {
+  margin-bottom: 0;
+}
+
+.tenantSlug {
+  font-size: 12px;
+  color: $text-faint;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- Filters ---------- */
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.filterLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-right: 4px;
+}
+
+/* ---------- Review card grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 1200px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 900px)  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 520px)  { grid-template-columns: 1fr; }
+}
+
+/* ---------- Review card ---------- */
+.card {
+  gap: 4px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.itemName {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.removeBtn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: $red-50;
+  color: $red-700;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover { background: $red-100; }
+}
+
+.category {
+  margin-top: 2px;
+  font-size: 11px;
+  color: $text-faint;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ratingRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.starsFilled,
+.starsEmpty {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.ratingNum {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: $text-muted;
+}
+
+.comment {
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
+  font-style: italic;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  font-size: 11px;
+  color: $text-faint;
+}
+
+.customer {
+  font-weight: 600;
+}
+
+.when {
+  opacity: 0.85;
+}
+
+/* ---------- States ---------- */
+.emptyRow {
+  padding: 16px 0;
+  text-align: center;
+  color: $text-faint;
+  font-size: 13px;
+}
+
+.error {
+  padding: 8px 12px;
+  background: $red-50;
+  color: $red-700;
+  border-radius: $radius-sm;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.showMoreBtn {
+  display: flex;
+  margin: 16px auto 0;
+}
+
+.cardHeaderRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.disputedBadge {
+  margin-left: 8px;
+  vertical-align: middle;
+}

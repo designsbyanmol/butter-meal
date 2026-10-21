@@ -1,0 +1,73 @@
+// src/components/ui/Toggle/Toggle.module.scss
+@use '../../../styles/tokens' as *;
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: $text;
+  font-weight: 500;
+}
+
+.labelLeft {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d8dade;
+  transition: background $t-fast;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform $t-fast;
+  }
+}
+
+.input:checked + .slider {
+  background: $primary;
+
+  &::before { transform: translateX(16px); }
+}
+
+.input:disabled + .slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input:focus-visible + .slider {
+  box-shadow: 0 0 0 4px rgba($primary, 0.18);
+}
+
+.label {
+  line-height: 1.3;
+}

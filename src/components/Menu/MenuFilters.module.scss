@@ -1,0 +1,96 @@
+// src/components/Menu/MenuFilters.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: $white;
+  padding: $space-3;
+  margin: 0 -15px 15px;
+  position: sticky;
+  z-index: $z-sticky;
+  top: 0;
+  border-bottom: 1px solid $gray-100;
+}
+
+.searchRow {
+  display: flex;
+  gap: 8px;
+}
+
+.searchBox {
+  flex: 1;
+  min-width: 0;
+}
+
+.filterBtn {
+  flex-shrink: 0;
+  gap: 6px;
+  white-space: nowrap;
+
+  @include mobile {
+    :global(.label) {
+      display: none;
+    }
+  }
+}
+
+.filterBtnText {
+  @include mobile {
+    display: none;
+  }
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: $radius-pill;
+  background: #fff;
+  color: $primary-dark;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.wishlistWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wishlistBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: $radius-pill;
+  background: $gray-900;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}

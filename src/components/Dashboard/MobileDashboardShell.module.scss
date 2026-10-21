@@ -1,0 +1,196 @@
+// src/components/Dashboard/MobileDashboardShell.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $bg-subtle;
+}
+
+/* =========================================================
+   Header
+   ========================================================= */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: $z-sticky;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid $border-soft;
+}
+
+.brandBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 4px 14px;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:active {
+    background: $bg-subtle;
+  }
+  @include mobile {
+    padding: 4px 0;
+  }
+}
+
+.brandImg {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.roleLabel {
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.2px;
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Kebab icon ---------- */
+.kebabIcon {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  width: 18px;
+  height: 18px;
+
+  i {
+    display: block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: $text;
+  }
+}
+
+/* =========================================================
+   Main + bottom nav padding
+   ========================================================= */
+.main {
+  flex: 1;
+  padding: 24px 14px 80px;
+  overflow-x: hidden;
+}
+
+.greeting {
+  padding: 0;
+}
+
+/* =========================================================
+   Bottom nav
+   ========================================================= */
+.bottomNav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: $z-fixed;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-top: 1px solid $border-soft;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.navBtn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  background: transparent;
+  border: none;
+  border-radius: $radius-md;
+  cursor: pointer;
+  font-family: inherit;
+  color: $text-muted;
+  transition: background $t-fast, color $t-fast;
+  min-width: 0;
+
+  &:active {
+    background: $bg-subtle;
+  }
+}
+
+.navBtnActive {
+  color: $primary-dark;
+
+  .navIcon {
+    background: $primary-tint;
+  }
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: $radius-md;
+  transition: background $t-fast;
+}
+
+.navLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Kebab dropdown
+   ========================================================= */
+.kebabMenu {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.kebabItemRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.kebabItemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.kebabItemLabel {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}

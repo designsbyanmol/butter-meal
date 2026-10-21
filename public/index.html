@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Redirecting — Dozzelo</title>
+    <script>
+      (function () {
+        try {
+          var url = new URL(window.location.href);
+          var t = url.searchParams.get('t') || '';
+          var isAdmin = t.length > 6 && t.slice(-6) === '_admin';
+          var isSignup = url.searchParams.has('_sign-up');
+          var isSmartAdmin = url.searchParams.has('_smart-admin');
+
+          var target = 'home.html';
+          if (isSignup) target = 'signup.html';
+          else if (isSmartAdmin) target = 'superadmin.html';
+          else if (isAdmin) target = 'admin.html';
+          else if (t) target = 'customer.html';
+
+          var basePath = url.pathname.replace(/\/[^/]*$/, '/');
+          url.pathname = basePath + target;
+          window.location.replace(url.toString());
+        } catch (e) {
+          window.location.replace('/');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p>
+        <a href="/">Continue to Dozzelo</a>
+      </p>
+    </noscript>
+  </body>
+</html>

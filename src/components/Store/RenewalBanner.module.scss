@@ -1,0 +1,64 @@
+// components/Store/RenewalBanner.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.banner {
+  margin: 16px 0;
+}
+
+.icon {
+  font-size: 20px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  flex-wrap: wrap;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 800;
+  color: $amber-800;
+  margin-bottom: 2px;
+}
+
+.subtitle {
+  font-size: 12.5px;
+  color: $amber-800;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 100%;
+
+    button { flex: 1; }
+  }
+}
+
+.dialogText {
+  margin: 0;
+  font-size: 13.5px;
+  color: $text-muted;
+  line-height: 1.55;
+}

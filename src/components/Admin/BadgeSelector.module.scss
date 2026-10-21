@@ -1,0 +1,40 @@
+// src/components/Admin/BadgeSelector.module.scss
+@use '../../styles/tokens' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-muted;
+  letter-spacing: 0.1px;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding: 10px 0;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badgeIcon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
+}

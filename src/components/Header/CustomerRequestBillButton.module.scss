@@ -1,0 +1,78 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.lead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: $radius;
+  border: 1px solid $border;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color $t-fast,
+    background $t-fast,
+    transform $t-fast;
+
+  &:hover:not(:disabled) {
+    border-color: rgba($primary, 0.5);
+    background: $primary-tint;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.choiceOffline {
+  border-color: rgba($amber-500, 0.4);
+}
+
+.choiceOnline {
+  border-color: rgba($primary, 0.4);
+}
+
+.choiceTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+}
+
+.choiceSub {
+  font-size: 12.5px;
+  color: $text-muted;
+  line-height: 1.4;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: $text-faint;
+  line-height: 1.5;
+  text-align: center;
+}

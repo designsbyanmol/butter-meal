@@ -1,0 +1,360 @@
+// components/Home/HomePage.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* =========================================================
+   Page
+   ========================================================= */
+.page {
+  background: #f8fafc;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+}
+
+/* =========================================================
+   Header
+   ========================================================= */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: $z-sticky;
+  background: #fff;
+  border-bottom: 1px solid $border-soft;
+}
+
+.headerInner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 14px 24px;
+
+  @include mobile(900px) {
+    padding: 12px 16px;
+    gap: 16px;
+  }
+}
+
+.headerBrand {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  cursor: pointer;
+}
+
+.brandMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18);
+}
+
+.brandLogo {
+  max-width: 140px;
+  width: 100%;
+  height: auto;
+}
+
+.brandName {
+  font-size: 20px;
+  color: $text;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+
+  @include tablet(900px) { display: none; }
+}
+
+.navLink {
+  padding: 8px 14px;
+  border-radius: $radius-sm;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: $text-muted;
+  text-decoration: none;
+  transition: background $t-fast, color $t-fast;
+
+  &:hover {
+    background: $bg-subtle;
+    color: $text;
+  }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @include tablet(900px) { display: none; }
+}
+
+.burger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  margin-left: auto;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  cursor: pointer;
+
+  @include tablet(900px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.burgerLine {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: $text;
+  transition: transform $t-fast, opacity $t-fast;
+}
+
+.burgerLineOpenTop { transform: translateY(6px) rotate(45deg); }
+.burgerLineOpenMid { opacity: 0; }
+.burgerLineOpenBot { transform: translateY(-6px) rotate(-45deg); }
+
+.mobileNav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px 20px;
+  background: #fff;
+  border-top: 1px solid $border-soft;
+
+  @media (min-width: 901px) { display: none; }
+}
+
+.mobileNavLink {
+  padding: 12px 8px;
+  border-radius: $radius-sm;
+  font-size: 14px;
+  color: $text;
+  text-decoration: none;
+
+  &:hover { background: $bg-subtle; }
+}
+
+/* Active / loading nav states */
+.navLinkActive {
+  background: $bg-subtle;
+  color: $text;
+}
+
+.mobileNavLinkActive {
+  background: $bg-subtle;
+  color: $black;
+}
+
+.mobileNavLinkLoading {
+  position: relative;
+  color: $primary-dark;
+  pointer-events: none;
+}
+
+/* Top progress bar shown while a section is loading */
+.navLoader {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.navLoaderBar {
+  height: 100%;
+  width: 0;
+  background: $primary-dark;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
+  animation: navLoaderBar 2s ease-in-out forwards;
+}
+
+@keyframes navLoaderBar {
+  0%   { width: 0; }
+  60%  { width: 70%; }
+  100% { width: 100%; }
+}
+
+/* =========================================================
+   Shared section chrome
+   ========================================================= */
+.section {
+  padding: 72px 24px;
+
+  @include mobile(640px) { padding: 48px 16px; }
+}
+
+.sectionTight {
+  padding: 56px 24px;
+
+  @include mobile(640px) { padding: 40px 16px; }
+}
+
+.sectionInner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.sectionHead {
+  text-align: center;
+  margin-bottom: 44px;
+}
+
+.sectionHeadLeft {
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: $primary-dark;
+  margin-bottom: 10px;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 32px;
+  font-weight: 800;
+  color: $gray-950;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+
+  @include mobile(640px) { font-size: 24px; }
+}
+
+.lead {
+  margin: 0 auto;
+  max-width: 620px;
+  font-size: 14.5px;
+  color: $text-muted;
+  line-height: 1.6;
+}
+
+.leadLeft {
+  margin: 0;
+  max-width: 620px;
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+.footer {
+  padding: 56px 24px 32px;
+  background: #fff;
+  border-top: 1px solid $border-soft;
+}
+
+.footerInner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, 1fr);
+  gap: 32px;
+  margin-bottom: 40px;
+
+  @include tablet(900px) { grid-template-columns: 1fr 1fr; gap: 28px; }
+  @include mobile(520px) { grid-template-columns: 1fr; }
+}
+
+.footerBrandCol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  @include tablet(900px) { grid-column: 1 / -1; }
+}
+
+.footerBlurb {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: $gray-500;
+  max-width: 320px;
+}
+
+.footerCol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  h4 {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 800;
+    color: $text;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  a {
+    font-size: 13px;
+    color: $text-muted;
+    text-decoration: none;
+
+    &:hover { color: $primary-dark; }
+  }
+}
+
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid $border-soft;
+  font-size: 12px;
+  color: $text-faint;
+  flex-wrap: wrap;
+  .footerLeft {
+    display: inline-flex;
+    align-items: center;
+    gap: 6;
+  }
+}
+
+.footerLegal {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  @include mobile {
+    padding: $space-4;
+    background: $gray-200;
+    border-radius: $radius;
+  }
+
+  a {
+    color: $text-faint;
+    text-decoration: none;
+
+    &:hover { color: $text; }
+  }
+}

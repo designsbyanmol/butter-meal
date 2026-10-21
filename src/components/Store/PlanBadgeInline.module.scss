@@ -1,0 +1,17 @@
+// components/Store/PlanBadgeInline.module.scss
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: transform 0.15s ease;
+  font-family: inherit;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}

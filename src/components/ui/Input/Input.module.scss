@@ -1,0 +1,61 @@
+// src/components/ui/Input/Input.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input {
+  width: 100%;
+  font-family: inherit;
+  color: $text;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  transition: border-color $t-fast, box-shadow $t-fast, background $t-fast;
+
+  &::placeholder { color: $text-faint; }
+  &:hover:not(:disabled) { border-color: $border-hover; }
+  &:focus { @include focus-ring; }
+  &:disabled {
+    background: $bg-subtle;
+    color: $text-faint;
+    cursor: not-allowed;
+  }
+}
+
+.sm { padding: 8px 10px;  font-size: 13px; }
+.md { padding: 10px 12px; font-size: 14px; }
+.lg { padding: 12px 14px; font-size: 15px; }
+
+.invalid {
+  border-color: $danger !important;
+  box-shadow: 0 0 0 4px rgba($danger, 0.05) !important;
+
+  &:focus {
+    border-color: $danger !important;
+    box-shadow: 0 0 0 4px rgba($danger, 0.2) !important;
+  }
+}
+
+.hasLeftIcon  { padding-left: 36px; }
+.hasRightIcon { padding-right: 36px; }
+
+.leftIcon,
+.rightIcon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-faint;
+  pointer-events: none;
+}
+
+.leftIcon  { left: 10px; }
+.rightIcon { right: 10px; pointer-events: auto;}

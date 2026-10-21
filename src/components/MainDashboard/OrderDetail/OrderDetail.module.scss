@@ -1,0 +1,326 @@
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+/* =========================================================
+   Meta block (above the receipt)
+   ========================================================= */
+.metaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: $text;
+
+  strong {
+    font-weight: 700;
+    color: $text;
+    margin-right: 4px;
+  }
+}
+
+.metaDevices {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+/* =========================================================
+   Container around the receipt
+   ========================================================= */
+.hiddenReceipt {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 80mm;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* =========================================================
+   Print-only hiding: when we render the printable area
+   into a new window, everything outside the receipt should
+   be hidden from the print layout.
+   ========================================================= */
+@media print {
+  .metaBlock,
+  :global(.modal-header),
+  :global(.modal-footer) {
+    display: none !important;
+  }
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  margin-bottom: 14px;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.statusLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: $primary-dark;
+}
+
+.statusTimer {
+  font-size: 11px;
+  color: $text-muted;
+  font-variant-numeric: tabular-nums;
+}
+/* ---------- Items with served checkboxes ---------- */
+.itemsBlock {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+}
+
+.itemsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.itemsHeaderLabel {
+  color: $text-muted;
+}
+
+.itemsHeaderCount {
+  color: $primary-dark;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  font-size: 11.5px;
+}
+
+/* ---------- Per-item served rows ---------- */
+.itemRow {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed $border-soft;
+  cursor: pointer;
+  user-select: none;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+/* Hide the native input, keep it accessible. */
+.itemCheckbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* Custom checkbox square. */
+.itemCheckboxBox {
+  position: relative;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 5px;
+  border: 1.5px solid $border-strong;
+  background: #fff;
+  transition: background $t-fast, border-color $t-fast;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity $t-fast;
+  }
+}
+
+.itemCheckbox:checked + .itemCheckboxBox {
+  background: $primary;
+  border-color: $primary;
+
+  &::after {
+    opacity: 1;
+  }
+}
+
+.itemCheckbox:disabled + .itemCheckboxBox {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.itemCheckbox:focus-visible + .itemCheckboxBox {
+  box-shadow: 0 0 0 4px rgba($primary, 0.15);
+}
+
+/* The name + price line. */
+.itemRowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 50px;
+}
+
+.itemRowName {
+  font-size: 13px;
+  color: $text;
+  line-height: 1.35;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.itemRowPrice {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $text-muted;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Customizations + note, stacked below the row. */
+.itemRowExtras {
+  flex-basis: 100%;
+  padding-left: 28px; /* aligns with the name column */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemCustom {
+  font-size: 11.5px;
+  color: $text-muted;
+  line-height: 1.4;
+}
+
+.itemNote {
+  font-size: 11.5px;
+  color: $text-faint;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.checkboxHint {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: $radius-sm;
+  background: $amber-50;
+  color: $amber-800;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.serveGate {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 11px;
+  color: $text-faint;
+}
+
+/* ---------- Bill summary ---------- */
+.summaryBlock {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+  border-radius: $radius-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.summaryLabel {
+  min-width: 0;
+}
+
+.summaryValue {
+  white-space: nowrap;
+  font-weight: 600;
+  color: $text;
+}
+
+.summaryDiscount {
+  color: $primary-dark;
+
+  .summaryValue {
+    color: $primary-dark;
+  }
+}
+
+.summaryTotal {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed $border;
+  font-size: 15px;
+  font-weight: 800;
+  color: $text;
+
+  .summaryLabel {
+    font-weight: 800;
+    color: $text;
+  }
+
+  .summaryValue {
+    font-weight: 800;
+    color: $text;
+  }
+}
+
+.summaryPaidLine {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed $border-soft;
+  font-size: 12px;
+  color: $text-faint;
+
+  strong {
+    color: $primary-dark;
+    font-weight: 700;
+  }
+}

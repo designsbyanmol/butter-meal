@@ -1,0 +1,40 @@
+// src/components/ui/EmptyState/EmptyState.module.scss
+@use '../../../styles/tokens' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: $text-muted;
+}
+
+.desc {
+  font-size: 13px;
+  color: $text-faint;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.action {
+  margin-top: 8px;
+}

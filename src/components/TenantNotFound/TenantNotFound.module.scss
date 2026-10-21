@@ -1,0 +1,33 @@
+// components/TenantNotFound/TenantNotFound.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-subtle;
+  padding: 24px;
+  z-index: 10;
+}
+
+.subtitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: $text-faint;
+  line-height: 1.6;
+}
+
+@include mobile {
+  .subtitle { font-size: 14px; }
+  .hint { font-size: 12px; }
+}
