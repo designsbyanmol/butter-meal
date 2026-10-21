@@ -4,17 +4,17 @@
 .chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 400;
-  border-radius: $radius-pill;
   border: 1px solid $border;
   background: #fff;
   color: $text-muted;
   cursor: pointer;
   transition: border-color $t-fast, background $t-fast, color $t-fast,
-    transform $t-fast;
+    transform $t-fast, border-radius $t-fast;
   white-space: nowrap;
   font-family: inherit;
 
@@ -28,7 +28,13 @@
   }
 }
 
-// ---------- TONES ----------
+/* ---------- Shapes ---------- */
+.shape_pill    { border-radius: $radius-pill; }
+.shape_rounded { border-radius: $radius; }     // 8px
+.shape_soft    { border-radius: 6px; }
+.shape_square  { border-radius: 0; }
+
+/* ---------- Tones ---------- */
 .neutral { color: $text-muted; }
 .neutral.active {
   background: $gray-900;

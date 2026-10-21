@@ -1,8 +1,10 @@
-// components/Payments/PlanChangeModal.module.scss
+// src/components/Payments/PlanChangeModal.module.scss
 @use '../../styles/tokens' as *;
 @use '../../styles/mixins' as *;
 
-/* ---------- Tenant line ---------- */
+/* =========================================================
+ * Header line ("Store Owner: ...")
+ * ========================================================= */
 .tenantLine {
   font-size: 13px;
   color: $text-muted;
@@ -15,6 +17,9 @@
   strong { color: $text; }
 }
 
+/* =========================================================
+ * Initial loading
+ * ========================================================= */
 .loading {
   padding: 32px 0;
   text-align: center;
@@ -22,7 +27,12 @@
   font-size: 13px;
 }
 
-/* ---------- Plan grid (3 cards on desktop, stacked on mobile) ---------- */
+/* =========================================================
+ * Plan grid — layout only
+ *
+ * The cards themselves come from PlanCard.module.scss. This class
+ * only controls the modal's column arrangement.
+ * ========================================================= */
 .planGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -34,24 +44,9 @@
   }
 }
 
-/* ---------- Corner tag shown on the current plan ---------- */
-.cornerTag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: $radius-pill;
-  backdrop-filter: blur(4px);
-}
-
-/* ---------- Summary ---------- */
+/* =========================================================
+ * Summary block (below the grid)
+ * ========================================================= */
 .summary {
   background: $bg-subtle;
   border: 1px solid $border-soft;
@@ -95,6 +90,10 @@
     font-weight: 700;
   }
 }
+
+/* =========================================================
+ * Renewal note
+ * ========================================================= */
 .renewNote {
   margin: 8px 0 14px;
   padding: 10px 12px;

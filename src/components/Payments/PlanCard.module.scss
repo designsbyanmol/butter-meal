@@ -2,7 +2,9 @@
 @use '../../styles/tokens' as *;
 @use '../../styles/mixins' as *;
 
-/* ---------- Card shell ---------- */
+/* =========================================================
+ * Card shell
+ * ========================================================= */
 .pcard {
   position: relative;
   display: flex;
@@ -29,44 +31,42 @@
   }
 }
 
+/* ---------- Selected state ---------- */
 .pcardSelected {
-  border-color: $primary-dark;
-  box-shadow: 0 8px 24px rgba($gray-500, 0.18);
   border-color: $gray-900;
+  box-shadow: 0 8px 24px rgba($gray-500, 0.18);
+
   .pcardCtaLabel {
     background: $amber-600;
     color: $white;
+
     &:hover {
       background: $primary-dark;
       color: $white;
     }
   }
 
-  &.pcardDynamic {
-    .pcardCtaLabel {
-      background: $blue-900;
-    }
+  &.pcardDynamic .pcardCtaLabel {
+    background: $blue-900;
   }
 
-  &.pcardFeatured {
-    .pcardCtaLabel {
-      background: $primary-dark;
-    }
+  &.pcardFeatured .pcardCtaLabel {
+    background: $primary-dark;
   }
 }
 
-/* ---------- Header band ---------- */
+/* =========================================================
+ * Header band (coloured by plan variant)
+ * ========================================================= */
 .pcardHeader {
   padding: $space-4;
   background: $amber-600;
   color: $text-invert;
 }
 
-.pcardDynamic {
-  .pcardHeader {
-    background: $blue-900;
-    color: $text-invert;
-  }
+.pcardDynamic .pcardHeader {
+  background: $blue-900;
+  color: $text-invert;
 }
 
 .pcardHeaderFeatured {
@@ -101,6 +101,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* ---------- Price row ---------- */
 .pcardPrice {
   display: flex;
   align-items: baseline;
@@ -127,7 +128,19 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* ---------- Feature list ---------- */
+/* ---------- Promo strike (first-month pricing) ---------- */
+.pcardPromoStrike {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  margin-right: 4px;
+}
+
+/* =========================================================
+ * Feature list
+ * ========================================================= */
 .pcardFeatures {
   list-style: none;
   margin: 0 !important;
@@ -191,7 +204,9 @@
   line-height: 1;
 }
 
-/* ---------- Bottom CTA ---------- */
+/* =========================================================
+ * CTA
+ * ========================================================= */
 .pcardCta {
   padding: 0 $space-4 $space-4;
 }
@@ -210,11 +225,17 @@
   transition: background $t-fast, color $t-fast;
 }
 
-/* ---------- Optional corner tag (e.g. "Current") ---------- */
+/* =========================================================
+ * Corner tag (optional, e.g. "Current")
+ *
+ * Cards are shared by SignupPage, PlanChangeModal, and any future
+ * consumer. The tag is positioned absolutely against `.pcard`, so
+ * it must NOT be redefined in consumer scss.
+ * ========================================================= */
 .cornerTag {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   z-index: 2;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
@@ -225,14 +246,4 @@
   padding: 3px 8px;
   border-radius: $radius-pill;
   backdrop-filter: blur(4px);
-}
-
-/* First-month promo */
-.pcardPromoStrike {
-  font-size: 16px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  margin-right: 4px;
 }

@@ -1014,6 +1014,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           isOpen={isOpen}
           onClose={onClose}
           mobileFullScreen
+          disableBackdropClose={true}
           title={item.name}
           size="lg"
           footer={footerContent}

@@ -11,7 +11,7 @@
   padding: $space-2 $space-4;
   background: $gray-100;
   border-radius: $radius-pill;
-  margin: 0 auto $space-6;
+  margin: $space-4 auto $space-6;
   flex-wrap: wrap;
 
   @include mobile {

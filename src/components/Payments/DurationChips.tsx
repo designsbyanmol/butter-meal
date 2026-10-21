@@ -40,6 +40,7 @@ const DurationChips: React.FC<DurationChipsProps> = ({
             tone="primary"
             active={active}
             disabled={disabled}
+            shape="soft"
             onClick={() => !disabled && onChange(opt.months)}
             className={local.durationChip}
           >

@@ -1,17 +1,17 @@
 // src/components/MainDashboard/SuperAdminShell.tsx
-import React from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { useIsMobile } from '../../hooks/useIsMobile';
-import DashboardShell, { NavItem } from '../Dashboard/DashboardShell';
+import React from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useIsMobile } from "../../hooks/useIsMobile";
+import DashboardShell, { NavItem } from "../Dashboard/DashboardShell";
 import MobileDashboardShell, {
   MobileNavItem,
   KebabItem,
-} from '../Dashboard/MobileDashboardShell';
-import AdminNotificationsDrawer from '../Header/AdminNotificationsDrawer';
-import ContactAdminModal from '../Auth/ContactAdminModal';
-import LoginModal from '../Auth/LoginModal';
-import DashboardSkeleton from '../DashboardSkeleton/DashboardSkeleton';
-import { authService } from '../../services/auth.service';
+} from "../Dashboard/MobileDashboardShell";
+import AdminNotificationsDrawer from "../Header/AdminNotificationsDrawer";
+import ContactAdminModal from "../Auth/ContactAdminModal";
+import LoginModal from "../Auth/LoginModal";
+import DashboardSkeleton from "../DashboardSkeleton/DashboardSkeleton";
+import { authService } from "../../services/auth.service";
 import {
   StoreIcon,
   StarIcon,
@@ -20,34 +20,35 @@ import {
   PowerIcon,
   InfoIcon as SupportIcon,
   InfoIcon,
-} from '../../assets/svgs';
-import shell from '../Dashboard/DashboardShell.module.scss';
+} from "../../assets/svgs";
+import shell from "../Dashboard/DashboardShell.module.scss";
+import { IconButton } from "../ui";
 
-const ADMIN_EMAIL = 'ContactDozzelo@gmail.com';
+const ADMIN_EMAIL = "ContactDozzelo@gmail.com";
 const LOGO_URL =
-  'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png';
+  "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png";
 
 const SECTION_PAGE: Record<string, string> = {
-  stores: 'superadmin-store.html',
-  reviews: 'superadmin-reviews.html',
-  plans: 'superadmin-plans.html',
-  revenue: 'superadmin-revenue.html',
-  settings: 'superadmin-settings.html',
+  stores: "superadmin-store.html",
+  reviews: "superadmin-reviews.html",
+  plans: "superadmin-plans.html",
+  revenue: "superadmin-revenue.html",
+  settings: "superadmin-settings.html",
 };
 
 const navigateTo = (page: string) => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
   window.location.href = `${window.location.origin}${dir}${page}`;
 };
 
 const handleLogout = () => {
-  if (!window.confirm('Log out?')) return;
+  if (!window.confirm("Log out?")) return;
   authService.logout();
-  navigateTo('');
+  navigateTo("");
   window.location.href = `${window.location.origin}/`;
 };
 
-type Accent = 'green' | 'blue' | 'amber' | 'purple' | 'rose' | 'teal';
+type Accent = "green" | "blue" | "amber" | "purple" | "rose" | "teal";
 
 interface CardDef {
   key: string;
@@ -71,7 +72,7 @@ const SuperAdminShell: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <>
-        <div style={{ minHeight: '100vh', background: '#f8fafc' }} />
+        <div style={{ minHeight: "100vh", background: "#f8fafc" }} />
         <LoginModal isOpen={true} onClose={() => {}} forceOpen={true} />
       </>
     );
@@ -79,11 +80,11 @@ const SuperAdminShell: React.FC = () => {
   if (!user?.isPlatformAdmin) {
     return (
       <div
-        style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
+        style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: "center" }}>
           <h2>Not authorized</h2>
-          <p style={{ color: '#666' }}>Platform administrators only.</p>
+          <p style={{ color: "#666" }}>Platform administrators only.</p>
         </div>
       </div>
     );
@@ -91,32 +92,32 @@ const SuperAdminShell: React.FC = () => {
 
   const navItems: NavItem[] = [
     {
-      key: 'stores',
-      label: 'Stores',
+      key: "stores",
+      label: "Stores",
       icon: <StoreIcon width={22} height={22} fill="currentColor" />,
       render: () => null,
     },
     {
-      key: 'reviews',
-      label: 'Reviews',
+      key: "reviews",
+      label: "Reviews",
       icon: <StarIcon width={22} height={22} fill="currentColor" />,
       render: () => null,
     },
     {
-      key: 'plans',
-      label: 'Plans',
+      key: "plans",
+      label: "Plans",
       icon: <Special width={22} height={22} />,
       render: () => null,
     },
     {
-      key: 'revenue',
-      label: 'Revenue',
+      key: "revenue",
+      label: "Revenue",
       icon: <InfoIcon width={22} height={22} fill="currentColor" />,
       render: () => null,
     },
     {
-      key: 'settings',
-      label: 'Settings',
+      key: "settings",
+      label: "Settings",
       icon: <UsersIcon width={22} height={22} fill="currentColor" />,
       render: () => null,
     },
@@ -130,56 +131,56 @@ const SuperAdminShell: React.FC = () => {
 
   const cardDefs: CardDef[] = [
     {
-      key: 'stores',
-      label: 'Stores',
-      description: 'Manage tenants & access',
+      key: "stores",
+      label: "Stores",
+      description: "Manage tenants & access",
       icon: <StoreIcon width={20} height={20} fill="#ffffff" />,
-      accent: 'green',
+      accent: "green",
       visible: true,
-      target: 'stores',
+      target: "stores",
     },
     {
-      key: 'reviews',
-      label: 'Reviews',
-      description: 'Moderate & view feedback',
+      key: "reviews",
+      label: "Reviews",
+      description: "Moderate & view feedback",
       icon: <StarIcon width={20} height={20} fill="#ffffff" />,
-      accent: 'rose',
+      accent: "rose",
       visible: true,
-      target: 'reviews',
+      target: "reviews",
     },
     {
-      key: 'plans',
-      label: 'Plans',
-      description: 'Enable or disable globally',
+      key: "plans",
+      label: "Plans",
+      description: "Enable or disable globally",
       icon: <Special width={20} height={20} />,
-      accent: 'purple',
+      accent: "purple",
       visible: true,
-      target: 'plans',
+      target: "plans",
     },
     {
-      key: 'revenue',
-      label: 'Revenue & Billing',
-      description: 'Platform earnings & history',
+      key: "revenue",
+      label: "Revenue & Billing",
+      description: "Platform earnings & history",
       icon: <InfoIcon width={20} height={20} fill="#ffffff" />,
-      accent: 'teal',
+      accent: "teal",
       visible: true,
-      target: 'revenue',
+      target: "revenue",
     },
     {
-      key: 'settings',
-      label: 'Settings',
-      description: 'Global feature toggles',
+      key: "settings",
+      label: "Settings",
+      description: "Global feature toggles",
       icon: <UsersIcon width={20} height={20} fill="#ffffff" />,
-      accent: 'blue',
+      accent: "blue",
       visible: true,
-      target: 'settings',
+      target: "settings",
     },
     {
-      key: 'support',
-      label: 'Contact Support',
-      description: 'Reach out to our team',
+      key: "support",
+      label: "Contact Support",
+      description: "Reach out to our team",
       icon: <SupportIcon width={20} height={20} fill="#ffffff" />,
-      accent: 'amber',
+      accent: "amber",
       visible: true,
       onClick: () => setSupportOpen(true),
     },
@@ -190,7 +191,9 @@ const SuperAdminShell: React.FC = () => {
   const greetingContent = (
     <div className={shell.welcome}>
       <div className={shell.welcomeHead}>
-        <h1>Welcome back, <span>{user?.name}</span></h1>
+        <h1>
+          Welcome back, <span>{user?.name}</span>
+        </h1>
         <p>Pick a section to get started.</p>
       </div>
 
@@ -216,23 +219,23 @@ const SuperAdminShell: React.FC = () => {
 
   const notificationsSlot = (
     <AdminNotificationsDrawer
-      onOpenDispute={() => navigateTo('superadmin-reviews.html')}
+      onOpenDispute={() => navigateTo("superadmin-reviews.html")}
     />
   );
 
   const kebabItems: KebabItem[] = [
     {
-      kind: 'action',
-      key: 'settings',
-      label: 'Global Settings',
+      kind: "action",
+      key: "settings",
+      label: "Global Settings",
       icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
-      onClick: () => navigateTo('superadmin-settings.html'),
+      onClick: () => navigateTo("superadmin-settings.html"),
     },
-    { kind: 'divider' },
+    { kind: "divider" },
     {
-      kind: 'action',
-      key: 'logout',
-      label: 'Logout',
+      kind: "action",
+      key: "logout",
+      label: "Logout",
       icon: <PowerIcon width={18} height={18} fill="#a62d2d" />,
       onClick: handleLogout,
     },
@@ -286,25 +289,23 @@ const SuperAdminShell: React.FC = () => {
         }}
         onAdd={null}
         footer={{
-          notifications: notificationsSlot,
-          logout: (
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Logout"
-              style={{
-                width: 40,
-                height: 40,
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                borderRadius: 8,
-              }}
-            >
-              <PowerIcon width={20} height={20} fill="#a62d2d" />
-            </button>
-          ),
-        }}
+  notifications: notificationsSlot,
+  kebabItems: [
+    {
+      key: 'settings',
+      label: 'Global Settings',
+      icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
+      onClick: () => navigateTo('superadmin-settings.html'),
+    },
+    {
+      key: 'logout',
+      label: 'Logout',
+      icon: <PowerIcon width={18} height={18} fill="#a62d2d" />,
+      tone: 'danger' as const,
+      onClick: handleLogout,
+    },
+  ],
+}}
       />
       {supportOpen && (
         <ContactAdminModal

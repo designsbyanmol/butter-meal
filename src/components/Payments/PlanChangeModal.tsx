@@ -9,6 +9,7 @@ import InvoiceModal from './InvoiceModal';
 import BillingToggle from './BillingToggle';
 import DurationChips from './DurationChips';
 import PlanCard from './PlanCard';
+import planCardLocal from './PlanCard.module.scss';
 import local from './PlanChangeModal.module.scss';
 
 interface PlanChangeModalProps {
@@ -198,8 +199,8 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         {quote
           ? taxedTotal <= 0
             ? 'Apply Free Change'
-            : `Generate Invoice . ${formatRupees(taxedTotal)}`
-          : 'Generate Invoice'}
+            : `Pay . ${formatRupees(taxedTotal)}`
+          : 'Pay Now'}
       </Button>
     </>
   );
@@ -210,7 +211,7 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={mode === 'admin' ? 'Change Plan' : 'Change / Renew Plan'}
-        size="md"
+        size="lg"
         mobileFullScreen
         disableBackdropClose={true}
         footer={footerCta}
@@ -236,19 +237,19 @@ const PlanChangeModal: React.FC<PlanChangeModalProps> = ({
             <div className={local.planGrid}>
                             {plans.map((plan) => (
                 <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  months={months}
-                  selected={plan.id === selectedPlanId}
-                  featured={plan.id === 'professional'}
-                  blue={plan.id === 'dynamic'}
-                  cornerTag={
-                    plan.id === currentPlanId ? (
-                      <div className={local.cornerTag}>Current</div>
-                    ) : undefined
-                  }
-                  onSelect={() => setSelectedPlanId(plan.id)}
-                />
+  key={plan.id}
+  plan={plan}
+  months={months}
+  selected={plan.id === selectedPlanId}
+  featured={plan.id === 'professional'}
+  blue={plan.id === 'dynamic'}
+  cornerTag={
+    plan.id === currentPlanId ? (
+      <div className={planCardLocal.cornerTag}>Current</div>
+    ) : undefined
+  }
+  onSelect={() => setSelectedPlanId(plan.id)}
+/>
               ))}
             </div>
             <p className={local.renewNote}>

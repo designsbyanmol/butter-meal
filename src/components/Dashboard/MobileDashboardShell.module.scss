@@ -95,6 +95,10 @@
   padding: 0;
 }
 
+.section {
+  padding: 0;
+}
+
 /* =========================================================
    Bottom nav
    ========================================================= */
@@ -159,10 +163,6 @@
   font-weight: 700;
   letter-spacing: 0.1px;
   line-height: 1.15;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* =========================================================

@@ -9,7 +9,7 @@ import React, {
 import { Drawer, EmptyState, ConfirmDialog } from '../ui';
 import { supabaseService } from '../../services/supabase.service';
 import { useTenant } from '../../contexts/TenantContext';
-import { MenuIcon } from '../../assets/svgs';
+import { RecieptIcon } from '../../assets/svgs';
 import { DineinEvent } from '../../types';
 import local from './DineinNotificationsDrawer.module.scss';
 
@@ -40,8 +40,8 @@ const formatNotifTime = (iso: string): string => {
     hour12: true,
   });
 
-  if (d >= startOfToday) return `Today · ${time}`;
-  if (d >= startOfYesterday) return `Yesterday · ${time}`;
+  if (d >= startOfToday) return `Today - ${time}`;
+  if (d >= startOfYesterday) return `Yesterday - ${time}`;
 
   const sameYear = d.getFullYear() === now.getFullYear();
   const dateStr = d.toLocaleDateString('en-IN', {
@@ -49,7 +49,7 @@ const formatNotifTime = (iso: string): string => {
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
-  return `${dateStr} · ${time}`;
+  return `${dateStr} - ${time}`;
 };
 
 const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
@@ -231,7 +231,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
         const count = (payload as any).itemCount ?? 0;
         return (
           <>
-            Order placed from <strong>Table {ev.tableLabel}</strong> · {name}{' '}
+            Order placed from <strong>Table {ev.tableLabel}</strong> - {name}{' '}
             placed {count} item{count === 1 ? '' : 's'}
           </>
         );
@@ -268,7 +268,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
         }
         title="Dine-in notifications"
       >
-        <MenuIcon width={20} height={20} color="#1e1e1e" />
+        <RecieptIcon width={20} height={20} fill="#1e1e1e" />
         {unreadCount > 0 && (
           <span className={local.badge}>
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -304,7 +304,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
           <EmptyState title="Loading notifications..." />
         ) : items.length === 0 ? (
           <EmptyState
-            icon={<MenuIcon width={36} height={36} color="#e6ded7" />}
+            icon={<RecieptIcon width={36} height={36} fill="#e6ded7" />}
             title="No notifications yet"
             description="New orders, bill requests, and ratings will show up here."
           />

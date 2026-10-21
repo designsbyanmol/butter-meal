@@ -334,7 +334,7 @@ const CustomerOrderStatus: React.FC = () => {
   const stageLine = (() => {
     switch (order.status) {
       case "placed":
-        return `Waiting · ${formatElapsed(elapsedSec)}`;
+        return `Waiting - ${formatElapsed(elapsedSec)}`;
       case "accepted":
         return `Accepted in ${formatElapsed(timeToAcceptSec)}`;
       case "preparing":
@@ -862,7 +862,7 @@ const CustomerOrderStatus: React.FC = () => {
                   <div className={local.sheetRowCustom}>
                     {Object.entries(it.customizations)
                       .map(([k, v]) => `${k}: ${v}`)
-                      .join(" · ")}
+                      .join(" - ")}
                   </div>
                 )}
 

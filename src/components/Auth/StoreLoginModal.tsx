@@ -76,6 +76,7 @@ const StoreLoginModal: React.FC<StoreLoginModalProps> = ({
       title="Store Login"
       size="md"
       mobileFullScreen
+      disableBackdropClose={true}
     >
       <div className={local.storeLoginBody}>
         {error && (

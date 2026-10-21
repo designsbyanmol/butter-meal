@@ -196,7 +196,7 @@ const CartModal: React.FC<CartModalProps> = ({
                   ) : isSchedule ? (
                     <>
                       <ClockIcon width={12} height={12} fill="#c0392b" />
-                      <span>Scheduled orders: Prepaid only · Non-refundable · Reminder sent 1hr before</span>
+                      <span>Scheduled orders: Prepaid only - Non-refundable - Reminder sent 1hr before</span>
                     </>
                   ) : null}
                 </div>

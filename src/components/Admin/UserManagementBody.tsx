@@ -204,14 +204,14 @@ const UserManagementBody: React.FC<UserManagementBodyProps> = ({ onClose: _onClo
   return (
     <>
       <InlineSection
-        title="Users"
+        title="Staff"
         actions={
           <Button
             size="sm"
             leftIcon={<PlusIcon width={16} height={16} fill="#fff" />}
             onClick={() => setShowCreate(true)}
           >
-            Add User
+            Add Staff
           </Button>
         }
       >

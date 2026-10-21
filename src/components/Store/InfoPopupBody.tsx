@@ -473,7 +473,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
               <div className={local.labelRow}>
                 <span className={local.label}>Plan</span>
                 <span className={local.defaultPill}>
-                  {tenant.planName ?? "Professional"} ·{" "}
+                  {tenant.planName ?? "Professional"} -{" "}
                   {planStatus.toUpperCase()}
                 </span>
               </div>
@@ -735,6 +735,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
         onClose={cancelPendingToggle}
         mobileFullScreen
         title={confirmTitle}
+        disableBackdropClose={true}
         size="sm"
         overlayZIndex={1300}
         footer={
@@ -871,6 +872,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
       <Modal
         isOpen={!!activeFieldDef}
         onClose={closeEditor}
+        disableBackdropClose={true}
         title={activeFieldDef ? `Edit ${activeFieldDef.label}` : ""}
         size="sm"
         footer={
@@ -971,6 +973,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
         }}
         title="Store Avatar"
         size="sm"
+        disableBackdropClose={true}
         mobileFullScreen
         footer={
           <>

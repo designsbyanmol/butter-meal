@@ -54,8 +54,8 @@ const formatNotifTime = (iso: string): string => {
     hour12: true,
   });
 
-  if (d >= startOfToday) return `Today · ${time}`;
-  if (d >= startOfYesterday) return `Yesterday · ${time}`;
+  if (d >= startOfToday) return `Today - ${time}`;
+  if (d >= startOfYesterday) return `Yesterday - ${time}`;
 
   const sameYear = d.getFullYear() === now.getFullYear();
   const dateStr = d.toLocaleDateString('en-IN', {
@@ -63,7 +63,7 @@ const formatNotifTime = (iso: string): string => {
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
-  return `${dateStr} · ${time}`;
+  return `${dateStr} - ${time}`;
 };
 
 export const DisputeNotificationsDrawer: React.FC<

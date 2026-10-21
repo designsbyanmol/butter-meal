@@ -15,10 +15,18 @@ export type ChipTone =
   | 'danger'
   | 'info';
 
+export type ChipShape =
+  | 'pill'      // fully rounded — default
+  | 'rounded'   // 8px corners
+  | 'soft'      // 6px corners (subtle rounding)
+  | 'square';   // 0px corners
+
 export interface ChipProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   tone?: ChipTone;
   active?: boolean;
+  /** Border-radius preset. Default `pill`. */
+  shape?: ChipShape;
   /** Render as a plain span instead of a button (non-clickable). */
   as?: 'button' | 'span';
 }
@@ -26,6 +34,7 @@ export interface ChipProps
 const Chip: React.FC<ChipProps> = ({
   tone = 'neutral',
   active,
+  shape = 'pill',
   as = 'button',
   className,
   children,
@@ -34,6 +43,7 @@ const Chip: React.FC<ChipProps> = ({
   const classes = [
     styles.chip,
     styles[tone],
+    styles[`shape_${shape}`],
     active ? styles.active : '',
     className ?? '',
   ]

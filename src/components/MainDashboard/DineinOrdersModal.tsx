@@ -1,16 +1,16 @@
-// components/MainDashboard/DineinOrdersModal.tsx
+// src/components/MainDashboard/DineinOrdersModal.tsx
 import React from 'react';
 import { Modal } from '../ui';
 import DineinOrdersModalBody from './DineinOrdersModalBody';
 
-interface Props {
+interface DineinOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
   focusOrderId?: string | null;
   mode?: 'admin' | 'staff';
 }
 
-const DineinOrdersModal: React.FC<Props> = ({
+const DineinOrdersModal: React.FC<DineinOrdersModalProps> = ({
   isOpen,
   onClose,
   focusOrderId = null,
@@ -19,7 +19,7 @@ const DineinOrdersModal: React.FC<Props> = ({
   <Modal
     isOpen={isOpen}
     onClose={onClose}
-    title={mode === 'staff' ? 'Orders' : 'Orders'}
+    title={mode === 'staff' ? 'Active Orders' : 'Order Placed'}
     mobileFullScreen
     disableBackdropClose={true}
     size="xl"

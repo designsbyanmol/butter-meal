@@ -1,6 +1,13 @@
 // src/components/Dashboard/DashboardShell.tsx
 import React, { useEffect, useMemo } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import {
+  DropdownMenu,
+  DropdownItem,
+  DropdownDivider,
+  IconButton,
+} from '../ui';
+import { KebabIcon } from '../../assets/svgs';
 import local from './DashboardShell.module.scss';
 
 export interface NavItem {
@@ -12,11 +19,18 @@ export interface NavItem {
   badge?: React.ReactNode;
 }
 
+export interface KebabMenuItem {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  tone?: 'default' | 'danger';
+  onClick: () => void;
+}
+
 export interface SidebarFooterSlot {
   notifications?: React.ReactNode;
-  avatar?: React.ReactNode;
-  /** Rendered at the TOP of the sidebar (top-left of the shell). */
-  logout?: React.ReactNode;
+  /** Menu items shown in the kebab dropdown (avatar/info, logout, etc.). */
+  kebabItems?: KebabMenuItem[];
 }
 
 interface DashboardShellProps {
@@ -56,11 +70,9 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
 
   useEffect(() => {
     if (!activeKey) return;
-
     const listedItem = items.find((i) => i.key === activeKey);
     const wasListed = listedItem?.visible !== false;
     const stillVisible = visibleItems.some((i) => i.key === activeKey);
-
     if (wasListed && !stillVisible) {
       onActiveKeyChange('');
     }
@@ -69,13 +81,12 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
 
   if (isMobile) return null;
 
+  const kebabItems = footer.kebabItems ?? [];
+  const hasKebab = kebabItems.length > 0;
+
   return (
     <div className={local.shell}>
       <aside className={local.sidebar}>
-        {footer.logout && (
-          <div className={local.topActions}>{footer.logout}</div>
-        )}
-
         <div
           className={local.logo}
           onClick={onLogoClick}
@@ -118,29 +129,66 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
         </nav>
 
         <div className={local.footer}>
-          {onAdd && (
-            <button
-              type="button"
-              className={local.addBtn}
-              onClick={onAdd}
-              aria-label="Add"
-            >
-              +
-            </button>
-          )}
 
           {footer.notifications && (
             <div className={local.footerSlot}>{footer.notifications}</div>
           )}
-          {footer.avatar && (
-            <div className={local.footerSlot}>{footer.avatar}</div>
+
+          {hasKebab && (
+            <div className={local.footerSlot}>
+              <DropdownMenu
+                align="left"
+                minWidth={200}
+                className={local.sidebarKebabMenu}
+                trigger={({ toggle }) => (
+                  <IconButton
+                    variant="ghost"
+                    size="md"
+                    aria-label="Open menu"
+                    tooltip="More options"
+                    onClick={toggle}
+                  >
+                    <KebabIcon width={20} height={20} fill="currentColor" />
+                  </IconButton>
+                )}
+              >
+                {({ close }) =>
+                  kebabItems.map((item, idx) => (
+                    <React.Fragment key={item.key}>
+                      {idx > 0 && item.tone === 'danger' && (
+                        <DropdownDivider />
+                      )}
+                      <DropdownItem
+                        tone={item.tone}
+                        onClick={() => {
+                          close();
+                          item.onClick();
+                        }}
+                      >
+                        {item.icon ? (
+                          <span className={local.kebabItemRow}>
+                            <span className={local.kebabItemIcon}>
+                              {item.icon}
+                            </span>
+                            <span className={local.kebabItemLabel}>
+                              {item.label}
+                            </span>
+                          </span>
+                        ) : (
+                          item.label
+                        )}
+                      </DropdownItem>
+                    </React.Fragment>
+                  ))
+                }
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </aside>
 
       <main className={local.main}>
         {topBar && <div className={local.topBar}>{topBar}</div>}
-
         <div className={local.body}>
           {activeItem ? (
             <div className={local.section}>{activeItem.render()}</div>

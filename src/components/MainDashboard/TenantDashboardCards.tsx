@@ -14,7 +14,7 @@ import {
   EditIcon,
   StarIcon,
 } from '../../assets/svgs';
-import { UtensilsIcon as OrdersIcon } from '../../assets/svgs';
+import { RecieptIcon as OrdersIcon } from '../../assets/svgs';
 import DineinOrdersModal from './DineinOrdersModal';
 import local from './TenantDashboardCards.module.scss';
 

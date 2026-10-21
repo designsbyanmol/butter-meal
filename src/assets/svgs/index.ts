@@ -41,3 +41,4 @@ export { default as NewIcon } from './NewIcon';
 export { default as PopularIcon } from './PopularIcon';
 export { default as LimitedIcon } from './LimitedIcon';
 export { default as KebabIcon } from './KebabIcon';
+export { default as RecieptIcon } from './RecieptIcon';

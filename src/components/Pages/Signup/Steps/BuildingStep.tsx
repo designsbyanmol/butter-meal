@@ -48,7 +48,7 @@ const BuildingStep: React.FC<BuildingStepProps> = ({
           size="lg"
           label={
             <>
-              {pct}% · {Math.max(0, seconds - elapsed)}s remaining
+              {pct}% - {Math.max(0, seconds - elapsed)}s remaining
             </>
           }
         />

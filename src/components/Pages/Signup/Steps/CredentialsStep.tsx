@@ -99,7 +99,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
         <div className={local.credRow}>
           <div className={local.credLabel}>Plan</div>
           <div className={local.credValue}>
-            {planName} · {months} month{months > 1 ? 's' : ''}
+            {planName} - {months} month{months > 1 ? 's' : ''}
           </div>
         </div>
 

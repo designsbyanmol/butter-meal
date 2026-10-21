@@ -37,6 +37,7 @@ const ContactAdminModal: React.FC<ContactAdminModalProps> = ({
       onClose={onClose}
       size="sm"
       mobileFullScreen
+      disableBackdropClose={true}
       title="Contact Admin"
     >
       <div className={local.contactBody}>

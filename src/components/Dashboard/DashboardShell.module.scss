@@ -1,6 +1,6 @@
 // src/components/Dashboard/DashboardShell.module.scss
-@use '../../styles/tokens' as *;
-@use '../../styles/mixins' as *;
+@use "../../styles/tokens" as *;
+@use "../../styles/mixins" as *;
 
 .shell {
   display: grid;
@@ -22,7 +22,6 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: hidden;
 }
 
 /* Top-of-sidebar cluster (logout + future actions). */
@@ -55,7 +54,6 @@
   height: 32px;
   margin-bottom: 22px;
   flex-shrink: 0;
-  overflow: hidden;
 
   img {
     width: 100%;
@@ -71,12 +69,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
   scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .navItem {
@@ -86,19 +84,46 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: 56px;
-  padding: 8px 4px;
+  padding: 8px;
   border: none;
   background: transparent;
   border-radius: $radius-md;
   cursor: pointer;
   font-family: inherit;
   color: $text-muted;
-  transition: background $t-fast, color $t-fast;
+  transition:
+    background $t-fast,
+    color $t-fast;
+    position: relative;
+
+  .navLabel {
+    position: absolute;
+    top: 9px;
+    left: 40px;
+    opacity: 0;
+    height: 0;
+    width: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    text-align: center;
+    line-height: 1.15;
+    background: $white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    box-shadow: $shadow-md;
+    transition: opacity 0.2s linear;
+    white-space: nowrap;
+  }
 
   &:hover {
     background: $bg-subtle;
     color: $text;
+    .navLabel {
+      opacity: 1;
+      width: auto;
+      height: auto;
+    }
   }
 }
 
@@ -118,18 +143,6 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-}
-
-.navLabel {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  text-align: center;
-  line-height: 1.15;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .navBadge {
@@ -155,7 +168,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   padding-top: 12px;
   margin-top: 8px;
   border-top: 1px solid $border-soft;
@@ -178,7 +191,9 @@
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba($primary, 0.3);
-  transition: background $t-fast, transform $t-fast;
+  transition:
+    background $t-fast,
+    transform $t-fast;
 
   &:hover {
     background: $primary-dark;
@@ -194,12 +209,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   min-width: 40px;
   min-height: 40px;
 
   > button {
-    width: 40px !important;
-    height: 40px !important;
+    width: 32px !important;
+    height: 32px !important;
     border-radius: $radius-md !important;
     background: transparent !important;
 
@@ -243,7 +259,7 @@
 }
 
 .greeting {
-  padding: 8px 4px;
+  padding: 0;
 }
 
 /* =========================================================
@@ -292,7 +308,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 8px 4px 16px;
+  padding: 0;
 
   @include mobile {
     padding: 8px 0 20px;
@@ -368,7 +384,6 @@
     box-shadow: 0 0 0 3px rgba($primary, 0.35);
   }
 
-
   @include mobile {
     padding: 10px;
   }
@@ -406,30 +421,84 @@
 
 /* ---------- Accents ---------- */
 .green {
-  .cardIcon { background: linear-gradient(135deg, $primary-500, $primary-700); }
-  &:hover { border-color: rgba($primary-500, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, $primary-500, $primary-700);
+  }
+  &:hover {
+    border-color: rgba($primary-500, 0.4);
+  }
 }
 .blue {
-  .cardIcon { background: linear-gradient(135deg, $blue-500, $blue-700); }
-  &:hover { border-color: rgba($blue-500, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, $blue-500, $blue-700);
+  }
+  &:hover {
+    border-color: rgba($blue-500, 0.4);
+  }
 }
 .amber {
-  .cardIcon { background: linear-gradient(135deg, $amber-400, $amber-600); }
-  &:hover { border-color: rgba($amber-500, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, $amber-400, $amber-600);
+  }
+  &:hover {
+    border-color: rgba($amber-500, 0.4);
+  }
 }
 .purple {
-  .cardIcon { background: linear-gradient(135deg, $purple-400, $purple-600); }
-  &:hover { border-color: rgba($purple-500, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, $purple-400, $purple-600);
+  }
+  &:hover {
+    border-color: rgba($purple-500, 0.4);
+  }
 }
 .rose {
-  .cardIcon { background: linear-gradient(135deg, #f87171, #b91c1c); }
-  &:hover { border-color: rgba(#ef4444, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, #f87171, #b91c1c);
+  }
+  &:hover {
+    border-color: rgba(#ef4444, 0.4);
+  }
 }
 .teal {
-  .cardIcon { background: linear-gradient(135deg, #14b8a6, #0f766e); }
-  &:hover { border-color: rgba(#14b8a6, 0.4); }
+  .cardIcon {
+    background: linear-gradient(135deg, #14b8a6, #0f766e);
+  }
+  &:hover {
+    border-color: rgba(#14b8a6, 0.4);
+  }
 }
 
 @include tablet(900px) {
-  .shell { display: none; }
+  .shell {
+    display: none;
+  }
+}
+
+/* ---------- Kebab menu in the sidebar footer ---------- */
+.sidebarKebabMenu {
+  top: auto !important;
+  bottom: calc(100% + 6px) !important;
+}
+
+.kebabItemRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.kebabItemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.kebabItemLabel {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }

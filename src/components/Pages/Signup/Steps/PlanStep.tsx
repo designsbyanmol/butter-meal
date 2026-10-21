@@ -306,7 +306,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
           <RazorpayCheckout
             amount={breakdown.finalAmount}
             invoiceId={invoiceId}
-            description={`${selectedPlan.name} plan · ${breakdown.months} months`}
+            description={`${selectedPlan.name} plan - ${breakdown.months} months`}
             prefillName={details.ownerName}
             prefillContact={details.ownerPhone}
             action="signup"

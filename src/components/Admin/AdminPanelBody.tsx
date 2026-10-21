@@ -855,7 +855,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
         onClose={() => setIsImportOpen(false)}
         onComplete={(result) => {
           showSuccess(
-            `Imported ${result.added} new · replaced ${result.replaced}.`,
+            `Imported ${result.added} new - replaced ${result.replaced}.`,
             2500,
           );
         }}
@@ -866,6 +866,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
           key={`add-item-${schemaVersion}`}
           isOpen={isAddingNew}
           onClose={handleCancelNewItem}
+          disableBackdropClose={true}
           title={`Add New ${labels.item}`}
           mobileFullScreen
           size="lg"
@@ -960,6 +961,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
           isOpen={!!editingItem}
           onClose={handleCancelEdit}
           mobileFullScreen
+          disableBackdropClose={true}
           title={`Edit ${labels.item}`}
           size="lg"
           footer={

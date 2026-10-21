@@ -1,4 +1,4 @@
-// components/Admin/ImageUpload.module.scss
+// src/components/Admin/ImageUpload.module.scss
 @use '../../styles/tokens' as *;
 @use '../../styles/mixins' as *;
 
@@ -14,6 +14,9 @@
   margin-bottom: 6px;
 }
 
+/* -------------------------------------------------------------
+ * Single-image area
+ * ------------------------------------------------------------- */
 .area {
   border: 1.5px dashed $border;
   border-radius: $radius;
@@ -31,7 +34,9 @@
   }
 }
 
-.hiddenFile { display: none; }
+.hiddenFile {
+  display: none;
+}
 
 .placeholder {
   display: flex;
@@ -57,7 +62,9 @@
   color: $text-faint;
 }
 
-// ---------- Single preview ----------
+/* -------------------------------------------------------------
+ * Single preview
+ * ------------------------------------------------------------- */
 .singlePreview {
   position: relative;
   width: 100%;
@@ -89,7 +96,9 @@
   }
 }
 
-// ---------- URL input ----------
+/* -------------------------------------------------------------
+ * URL input
+ * ------------------------------------------------------------- */
 .urlInputContainer {
   width: 100%;
   display: flex;
@@ -106,7 +115,9 @@
   font-family: inherit;
   transition: border-color $t-fast, box-shadow $t-fast;
 
-  &:focus { @include focus-ring; }
+  &:focus {
+    @include focus-ring;
+  }
 }
 
 .urlActions {
@@ -115,7 +126,9 @@
   justify-content: center;
 }
 
-// ---------- Progress ----------
+/* -------------------------------------------------------------
+ * Progress
+ * ------------------------------------------------------------- */
 .progressWrap {
   margin-top: 10px;
   display: flex;
@@ -146,7 +159,9 @@
   font-weight: 500;
 }
 
-// ---------- Multi-image grid ----------
+/* -------------------------------------------------------------
+ * Multi-image grid
+ * ------------------------------------------------------------- */
 .multiCount {
   font-size: 12px;
   font-weight: 600;
@@ -202,7 +217,9 @@
   transition: opacity $t-fast;
 }
 
-.tile:hover .tileActions { opacity: 1; }
+.tile:hover .tileActions {
+  opacity: 1;
+}
 
 .tileBtn {
   background: rgba(0, 0, 0, 0.55) !important;
@@ -210,7 +227,9 @@
   width: 24px !important;
   height: 24px !important;
 
-  &:hover { background: rgba(0, 0, 0, 0.75) !important; }
+  &:hover {
+    background: rgba(0, 0, 0, 0.75) !important;
+  }
 }
 
 .tileArrow {
@@ -226,7 +245,9 @@
   height: 24px !important;
   margin-left: auto;
 
-  &:hover { background: $red-700 !important; }
+  &:hover {
+    background: $red-700 !important;
+  }
 }
 
 .addTile {
@@ -248,7 +269,10 @@
     background: $primary-tint;
   }
 
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .addPlus {
@@ -277,6 +301,10 @@
 }
 
 @include mobile {
-  .singlePreview { max-width: 180px; }
-  .multiGrid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+  .singlePreview {
+    max-width: 180px;
+  }
+  .multiGrid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  }
 }
