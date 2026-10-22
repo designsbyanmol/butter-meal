@@ -28,7 +28,7 @@ const SkeletonCard: React.FC = () => (
     </div>
     <div className={local.cardFooter}>
       <Skeleton width={60} height={16} />
-      <Skeleton width={72} height={32} radius="md" />
+      <Skeleton width={44} height={22} radius="md" />
     </div>
   </div>
 );

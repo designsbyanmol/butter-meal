@@ -1,4 +1,4 @@
-// components/Admin/CustomizationEditor.tsx
+// src/components/Admin/CustomizationEditor.tsx
 import React from 'react';
 import { CustomizationOption } from '../../types';
 import { Button, IconButton, Input, FormField, Select } from '../ui';
@@ -80,7 +80,6 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
     onChange(next);
   };
 
-  // -------- Default option picker --------
   const buildDefaultOptions = (option: CustomizationOption) => [
     { value: '', label: '- None -' },
     ...option.choices
@@ -122,7 +121,9 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
               <FormField label={`Option #${optIdx + 1} Name`}>
                 <Input
                   value={option.name}
-                  onChange={(e) => updateOptionName(optIdx, e.target.value)}
+                  onChange={(e) =>
+                    updateOptionName(optIdx, e.target.value)
+                  }
                   placeholder="e.g., Sauce, Size, Add-ons"
                   inputSize="sm"
                 />
@@ -149,14 +150,11 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
                         type="number"
                         value={choice.price || ''}
                         onFocus={(e) => {
-                          // Blank the visible "0" so the user can type
-                          // straight in. Model value stays 0 until typing.
                           if (choice.price === 0) {
                             e.currentTarget.value = '';
                           }
                         }}
                         onBlur={(e) => {
-                          // If left empty, snap back to 0 in the model.
                           if (e.currentTarget.value.trim() === '') {
                             updateChoice(optIdx, choiceIdx, 'price', 0);
                           }
@@ -180,9 +178,15 @@ const CustomizationEditor: React.FC<CustomizationEditorProps> = ({
                         size="sm"
                         aria-label="Remove choice"
                         disabled={option.choices.length <= 1}
-                        onClick={() => removeChoice(optIdx, choiceIdx)}
+                        onClick={() =>
+                          removeChoice(optIdx, choiceIdx)
+                        }
                       >
-                        <CloseIcon width={16} height={16} fill="#a62d2d" />
+                        <CloseIcon
+                          width={16}
+                          height={16}
+                          fill="#a62d2d"
+                        />
                       </IconButton>
                     </div>
                   ))}

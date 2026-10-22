@@ -1,4 +1,4 @@
-// components/Admin/ImportMenuListModal.tsx
+// src/components/Admin/ImportMenuListModal.tsx
 import React, { useRef, useState } from 'react';
 import { Modal, Button, Banner, Badge } from '../ui';
 import { menuService } from '../../services/menu.service';
@@ -58,7 +58,6 @@ const ImportMenuListModal: React.FC<ImportMenuListModalProps> = ({
         return;
       }
       setPending(preview);
-      // Default: replace everything.
       setReplacements(
         new Set(preview.existingItems.map((e) => e.existing.name)),
       );
@@ -129,7 +128,6 @@ const ImportMenuListModal: React.FC<ImportMenuListModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Import Menu List"
-      disableBackdropClose={true}
       size="md"
       mobileFullScreen
       footer={footer}
@@ -212,7 +210,7 @@ const ImportMenuListModal: React.FC<ImportMenuListModalProps> = ({
                           {replacing ? 'Replace' : 'Skip'}
                         </Badge>
                         <Button
-                          size="xs"
+                          size="sm"
                           variant={replacing ? 'ghost' : 'secondary'}
                           onClick={() => toggleReplace(e.existing.name)}
                           disabled={isBusy}

@@ -15,7 +15,7 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
       <div className={local.eyebrowRow}>
         <Badge tone="primary" size="md">Direct Launch</Badge>
         <span className={local.eyebrowText}>
-          No app downloads . Works on any phone
+          No app downloads - Works on any phone
         </span>
       </div>
 

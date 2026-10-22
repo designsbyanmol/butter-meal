@@ -6,7 +6,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useWishlist } from '../../hooks/useWishlist';
 import { usePlan } from '../../hooks/usePlan';
 import { Input, IconButton, Chip, Button } from '../ui';
-import { FilterIcon, SearchIcon } from '../../assets/svgs';
+import { CloseIcon, FilterIcon, SearchIcon } from '../../assets/svgs';
 import WishlistIcon from '../../assets/svgs/WishlistIcon';
 import WishlistFilledIcon from '../../assets/svgs/WishlistFilledIcon';
 import MenuFilterPopup from './MenuFilterPopup';
@@ -83,7 +83,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
                   aria-label="Clear search"
                   onClick={() => onChange({ ...filters, search: '' })}
                 >
-                  ✕
+                  <CloseIcon width={14} height={14}/>
                 </IconButton>
               ) : undefined
             }
@@ -134,6 +134,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
         <div className={local.pillRow}>
           <Chip
             tone="primary"
+            shape="soft"
             active={filters.category === null}
             onClick={() => onChange({ ...filters, category: null })}
           >
@@ -143,6 +144,7 @@ const MenuFilters: React.FC<MenuFiltersProps> = ({
             <Chip
               key={c}
               tone="primary"
+              shape="soft"
               active={filters.category === c}
               onClick={() =>
                 onChange({

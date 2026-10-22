@@ -6,8 +6,8 @@ import {
   DropdownItem,
   IconButton,
 } from '../ui';
+import { KebabIcon, HomeIcon } from '../../assets/svgs';
 import local from './MobileDashboardShell.module.scss';
-import { KebabIcon } from '../../assets/svgs';
 
 export interface MobileNavItem {
   key: string;
@@ -38,6 +38,17 @@ interface MobileDashboardShellProps {
   greeting: React.ReactNode;
   kebabItems: KebabItem[];
   notifications?: React.ReactNode;
+  /**
+   * When true, the shell won't auto-reset the active key if it's not
+   * in `navItems`. Use this on pages where `activeKey` refers to a
+   * section that lives outside the bottom nav (e.g., a kebab-only
+   * section like Reviews or Revenue).
+   *
+   * The default (`false`) preserves the original behaviour: if the
+   * current tab gets hidden (e.g., plan downgrade), fall back to the
+   * landing screen.
+   */
+  skipAutoReset?: boolean;
 }
 
 const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
@@ -50,6 +61,7 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
   greeting,
   kebabItems,
   notifications,
+  skipAutoReset = false,
 }) => {
   const visibleItems = useMemo(
     () => navItems.filter((i) => i.visible !== false),
@@ -62,18 +74,25 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
   );
 
   useEffect(() => {
+    if (skipAutoReset) return;
     if (!activeKey) return;
+
     const stillVisible = visibleItems.some((i) => i.key === activeKey);
     const wasListed =
       navItems.find((i) => i.key === activeKey)?.visible !== false;
-    if (wasListed && !stillVisible) onActiveKeyChange('');
+
+    if (wasListed && !stillVisible) {
+      onActiveKeyChange('');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKey, visibleItems, navItems]);
+  }, [activeKey, visibleItems, navItems, skipAutoReset]);
 
   const renderableKebab = useMemo(
     () => kebabItems.filter((k) => k.kind === 'action' || k.kind === 'divider'),
     [kebabItems],
   );
+
+  const isHomeActive = !activeKey;
 
   return (
     <div className={local.page}>
@@ -107,7 +126,7 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
                 aria-label="More options"
                 onClick={toggle}
               >
-                <KebabIcon width={24} height={24} fill='#0f172a'/>
+                <KebabIcon width={24} height={24} fill="#0f172a" />
               </IconButton>
             )}
           >
@@ -153,6 +172,22 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
       </main>
 
       <nav className={local.bottomNav}>
+        {onLogoClick && (
+          <button
+            type="button"
+            className={`${local.navBtn} ${
+              isHomeActive ? local.navBtnActive : ''
+            }`}
+            onClick={onLogoClick}
+            aria-current={isHomeActive ? 'page' : undefined}
+          >
+            <span className={local.navIcon}>
+              <HomeIcon width={20} height={20} fill="currentColor" />
+            </span>
+            <span className={local.navLabel}>Home</span>
+          </button>
+        )}
+
         {visibleItems.map((item) => {
           const isActive = item.key === activeKey;
           return (
@@ -162,9 +197,7 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
               className={`${local.navBtn} ${
                 isActive ? local.navBtnActive : ''
               }`}
-              onClick={() =>
-                onActiveKeyChange(isActive ? '' : item.key)
-              }
+              onClick={() => onActiveKeyChange(isActive ? '' : item.key)}
               aria-current={isActive ? 'page' : undefined}
             >
               <span className={local.navIcon}>{item.icon}</span>

@@ -4,6 +4,7 @@ import { useMenu } from "./hooks/useMenu";
 import { supabaseService } from "./services/supabase.service";
 import { useStore } from "./contexts/StoreContext";
 import { useTenant } from "./contexts/TenantContext";
+import { useCart } from "./hooks/useCart";
 import Menu from "./components/Menu/Menu";
 import BrandInfo from "./components/BrandInfo/BrandInfo";
 import CartModal from "./components/Cart/CartModal";
@@ -12,6 +13,7 @@ import ScheduleModal from "./components/Schedule/ScheduleModal";
 import LocationModal from "./components/Location/LocationModal";
 import MenuDetail from "./components/MenuDetail/MenuDetail";
 import StoreBanner from "./components/Store/StoreBanner";
+import StoreDeactivated from "./components/Store/StoreDeactivated";
 import { ShopInfo } from "./config/credentials";
 import MenuFilters from "./components/Menu/MenuFilters";
 import WishlistPanel from "./components/Menu/WishlistPanel";
@@ -30,14 +32,21 @@ import {
   getAllPendingItems,
   dropCommittedPendingItem,
 } from "./utils/dineinPendingItems";
-import { useCart } from "./hooks/useCart";
 import styles from "./App.module.scss";
 
 const FILTER_LOADER_MS = 2000;
 
 const AppContent: React.FC = () => {
-  const { tenant } = useTenant();
-  const { isStoreOpen, isAcceptingOrders } = useStore();
+  const { tenant, isDeactivated } = useTenant();
+
+  // ← Pull isLoading from the store context so we can gate rendering
+  //   until the open/closed state is known.
+  const {
+    isStoreOpen,
+    isAcceptingOrders,
+    isLoading: storeLoading,
+  } = useStore();
+
   const { visibleItems, items: allItems, loading: menuLoading } = useMenu();
   const plan = usePlan();
 
@@ -87,10 +96,13 @@ const AppContent: React.FC = () => {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [showFilterLoader, setShowFilterLoader] = useState(false);
   const filterLoaderTimerRef = useRef<number | null>(null);
+
   const menuTopRef = useRef<HTMLDivElement | null>(null);
   const isFirstFilterRenderRef = useRef(true);
 
+  // ---------------------------------------------------------
   // Filter loading indicator
+  // ---------------------------------------------------------
   useEffect(() => {
     const isFiltering =
       filters.search.trim() !== "" ||
@@ -138,13 +150,16 @@ const AppContent: React.FC = () => {
     filters.sort !== "default" ||
     filters.stock !== "all";
 
-  // Scroll to menu top on filter change
+  // ---------------------------------------------------------
+  // Scroll to menu top when a filter changes
+  // ---------------------------------------------------------
   useEffect(() => {
     if (isFirstFilterRenderRef.current) {
       isFirstFilterRenderRef.current = false;
       return;
     }
     if (!isFiltering) return;
+
     const el = menuTopRef.current;
     if (!el) return;
     try {
@@ -163,14 +178,18 @@ const AppContent: React.FC = () => {
 
   const resetFilters = () => setFilters(createEmptyFilters());
 
+  // ---------------------------------------------------------
   // Dine-in pending item flush
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!tenant) return;
+
     let cancelled = false;
     let flushing = false;
 
     const tick = async () => {
-      if (cancelled || flushing) return;
+      if (cancelled) return;
+      if (flushing) return;
       if (typeof document !== "undefined" && document.hidden) return;
 
       const all = getAllPendingItems();
@@ -215,14 +234,18 @@ const AppContent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug]);
 
+  // ---------------------------------------------------------
   // Page title
+  // ---------------------------------------------------------
   useEffect(() => {
     document.title = tenant
       ? `${tenant.displayName} - ${labels.menu}`
       : "Menu Display by Teckut";
   }, [tenant?.displayName, labels.menu]);
 
-  // Keep selectedItem in sync
+  // ---------------------------------------------------------
+  // Keep selectedItem in sync with fresh menu data
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!selectedItem) return;
     const latest = allItems.find((it) => it.id === selectedItem.id);
@@ -232,7 +255,9 @@ const AppContent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, selectedItem?.id]);
 
-  // Dine-in: drop delivery cart
+  // ---------------------------------------------------------
+  // Dine-in: drop the delivery cart
+  // ---------------------------------------------------------
   useEffect(() => {
     if (tenant?.dineinEnabled === true && getTotalItems() > 0) {
       clearCart();
@@ -246,7 +271,9 @@ const AppContent: React.FC = () => {
     }
   }, [tenant?.dineinEnabled, isCartOpen]);
 
-  // Filtered list
+  // ---------------------------------------------------------
+  // Filtered item list
+  // ---------------------------------------------------------
   const filteredItems = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     const badgeDefs = tenant?.formSchema?.badges ?? [];
@@ -265,6 +292,7 @@ const AppContent: React.FC = () => {
         const match = Array.from(filters.types).some((key) => {
           if (key === "veg") return item.isVeg === true;
           if (key === "nonVeg") return item.isVeg === false;
+
           const badge = badgeDefs.find((b) => b.key === key);
           if (badge && !badge.enabled) return false;
           return !!item.attributes?.[key];
@@ -322,8 +350,13 @@ const AppContent: React.FC = () => {
     return sorted;
   }, [visibleItems, filters, tenant?.formSchema?.badges]);
 
-  const isAppLoading = !cartLoaded || menuLoading;
+  // ← Include storeLoading in the app loading gate. This ensures the
+  //   menu doesn't render before we know whether the store is open.
+  const isAppLoading = !cartLoaded || menuLoading || storeLoading;
 
+  // ---------------------------------------------------------
+  // Item handlers
+  // ---------------------------------------------------------
   const handleItemClick = (item: MenuItem) => {
     if (!isStoreOpen) return;
     setSelectedItem(item);
@@ -350,6 +383,9 @@ const AppContent: React.FC = () => {
     setItemQuantity(item, customizations, customMessage, quantity);
   };
 
+  // ---------------------------------------------------------
+  // Delivery / schedule
+  // ---------------------------------------------------------
   const handleDeliveryChange = (type: "now" | "schedule") => {
     if (type === "schedule") {
       if (cart.length === 0) {
@@ -377,6 +413,9 @@ const AppContent: React.FC = () => {
     setIsScheduleOpen(false);
   };
 
+  // ---------------------------------------------------------
+  // Order placement
+  // ---------------------------------------------------------
   const handlePlaceOrder = () => {
     if (!isStoreOpen) {
       alert("Store is currently closed. Please try again later.");
@@ -405,10 +444,14 @@ const AppContent: React.FC = () => {
     sendWhatsAppMessage(customerName);
   };
 
+  // ---------------------------------------------------------
+  // WhatsApp order message
+  // ---------------------------------------------------------
   const sendWhatsAppMessage = (nameForOrder: string) => {
     if (cart.length === 0) return;
 
     const tpl = tenant?.messageTemplate ?? DEFAULT_MESSAGE_TEMPLATE;
+
     const totalItems = getTotalItems();
     const subtotal = getSubtotal();
     const gstAmount = getGstAmount();
@@ -525,8 +568,12 @@ const AppContent: React.FC = () => {
     window.open(url, "_blank");
   };
 
+  // =========================================================
+  // Render
+  // =========================================================
   return (
     <>
+      {/* Dine-in live status banner */}
       {tenant?.dineinEnabled && <CustomerOrderStatus />}
 
       <div
@@ -534,21 +581,27 @@ const AppContent: React.FC = () => {
           getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
         }`}
       >
+        {/* Global loading — includes store state */}
         {isAppLoading && <DashboardSkeleton count={6} />}
 
-        {!isAppLoading && tenant && (
+        {!isAppLoading && tenant && isDeactivated && <StoreDeactivated />}
+
+        {!isAppLoading && tenant && !isDeactivated && (
           <>
+            {/* Brand block (hidden while filtering) */}
             {!isFiltering && (
               <BrandInfo
                 brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-                brandDesc={
-                  tenant?.storeTagline ?? "Menu Display by Teckut"
-                }
+                brandDesc={tenant?.storeTagline ?? "Menu Display by Teckut"}
               />
             )}
 
+            {/* ── CLOSED-STORE BANNER ──
+                Only shows when the store is closed.
+                Menu below is hidden in that case. */}
             {!isStoreOpen && <StoreBanner />}
 
+            {/* ── MENU (only when store is open) ── */}
             {isStoreOpen && (
               <div ref={menuTopRef}>
                 <MenuFilters
@@ -567,7 +620,9 @@ const AppContent: React.FC = () => {
                   />
                 ) : filteredItems.length === 0 ? (
                   <div className={styles.emptyFilterState}>
-                    <p>No {labels.items.toLowerCase()} match your filters.</p>
+                    <p>
+                      No {labels.items.toLowerCase()} match your filters.
+                    </p>
                     <button type="button" onClick={resetFilters}>
                       Clear filters
                     </button>
@@ -600,6 +655,7 @@ const AppContent: React.FC = () => {
 
         {!isAppLoading &&
           tenant &&
+          !isDeactivated &&
           isStoreOpen &&
           isAcceptingOrders &&
           tenant.dineinEnabled !== true &&
@@ -610,7 +666,7 @@ const AppContent: React.FC = () => {
             />
           )}
 
-        {tenant && (
+        {tenant && !isDeactivated && (
           <CartModal
             isOpen={isCartOpen}
             cart={cart}

@@ -10,7 +10,7 @@ type StatusFilter = 'all' | 'on' | 'off';
 
 interface PanelState {
   globalEnabled: boolean;
-  /** Map of tenantSlug → whether reviews are enabled for that store. */
+  /** Map of tenantSlug - whether reviews are enabled for that store. */
   tenantReviews: Record<string, boolean>;
 }
 

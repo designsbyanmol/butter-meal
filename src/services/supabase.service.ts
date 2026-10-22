@@ -1065,60 +1065,65 @@ class SupabaseService {
   // ─────────────────────────────── STORE SETTINGS ───────────────────────────────
 
   async getStoreSettings(
-    tenantSlug: string,
-  ): Promise<StoreSettings | null> {
-    const client = this.getClient();
-    if (!client) return null;
+  tenantSlug: string,
+): Promise<StoreSettings | null> {
+  const client = this.getClient();
+  if (!client) return null;
 
-    const { data: tenantRow, error: tErr } = await client
-      .from("star_veg_tenants")
-      .select("id")
-      .eq("slug", tenantSlug)
-      .maybeSingle();
-    if (tErr || !tenantRow) return null;
+  const { data, error } = await client
+    .from("star_veg_tenants")
+    .select(
+      "is_open, closed_message, expected_open_date, expected_open_time, accepting_orders, updated_at",
+    )
+    .eq("slug", tenantSlug)
+    .maybeSingle();
 
-    const { data, error } = await client
-      .from(TABLES.STORE_SETTINGS)
-      .select("*")
-      .eq("tenant_id", tenantRow.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("getStoreSettings error:", error);
-      return null;
-    }
-    if (!data) return null;
-
-    return {
-      isOpen: data.is_open ?? true,
-      closedMessage: data.closed_message || "",
-      expectedOpenDate: data.expected_open_date || "",
-      expectedOpenTime: data.expected_open_time || "",
-      acceptingOrders: data.accepting_orders !== false,
-      lastUpdated: data.last_updated || new Date().toISOString(),
-    };
+  if (error) {
+    console.error("getStoreSettings error:", error);
+    return null;
   }
+  if (!data) return null;
 
-  async updateStoreSettings(
-    tenantSlug: string,
-    settings: StoreSettings,
-  ): Promise<boolean> {
-    const client = this.getClient();
-    if (!client) return false;
-    const { error } = await client.rpc("upsert_store_settings", {
+  return {
+    isOpen: data.is_open ?? true,
+    closedMessage: data.closed_message || "",
+    expectedOpenDate: data.expected_open_date || "",
+    expectedOpenTime: data.expected_open_time || "",
+    acceptingOrders: data.accepting_orders !== false,
+    lastUpdated: data.updated_at || new Date().toISOString(),
+  };
+}
+
+async updateStoreSettings(
+  tenantSlug: string,
+  settings: StoreSettings,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const writes: Array<[string, string]> = [
+    ["is_open", String(settings.isOpen)],
+    ["closed_message", settings.closedMessage || ""],
+    ["expected_open_date", settings.expectedOpenDate || ""],
+    ["expected_open_time", settings.expectedOpenTime || ""],
+    ["accepting_orders", String(settings.acceptingOrders ?? true)],
+  ];
+
+  for (const [field, value] of writes) {
+    const { error } = await client.rpc("update_tenant_info", {
       tenant_slug_in: tenantSlug,
-      is_open_in: settings.isOpen,
-      closed_message_in: settings.closedMessage || "",
-      expected_open_date_in: settings.expectedOpenDate || null,
-      expected_open_time_in: settings.expectedOpenTime || null,
-      accepting_orders_in: settings.acceptingOrders ?? true,
+      field_in: field,
+      value_in: value,
     });
     if (error) {
-      console.error("upsert_store_settings error:", error);
-      return false;
+      // Throw instead of returning false so the caller sees the actual message
+      throw new Error(
+        `update_tenant_info("${field}") failed: ${error.message}`,
+      );
     }
-    return true;
   }
+  return true;
+}
 
   // ─────────────────────────────── REVIEWS ───────────────────────────────
 

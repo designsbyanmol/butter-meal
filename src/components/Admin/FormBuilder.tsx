@@ -22,7 +22,6 @@ import {
   FormField,
   Toggle,
   Banner,
-  Chip,
   EmptyState,
 } from '../ui';
 import { CloseIcon } from '../../assets/svgs';
@@ -345,6 +344,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
         incoming.badgesLabel ?? DEFAULT_FORM_SCHEMA.badgesLabel ?? 'Badges',
     };
   });
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -672,7 +672,9 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
   const updateBadge = (index: number, next: BadgeDefinition) => {
     setSchema((prev) => ({
       ...prev,
-      badges: (prev.badges ?? []).map((b, i) => (i === index ? next : b)),
+      badges: (prev.badges ?? []).map((b, i) =>
+        i === index ? next : b,
+      ),
     }));
   };
 
@@ -752,8 +754,10 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
         }
       }
 
-      // 2. Diff badges and strip attributes from items
-      const oldBadgeKeys = new Set((baseline.badges ?? []).map((b) => b.key));
+      // 2. Diff badges and strip attributes
+      const oldBadgeKeys = new Set(
+        (baseline.badges ?? []).map((b) => b.key),
+      );
       const newBadgeKeys = new Set((schema.badges ?? []).map((b) => b.key));
       const removedBadgeKeys: string[] = [];
       oldBadgeKeys.forEach((k) => {
@@ -781,7 +785,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       // 3. Persist the schema
       await supabaseService.updateFormSchema(tenant.slug, schema);
 
-      // 4. Await tenant refresh BEFORE closing
+      // 4. Refresh tenant
       await refreshTenant();
 
       menuService.refresh().catch(() => {
@@ -833,7 +837,6 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
       isOpen={true}
       onClose={onClose}
       title="Customize Item Form"
-      disableBackdropClose={true}
       mobileFullScreen
       size="lg"
       footer={
@@ -1071,7 +1074,6 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose }) => {
 
       {/* ============ Badges ============ */}
       <div className={local.customHeader}>
-        {/* Section heading mirrors the editable label live */}
         <h3 className={local.sectionTitle}>
           {schema.badgesLabel?.trim() || 'Badges'}
         </h3>

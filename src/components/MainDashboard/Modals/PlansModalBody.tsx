@@ -1,22 +1,22 @@
 // components/MainDashboard/Modals/PlansModalBody.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { Plan } from '../../../types';
-import { planService } from '../../../services/plan.service';
-import { Toggle, Badge, Banner, EmptyState, Button } from '../../ui';
-import { formatRupees } from '../../../utils/subscription';
-import { InlineSection } from '../../Dashboard/inline';
-import { getPlanDefinition } from '../../../data/plans';
-import PlanDetailModal from '../../Payments/PlanDetailModal';
-import local from './Modals.module.scss';
+import React, { useEffect, useRef, useState } from "react";
+import { Plan } from "../../../types";
+import { planService } from "../../../services/plan.service";
+import { Toggle, Badge, Banner, EmptyState, Button } from "../../ui";
+import { formatRupees } from "../../../utils/subscription";
+import { InlineSection } from "../../Dashboard/inline";
+import { getPlanDefinition } from "../../../data/plans";
+import PlanDetailModal from "../../Payments/PlanDetailModal";
+import local from "./Modals.module.scss";
 
 const PlansModalBody: React.FC = () => {
   const [loaded, setLoaded] = useState<Plan[]>([]);
   const [draft, setDraft] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [saveError, setSaveError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [detailPlanId, setDetailPlanId] = useState<string | null>(null);
 
@@ -27,13 +27,13 @@ const PlansModalBody: React.FC = () => {
 
   const loadPlans = async () => {
     setIsLoading(true);
-    setLoadError('');
+    setLoadError("");
     try {
       const list = await planService.getAllPlans({ includeInactive: true });
       setLoaded(list);
       setDraft(list);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to load plans');
+      setLoadError(err instanceof Error ? err.message : "Failed to load plans");
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +41,8 @@ const PlansModalBody: React.FC = () => {
 
   useEffect(() => {
     loadPlans();
-    setSaveError('');
-    setSuccess('');
+    setSaveError("");
+    setSuccess("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,7 +54,7 @@ const PlansModalBody: React.FC = () => {
       // skip the reload - we already have the correct state.
       if (Date.now() - lastSaveRef.current < 1000) return;
 
-      // Debounce: multiple broadcasts within 400ms → one reload.
+      // Debounce: multiple broadcasts within 400ms - one reload.
       if (reloadDebounceRef.current !== null) {
         window.clearTimeout(reloadDebounceRef.current);
       }
@@ -91,8 +91,8 @@ const PlansModalBody: React.FC = () => {
     if (!isDirty || isSaving) return;
 
     setIsSaving(true);
-    setSaveError('');
-    setSuccess('');
+    setSaveError("");
+    setSuccess("");
 
     // Mark the timestamp so the subscription doesn't reload after
     // our own broadcast.
@@ -115,10 +115,10 @@ const PlansModalBody: React.FC = () => {
       await planService.setMultiplePlansActive(changes);
 
       setLoaded(draft);
-      setSuccess('Plans updated');
-      window.setTimeout(() => setSuccess(''), 1500);
+      setSuccess("Plans updated");
+      window.setTimeout(() => setSuccess(""), 1500);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save');
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setIsSaving(false);
     }
@@ -126,12 +126,12 @@ const PlansModalBody: React.FC = () => {
 
   const handleDiscard = () => {
     setDraft(loaded);
-    setSaveError('');
-    setSuccess('');
+    setSaveError("");
+    setSuccess("");
   };
 
   const detailPlan = detailPlanId
-    ? draft.find((p) => p.id === detailPlanId) ?? null
+    ? (draft.find((p) => p.id === detailPlanId) ?? null)
     : null;
 
   return (
@@ -160,12 +160,12 @@ const PlansModalBody: React.FC = () => {
         }
       >
         {loadError && (
-          <Banner variant="error" onDismiss={() => setLoadError('')}>
+          <Banner variant="error" onDismiss={() => setLoadError("")}>
             {loadError}
           </Banner>
         )}
         {saveError && (
-          <Banner variant="error" onDismiss={() => setSaveError('')}>
+          <Banner variant="error" onDismiss={() => setSaveError("")}>
             {saveError}
           </Banner>
         )}
@@ -193,27 +193,18 @@ const PlansModalBody: React.FC = () => {
               return (
                 <div
                   key={p.id}
-                  className={`${local.row} ${
-                    changed ? local.rowChanged : ''
-                  }`}
+                  className={`${local.row} ${changed ? local.rowChanged : ""}`}
                 >
                   <div className={local.rowText}>
+                    
                     <div className={local.rowTitle}>
                       <strong>{p.name}</strong>
-                      <Badge
-                        tone={p.isActive ? 'success' : 'danger'}
-                        size="sm"
-                      >
-                        {p.isActive ? 'Active' : 'Disabled'}
+                      <Badge tone={p.isActive ? "success" : "danger"} size="sm">
+                        {p.isActive ? "Active" : "Disabled"}
                       </Badge>
                       <span className={local.price}>
                         {formatRupees(p.monthlyPrice)}/mo
                       </span>
-                      {def.featured && (
-                        <Badge tone="info" size="sm">
-                          Most popular
-                        </Badge>
-                      )}
                     </div>
                     {def.included.length > 0 && (
                       <ul className={local.featurePreview}>
@@ -227,11 +218,16 @@ const PlansModalBody: React.FC = () => {
                         )}
                       </ul>
                     )}
+                    {def.featured && (
+                      <Badge tone="info" size="sm">
+                        Most popular
+                      </Badge>
+                    )}
                   </div>
 
                   <div className={local.rowActions}>
                     <Button
-                      variant="secondary"
+                      variant="info"
                       size="sm"
                       onClick={() => setDetailPlanId(p.id)}
                     >
@@ -240,9 +236,7 @@ const PlansModalBody: React.FC = () => {
                     <Toggle
                       checked={p.isActive}
                       disabled={isSaving}
-                      onChange={(e) =>
-                        toggleDraft(p.id, e.target.checked)
-                      }
+                      onChange={(e) => toggleDraft(p.id, e.target.checked)}
                     />
                   </div>
                 </div>
@@ -255,14 +249,14 @@ const PlansModalBody: React.FC = () => {
       <PlanDetailModal
         isOpen={!!detailPlan}
         onClose={() => setDetailPlanId(null)}
-        planId={detailPlan?.id ?? ''}
-        planName={detailPlan?.name ?? ''}
+        planId={detailPlan?.id ?? ""}
+        planName={detailPlan?.name ?? ""}
         monthlyPrice={detailPlan?.monthlyPrice}
         statusBadge={
           detailPlan
             ? {
-                label: detailPlan.isActive ? 'Active' : 'Disabled',
-                tone: detailPlan.isActive ? 'success' : 'danger',
+                label: detailPlan.isActive ? "Active" : "Disabled",
+                tone: detailPlan.isActive ? "success" : "danger",
               }
             : undefined
         }

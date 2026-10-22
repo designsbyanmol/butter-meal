@@ -55,7 +55,7 @@ const TableModal: React.FC<TableModalProps> = ({
       isOpen={isOpen}
       onClose={busy ? () => {} : onClose}
       title="Place Order"
-      mobileFullScreen
+      position="top"
       disableBackdropClose={true}
       size="sm"
       footer={

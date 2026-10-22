@@ -17,10 +17,10 @@ import local from './ImageUpload.module.scss';
 // ---------------------------------------------------------------------------
 //
 // `upload()` (from the imperative handle) resolves to:
-//   • a URL string  → persist this URL
-//   • ''            → clear the stored value (user removed the image)
-//   • null          → upload failed (an error banner is already shown)
-//   • undefined     → the component isn't mounted
+//   • a URL string  - persist this URL
+//   • ''            - clear the stored value (user removed the image)
+//   • null          - upload failed (an error banner is already shown)
+//   • undefined     - the component isn't mounted
 //
 // ---------------------------------------------------------------------------
 

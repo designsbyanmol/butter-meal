@@ -1,66 +1,16 @@
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-  z-index: 9999999;
-}
+// src/components/MenuDetail/MenuDetail.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modalBox {
-  background: white;
-  border-radius: 8px 8px 0 0;
-  padding: 0;
-  width: 100%;
-  overflow-y: auto;
-  height: 85%;
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25);
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.closeBtn {
-  background: transparent;
-  border: 1px solid #dcdcdc;
-  color: #4d4d4d;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: 0.1s;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
+// ---------- Image wrapper + cross-fade slider ----------
 .imageWrapper {
   position: relative;
   width: 100%;
-  height: 250px;
+  aspect-ratio: 16 / 10;
+  max-height: 320px;
   overflow: hidden;
+  border-radius: $radius;
+  background: $bg-subtle;
 
   img {
     width: 100%;
@@ -69,53 +19,177 @@
   }
 }
 
-.badgesWrapper{
-      display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 2;
-    right: 8px;
+.sliderLayer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+  will-change: opacity;
 }
 
-.badge {
-  
-  &.veg {
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 4px 12px;
-    position: absolute;
-    background: #0ca74d;
-    top: 8px;
-    right: 8px;
-    text-transform: uppercase;
-    border: 1.5px solid #fff;
-    color: #fff;
-    line-height: 1;
+.sliderPrev {
+  opacity: 1;
+  animation: sliderFadeOut 0.24s ease forwards;
+}
+
+.sliderCurrIn {
+  opacity: 0;
+  animation: sliderFadeIn 0.24s ease forwards;
+}
+
+.sliderCurrIdle {
+  opacity: 1;
+}
+
+@keyframes sliderFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes sliderFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.sliderDots {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  z-index: 4;
+}
+
+.sliderDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0;
+  transition: background $t-fast, transform $t-fast;
+
+  &:hover { background: rgba(255, 255, 255, 0.85); }
+}
+
+.sliderDotActive {
+  background: #fff;
+  transform: scale(1.3);
+}
+
+.swipeHint {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  animation: swipeHintFade 3s ease forwards;
+}
+
+@keyframes swipeHintFade {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.95; }
+  80%  { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+// ---------- Badges overlay ----------
+.badgesWrapper {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  z-index: 2;
+}
+
+.vegBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-radius: $radius-pill;
+  padding: 4px 12px;
+  background: #0ca74d;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1.5px solid #fff;
+  line-height: 1;
+}
+
+// ---------- Expand button ----------
+.expandBtn {
+  position: absolute !important;
+  bottom: 12px;
+  right: 12px;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: #fff;
+  backdrop-filter: blur(4px);
+
+  &:hover { background: rgba(0, 0, 0, 0.75) !important; }
+
+  @include mobile {
+    width: 30px !important;
+    height: 30px !important;
+    bottom: 10px;
+    right: 10px;
   }
 }
 
+// ---------- Discount ribbon ----------
+.discountRibbon {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 2px 10px;
+  border-radius: $radius-pill;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+  font-size: 12px;
+  color: $text;
+  border: 2px solid #fff;
+}
+
+// ---------- Content ----------
 .content {
-  padding: 18px 15px 150px;
+  padding: 4px 0 8px;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 8px;
   margin-bottom: 10px;
   flex-wrap: wrap;
-  gap: 8px;
 
   h2 {
-    font-size: 16px;
-    color: #1e1e1e;
+    font-size: 18px;
+    color: $text;
     font-weight: 700;
     margin: 0;
+    line-height: 1.3;
   }
 }
 
@@ -124,30 +198,47 @@
   align-items: center;
   gap: 4px;
   background: #fff;
-  border: 1px solid #dcdcdc;
+  border: 1px solid $border;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: $radius-xs;
   font-weight: 600;
-  color: #3caa46;
-
-  & polygon {
-    fill: #3caa46;
-  }
+  color: $primary;
+  font-size: 13px;
 
   .reviewCount {
-    color: #474747;
+    color: $gray-750;
     font-weight: 400;
-    font-size: 0.85rem;
+    font-size: 12px;
   }
+}
+
+.discountLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  del {
+    color: $text-faint;
+    font-size: 14px;
+  }
+}
+
+.price {
+  font-size: 18px;
+  font-weight: 800;
+  color: $text;
 }
 
 .description {
-  color: #808080;
-  font-size: 14px;
+  color: $text-faint;
+  font-size: 12px;
   line-height: 1.5;
   margin-bottom: 16px;
+  margin-top: 0;
 }
 
+// ---------- Tags ----------
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -158,25 +249,32 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 12px;
-  background: linear-gradient(45deg, #efefef, #00000005);
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: #1e1e1e;
+  padding: 6px 12px;
+  background: linear-gradient(45deg, $purple-50, $purple-50);
+  border: 1px solid $purple-200;
+  border-radius: $radius-pill;
+  font-size: 12.5px;
+  color: $text;
 
-  svg {
-    flex-shrink: 0;
-  }
+  svg { flex-shrink: 0; }
 }
 
+// ---------- Sections ----------
 .section {
-  padding-top: 30px;
+  padding-top: 24px;
 
   h4 {
+    font-size: 12px;
+    color: $text;
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+
+  .sectionTitle {
     font-size: 14px;
-    color: #1e1e1e;
-    margin-bottom: 10px;
-    font-weight: 600;
+    margin: 0 0 16px;
+    border-bottom: 1px solid $gray-200;
+    padding: 6px 0;
   }
 }
 
@@ -192,20 +290,23 @@
   gap: 5px;
   padding: 6px 12px;
   background: #fff;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  color: #1e1e1e;
-  border: 1px solid #dcdcdc;
+  border-radius: $radius-pill;
+  background: linear-gradient(45deg, $primary-50, $primary-50);
+  border: 1px solid $primary-200;
+  font-size: 13px;
+  color: $text;
 
-  svg {
-    flex-shrink: 0;
-  }
+  svg { flex-shrink: 0; }
 }
 
 .nutritionalInfo {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+
+  @include mobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .nutritionItem {
@@ -214,41 +315,40 @@
   gap: 4px;
   align-items: center;
   padding: 8px 12px;
-  background: #ffa40014;
+  background: rgba(255, 164, 0, 0.08);
   border: 1px solid #ffa400;
-  border-radius: 4px;
+  border-radius: $radius-xs;
 
   span:first-child {
     font-size: 10px;
-    color: #1e1e1e;
+    color: $text;
     text-transform: uppercase;
     font-weight: 500;
+    text-align: center;
   }
 
   span:last-child {
     font-size: 12px;
     font-weight: 700;
-    color: #1e1e1e;
+    color: $text;
   }
 }
 
+// ---------- Customizations ----------
 .customizationGroup {
-  margin-bottom: 16px;
-  border: 1px solid #dcdcdc;
-  padding: 10px;
-  border-radius: 8px;
+  margin-bottom: 14px;
 
-  &:last-child {
-    margin-bottom: 0;
-  }
+  &:last-child { margin-bottom: 0; }
 }
 
 .customizationLabel {
   display: block;
   font-weight: 600;
-  color: #1e1e1e;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
+  color: $text;
+  margin-bottom: 12px;
+  font-size: 12px;
+  border-left: 2px solid $primary-600;
+  padding: 0 0 0 6px;
 }
 
 .customizationOptions {
@@ -257,186 +357,52 @@
   gap: 8px;
 }
 
-.customizationOption {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  background: #fafafa;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 12px;
-  color: #1e1e1e;
-  border: 1px solid #dcdcdc;
-
-  input[type="radio"] {
-    appearance: none;
-    display: none;
-  }
-
-  &:has(input:checked) {
-    background: #3caa4510;
-    border-color: #3caa46;
-    color: #1e1e1e;
-    position: relative;
-    padding-right: 24px;
-
-    &:after {
-      position: absolute;
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #3caa46;
-      top: 5px;
-      right: 5px;
-    }
-  }
-}
-
-.footer {
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  left: 0;
-  z-index: 9;
-  background: #fff;
-  box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
-  border: none;
-  padding: 15px 15px 20px;
-  font-size: 14px;
-  border-radius: 10px 10px 0 0;
-}
-
-.priceSection {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.price {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e1e1e;
-
-  .pricePerItem {
-    font-size: 12px;
-    font-weight: 400;
-    color: #808080;
-    margin-left: 8px;
-  }
-}
-
-.quantityControls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 4px;
-  border: 1px solid #dcdcdc;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
-}
-
-.qtyBtn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.1s;
-}
-
-.qtyNum {
-  min-width: 30px;
-  text-align: center;
+.choicePrice {
+  color: $primary-900;
+  font-style: normal;
   font-weight: 600;
-  font-size: 1.1rem;
-  color: #1e1e1e;
-}
-
-.btnWrap {
-  display: flex;
-  gap: 12px;
-}
-.addToCartBtn {
-  background: #3caa46;
-  border: none;
-  color: white;
-  font-weight: 400;
-  padding: 14px 32px;
-  border-radius: 8px;
-  font-size: 1.05rem;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: 0.15s;
-  flex: 1;
-  justify-content: center;
-
-  &:hover:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
+  font-size: 11.5px;
+  margin-left: 2px;
 }
 
 .customizationSummary {
   margin-top: 20px;
-  padding: 4px 8px;
+  padding: 8px 12px;
   background: #fff;
-  border-radius: 0;
-  border-left: 3px solid #3caa46;
+  border-left: 3px solid $primary;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  border-radius: 0 $radius-sm $radius-sm 0;
+  box-shadow: $shadow-xs;
 }
 
 .summaryLabel {
-  color: #1e1e1e;
-  font-weight: 600;
+  color: $text;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .summaryValue {
-  color: #1e1e1e;
-  font-weight: 400;
-  font-size: 12px;
+  color: $text-muted;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .addonPrice {
-  color: #3caa46;
-  font-weight: 400;
-  background: #e6f4ea;
-  padding: 4px;
-  font-size: 10px;
-}
-
-.basePrice {
-  font-size: 0.8rem;
-  color: #1e1e1e;
+  color: $primary-dark;
+  font-weight: 600;
+  background: $primary-soft;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: $radius-xs;
   margin-top: 2px;
 }
 
-// Add to MenuDetail.module.scss
-
+// ---------- Custom message ----------
 .customMessageWrapper {
   margin-top: 8px;
   position: relative;
@@ -445,51 +411,236 @@
 .customMessageInput {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
   min-height: 80px;
-  transition: border-color 0.2s ease;
-  background: #fafafa;
-  color: #1e1e1e;
+  transition: border-color $t-fast, box-shadow $t-fast;
+  background: $bg-subtle;
+  color: $text;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
-    border-color: #3caa46;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(60, 170, 70, 0.1);
+    border-color: $primary;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
   }
 
   &::placeholder {
-    color: #999;
+    color: $text-faint;
     font-size: 13px;
   }
-}
 
-.messageCharCount {
-  text-align: right;
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-  padding-right: 4px;
-}
-
-// Make sure the textarea is responsive on mobile
-@media (max-width: 768px) {
-  .customMessageInput {
-    font-size: 16px; // Prevents zoom on iOS
+  @include mobile {
+    font-size: 16px;
     padding: 10px;
     min-height: 60px;
   }
 }
 
-/* MenuDetail.module.scss */
-.choicePrice {
-  color: #085b1b;
-  font-style: normal;
-  font-weight: 500;
+.messageCharCount {
+  text-align: right;
+  font-size: 11.5px;
+  color: $text-faint;
+  margin-top: 4px;
+  padding-right: 4px;
+}
+
+// ---------- Footer (both shells) ----------
+.priceSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+  @include mobile {
+    grid-column-start: 1;
+    grid-column-end: 3;
+  }
+}
+
+.price {
+  font-size: 17px;
+  font-weight: 800;
+  color: $text;
+
+  .pricePerItem {
+    font-size: 12px;
+    font-weight: 400;
+    color: $text-faint;
+    margin-left: 8px;
+  }
+}
+
+.basePrice {
   font-size: 12px;
-  margin-left: 4px;
+  color: $text-muted;
+  margin-top: 2px;
+}
+
+.quantityControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: $radius-sm;
+  border: 1px solid $border;
+  box-shadow: $shadow-xs;
+}
+
+.qtyNum {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: $text;
+}
+
+.btnWrap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  /* Close stays content-width; the primary action fills the rest. */
+  > button:first-child {
+    flex: 0 0 auto;
+  }
+
+  > button:last-child {
+    flex: 1 1 auto;
+  }
+  > button:only-child {
+    flex: 1 1 auto;
+  }
+
+  @include mobile {
+    grid-column-start: 1;
+    grid-column-end: 3;
+  }
+}
+
+/* ---------- Custom field tags ---------- */
+.tagLabel {
+  font-weight: 600;
+  color: $text;
+  margin-right: 4px;
+}
+
+.tagValue {
+  color: $text-muted;
+  font-weight: 400;
+}
+
+/* ---------- Custom number field row ---------- */
+.numberRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.numberItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 164, 0, 0.08);
+  border: 1px solid #ffa400;
+  border-radius: $radius-xs;
+
+  @include mobile {
+    padding: 5px 10px;
+  }
+}
+
+.numberLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $text-faint;
+}
+
+.numberValue {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $text;
+}
+
+/* ---------- Schema-driven badge icons ---------- */
+.badgeImage {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.25));
+}
+
+.badgeSvgWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+
+  svg {
+    width: 32px;
+    height: 32px;
+    display: block;
+  }
+}
+
+.badgeTextChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border-radius: $radius-pill;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+
+.badgeTextChip-new {
+  background: linear-gradient(135deg, $primary-600, $primary-900);
+  color: #fff;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba($blue-500, 0.35);
+}
+
+.badgeTextChip-popular {
+  background: linear-gradient(135deg, $amber-500, $amber-700);
+  color: #fff;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba($amber-500, 0.35);
+}
+
+.badgeTextChip-chef-s-special {
+  background: linear-gradient(135deg, $purple-500, $purple-700);
+  color: #fff;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba($purple-500, 0.35);
+}
+
+.badgeTextChip-limited {
+  background: linear-gradient(135deg, $red-400, $red-500);
+  color: #fff;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba($red-500, 0.35);
 }

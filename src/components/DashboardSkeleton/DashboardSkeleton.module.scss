@@ -4,10 +4,8 @@
 
 .wrap {
   min-height: 100vh;
-  background: $bg-subtle;
   display: flex;
   flex-direction: column;
-  padding: 14px;
 }
 
 /* ---------- Header ---------- */
@@ -114,7 +112,7 @@
 /* ---------- Responsive ---------- */
 @include mobile(480px) {
   .grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 12px;
   }
 }

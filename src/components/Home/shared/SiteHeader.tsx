@@ -75,7 +75,7 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
       }
     }
 
-    // No section above the anchor → nothing active
+    // No section above the anchor - nothing active
     if (!active) {
       setActiveHref("");
       return;

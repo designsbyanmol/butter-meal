@@ -1,0 +1,193 @@
+// src/components/ui/Slider/Slider.module.scss
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+/* ---------- Viewport (the visible window) ---------- */
+.viewport {
+  width: 100%;
+  overflow: hidden;
+  margin: 0 -8px;
+  padding: 0 8px 8px;
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px rgba($primary, 0.35);
+    border-radius: $radius-sm;
+  }
+}
+
+/* ---------- Track (all slides, translated) ---------- */
+.track {
+  display: flex;
+  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* When dragging (no transition), the transform updates live. */
+.viewport:active .track {
+  transition: none;
+}
+
+/* ---------- Slide ---------- */
+.slide {
+  /* flexBasis + flexShrink are set inline based on visibleCount
+     and gap, so they react to breakpoints automatically. */
+  overflow: hidden;
+}
+
+/* ---------- Arrows ---------- */
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background $t-fast, transform $t-fast;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.arrowLeft {
+  left: 8px;
+}
+
+.arrowRight {
+  right: 8px;
+}
+
+.arrowGlyph {
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* ---------- Dots ---------- */
+.dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  padding: 6px 10px;
+  border-radius: $radius-pill;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  padding: 0;
+  transition: background $t-fast, transform $t-fast;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.85);
+  }
+}
+
+.dotActive {
+  background: #fff;
+  transform: scale(1.3);
+}
+
+/* ---------- Counter ---------- */
+.counter {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: $radius-pill;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+@include mobile(480px) {
+  .arrowLeft { left: 4px; }
+  .arrowRight { right: 4px; }
+
+  .arrow {
+    width: 32px;
+    height: 32px;
+  }
+
+  .arrowGlyph {
+    font-size: 20px;
+  }
+
+  .dots {
+    bottom: 4px;
+    padding: 4px 8px;
+  }
+
+  /* ---------- Phantom trailing slot (loop=false + peek) ---------- */
+.phantomSlide {
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+}
+
+/* =========================================================
+   Static mode — every item shown at once, no carousel chrome.
+   ========================================================= */
+.staticWrap {
+  display: block;
+}
+
+.staticRow {
+  display: grid;
+  /* gridTemplateColumns is injected inline as `repeat(N, minmax(0, 1fr))`. */
+  width: 100%;
+  align-items: stretch;
+}
+
+.staticSlide {
+  min-width: 0;
+  display: flex;
+  /* Let the inner card stretch to fill the column. */
+  > * {
+    flex: 1;
+  }
+}

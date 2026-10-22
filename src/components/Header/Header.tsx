@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                   onClick={() => setIsMenuPanelOpen(true)}
                   title="Manage Menu"
                 >
-                  <MenuIcon width={20} height={20} color="#1e1e1e" />
+                  <MenuIcon width={20} height={20} fill="#1e1e1e" />
                 </button>
 
                 {/* ✅ Users button - Only visible to Admins */}
@@ -68,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                     onClick={() => setIsUserManagementOpen(true)}
                     title="User Management"
                   >
-                    <UsersIcon width={20} height={20} color="#1e1e1e" />
+                    <UsersIcon width={20} height={20} fill="#1e1e1e" />
                   </button>
                 )}
 

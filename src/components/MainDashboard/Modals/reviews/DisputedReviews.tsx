@@ -23,6 +23,7 @@ import {
   countActiveFilters,
 } from './reviewsFilters.types';
 import local from './ReviewsList.module.scss';
+import { StarIcon } from '../../../../assets/svgs';
 
 interface DisputeRow {
   disputeId: string;
@@ -89,7 +90,7 @@ const DisputedReviews: React.FC<DisputedReviewsProps> = ({
   }, []);
 
   const tenants = useMemo(() => {
-    const s = new Map<string, string>(); // slug → displayName
+    const s = new Map<string, string>(); // slug - displayName
     rows.forEach((r) => {
       if (!s.has(r.tenantSlug)) s.set(r.tenantSlug, r.tenantName);
     });
@@ -369,7 +370,7 @@ const DisputedReviews: React.FC<DisputedReviewsProps> = ({
                           }
                           size="sm"
                         >
-                          {row.review.rating.toFixed(1)} ★
+                          {row.review.rating.toFixed(1)} <StarIcon width={10} height={10} fill="currentColor" />
                         </Badge>
                       )}
                     </div>

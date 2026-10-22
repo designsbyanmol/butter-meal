@@ -1,6 +1,6 @@
-// components/ImagePreview/ImagePreview.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { IconButton } from '../ui';
+// src/components/ImagePreview/ImagePreview.tsx
+import React, { useCallback, useEffect, useState } from 'react';
+import { IconButton, Slider } from '../ui';
 import { CloseIcon, LeftArrowIcon, RightArrow } from '../../assets/svgs';
 import local from './ImagePreview.module.scss';
 
@@ -17,36 +17,43 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
   initialIndex = 0,
   onClose,
 }) => {
-  const [index, setIndex] = useState(initialIndex);
-  const dragStartXRef = useRef<number | null>(null);
-  const dragDeltaRef = useRef(0);
+  const safeInitial = Math.max(
+    0,
+    Math.min(initialIndex, Math.max(0, images.length - 1)),
+  );
 
-  // Reset to the requested image when opening
-  useEffect(() => {
-    if (isOpen) {
-      setIndex(
-        Math.max(0, Math.min(initialIndex, Math.max(0, images.length - 1))),
-      );
-    }
-  }, [isOpen, initialIndex, images.length]);
+  const [index, setIndex] = useState(safeInitial);
+  const [openKey, setOpenKey] = useState(0);
 
-  // Esc + arrow keys
+  // Reset the preview's index AND force a Slider remount on every open.
+  // A fresh `key` guarantees the Slider re-initialises its internals.
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
+    setIndex(safeInitial);
+    setOpenKey((k) => k + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Detect "just opened" — on that render, prefer `safeInitial` over
+  // the (possibly stale) `index` state so the very first frame
+  // shows the correct image.
+  const justOpened = isOpen && index !== safeInitial && openKey === 0;
+
+  const effectiveIndex = openKey === 0 ? safeInitial : index;
+
+  const onKey = useCallback(
+    (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight' && images.length > 1) {
-        setIndex((i) => (i + 1) % images.length);
-      }
-      if (e.key === 'ArrowLeft' && images.length > 1) {
-        setIndex((i) => (i - 1 + images.length) % images.length);
-      }
-    };
+    },
+    [onClose],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, images.length, onClose]);
+  }, [isOpen, onKey]);
 
-  // Lock body scroll while open
   useEffect(() => {
     if (!isOpen) return;
     const original = document.body.style.overflow;
@@ -58,54 +65,15 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
   if (!isOpen || images.length === 0) return null;
 
-  const currentImage = images[index] ?? images[0];
-  const hasMultiple = images.length > 1;
-
-  const threshold = () => {
-    const w = window.innerWidth || 320;
-    return Math.max(40, w * 0.12);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    dragStartXRef.current = e.clientX;
-    dragDeltaRef.current = 0;
-    try {
-      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartXRef.current === null) return;
-    dragDeltaRef.current = e.clientX - dragStartXRef.current;
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartXRef.current === null) return;
-    const delta = dragDeltaRef.current;
-    dragStartXRef.current = null;
-    dragDeltaRef.current = 0;
-
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-
-    if (!hasMultiple) return;
-
-    const t = threshold();
-    if (delta <= -t) setIndex((i) => (i + 1) % images.length);
-    else if (delta >= t)
-      setIndex((i) => (i - 1 + images.length) % images.length);
-  };
-
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
-
-  const goPrev = () =>
-    setIndex((i) => (i - 1 + images.length) % images.length);
-  const goNext = () => setIndex((i) => (i + 1) % images.length);
+  const slides = images.map((src, i) => (
+    <img
+      key={`${src}-${i}`}
+      src={src}
+      alt={`Image ${i + 1}`}
+      className={local.image}
+      draggable={false}
+    />
+  ));
 
   return (
     <div
@@ -129,62 +97,34 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         <CloseIcon width={22} height={22} fill="#fff" />
       </IconButton>
 
-      <div
-        className={local.stage}
-        onClick={stop}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{
-          cursor: hasMultiple ? 'grab' : 'default',
-          touchAction: hasMultiple ? 'pan-y' : 'auto',
-        }}
-      >
-        <img
-          key={currentImage}
-          src={currentImage}
-          alt={`Image ${index + 1}`}
-          className={local.image}
-          draggable={false}
+      <div className={local.stage} onClick={(e) => e.stopPropagation()}>
+        <Slider
+          key={`img-preview-${openKey}`}
+          items={slides}
+          index={effectiveIndex}
+          onIndexChange={(next) => {
+            setIndex(next);
+            // Once the user interacts, `openKey` no longer needs to
+            // pin the index — future renders rely on `index`.
+            if (openKey === 0) setOpenKey(1);
+          }}
+          loop
+          showArrows={images.length > 1}
+          showDots={false}
+          showCounter={images.length > 1}
+          ariaLabel="Image gallery"
+          prevIcon={
+            <span className={local.arrowGlyph}>
+              <LeftArrowIcon width={20} height={20} fill="#fff" />
+            </span>
+          }
+          nextIcon={
+            <span className={local.arrowGlyph}>
+              <RightArrow width={20} height={20} fill="#fff" />
+            </span>
+          }
         />
       </div>
-
-      {hasMultiple && (
-        <>
-          <IconButton
-            variant="ghost"
-            size="lg"
-            shape="circle"
-            className={`${local.arrow} ${local.arrowLeft}`}
-            aria-label="Previous image"
-            onClick={(e) => {
-              e.stopPropagation();
-              goPrev();
-            }}
-          >
-            <span className={local.arrowGlyph}><LeftArrowIcon width={14} height={14} fill="#1e1e1e"/></span>
-          </IconButton>
-
-          <IconButton
-            variant="ghost"
-            size="lg"
-            shape="circle"
-            className={`${local.arrow} ${local.arrowRight}`}
-            aria-label="Next image"
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
-            }}
-          >
-            <span className={local.arrowGlyph}><RightArrow width={14} height={14} fill="#1e1e1e" /></span>
-          </IconButton>
-
-          <div className={local.counter} onClick={stop}>
-            {index + 1} / {images.length}
-          </div>
-        </>
-      )}
     </div>
   );
 };

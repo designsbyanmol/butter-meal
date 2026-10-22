@@ -94,6 +94,11 @@
   align-items: center;
   gap: 2px;
   margin: 4px 0;
+  .starsFilled, .starsEmpty {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
 }
 
 .ratingNum {

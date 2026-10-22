@@ -11,7 +11,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 
-  @include tablet(900px) { grid-template-columns: 1fr; }
+  @include tablet { grid-template-columns: 1fr 1fr 1fr; }
+  @include mobile (768px) { grid-template-columns: 1fr; }
 }
 
 .step {
@@ -30,6 +31,11 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+
+  @include tablet {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .stepNum {

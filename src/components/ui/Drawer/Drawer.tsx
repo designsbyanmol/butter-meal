@@ -13,12 +13,13 @@ export interface DrawerProps {
   onClose: () => void;
   title?: React.ReactNode;
   side?: DrawerSide;
-  /** Actions rendered to the left of the close button. */
   headerActions?: React.ReactNode;
-  /** Lock body scroll while open. Default: true. */
+  /** Pinned footer area (e.g. primary action buttons). */
+  footer?: React.ReactNode;
   lockScroll?: boolean;
-  /** Prevent closing via backdrop click or Esc. */
   disableBackdropClose?: boolean;
+  /** Override the overlay's z-index. */
+  overlayZIndex?: number;
   children: React.ReactNode;
 }
 
@@ -28,13 +29,14 @@ const Drawer: React.FC<DrawerProps> = ({
   title,
   side = 'right',
   headerActions,
+  footer,
   lockScroll = true,
   disableBackdropClose = false,
+  overlayZIndex,
   children,
 }) => {
   const instanceId = useId();
 
-  // Esc - topmost only
   useEffect(() => {
     if (!isOpen || disableBackdropClose) return;
 
@@ -48,14 +50,12 @@ const Drawer: React.FC<DrawerProps> = ({
     };
 
     window.addEventListener('keydown', onKey);
-
     return () => {
       window.removeEventListener('keydown', onKey);
       popEsc(instanceId);
     };
   }, [isOpen, disableBackdropClose, onClose, instanceId]);
 
-  // Lock body scroll (reference-counted)
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
     lockBodyScroll();
@@ -71,7 +71,11 @@ const Drawer: React.FC<DrawerProps> = ({
   };
 
   const content = (
-    <div className={styles.overlay} onClick={handleBackdrop}>
+    <div
+      className={styles.overlay}
+      onClick={handleBackdrop}
+      style={overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined}
+    >
       <aside
         className={[styles.panel, styles[side]].join(' ')}
         onClick={(e) => e.stopPropagation()}
@@ -93,6 +97,7 @@ const Drawer: React.FC<DrawerProps> = ({
           </div>
         </div>
         <div className={styles.body}>{children}</div>
+        {footer && <div className={styles.footer}>{footer}</div>}
       </aside>
     </div>
   );

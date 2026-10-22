@@ -17,6 +17,7 @@ import {
   Badge,
   Sheet,
   Chip,
+  Pagination,
 } from "../ui";
 import {
   PlusIcon,
@@ -26,6 +27,7 @@ import {
   SearchIcon,
   FilterIcon,
   CloseIcon,
+  DownloadIcon,
 } from "../../assets/svgs";
 import PlanBadge from "./PlanBadge";
 import PauseRequestIcon from "./PauseRequestIcon";
@@ -34,6 +36,7 @@ import { STORE_CATEGORIES, getCategoryLabel } from "../../data/storeCategories";
 import { clearSignupState } from "../Pages/Signup/useSignupPersistence";
 import tokens from "../../styles/_tokens.module.scss";
 import { InlineSection } from "../Dashboard/inline";
+import { downloadPublicQrPdf } from "../../utils/qrPdf";
 import local from "./TenantManager.module.scss";
 
 // =========================================================
@@ -74,6 +77,8 @@ const EMPTY_FILTERS: Filters = {
   planMonths: "all",
   category: "all",
 };
+
+const PAGE_SIZE = 8;
 
 const CREATED_OPTIONS: { key: CreatedRange; label: string }[] = [
   { key: "all", label: "All" },
@@ -129,6 +134,11 @@ interface TenantRow extends Tenant {
   _createdAt: string;
   _daysUntilExpiry: number;
 }
+
+type PendingRowAction =
+  | { kind: "qr"; tenant: TenantRow }
+  | { kind: "credentials"; tenant: TenantRow }
+  | { kind: "edit"; tenant: TenantRow };
 
 type ConfirmState = {
   title: string;
@@ -306,9 +316,13 @@ const TenantManagerBody: React.FC = () => {
   const [success, setSuccess] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
+  const [pendingRowAction, setPendingRowAction] =
+    useState<PendingRowAction | null>(null);
+
   const [planFilter, setPlanFilter] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const [editingTenant, setEditingTenant] = useState<TenantRow | null>(null);
   const [editDisplayName, setEditDisplayName] = useState("");
@@ -346,14 +360,94 @@ const TenantManagerBody: React.FC = () => {
   };
 
   const buildTenantUrl = (s: string): string => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-  return `${window.location.origin}${dir}customer.html?t=${s}`;
-};
+    const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
+    return `${window.location.origin}${dir}customer.html?t=${s}`;
+  };
 
-const buildAdminUrl = (s: string): string => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-  return `${window.location.origin}${dir}admin.html?t=${s}_admin`;
-};
+  const buildAdminUrl = (s: string): string => {
+    const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
+    return `${window.location.origin}${dir}admin.html?t=${s}_admin`;
+  };
+
+  // =========================================================
+  // Copy for the row-action confirmation dialog
+  // =========================================================
+  const rowActionCopy = (
+    action: PendingRowAction | null,
+  ): {
+    title: string;
+    message: React.ReactNode;
+    confirmText: string;
+    variant: "primary" | "danger" | "warning";
+  } => {
+    if (!action) {
+      return {
+        title: "",
+        message: "",
+        confirmText: "Confirm",
+        variant: "primary",
+      };
+    }
+    const t = action.tenant;
+    switch (action.kind) {
+      case "qr":
+        return {
+          title: "Download Public QR",
+          message: (
+            <>
+              Download a printable public QR for{" "}
+              <strong>{t.displayName}</strong>?
+              <br />
+              <br />
+              It will link to:{" "}
+              <code style={{ fontSize: 12 }}>customer.html?t={t.slug}</code>.
+              Print it on table cards, flyers, or the storefront so customers
+              can browse the menu.
+            </>
+          ),
+          confirmText: "Download QR",
+          variant: "primary",
+        };
+      case "credentials":
+        return {
+          title: "Reset Login Credentials",
+          message: (
+            <>
+              Generate a new password for <strong>{t.displayName}</strong>?
+              <br />
+              <br />
+              The current password will stop working immediately. The store
+              owner must use the new password to sign in to their admin
+              dashboard.
+            </>
+          ),
+          confirmText: "Reset & Show Credentials",
+          variant: "warning",
+        };
+      case "edit":
+        return {
+          title: "Edit Store",
+          message: (
+            <>
+              Open the edit form for <strong>{t.displayName}</strong>?
+              <br />
+              <br />
+              You can change the store name, owner contact, WhatsApp number, and
+              reset the owner password.
+            </>
+          ),
+          confirmText: "Edit Store",
+          variant: "primary",
+        };
+      default:
+        return {
+          title: "",
+          message: "",
+          confirmText: "Confirm",
+          variant: "primary",
+        };
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -440,10 +534,10 @@ const buildAdminUrl = (s: string): string => {
     window.open(buildAdminUrl(s), "_blank");
 
   const openCreateModal = () => {
-  clearSignupState();
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-  window.location.href = `${window.location.origin}${dir}signup.html`;
-};
+    clearSignupState();
+    const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
+    window.location.href = `${window.location.origin}${dir}signup.html`;
+  };
 
   const startEditing = (t: TenantRow) => {
     setEditingTenant(t);
@@ -612,7 +706,7 @@ const buildAdminUrl = (s: string): string => {
     return n;
   }, [filters]);
 
-  const filteredRows = useMemo(() => {
+  const sortedRows = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     const now = Date.now();
     const MS_DAY = 24 * 60 * 60 * 1000;
@@ -671,7 +765,7 @@ const buildAdminUrl = (s: string): string => {
         break;
     }
 
-    return tenants.filter((t) => {
+    const filtered = tenants.filter((t) => {
       if (planFilter !== null && (t.planId ?? "professional") !== planFilter) {
         return false;
       }
@@ -710,7 +804,34 @@ const buildAdminUrl = (s: string): string => {
 
       return true;
     });
+
+    // Newest first. `_createdAt` is an ISO timestamp; fall back to 0
+    // when it's missing (legacy rows without created_at).
+    return [...filtered].sort((a, b) => {
+  // `main` (the platform tenant) is always pinned to the top.
+  const aIsMain = a.slug === "main";
+  const bIsMain = b.slug === "main";
+  if (aIsMain && !bIsMain) return -1;
+  if (!aIsMain && bIsMain) return 1;
+
+  // Everything else sorted newest-first by `_createdAt`.
+  const aT = new Date(a._createdAt).getTime() || 0;
+  const bT = new Date(b._createdAt).getTime() || 0;
+  return bT - aT;
+});
   }, [tenants, planFilter, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return sortedRows.slice(start, start + PAGE_SIZE);
+  }, [sortedRows, page]);
+
+  // Whenever the filter result set changes, snap back to page 1 so the
+  // user never lands on an empty page.
+  useEffect(() => {
+    setPage(1);
+  }, [planFilter, filters]);
 
   return (
     <>
@@ -858,7 +979,7 @@ const buildAdminUrl = (s: string): string => {
               </Button>
             }
           />
-        ) : filteredRows.length === 0 ? (
+        ) : sortedRows.length === 0 ? (
           <EmptyState
             title="No stores match your filters"
             description="Try adjusting or clearing the filters."
@@ -875,245 +996,280 @@ const buildAdminUrl = (s: string): string => {
             }
           />
         ) : (
-          <div className={local.list}>
-            {filteredRows.map((t) => (
-              <div key={t.id} className={`${local.row} ${local.storeItemRow}`}>
-                {editingTenant?.slug === t.slug ? (
-                  <div className={local.editInline}>
-                    <div className={local.formRow}>
-                      <FormField label="Store name">
-                        <Input
-                          value={editDisplayName}
-                          onChange={(e) => setEditDisplayName(e.target.value)}
-                        />
-                      </FormField>
-                      <FormField label="Owner phone">
-                        <Input
-                          type="tel"
-                          value={editOwnerPhone}
-                          onChange={(e) =>
-                            setEditOwnerPhone(
-                              e.target.value.replace(/\D/g, "").slice(0, 10),
-                            )
-                          }
-                          maxLength={10}
-                        />
-                      </FormField>
-                    </div>
+          <>
+            <div className={local.list}>
+              {paginatedRows.map((t) => (
+                <div
+                  key={t.id}
+                  className={`${local.row} ${local.storeItemRow}`}
+                >
+                  {editingTenant?.slug === t.slug ? (
+                    <div className={local.editInline}>
+                      <div className={local.formRow}>
+                        <FormField label="Store name">
+                          <Input
+                            value={editDisplayName}
+                            onChange={(e) => setEditDisplayName(e.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="Owner phone">
+                          <Input
+                            type="tel"
+                            value={editOwnerPhone}
+                            onChange={(e) =>
+                              setEditOwnerPhone(
+                                e.target.value.replace(/\D/g, "").slice(0, 10),
+                              )
+                            }
+                            maxLength={10}
+                          />
+                        </FormField>
+                      </div>
 
-                    <div className={local.formRow}>
-                      <FormField label="Owner name">
-                        <Input
-                          value={editOwnerName}
-                          onChange={(e) => setEditOwnerName(e.target.value)}
-                        />
-                      </FormField>
-                      <FormField label="WhatsApp number">
-                        <Input
-                          type="tel"
-                          value={editWhatsappPhone}
-                          onChange={(e) =>
-                            setEditWhatsappPhone(
-                              e.target.value.replace(/\D/g, "").slice(0, 10),
-                            )
-                          }
-                          maxLength={10}
-                        />
-                      </FormField>
-                    </div>
+                      <div className={local.formRow}>
+                        <FormField label="Owner name">
+                          <Input
+                            value={editOwnerName}
+                            onChange={(e) => setEditOwnerName(e.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="WhatsApp number">
+                          <Input
+                            type="tel"
+                            value={editWhatsappPhone}
+                            onChange={(e) =>
+                              setEditWhatsappPhone(
+                                e.target.value.replace(/\D/g, "").slice(0, 10),
+                              )
+                            }
+                            maxLength={10}
+                          />
+                        </FormField>
+                      </div>
 
-                    <FormField label="New password (optional)">
-                      <div className={local.passwordRow}>
-                        <Input
-                          type={showEditPassword ? "text" : "password"}
-                          value={editPassword}
-                          onChange={(e) => setEditPassword(e.target.value)}
-                          placeholder="Leave blank to keep"
-                        />
+                      <FormField label="New password (optional)">
+                        <div className={local.passwordRow}>
+                          <Input
+                            type={showEditPassword ? "text" : "password"}
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            placeholder="Leave blank to keep"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setEditPassword(generateRandomPassword())
+                            }
+                            aria-label="Generate password"
+                          >
+                            🎲
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowEditPassword((s) => !s)}
+                          >
+                            {showEditPassword ? "Hide" : "Show"}
+                          </Button>
+                        </div>
+                      </FormField>
+
+                      <div className={local.formActions}>
                         <Button
-                          size="sm"
                           variant="ghost"
-                          onClick={() =>
-                            setEditPassword(generateRandomPassword())
-                          }
-                          aria-label="Generate password"
+                          onClick={cancelEditing}
+                          disabled={isSaving}
                         >
-                          🎲
+                          Cancel
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowEditPassword((s) => !s)}
-                        >
-                          {showEditPassword ? "Hide" : "Show"}
+                        <Button onClick={handleSaveEdit} loading={isSaving}>
+                          Save changes
                         </Button>
                       </div>
-                    </FormField>
-
-                    <div className={local.formActions}>
-                      <Button
-                        variant="ghost"
-                        onClick={cancelEditing}
-                        disabled={isSaving}
-                      >
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveEdit} loading={isSaving}>
-                        Save changes
-                      </Button>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className={local.info}>
-                      <div className={local.nameRow}>
-                        <span className={local.name}>{t.displayName}</span>
-                        <div className={local.nameHead}>
-                          {t.slug === "main" && (
-                            <Badge tone="info" size="sm">
-                              main
-                            </Badge>
-                          )}
+                  ) : (
+                    <>
+                      <div className={local.info}>
+                        <div className={local.nameRow}>
+                          <span className={local.name}>{t.displayName}</span>
+                          <div className={local.nameHead}>
+                            {t.slug === "main" && (
+                              <Badge tone="info" size="sm">
+                                main
+                              </Badge>
+                            )}
+                            <PlanBadge
+                              tenant={t}
+                              onChangePlan={() => setChangePlanFor(t)}
+                            />
+                            {t.hasPauseRequest && t.pauseRequestId && (
+                              <PauseRequestIcon
+                                requestId={t.pauseRequestId}
+                                tenantName={t.displayName}
+                                onResolved={loadAll}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={local.expiryLine}>
+                          <span className={local.expiryLabel}>Expires</span>
+                          <span className={local.expiryDate}>
+                            {t.subscriptionExpiresAt
+                              ? new Date(
+                                  t.subscriptionExpiresAt,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : "-"}
+                          </span>
+                          {typeof t._daysUntilExpiry === "number" &&
+                            t._daysUntilExpiry !== Infinity && (
+                              <span
+                                className={`${local.expiryDays} ${
+                                  t._daysUntilExpiry <= 0
+                                    ? local.expiryExpired
+                                    : t._daysUntilExpiry <= 7
+                                      ? local.expirySoon
+                                      : ""
+                                }`}
+                              >
+                                {t._daysUntilExpiry > 0
+                                  ? `${t._daysUntilExpiry} day${
+                                      t._daysUntilExpiry === 1 ? "" : "s"
+                                    } left`
+                                  : "Expired"}
+                              </span>
+                            )}
+                        </div>
+
+                        <div className={local.metaRow}>
+                          <span className={local.categoryChip}>
+                            {getCategoryLabel(t.storeCategory)}
+                          </span>
                           {t.isActive === false && (
                             <Badge tone="danger" size="sm">
                               inactive
                             </Badge>
                           )}
-                          <PlanBadge
-                            tenant={t}
-                            onChangePlan={() => setChangePlanFor(t)}
-                          />
-                          {t.hasPauseRequest && t.pauseRequestId && (
-                            <PauseRequestIcon
-                              requestId={t.pauseRequestId}
-                              tenantName={t.displayName}
-                              onResolved={loadAll}
-                            />
-                          )}
                         </div>
+
+                        {t.whatsappPhone && (
+                          <div className={local.meta}>
+                            WhatsApp: {t.whatsappPhone}
+                          </div>
+                        )}
                       </div>
 
-                      <div className={local.expiryLine}>
-                        <span className={local.expiryLabel}>Expires</span>
-                        <span className={local.expiryDate}>
-                          {t.subscriptionExpiresAt
-                            ? new Date(
-                                t.subscriptionExpiresAt,
-                              ).toLocaleDateString("en-IN", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "-"}
-                        </span>
-                        {typeof t._daysUntilExpiry === "number" &&
-                          t._daysUntilExpiry !== Infinity && (
-                            <span
-                              className={`${local.expiryDays} ${
-                                t._daysUntilExpiry <= 0
-                                  ? local.expiryExpired
-                                  : t._daysUntilExpiry <= 7
-                                    ? local.expirySoon
-                                    : ""
-                              }`}
-                            >
-                              {t._daysUntilExpiry > 0
-                                ? `${t._daysUntilExpiry} day${
-                                    t._daysUntilExpiry === 1 ? "" : "s"
-                                  } left`
-                                : "Expired"}
-                            </span>
-                          )}
-                      </div>
-
-                      <div className={local.metaRow}>
-                        <span className={local.categoryChip}>
-                          {getCategoryLabel(t.storeCategory)}
-                        </span>
-                      </div>
-
-                      {t.whatsappPhone && (
-                        <div className={local.meta}>
-                          WhatsApp: {t.whatsappPhone}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={local.actions}>
-                      <div className={local.actionsGroup}>
-                        <Button
-                          size="xs"
-                          variant="link"
-                          onClick={() => handleCopyCredentials(t)}
-                          title="Generate or reuse credentials"
-                        >
-                          <CopyIcon
-                            width={16}
-                            height={16}
-                            fill={tokens.borderHover}
-                          />
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="link"
-                          onClick={() => startEditing(t)}
-                        >
-                          <EditIcon
-                            width={16}
-                            height={16}
-                            fill={tokens.borderHover}
-                          />
-                        </Button>
-                        {t.slug !== "main" && (
+                      <div className={local.actions}>
+                        <div className={local.actionsGroup}>
                           <Button
                             size="xs"
                             variant="link"
-                            onClick={() => handleDelete(t)}
+                            onClick={() =>
+                              setPendingRowAction({ kind: "qr", tenant: t })
+                            }
+                            title="Download Public QR"
                           >
-                            <TrashIcon
+                            <DownloadIcon
                               width={16}
                               height={16}
-                              fill={tokens.danger}
+                              fill={tokens.borderHover}
                             />
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="link"
+                            onClick={() =>
+                              setPendingRowAction({
+                                kind: "credentials",
+                                tenant: t,
+                              })
+                            }
+                            title="Generate or reuse credentials"
+                          >
+                            <CopyIcon
+                              width={16}
+                              height={16}
+                              fill={tokens.borderHover}
+                            />
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="link"
+                            onClick={() =>
+                              setPendingRowAction({ kind: "edit", tenant: t })
+                            }
+                          >
+                            <EditIcon
+                              width={16}
+                              height={16}
+                              fill={tokens.borderHover}
+                            />
+                          </Button>
+                          {t.slug !== "main" && (
+                            <Button
+                              size="xs"
+                              variant="link"
+                              onClick={() => handleDelete(t)}
+                            >
+                              <TrashIcon
+                                width={16}
+                                height={16}
+                                fill={tokens.danger}
+                              />
+                            </Button>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => openAdminInNewTab(t.slug)}
+                        >
+                          Admin
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openInNewTab(t.slug)}
+                        >
+                          User
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setChangePlanFor(t)}
+                        >
+                          Upgrade
+                        </Button>
+                        {t.slug !== "main" && (
+                          <Button
+                            size="sm"
+                            variant={t.isActive === false ? "ghost" : "warning"}
+                            onClick={() => handleToggleActive(t)}
+                          >
+                            {t.isActive === false ? "Start" : "Pause"}
                           </Button>
                         )}
                       </div>
-                      <Button
-                        size="xs"
-                        variant="primary"
-                        onClick={() => openAdminInNewTab(t.slug)}
-                      >
-                        Admin
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => openInNewTab(t.slug)}
-                      >
-                        User
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => setChangePlanFor(t)}
-                      >
-                        Upgrade
-                      </Button>
-                      {t.slug !== "main" && (
-                        <Button
-                          size="xs"
-                          variant={t.isActive === false ? "ghost" : "warning"}
-                          onClick={() => handleToggleActive(t)}
-                        >
-                          {t.isActive === false ? "Start" : "Pause"}
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={sortedRows.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            )}
+          </>
         )}
       </InlineSection>
 
@@ -1208,6 +1364,38 @@ const buildAdminUrl = (s: string): string => {
         variant={confirm?.variant}
         onConfirm={() => confirm?.action()}
         onCancel={() => setConfirm(null)}
+      />
+
+      {/* Row-action confirmation (QR / credentials / edit) */}
+      <ConfirmDialog
+        isOpen={!!pendingRowAction}
+        title={rowActionCopy(pendingRowAction).title}
+        message={rowActionCopy(pendingRowAction).message}
+        confirmText={rowActionCopy(pendingRowAction).confirmText}
+        variant={rowActionCopy(pendingRowAction).variant}
+        onConfirm={async () => {
+          const action = pendingRowAction;
+          setPendingRowAction(null);
+          if (!action) return;
+          switch (action.kind) {
+            case "qr":
+              await downloadPublicQrPdf({
+                storeName: action.tenant.displayName,
+                url: buildTenantUrl(action.tenant.slug),
+              });
+              flashSuccess(
+                `Public QR downloaded for ${action.tenant.displayName}`,
+              );
+              break;
+            case "credentials":
+              await handleCopyCredentials(action.tenant);
+              break;
+            case "edit":
+              startEditing(action.tenant);
+              break;
+          }
+        }}
+        onCancel={() => setPendingRowAction(null)}
       />
     </>
   );

@@ -1,5 +1,5 @@
-// components/Store/StoreModalBody.tsx
-import React, { useState } from "react";
+// src/components/Store/StoreModalBody.tsx
+import React, { useEffect, useState } from "react";
 import { useStore } from "../../contexts/StoreContext";
 import { StoreSettings } from "../../types";
 import { Toggle, FormField, Input, Textarea, Banner, Button } from "../ui";
@@ -20,12 +20,30 @@ interface FieldErrors {
 const StoreModalBody: React.FC<StoreModalBodyProps> = ({
   onClose: _onClose,
 }) => {
-  const { storeSettings, updateStoreSettings } = useStore();
+  const { storeSettings, updateStoreSettings, isLoading } = useStore();
 
+  // Local editable copy. Synced with the context whenever it changes.
   const [localSettings, setLocalSettings] =
     useState<StoreSettings>(storeSettings);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // ── KEY FIX: re-sync local state when the context's values change.
+  // On a fresh page load, `StoreContext` fetches the DB row async; the
+  // first render sees the default settings, then the context flips to
+  // the real values. Without this effect, the toggles would stay on the
+  // stale default forever.
+  useEffect(() => {
+    setLocalSettings(storeSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    storeSettings.isOpen,
+    storeSettings.acceptingOrders,
+    storeSettings.closedMessage,
+    storeSettings.expectedOpenDate,
+    storeSettings.expectedOpenTime,
+    storeSettings.lastUpdated,
+  ]);
 
   const validate = (): boolean => {
     const next: FieldErrors = {};
@@ -79,6 +97,18 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
   };
 
   const min = getMinDateTime();
+
+  // ── Gate the toggles until the real settings are loaded. This
+  //    prevents a "flash of enabled" while the fetch is in flight.
+  if (isLoading) {
+    return (
+      <InlineSection title="Store Management">
+        <div style={{ padding: 24, textAlign: "center", color: "#888" }}>
+          Loading store settings...
+        </div>
+      </InlineSection>
+    );
+  }
 
   return (
     <InlineSection title="Store Management">

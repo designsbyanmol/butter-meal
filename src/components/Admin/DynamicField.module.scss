@@ -1,4 +1,4 @@
-// components/Admin/DynamicField.module.scss
+// src/components/Admin/DynamicField.module.scss
 @use '../../styles/tokens' as *;
 
 .imageUploadError {
@@ -8,7 +8,8 @@
   background: $red-50;
   box-shadow: 0 0 0 4px rgba($danger, 0.1);
 }
-// ---------- Nutritional info grid ----------
+
+/* ---------- Nutritional info grid ---------- */
 .nutritionGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

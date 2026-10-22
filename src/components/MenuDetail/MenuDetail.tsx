@@ -12,6 +12,9 @@ import {
   StarIcon,
   PlusIcon,
   Special,
+  CloseIcon,
+  LeftArrowIcon,
+  RightArrow
 } from '../../assets/svgs';
 import { formatRupees } from '../../utils/subscription';
 import { Sheet, Modal, Button, IconButton, Chip, Banner } from '../ui';
@@ -57,9 +60,7 @@ const BUILTIN_BADGE_ICONS: Record<
   React.FC<{ width: number; height: number }>
 > = {
   isPopular: (props) => <PopularIcon {...props} />,
-  isNew: (props) => <NewIcon {...props} />,
   isChefSpecial: (props) => <Special {...props} />,
-  isLimited: (props) => <LimitedIcon {...props} />,
 };
 
 const sameCustomizations = (
@@ -300,6 +301,9 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     onClose();
   };
 
+  // ---------------------------------------------------------
+  // Dine-in flow
+  // ---------------------------------------------------------
   const lookForOpenOrderAndConfirm = async (t: TableInfo) => {
     if (!tenant) return;
     try {
@@ -453,21 +457,11 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           `dinein-active-order::${getEffectiveDeviceId()}`,
           activeOrderId,
         );
-        try {
-          window.dispatchEvent(
-            new StorageEvent('storage', {
-              key: `dinein-active-order::${getEffectiveDeviceId()}`,
-              newValue: activeOrderId,
-              storageArea: sessionStorage,
-            }),
-          );
-        } catch {
-          window.dispatchEvent(
-            new CustomEvent('dinein-active-order-changed', {
-              detail: { orderId: activeOrderId },
-            }),
-          );
-        }
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: `dinein-active-order::${getEffectiveDeviceId()}`,
+          }),
+        );
       } catch {
         /* ignore */
       }
@@ -500,6 +494,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     return selected.length > 0 ? selected.join(' | ') : 'No customizations';
   };
 
+  // ---- Field presence flags ----
   const hasDesc =
     isFieldEnabled('desc') && !!item.desc && item.desc.trim() !== '';
   const hasCategory =
@@ -587,6 +582,15 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     .filter((b) => b.enabled && item.attributes?.[b.key])
     .slice();
 
+    const labelClass = (label: string): string => {
+  const slug = label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug ? `${local[`badgeTextChip-${slug}`] ?? ''}` : '';
+};
+
   const renderBadge = (badge: BadgeDefinition) => {
     if (badge.image) {
       return (
@@ -612,7 +616,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
       );
     }
     return (
-      <span key={badge.key} className={local.badgeTextChip}>
+      <span key={badge.key} className={`${local.badgeTextChip} ${labelClass(badge.label)}`}>
         {badge.label}
       </span>
     );
@@ -623,6 +627,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
   const bodyContent = (
     <>
+      {/* Image / Slider */}
       <div
         className={local.imageWrapper}
         ref={sliderRef}
@@ -677,7 +682,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         )}
 
         {hasMultipleImages && (
-          <div className={local.swipeHint}>‹ Swipe to see more ›</div>
+          <div className={local.swipeHint}><LeftArrowIcon width={10} height={10} fill="#fff"/> Swipe to see more <RightArrow width={10} height={10} fill="#fff"/></div>
         )}
 
         {hasDiscount && (
@@ -710,6 +715,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
         </IconButton>
       </div>
 
+      {/* Content */}
       <div className={local.content}>
         <div className={local.header}>
           {hasReviews && (
@@ -848,7 +854,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
         {hasCustomizations && (
           <div className={local.section}>
-            <h4>Customize Your Order</h4>
+            <h4 className={local.sectionTitle}>Customize Options</h4>
             {item.customizationOptions!.map((option) => (
               <div key={option.name} className={local.customizationGroup}>
                 <label className={local.customizationLabel}>
@@ -908,7 +914,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
 
         {plan.canAddCustomMessage && (
           <div className={local.section}>
-            <h4>Add Customized Message</h4>
+            <h4>Write Customized Message</h4>
             <div className={local.customMessageWrapper}>
               <textarea
                 className={local.customMessageInput}
@@ -978,21 +984,30 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
       </div>
 
       <div className={local.btnWrap}>
-        {plan.canOrder && acceptingOrders && (
-          <Button
-            onClick={isDinein ? handlePlaceOrder : handleCartSubmit}
-            loading={isDinein && dineinBusy}
-          >
-            {isDinein
-              ? dineinBusy
-                ? 'Loading...'
-                : 'Place Order'
-              : isInCart
-              ? 'Update Cart'
-              : 'Add to Cart'}
-          </Button>
-        )}
-      </div>
+  <Button
+    variant="ghost"
+    onClick={onClose}
+    leftIcon={<CloseIcon width={16} height={16} fill="currentColor" />}
+    aria-label="Close"
+  >
+    Close
+  </Button>
+
+  {plan.canOrder && acceptingOrders && (
+    <Button
+      onClick={isDinein ? handlePlaceOrder : handleCartSubmit}
+      loading={isDinein && dineinBusy}
+    >
+      {isDinein
+        ? dineinBusy
+          ? 'Loading...'
+          : 'Place Order'
+        : isInCart
+        ? 'Update Cart'
+        : 'Add to Cart'}
+    </Button>
+  )}
+</div>
     </>
   );
 
@@ -1014,7 +1029,6 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
           isOpen={isOpen}
           onClose={onClose}
           mobileFullScreen
-          disableBackdropClose={true}
           title={item.name}
           size="lg"
           footer={footerContent}

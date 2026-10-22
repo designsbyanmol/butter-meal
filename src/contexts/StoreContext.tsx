@@ -4,16 +4,18 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
   useRef,
-} from 'react';
-import { StoreSettings } from '../types';
-import { db } from '../services/database.service';
-import { useTenant } from './TenantContext';
+} from "react";
+import { StoreSettings } from "../types";
+import { db } from "../services/database.service";
+import { useTenant } from "./TenantContext";
 
 interface StoreContextType {
   storeSettings: StoreSettings;
-  updateStoreSettings: (settings: Partial<StoreSettings>) => void;
+  updateStoreSettings: (settings: Partial<StoreSettings>) => Promise<void>;
+  refreshStoreSettings: () => Promise<void>;
   isStoreOpen: boolean;
   isLoading: boolean;
   isAcceptingOrders: boolean;
@@ -22,9 +24,9 @@ interface StoreContextType {
 
 const defaultStoreSettings: StoreSettings = {
   isOpen: true,
-  closedMessage: '',
-  expectedOpenDate: '',
-  expectedOpenTime: '',
+  closedMessage: "",
+  expectedOpenDate: "",
+  expectedOpenTime: "",
   acceptingOrders: true,
   lastUpdated: new Date().toISOString(),
 };
@@ -34,7 +36,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const useStore = () => {
   const context = useContext(StoreContext);
   if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
+    throw new Error("useStore must be used within a StoreProvider");
   }
   return context;
 };
@@ -48,49 +50,59 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     useState<StoreSettings>(defaultStoreSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [pollingPaused, setPollingPaused] = useState(false);
+  const [pollingPaused, setPollingPausedState] = useState(false);
 
-  const lastUpdateTimeRef = useRef<string>('');
+  const lastUpdateTimeRef = useRef<string>("");
   const isFetchingRef = useRef(false);
+  const storeSettingsRef = useRef<StoreSettings>(storeSettings);
 
-  const fetchLatestSettings = async (
-    force = false,
-  ): Promise<StoreSettings | null> => {
-    if (!tenant) return null;
-    if (isFetchingRef.current && !force) return null;
-    if (pollingPaused && !force) return null;
+  useEffect(() => {
+    storeSettingsRef.current = storeSettings;
+  }, [storeSettings]);
 
-    const slug = tenant.slug;
+  const setPollingPaused = useCallback((paused: boolean) => {
+    setPollingPausedState(paused);
+  }, []);
 
-    try {
-      isFetchingRef.current = true;
-      const dbSettings = await db.getStoreSettings(slug);
-      if (!dbSettings) {
-        isFetchingRef.current = false;
+  const fetchLatestSettings = useCallback(
+    async (force = false): Promise<StoreSettings | null> => {
+      if (!tenant) return null;
+      if (isFetchingRef.current && !force) return null;
+      if (pollingPaused && !force) return null;
+
+      const slug = tenant.slug;
+
+      try {
+        isFetchingRef.current = true;
+        const dbSettings = await db.getStoreSettings(slug);
+        if (!dbSettings) {
+          return null;
+        }
+
+        const latest: StoreSettings = {
+          isOpen: dbSettings.isOpen ?? true,
+          closedMessage: dbSettings.closedMessage || "",
+          expectedOpenDate: dbSettings.expectedOpenDate || "",
+          expectedOpenTime: dbSettings.expectedOpenTime || "",
+          acceptingOrders: dbSettings.acceptingOrders !== false,
+          lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
+        };
+
+        // Always apply on a forced fetch; otherwise only when changed.
+        if (force || latest.lastUpdated !== lastUpdateTimeRef.current) {
+          setStoreSettings(latest);
+          lastUpdateTimeRef.current = latest.lastUpdated;
+        }
+        return latest;
+      } catch (error) {
+        console.error("fetchLatestSettings failed:", error);
         return null;
+      } finally {
+        isFetchingRef.current = false;
       }
-
-      const latest: StoreSettings = {
-        isOpen: dbSettings.isOpen ?? true,
-        closedMessage: dbSettings.closedMessage || '',
-        expectedOpenDate: dbSettings.expectedOpenDate || '',
-        expectedOpenTime: dbSettings.expectedOpenTime || '',
-        acceptingOrders: dbSettings.acceptingOrders !== false,
-        lastUpdated: dbSettings.lastUpdated || new Date().toISOString(),
-      };
-
-      if (latest.lastUpdated !== lastUpdateTimeRef.current) {
-        setStoreSettings(latest);
-        lastUpdateTimeRef.current = latest.lastUpdated;
-      }
-      isFetchingRef.current = false;
-      return latest;
-    } catch (error) {
-      console.error('fetchLatestSettings failed:', error);
-      isFetchingRef.current = false;
-      return null;
-    }
-  };
+    },
+    [tenant, pollingPaused],
+  );
 
   useEffect(() => {
     if (tenantLoading) return;
@@ -104,7 +116,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
 
     setIsLoading(true);
     setSettingsLoaded(false);
-    lastUpdateTimeRef.current = '';
+    lastUpdateTimeRef.current = "";
 
     (async () => {
       await fetchLatestSettings(true);
@@ -114,28 +126,47 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, tenantLoading]);
 
-  const updateStoreSettings = (settings: Partial<StoreSettings>) => {
-    if (!tenant) return;
+  const updateStoreSettings = useCallback(
+    async (settings: Partial<StoreSettings>): Promise<void> => {
+      if (!tenant) throw new Error("No tenant loaded");
 
-    const updated: StoreSettings = {
-      ...storeSettings,
-      ...settings,
-      lastUpdated: new Date().toISOString(),
-    };
+      const previous = storeSettingsRef.current;
 
-    if (settings.isOpen === true) {
-      updated.closedMessage = '';
-      updated.expectedOpenDate = '';
-      updated.expectedOpenTime = '';
-    }
+      const updated: StoreSettings = {
+        ...previous,
+        ...settings,
+        lastUpdated: new Date().toISOString(),
+      };
 
-    setStoreSettings(updated);
-    lastUpdateTimeRef.current = updated.lastUpdated;
+      // Opening the store clears the closed-state details.
+      if (settings.isOpen === true) {
+        updated.closedMessage = "";
+        updated.expectedOpenDate = "";
+        updated.expectedOpenTime = "";
+      }
 
-    db.updateStoreSettings(tenant.slug, updated).catch((err: unknown) => {
-      console.error('updateStoreSettings failed:', err);
-    });
-  };
+      // Optimistic update — UI reflects change immediately.
+      setStoreSettings(updated);
+      storeSettingsRef.current = updated;
+      lastUpdateTimeRef.current = updated.lastUpdated;
+
+      try {
+        await db.updateStoreSettings(tenant.slug, updated);
+      } catch (err) {
+        console.error("updateStoreSettings failed:", err);
+        // Roll back to the last known-good state.
+        setStoreSettings(previous);
+        storeSettingsRef.current = previous;
+        lastUpdateTimeRef.current = previous.lastUpdated;
+        throw err;
+      }
+    },
+    [tenant],
+  );
+
+  const refreshStoreSettings = useCallback(async (): Promise<void> => {
+    await fetchLatestSettings(true);
+  }, [fetchLatestSettings]);
 
   const getIsStoreOpen = (): boolean => {
     if (isLoading || !settingsLoaded) return false;
@@ -154,6 +185,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         storeSettings,
         updateStoreSettings,
+        refreshStoreSettings,
         isStoreOpen: getIsStoreOpen(),
         isAcceptingOrders: getIsAcceptingOrders(),
         isLoading: isLoading || !settingsLoaded,

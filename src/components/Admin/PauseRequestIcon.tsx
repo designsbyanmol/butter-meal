@@ -1,8 +1,9 @@
-// components/Admin/PauseRequestIcon.tsx
+// src/components/Admin/PauseRequestIcon.tsx
 import React, { useState } from 'react';
 import { planService } from '../../services/plan.service';
 import { Modal, Button } from '../ui';
 import local from './PauseRequestIcon.module.scss';
+import { BellIcon } from '../../assets/svgs';
 
 interface PauseRequestIconProps {
   requestId: string;
@@ -41,7 +42,7 @@ const PauseRequestIcon: React.FC<PauseRequestIconProps> = ({
         title="Pause request pending"
         aria-label="Pause request pending"
       >
-        🔔
+        <BellIcon width={24} height={24} />
       </button>
 
       <Modal
@@ -49,7 +50,6 @@ const PauseRequestIcon: React.FC<PauseRequestIconProps> = ({
         onClose={() => setIsOpen(false)}
         title="Pause Request"
         mobileFullScreen
-        disableBackdropClose={true}
         size="sm"
         footer={
           <>
@@ -71,9 +71,9 @@ const PauseRequestIcon: React.FC<PauseRequestIconProps> = ({
         }
       >
         <p className={local.body}>
-          <strong>{tenantName}</strong> has requested to pause their store. If
-          you accept, their plan will stop counting down and the store will be
-          deactivated.
+          <strong>{tenantName}</strong> has requested to pause their store.
+          If you accept, their plan will stop counting down and the store
+          will be deactivated.
         </p>
         {error && <p className={local.error}>{error}</p>}
       </Modal>

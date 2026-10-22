@@ -23,6 +23,7 @@ import {
   countActiveFilters,
 } from './reviewsFilters.types';
 import local from './ReviewsList.module.scss';
+import { StarIcon } from '../../../../assets/svgs';
 
 type Outcome = 'rejected' | 'deleted';
 
@@ -61,7 +62,7 @@ const ResolvedReviews: React.FC = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<ReviewsFilters>(EMPTY_REVIEWS_FILTERS);
 
-  /** Per-store outcome filter: slug → 'rejected' | 'deleted' | null. */
+  /** Per-store outcome filter: slug - 'rejected' | 'deleted' | null. */
   const [storeOutcome, setStoreOutcome] = useState<
     Record<string, Outcome | null>
   >({});
@@ -363,7 +364,7 @@ const ResolvedReviews: React.FC = () => {
                             </Badge>
                           ) : row.review ? (
                             <Badge tone="neutral" size="sm">
-                              {row.review.rating.toFixed(1)} ★
+                              {row.review.rating.toFixed(1)} <StarIcon width={10} height={10} fill="currentColor" />
                             </Badge>
                           ) : null}
                         </div>

@@ -5,8 +5,8 @@ const BASE_KEY = 'platform:seen-disputes:v1';
 
 /**
  * Storage scope:
- *   - null / undefined / ''  →  '__platform'  (platform admin bell)
- *   - '<slug>'               →  per-tenant    (tenant admin bell)
+ *   - null / undefined / ''  -  '__platform'  (platform admin bell)
+ *   - '<slug>'               -  per-tenant    (tenant admin bell)
  *
  * This prevents the platform admin's seen-set from colliding with each
  * tenant admin's seen-set, and prevents two tenants from sharing state.

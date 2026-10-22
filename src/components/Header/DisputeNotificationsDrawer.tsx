@@ -287,7 +287,7 @@ export const DisputeNotificationsDrawer: React.FC<
           <EmptyState title="Loading notifications..." />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={<BellIcon width={36} height={36} fill="#e6ded7" />}
+            icon={<BellIcon width={36} height={36} fill="#dcdcdc" />}
             title={emptyTitle}
             description={emptyDescription}
           />

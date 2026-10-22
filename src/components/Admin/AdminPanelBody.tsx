@@ -19,6 +19,7 @@ import {
   Accordion,
   Badge,
   EmptyState,
+  Chip,
 } from "../ui";
 import { getStoreLabels } from "../../utils/storeLabels";
 import { getCategoryDefaults } from "../../data/storeDefaults";
@@ -42,6 +43,7 @@ interface AdminPanelBodyProps {
 }
 
 const UNCATEGORIZED = "Uncategorized";
+const ALL_CATEGORIES = "__all__";
 
 const emptyNewItem: MenuItemFormValue = {
   name: "",
@@ -80,6 +82,8 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<"all" | "inStock" | "outOfStock">("all");
+  /** Currently selected category pill. `ALL_CATEGORIES` = no filter. */
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORIES);
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editForm, setEditForm] = useState<MenuItemFormValue>({});
@@ -108,8 +112,6 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [isReordering, setIsReordering] = useState(false);
 
-  const didInitCollapse = useRef(false);
-
   const [confirmToggle, setConfirmToggle] = useState<{
     itemId: number;
     action: "in" | "out";
@@ -124,7 +126,8 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canReorder = isAdmin && searchTerm === "" && filter === "all";
+  const canReorder =
+    isAdmin && searchTerm === "" && filter === "all";
 
   const schemaCategorySet = useMemo(() => {
     const catField = schema.fields.find((f) => f.key === "category");
@@ -134,6 +137,41 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
         .filter(Boolean),
     );
   }, [schema]);
+
+  // ---------------------------------------------------------
+  // Category capsule options
+  //
+  // Shows every category that is both in the schema AND has at
+  // least one item. Plus an "All" pill at the front. Also includes
+  // "Uncategorized" if there are items with no matching category,
+  // so those items are still reachable via the filter.
+  // ---------------------------------------------------------
+  const categoryCapsules = useMemo(() => {
+    const catField = schema.fields.find((f) => f.key === "category");
+    const ordered = normalizeOptions(catField?.options)
+      .map((o) => o.name.trim())
+      .filter(Boolean);
+
+    const used = new Set<string>();
+    let hasUncategorized = false;
+
+    items.forEach((item) => {
+      const raw = (item.category ?? "").trim();
+      if (!raw) {
+        hasUncategorized = true;
+        return;
+      }
+      if (!schemaCategorySet.has(raw)) {
+        hasUncategorized = true;
+        return;
+      }
+      used.add(raw);
+    });
+
+    const list = ordered.filter((c) => used.has(c));
+    if (hasUncategorized) list.push(UNCATEGORIZED);
+    return list;
+  }, [items, schema, schemaCategorySet]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -148,9 +186,24 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
             : filter === "outOfStock"
               ? item.inStock === false
               : true;
-      return matchesSearch && matchesFilter;
+
+      let matchesCategory = true;
+      if (activeCategory !== ALL_CATEGORIES) {
+        const raw = (item.category ?? "").trim();
+        const resolved =
+          raw && schemaCategorySet.has(raw) ? raw : UNCATEGORIZED;
+        matchesCategory = resolved === activeCategory;
+      }
+
+      return matchesSearch && matchesFilter && matchesCategory;
     });
-  }, [items, searchTerm, filter]);
+  }, [
+    items,
+    searchTerm,
+    filter,
+    activeCategory,
+    schemaCategorySet,
+  ]);
 
   const inStockCount = items.filter((i) => i.inStock === true).length;
   const outOfStockCount = items.filter((i) => i.inStock === false).length;
@@ -182,18 +235,44 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
       });
   }, [filteredItems, schemaCategorySet, schema]);
 
+  // ---------------------------------------------------------
+  // Default-collapse behaviour
+  //
+  // Every category group starts collapsed. This runs on every new
+  // set of groups — so it works whether items were already loaded
+  // or arrive later. Categories that the user has *explicitly
+  // opened* stay open (tracked in `userOpened`).
+  // ---------------------------------------------------------
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const userOpenedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (didInitCollapse.current) return;
-    if (categoryGroups.length === 0) return;
-    setCollapsed(new Set(categoryGroups.map((g) => g.category)));
-    didInitCollapse.current = true;
-  }, [categoryGroups]);
+    const all = new Set(categoryGroups.map((g) => g.category));
+    // Preserve any user-opened categories across filter/search changes.
+    userOpenedRef.current.forEach((cat) => {
+      if (all.has(cat)) all.delete(cat);
+    });
+    setCollapsed(all);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // Only rerun when the *set of categories* changes, not their
+    // items. Using `categoryGroups.length` avoids firing on every
+    // item update.
+    categoryGroups.length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    categoryGroups.map((g) => g.category).join("|"),
+  ]);
 
   const toggleCategory = (category: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      next.has(category) ? next.delete(category) : next.add(category);
+      if (next.has(category)) {
+        next.delete(category);
+        userOpenedRef.current.add(category);
+      } else {
+        next.add(category);
+        userOpenedRef.current.delete(category);
+      }
       return next;
     });
   };
@@ -735,6 +814,33 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
           </select>
         </div>
 
+        {/* ============ Category capsule filter ============ */}
+        {categoryCapsules.length > 0 && (
+          <div className={local.categoryPills}>
+            <Chip
+              tone="primary"
+              active={activeCategory === ALL_CATEGORIES}
+              onClick={() => setActiveCategory(ALL_CATEGORIES)}
+            >
+              All
+            </Chip>
+            {categoryCapsules.map((c) => (
+              <Chip
+                key={c}
+                tone="primary"
+                active={activeCategory === c}
+                onClick={() =>
+                  setActiveCategory((prev) =>
+                    prev === c ? ALL_CATEGORIES : c,
+                  )
+                }
+              >
+                {c}
+              </Chip>
+            ))}
+          </div>
+        )}
+
         {isAdmin && !canReorder && (
           <Banner variant="warning" inline>
             Clear search / filter to reorder items by dragging
@@ -759,7 +865,15 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
                   key={group.category}
                   title={group.category}
                   forceOpen={forceOpen}
-                  defaultOpen={!isCollapsed}
+                  defaultOpen={isCollapsed}
+                  onToggle={(open) => {
+                    // Keep local state in sync with user interaction
+                    if (open && collapsed.has(group.category)) {
+                      toggleCategory(group.category);
+                    } else if (!open && !collapsed.has(group.category)) {
+                      toggleCategory(group.category);
+                    }
+                  }}
                   meta={
                     <span className={local.categoryCount}>
                       {group.items.length}

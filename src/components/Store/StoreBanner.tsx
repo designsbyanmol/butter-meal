@@ -1,57 +1,70 @@
-// components/Store/StoreBanner.tsx
+// src/components/Store/StoreBanner.tsx
 import React from 'react';
 import { useStore } from '../../contexts/StoreContext';
-import styles from './Store.module.scss';
+import local from './Store.module.scss';
 
 interface StoreBannerProps {
   className?: string;
 }
 
+/**
+ * Renders a large "we're closed" card when the store is not open.
+ *
+ * Self-gates on `isStoreOpen` from StoreContext, so it's safe to
+ * mount unconditionally in AppContent — it will return null when
+ * the store is open.
+ *
+ * The displayed message uses:
+ *   - `closedMessage` (owner-set) when present
+ *   - Otherwise a generic "opening soon" fallback
+ *
+ * The expected open date/time, when set by the owner, is shown in a
+ * styled chip at the bottom of the banner.
+ */
 const StoreBanner: React.FC<StoreBannerProps> = ({ className }) => {
   const { storeSettings, isStoreOpen } = useStore();
 
-  // Don't render anything if store is open
   if (isStoreOpen) return null;
 
-  let message = "Store is currently closed";
-  let subMessage = "We'll be opening soon!";
+  const customMessage = storeSettings.closedMessage?.trim() ?? '';
 
-  // Check if we have a custom closed message
-  if (storeSettings.closedMessage && storeSettings.closedMessage.trim() !== '') {
-    message = storeSettings.closedMessage;
-  }
-
-  // Check if we have expected open date/time
-  let dateDisplay = null;
-  if (storeSettings.expectedOpenDate && storeSettings.expectedOpenTime) {
-    dateDisplay = (
-      <>
-        Expected to open on <div><span>{storeSettings.expectedOpenDate}</span> at <span>{storeSettings.expectedOpenTime}</span></div>
-      </>
-    );
-  } else if (storeSettings.expectedOpenDate) {
-    dateDisplay = (
-      <>
-        Expected to open on <span>{storeSettings.expectedOpenDate}</span>
-      </>
-    );
-  } else if (storeSettings.expectedOpenTime) {
-    dateDisplay = (
-      <>
-        Expected to open on <span>{storeSettings.expectedOpenTime}</span>
-      </>
-    );
-  }
+  const hasDate = !!storeSettings.expectedOpenDate;
+  const hasTime = !!storeSettings.expectedOpenTime;
 
   return (
-    <div className={`${styles.storeBanner} ${className || ''}`}>
-      <div className={styles.bannerContent}>
-        <div className={styles.bannerIcon}>Sorry!</div>
-        <p className={styles.tagLine}>We are close right now. Opening Soon...</p>
-        <div className={styles.bannerText}>
-          <div className={styles.heading}>Reason:</div>
-          <h3>{message}</h3>
-          <div className={styles.p}>{dateDisplay || subMessage}</div>
+    <div
+      className={[local.storeBanner, className ?? '']
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div className={local.bannerContent}>
+        <div className={local.bannerIcon}>Sorry!</div>
+
+        <p className={local.tagLine}>We are closed right now. Opening soon...</p>
+
+        <div className={local.bannerText}>
+          <div className={local.heading}>Reason:</div>
+
+          <h3>
+            {customMessage || "We'll be back shortly"}
+          </h3>
+
+          <div className={local.p}>
+            {(hasDate || hasTime) && (
+              <>
+                Expected to open
+                {hasDate && hasTime ? ' on ' : hasDate ? ' on ' : ' at '}
+                {hasDate && (
+                  <span>{storeSettings.expectedOpenDate}</span>
+                )}
+                {hasDate && hasTime && ' at '}
+                {hasTime && (
+                  <span>{storeSettings.expectedOpenTime}</span>
+                )}
+              </>
+            )}
+            {!hasDate && !hasTime && 'Please check back soon!'}
+          </div>
         </div>
       </div>
     </div>

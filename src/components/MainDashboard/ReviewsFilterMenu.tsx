@@ -32,8 +32,8 @@ const FILTER_OPTIONS: { key: ReviewFilter; label: string }[] = [
 const SORT_OPTIONS: { key: ReviewSortKey; label: string }[] = [
   { key: 'recent', label: 'Newest first' },
   { key: 'oldest', label: 'Oldest first' },
-  { key: 'ratingLow', label: 'Rating: low → high' },
-  { key: 'ratingHigh', label: 'Rating: high → low' },
+  { key: 'ratingLow', label: 'Rating: low - high' },
+  { key: 'ratingHigh', label: 'Rating: high - low' },
 ];
 
 const ReviewsFilterMenu: React.FC<ReviewsFilterMenuProps> = ({

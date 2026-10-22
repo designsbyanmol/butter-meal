@@ -52,8 +52,8 @@
 }
 
 .roleLabel {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 600;
   color: $text;
   letter-spacing: -0.2px;
 }
@@ -87,7 +87,7 @@
    ========================================================= */
 .main {
   flex: 1;
-  padding: 24px 14px 80px;
+  padding: 24px 14px 120px;
   overflow-x: hidden;
 }
 
@@ -159,8 +159,8 @@
 }
 
 .navLabel {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 600;
   letter-spacing: 0.1px;
   line-height: 1.15;
 }

@@ -1,4 +1,4 @@
-// components/Admin/PlanBadge.module.scss
+// src/components/Admin/PlanBadge.module.scss
 @use '../../styles/tokens' as *;
 
 .badgeBtn {
@@ -10,8 +10,9 @@
   cursor: pointer;
   transition: transform $t-fast;
 
-  &:hover { transform: scale(1.05); }
-
+  &:hover {
+    transform: scale(1.05);
+  }
 }
 
 .rows {

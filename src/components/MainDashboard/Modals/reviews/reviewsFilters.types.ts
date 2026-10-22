@@ -46,9 +46,9 @@ export const EMPTY_REVIEWS_FILTERS: ReviewsFilters = {
 export const RATING_OPTIONS: { key: RatingBucket; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: '5only', label: '5 stars only' },
-  { key: 'lte4', label: '≤ 4 stars' },
-  { key: 'lte3', label: '≤ 3 stars' },
-  { key: 'lte2', label: '≤ 2 stars' },
+  { key: 'lte4', label: '4 stars' },
+  { key: 'lte3', label: '3 stars' },
+  { key: 'lte2', label: '2 stars' },
   { key: '1only', label: '1 star only' },
 ];
 
@@ -61,8 +61,8 @@ export const COMMENT_OPTIONS: { key: CommentFilter; label: string }[] = [
 export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'recent', label: 'Newest first' },
   { key: 'oldest', label: 'Oldest first' },
-  { key: 'ratingLow', label: 'Rating: Low → High' },
-  { key: 'ratingHigh', label: 'Rating: High → Low' },
+  { key: 'ratingLow', label: 'Rating: Low - High' },
+  { key: 'ratingHigh', label: 'Rating: High - Low' },
 ];
 
 export const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [

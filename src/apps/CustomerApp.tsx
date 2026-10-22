@@ -1,31 +1,49 @@
 // src/apps/CustomerApp.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
-import { StoreProvider } from '../contexts/StoreContext';
+import { StoreProvider, useStore } from '../contexts/StoreContext';
+import { useMenu } from '../hooks/useMenu';
 import AppContent from '../AppContent';
 import TenantNotFound from '../components/TenantNotFound/TenantNotFound';
-import DashboardSkeleton from '../components/DashboardSkeleton/DashboardSkeleton';
+import Preloader from '../components/Preloader/Preloader';
 
+/**
+ * Inner component — reads loading state from the three contexts
+ * that gate the customer page. Unmounts the preloader only when
+ * BOTH the minimum time has elapsed AND every context is loaded.
+ */
 const CustomerInner: React.FC = () => {
-  const { isLoading, tenantNotFound, tenant } = useTenant();
+  const { isLoading: tenantLoading, tenantNotFound } = useTenant();
+  const { isLoading: storeLoading } = useStore();
+  const { loading: menuLoading } = useMenu();
 
-  if (isLoading) {
-    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
+  const [minElapsed, setMinElapsed] = useState(false);
+
+  // Once the preloader's own timer fires, the app takes over.
+  const appReady = !tenantLoading && !storeLoading && !menuLoading;
+
+  if (!minElapsed || !appReady) {
+    return <Preloader onReady={() => setMinElapsed(true)} />;
   }
 
-  if (tenantNotFound || !tenant) {
+  if (tenantNotFound) {
     return <TenantNotFound />;
   }
 
   return <AppContent />;
 };
 
-const CustomerApp: React.FC = () => (
-  <TenantProvider>
-    <StoreProvider>
-      <CustomerInner />
-    </StoreProvider>
-  </TenantProvider>
-);
+/**
+ * Public entry — mounts providers then the inner component.
+ */
+const CustomerApp: React.FC = () => {
+  return (
+    <TenantProvider>
+      <StoreProvider>
+        <CustomerInner />
+      </StoreProvider>
+    </TenantProvider>
+  );
+};
 
 export default CustomerApp;

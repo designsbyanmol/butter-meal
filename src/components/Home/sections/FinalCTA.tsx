@@ -28,15 +28,6 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onSignup, onTrySample }) => (
           >
             Create Free Store
           </Button>
-          {onTrySample && (
-            <Button
-              size="lg"
-              variant="ghost"
-              onClick={onTrySample}
-            >
-              Explore Sample Store
-            </Button>
-          )}
         </div>
       </div>
 

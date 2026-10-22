@@ -346,7 +346,7 @@ const headerActions = (
                       </Badge>
                     ) : (
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="ghost"
                         onClick={() => {
                           const review = reviews.find((r) => r.id === c.id);

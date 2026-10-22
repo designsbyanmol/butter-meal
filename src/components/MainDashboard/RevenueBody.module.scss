@@ -1,4 +1,6 @@
+// components/MainDashboard/RevenueBody.module.scss
 @use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
 
 .wrap {
   display: flex;
@@ -10,13 +12,12 @@
 .headerActions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .searchBox {
-  width: 220px;
-  margin: 0 0 16px;
+  margin: 0 0 0;
 
   @media (max-width: 640px) {
     width: 100%;
@@ -38,26 +39,51 @@
   font-weight: 800;
 }
 
+/* ---------- Filter sheet sections ---------- */
 .filterSection {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  margin-bottom: 22px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 }
 
-.filterLabel {
-  padding: 4px 10px 4px;
-  font-size: 10.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: $text-faint;
+.chipGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.dateRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 4px 10px 6px;
+.dateRangeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Force the sheet's footer buttons to remain side-by-side even
+   though the Sheet defaults to a 1-column grid on mobile. */
+.filterSheet {
+  > footer {
+    grid-template-columns: 1fr 1fr !important;
+
+    > button {
+      grid-column: auto !important;
+    }
+  }
 }
 
 /* ---------- Stat Cards ---------- */
@@ -67,15 +93,18 @@
   gap: 16px;
 
   @media (max-width: 1000px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
   @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 .statCard {
   gap: 4px;
+  @media (max-width: 600px) {
+    padding: 10px;
+  }
 }
 
 .statLabel {
@@ -90,6 +119,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  @media (max-width: 600px) {
+    flex-wrap: wrap;
+  }
 }
 
 .statValue {
@@ -97,12 +129,18 @@
   font-weight: 800;
   color: $text;
   letter-spacing: -0.5px;
+  @media (max-width: 600px) {
+    font-size: 16px;
+  }
 }
 
 .statSub {
   font-size: 11.5px;
   color: $text-muted;
   margin-top: 2px;
+  @media (max-width: 600px) {
+    font-size: 10px;
+  }
 }
 
 /* ---------- Table ---------- */

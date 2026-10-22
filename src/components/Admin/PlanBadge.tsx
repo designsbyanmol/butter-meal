@@ -1,4 +1,4 @@
-// components/Admin/PlanBadge.tsx
+// src/components/Admin/PlanBadge.tsx
 import React, { useState } from 'react';
 import { Tenant } from '../../contexts/TenantContext';
 import { formatRupees } from '../../utils/subscription';
@@ -43,8 +43,8 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
     status === 'active'
       ? 'success'
       : status === 'paused'
-      ? 'warning'
-      : 'danger';
+        ? 'warning'
+        : 'danger';
 
   return (
     <>
@@ -64,7 +64,6 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
         onClose={() => setIsOpen(false)}
         title="Plan Details"
         mobileFullScreen
-        disableBackdropClose={true}
         size="sm"
         footer={
           <>
@@ -130,46 +129,44 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({ tenant, onChangePlan }) => {
           <div className={local.features}>
             <h5>Features</h5>
             <ul>
-              {tenant.planFeatures?.canOrder && <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Ordering</li>}
-              {tenant.planFeatures?.canEditFields && <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Edit Fields</li>}
+              {tenant.planFeatures?.canOrder && (
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Ordering
+                </li>
+              )}
+              {tenant.planFeatures?.canEditFields && (
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Edit
+                  Fields
+                </li>
+              )}
               {tenant.planFeatures?.canManageStore && (
-                <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Store Manager</li>
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Store
+                  Manager
+                </li>
               )}
               {tenant.planFeatures?.canManageUsers && (
-                <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> User Management</li>
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> User
+                  Management
+                </li>
               )}
-              {tenant.planFeatures?.canWishlist && <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Wishlist</li>}
-              {tenant.planFeatures?.canReview && <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Reviews</li>}
+              {tenant.planFeatures?.canWishlist && (
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Wishlist
+                </li>
+              )}
+              {tenant.planFeatures?.canReview && (
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Reviews
+                </li>
+              )}
               {tenant.planFeatures?.canAddCustomMessage && (
-                <li><CheckIcon
-                              width={14}
-                              height={14}
-                              fill="#1e7e34"
-                            /> Custom Message</li>
+                <li>
+                  <CheckIcon width={14} height={14} fill="#1e7e34" /> Custom
+                  Message
+                </li>
               )}
             </ul>
           </div>

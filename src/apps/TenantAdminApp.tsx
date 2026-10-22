@@ -105,7 +105,7 @@ const TenantAdminAppInner: React.FC = () => {
     return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
   }
 
-  // ── 3. Not signed in → login. No tenant gate here. ──
+  // ── 3. Not signed in - login. No tenant gate here. ──
   if (!isAuthenticated) {
     const displayName = tenant?.displayName ?? slug;
     return (

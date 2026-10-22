@@ -6,7 +6,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 3px;
   font-family: inherit;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -48,9 +48,9 @@
 }
 
 .sm {
-  padding: 8px 12px;
-  font-size: 12px;
-  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 11px;
+  min-height: 28px;
 
   span {
     @include mobile {
@@ -155,7 +155,7 @@
   &:hover:not(:disabled) {
     background: $blue-200;
     border-color: $border-strong;
-    color: $blue-400;
+    color: $blue-900;
   }
 }
 

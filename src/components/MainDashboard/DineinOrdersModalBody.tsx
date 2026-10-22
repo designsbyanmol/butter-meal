@@ -608,7 +608,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
           !isStaff ? (
             <IconButton
               variant="soft"
-              size="md"
+              size="sm"
               aria-label="Order history"
               tooltip="Order history"
               onClick={() => setHistoryOpen(true)}
@@ -866,7 +866,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                     {!isStaff && o.status === 'served' && !o.billRequested && (
                       <div className={local.servedActions}>
                         <Button
-                          size="xs"
+                          size="sm"
                           variant="secondary"
                           disabled={isActing}
                           onClick={() => handleGenerateBill(o)}
@@ -874,7 +874,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           Generate Bill
                         </Button>
                         <Button
-                          size="xs"
+                          size="sm"
                           variant="success"
                           disabled={isActing}
                           onClick={() => {
@@ -895,7 +895,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                         <div className={local.cardActions}>
                           {stage && (
                             <Button
-                              size="xs"
+                              size="sm"
                               variant="primary"
                               loading={isActing}
                               onClick={() => handleAdvance(o, stage.target)}
@@ -906,7 +906,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
                           {mode0 === 'interactive' && (
                             <Button
-                              size="xs"
+                              size="sm"
                               variant="success"
                               disabled={!canServe || isActing}
                               title={
@@ -925,7 +925,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                               {o.payOnlineRequested === true &&
                                 !o.payOnline && (
                                   <Button
-                                    size="xs"
+                                    size="sm"
                                     variant="primary"
                                     loading={isActing}
                                     disabled={!tenant?.upiId}
@@ -948,7 +948,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
                               {o.payOnline && o.customerPaidClaimed && (
                                 <Button
-                                  size="xs"
+                                  size="sm"
                                   variant="success"
                                   loading={isActing}
                                   onClick={() =>
@@ -962,7 +962,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                               {o.payOnlineRequested !== true &&
                                 !o.settledOfflineAfterFailure && (
                                   <Button
-                                    size="xs"
+                                    size="sm"
                                     variant="ghost"
                                     disabled={isActing}
                                     onClick={() => {
@@ -977,7 +977,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
                               {o.settledOfflineAfterFailure && (
                                 <Button
-                                  size="xs"
+                                  size="sm"
                                   variant="ghost"
                                   disabled={isActing}
                                   onClick={() => {
@@ -993,7 +993,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
                           {showReject && (
                             <Button
-                              size="xs"
+                              size="sm"
                               variant="danger"
                               disabled={isActing}
                               onClick={() => setConfirmReject(o)}
@@ -1003,7 +1003,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           )}
 
                           <Button
-                            size="xs"
+                            size="sm"
                             variant="ghost"
                             onClick={() => setSelected(o)}
                             style={{ marginLeft: 'auto' }}

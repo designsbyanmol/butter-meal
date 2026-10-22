@@ -7,7 +7,7 @@ import {
   DropdownDivider,
   IconButton,
 } from '../ui';
-import { KebabIcon } from '../../assets/svgs';
+import { KebabIcon, HomeIcon } from '../../assets/svgs';
 import local from './DashboardShell.module.scss';
 
 export interface NavItem {
@@ -29,7 +29,6 @@ export interface KebabMenuItem {
 
 export interface SidebarFooterSlot {
   notifications?: React.ReactNode;
-  /** Menu items shown in the kebab dropdown (avatar/info, logout, etc.). */
   kebabItems?: KebabMenuItem[];
 }
 
@@ -42,6 +41,10 @@ interface DashboardShellProps {
   onAdd?: (() => void) | null;
   activeKey: string | null;
   onActiveKeyChange: (key: string) => void;
+  /**
+   * Called when the Home icon (or logo) is clicked. Should reset the
+   * active section so the greeting screen renders.
+   */
   onLogoClick?: () => void;
 }
 
@@ -84,25 +87,31 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
   const kebabItems = footer.kebabItems ?? [];
   const hasKebab = kebabItems.length > 0;
 
+  // Home is "active" when nothing else is.
+  const isHomeActive = !activeKey;
+
   return (
     <div className={local.shell}>
       <aside className={local.sidebar}>
-        <div
-          className={local.logo}
-          onClick={onLogoClick}
-          role={onLogoClick ? 'button' : undefined}
-          tabIndex={onLogoClick ? 0 : undefined}
-          onKeyDown={(e) => {
-            if (onLogoClick && (e.key === 'Enter' || e.key === ' ')) {
-              e.preventDefault();
-              onLogoClick();
-            }
-          }}
-          style={{ cursor: onLogoClick ? 'pointer' : 'default' }}
-          title={onLogoClick ? 'Go to Home' : undefined}
-        >
+        {/* Logo — decorative only (clicking does nothing). */}
+        <div className={local.logo}>
           <img src={logoUrl} alt="Logo" draggable={false} />
         </div>
+
+        {/* Home — the primary way to return to the greeting screen. */}
+        {onLogoClick && (
+          <button
+            type="button"
+            className={`${local.homeBtn} ${
+              isHomeActive ? local.homeBtnActive : ''
+            }`}
+            onClick={onLogoClick}
+            aria-label="Home"
+            title="Home"
+          >
+            <HomeIcon width={22} height={22} fill="currentColor" />
+          </button>
+        )}
 
         <nav className={local.nav}>
           {visibleItems.map((item) => {
@@ -129,7 +138,6 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
         </nav>
 
         <div className={local.footer}>
-
           {footer.notifications && (
             <div className={local.footerSlot}>{footer.notifications}</div>
           )}

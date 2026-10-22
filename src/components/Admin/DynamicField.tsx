@@ -19,21 +19,6 @@ interface DynamicFieldProps {
   onIngredientsInputChange?: (value: string) => void;
 }
 
-/**
- * Custom fields with a name can hold either a plain string or an array.
- * Short-text fields (< 24 chars) render as short tags next to prep time.
- * Anything longer is treated as a paragraph.
- */
-const SHORT_TEXT_LIMIT = 24;
-
-// ---------------------------------------------------------
-// Number-input focus helpers
-// ---------------------------------------------------------
-/**
- * When a numeric input currently reads 0, blank it on focus so the
- * user can type a fresh value without first deleting the zero.
- * The model value stays 0 until they actually type something.
- */
 const blankIfZero = (
   e: React.FocusEvent<HTMLInputElement>,
   currentValue: number | undefined,
@@ -43,10 +28,6 @@ const blankIfZero = (
   }
 };
 
-/**
- * If the user leaves a numeric input blank, snap the model back to 0
- * so downstream code (DB writes, cart math) always sees a number.
- */
 const restoreZeroIfBlank = (
   e: React.FocusEvent<HTMLInputElement>,
   onEmpty: () => void,
@@ -65,7 +46,6 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
   ingredientsInput,
   onIngredientsInputChange,
 }) => {
-  // Normalize options once per render - works for both string[] and FormFieldOption[]
   const selectOptions = useMemo(
     () => normalizeOptions(field.options),
     [field.options],
@@ -92,8 +72,8 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
       gallery.length > 0
         ? gallery
         : typeof value === 'string' && value
-        ? [value]
-        : [];
+          ? [value]
+          : [];
 
     return (
       <FormField label={`${field.label} *`}>
@@ -112,15 +92,11 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
   }
 
   // =========================================================
-  // NUTRITIONAL INFO - heading/value list from the schema
+  // NUTRITIONAL INFO
   // =========================================================
   if (field.key === 'nutritionalInfo') {
     const headings: FormFieldOption[] = selectOptions;
 
-    // Build a case-insensitive lookup of the item's current nutrition values.
-    // Old items may have keys with different casing than the schema headings
-    // (e.g. "protein" vs "Protein") because the schema keys were changed
-    // after the item was saved.
     const currentMap: Record<string, string> =
       value && typeof value === 'object' && !Array.isArray(value)
         ? value
@@ -134,21 +110,15 @@ const DynamicField: React.FC<DynamicFieldProps> = ({
     });
 
     const setEntry = (headingName: string, val: string) => {
-      // Start from a normalized object that uses only the current schema's
-      // canonical heading keys. Any case-variant keys are dropped in the
-      // process - this is what cleans up the ghost "protein" duplicates.
       const next: Record<string, string> = {};
-
       headings.forEach((h) => {
         const current = lookupByLower.get(h.name.toLowerCase());
         const isTarget = h.name === headingName;
         const newValue = isTarget ? val : current ?? '';
-
         if (newValue.trim() !== '') {
           next[h.name] = newValue;
         }
       });
-
       onChange(next);
     };
 

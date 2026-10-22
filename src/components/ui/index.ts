@@ -69,3 +69,5 @@ export type {
 
 export { default as Pagination } from './Pagination/Pagination';
 export type { PaginationProps } from './Pagination/Pagination';
+export { default as Slider } from './Slider/Slider';
+export type { SliderProps } from './Slider/Slider';

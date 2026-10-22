@@ -1,7 +1,6 @@
 // src/components/Admin/BadgeSelector.tsx
 import React from 'react';
-import { MenuItem, BadgeDefinition } from '../../types';
-import { DEFAULT_FORM_SCHEMA } from '../../types';
+import { MenuItem, BadgeDefinition, DEFAULT_FORM_SCHEMA } from '../../types';
 import { useTenant } from '../../contexts/TenantContext';
 import { Toggle } from '../ui';
 import local from './BadgeSelector.module.scss';
@@ -12,12 +11,13 @@ interface BadgeSelectorProps {
 }
 
 /**
- * Toggle each badge that is currently enabled in the tenant's form schema.
- * Labels and icons come from the schema, so renaming a badge in
- * FormBuilder updates it here too. Disabled badges are not rendered.
+ * Toggle each badge that's enabled in the tenant's form schema.
+ * Labels and icons come from the schema so renaming a badge in
+ * FormBuilder updates the selector too.
  *
- * The section header ("Badges" by default) is also editable via the
- * schema's `badgesLabel`.
+ * Disabled badges are not shown — the owner has turned them off.
+ * The section header text ("Badges" by default) is configurable
+ * via `schema.badgesLabel`.
  */
 const BadgeSelector: React.FC<BadgeSelectorProps> = ({
   value = {},
@@ -30,9 +30,7 @@ const BadgeSelector: React.FC<BadgeSelectorProps> = ({
     (b) => b.enabled,
   );
 
-  if (activeBadges.length === 0) {
-    return null;
-  }
+  if (activeBadges.length === 0) return null;
 
   const sectionLabel = schema.badgesLabel ?? 'Badges';
 

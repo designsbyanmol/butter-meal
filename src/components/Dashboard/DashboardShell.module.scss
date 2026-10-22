@@ -52,7 +52,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
   flex-shrink: 0;
 
   img {
@@ -60,6 +60,80 @@
     height: 100%;
     object-fit: contain;
     display: block;
+  }
+}
+
+/* ---------- Home button (between logo and nav) ---------- */
+.homeBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 2px;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $text-muted;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background $t-fast,
+    color $t-fast;
+  flex-shrink: 0;
+
+  /* Hover tooltip — matches the navItem tooltip style. */
+  &::after {
+    content: 'Home';
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 6px);
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    background: $white;
+    color: $text;
+    padding: 6px 10px;
+    border-radius: 4px;
+    box-shadow: $shadow-md;
+    white-space: nowrap;
+    transition: opacity 0.2s linear;
+    z-index: 10;
+  }
+
+  &:hover {
+    background: $bg-subtle;
+    color: $text;
+
+    &::after {
+      opacity: 1;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary, 0.25);
+  }
+
+  /* Remove tooltip on touch devices */
+  @media (hover: none) {
+    &::after {
+      display: none;
+    }
+  }
+}
+
+.homeBtnActive {
+  background: $primary-tint;
+  color: $primary-dark;
+
+  &:hover {
+    background: $primary-tint;
+    color: $primary-dark;
   }
 }
 
@@ -94,7 +168,6 @@
   transition:
     background $t-fast,
     color $t-fast;
-    position: relative;
 
   .navLabel {
     position: absolute;
@@ -299,6 +372,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  @include mobile {
+    gap: 6px;
+  }
 }
 
 /* =========================================================
@@ -319,14 +396,22 @@
   h1 {
     margin: 0 0 8px;
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 600;
     color: $text;
     letter-spacing: -0.3px;
     line-height: 1.25;
     span {
       font-size: 24px;
       color: $primary-dark;
+    font-weight: 700;
       text-transform: capitalize;
+    }
+    
+    @include mobile {
+      font-size: 18px;
+      span {
+      font-size: 18px;
+    }
     }
   }
 

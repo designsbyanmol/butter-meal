@@ -9,7 +9,7 @@ import React, {
 import { Drawer, EmptyState, ConfirmDialog } from '../ui';
 import { supabaseService } from '../../services/supabase.service';
 import { useTenant } from '../../contexts/TenantContext';
-import { RecieptIcon } from '../../assets/svgs';
+import { RecieptIcon, StarIcon } from '../../assets/svgs';
 import { DineinEvent } from '../../types';
 import local from './DineinNotificationsDrawer.module.scss';
 
@@ -247,7 +247,7 @@ const DineinNotificationsDrawer: React.FC<Props> = ({ onOpenOrder }) => {
         return (
           <>
             Customer of <strong>Table {ev.tableLabel}</strong> rated you{' '}
-            {(payload as any).stars ?? 0}★
+            {(payload as any).stars ?? 0}<StarIcon width={10} height={10} fill="currentColor" />
           </>
         );
       default:

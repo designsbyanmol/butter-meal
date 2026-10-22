@@ -14,12 +14,7 @@ export interface ConfirmDialogProps {
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
-  /**
-   * Override the modal overlay's z-index. Use this when the dialog
-   * is opened from a component that already sits at a high z-index
-   * (e.g. a Drawer at $z-drawer=1200). The dialog must render above
-   * that container or it will appear behind it.
-   */
+  /** Override the modal overlay's z-index. */
   overlayZIndex?: number;
 }
 
@@ -51,7 +46,6 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       onClose={onCancel}
       title={title}
       size="sm"
-      disableBackdropClose={true}
       overlayZIndex={overlayZIndex}
       footer={
         <>

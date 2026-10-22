@@ -1,19 +1,41 @@
 // src/components/ui/Modal/Modal.module.scss
-@use "../../../styles/tokens" as *;
-@use "../../../styles/mixins" as *;
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
 
+/* =========================================================
+   Overlay
+   ========================================================= */
 .overlay {
   position: fixed;
   inset: 0;
   @include backdrop(0.55, 6px);
   z-index: $z-modal;
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 24px;
   animation: ui-fade-in 0.18s ease-out;
 }
 
+/* Position-specific overlay alignment. */
+.overlayCenter {
+  align-items: center;
+}
+
+.overlayTop {
+  align-items: flex-start;
+  /* Small gap from the top edge, plus room for iPhone notch. */
+  padding-top: max(24px, env(safe-area-inset-top));
+}
+
+.overlayBottom {
+  align-items: flex-end;
+  /* Small gap from the bottom edge, plus room for home indicator. */
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* =========================================================
+   Dialog
+   ========================================================= */
 .dialog {
   width: 100%;
   background: $bg-elevated;
@@ -27,20 +49,55 @@
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
-// ---------- SIZES ----------
-.sm {
-  max-width: 440px;
-}
-.md {
-  max-width: 532px;
-}
-.lg {
-  max-width: 720px;
-}
-.xl {
-  max-width: 920px;
+/* -------- Position-specific dialog animation -------- */
+
+.positionCenter {
+  /* Default modal animation. */
 }
 
+.positionTop {
+  animation: ui-slide-down-from-top 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Don't let the dialog grow taller than the space between its
+     top anchor and the bottom of the viewport. */
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - 24px);
+}
+
+.positionBottom {
+  animation: ui-slide-up-from-bottom 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  max-height: calc(100dvh - 24px - max(24px, env(safe-area-inset-bottom)));
+}
+
+@keyframes ui-slide-down-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-slide-up-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- SIZES ---------- */
+.sm { max-width: 440px; }
+.md { max-width: 532px; }
+.lg { max-width: 720px; }
+.xl { max-width: 920px; }
+
+/* =========================================================
+   Header
+   ========================================================= */
 .header {
   display: flex;
   align-items: center;
@@ -72,6 +129,13 @@
   white-space: nowrap;
 }
 
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .closeBtn {
   background: transparent;
   border: none;
@@ -90,45 +154,12 @@
   }
 }
 
-.body {
-  flex: 1;
-  overflow-y: auto;
-  padding: $space-3;
-}
-
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 10px 16px;
-  border-top: 1px solid $border-soft;
-  background: $bg-subtle;
-  flex-shrink: 0;
-}
-
-.headerRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  justify-content: space-between;
-}
-
-.headerActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* Back arrow shown in the mobile full-screen layout. */
 .backBtn {
+  display: none;
   background: transparent;
   border: none;
   width: 34px;
   height: 34px;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: $radius-sm;
@@ -141,62 +172,163 @@
   }
 }
 
-.mobileFullScreen .backBtn {
-  display: none;
+/* =========================================================
+   Body
+   ========================================================= */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-3;
 }
 
 /* =========================================================
-   Mobile full-screen mode
+   Footer — 2-up grid; 3rd button gets its own full-width row
+   ========================================================= */
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid $border-soft;
+  background: $bg-subtle;
+  flex-shrink: 0;
+
+  > button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  > button:only-child {
+    grid-column: 1 / -1;
+  }
+
+  > button:nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* =========================================================
+   Small screens
+   ========================================================= */
+@include mobile(480px) {
+  .overlay {
+    padding: 12px;
+  }
+
+  .overlayTop {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+
+  .overlayBottom {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .dialog {
+    border-radius: $radius;
+    width: 100%;
+  }
+
+}
+
+/* =========================================================
+   Mobile full-screen mode (position="center" only)
    ========================================================= */
 @include mobile($bp-sm) {
   .mobileFullScreen {
     position: fixed !important;
     inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     max-width: none !important;
     max-height: none !important;
     width: 100vw;
+    /* iOS-safe: dvh accounts for browser chrome; vh is the fallback. */
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     border: none;
-    animation: none;
+
+    /* 3-row grid: header / body / footer. Only body scrolls. */
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+
+    /* Entrance: slide in from the right. */
+    animation: modal-slide-in-right 0.24s cubic-bezier(0.2, 0.9, 0.3, 1)
+      forwards;
   }
 
-  /* Show the back arrow only when the flag is on. */
   .mobileFullScreen .backBtn {
     display: inline-flex;
   }
 
-  /* Hide the regular close X on mobile full-screen; the back arrow
-     takes over. */
   .mobileFullScreen .closeBtn {
     display: none;
   }
 
-  /* Make the header taller and align items for touch. */
   .mobileFullScreen .headerMobile {
     padding: 10px 12px;
     gap: 8px;
+    min-height: 52px;
+    padding-top: max(10px, env(safe-area-inset-top));
   }
 
-  /* Footer sticks to the bottom on mobile. */
-  .mobileFullScreen .footer {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px;
-
-    > button {
-      width: 100%;
-      min-width: 0;
-    }
-
-    /* Single button → full width */
-    > button:only-child {
-      grid-column: 1 / -1;
-    }
-
-    /* Three+ buttons → anything past the second goes full width */
-    > button:nth-child(n + 3) {
-      grid-column: 1 / -1;
-    }
+  .mobileFullScreen .body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    padding-bottom: 16px;
   }
+
+  /* Exit: slide back out to the right. Overrides the entrance
+     animation, because it's more specific (has an extra class). */
+  .mobileExiting {
+    animation: modal-slide-out-right 0.22s cubic-bezier(0.4, 0, 0.6, 1)
+      forwards !important;
+    pointer-events: none;
+  }
+
+  /* Overlay: fade in on open, fade out on close. */
+  .overlayMobileFullScreen {
+    animation: modal-overlay-fade-in 0.2s ease-out;
+  }
+
+  .overlayExiting {
+    animation: modal-overlay-fade-out 0.22s ease-out forwards !important;
+    pointer-events: none;
+  }
+}
+
+@keyframes modal-slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-out-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+}
+
+@keyframes modal-overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-overlay-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }

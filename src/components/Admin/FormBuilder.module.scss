@@ -1,4 +1,4 @@
-// components/Admin/FormBuilder.module.scss
+// src/components/Admin/FormBuilder.module.scss
 @use '../../styles/tokens' as *;
 @use '../../styles/mixins' as *;
 
@@ -42,7 +42,9 @@
   background: #fff;
   transition: border-color $t-fast;
 
-  &:hover { border-color: rgba($primary, 0.3); }
+  &:hover {
+    border-color: rgba($primary, 0.3);
+  }
 }
 
 .fieldHeader {
@@ -50,7 +52,10 @@
   align-items: center;
   gap: 8px;
 
-  > :first-child { flex: 1; min-width: 0; }
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .fieldName {
@@ -116,7 +121,9 @@
   color: $text;
   cursor: grab;
 
-  &:active { cursor: grabbing; }
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .chipHandle {
@@ -157,7 +164,9 @@
   display: flex;
   gap: 8px;
 
-  > :first-child { flex: 1; }
+  > :first-child {
+    flex: 1;
+  }
 }
 
 // ---------- Add field card ----------
@@ -195,7 +204,9 @@
   background: #fff;
   border: 1px solid $border;
   border-radius: $radius-sm;
-  transition: border-color $t-fast, box-shadow $t-fast;
+  transition:
+    border-color $t-fast,
+    box-shadow $t-fast;
 
   &:hover {
     border-color: rgba($primary, 0.3);
@@ -227,7 +238,10 @@
   justify-content: space-between;
   gap: 10px;
 
-  > :first-child { flex: 1; min-width: 0; }
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .badgeImageRow {

@@ -13,8 +13,8 @@ export interface AvatarProps {
    * Role-based default image. When neither `src` nor `role` resolve to
    * an image, the avatar falls back to the name initial.
    *
-   * `admin` → avatar.png
-   * `staff` → staff.png
+   * `admin` - avatar.png
+   * `staff` - staff.png
    */
   role?: AvatarRole;
   /** Optional click handler makes it a button. */

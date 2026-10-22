@@ -1,4 +1,4 @@
-// components/Admin/CustomizationEditor.module.scss
+// src/components/Admin/CustomizationEditor.module.scss
 @use '../../styles/tokens' as *;
 
 .section {
@@ -55,7 +55,9 @@
   gap: 12px;
   transition: border-color $t-fast;
 
-  &:hover { border-color: rgba($primary, 0.3); }
+  &:hover {
+    border-color: rgba($primary, 0.3);
+  }
 }
 
 .itemHeader {

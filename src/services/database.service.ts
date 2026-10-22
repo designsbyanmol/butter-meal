@@ -237,33 +237,30 @@ class DatabaseService {
   }
 
   async updateStoreSettings(
-    tenantSlug: string,
-    settings: StoreSettings,
-  ): Promise<boolean> {
-    try {
-      localStorage.setItem(
-        this.getStoreSettingsKey(tenantSlug),
-        JSON.stringify(settings),
-      );
+  tenantSlug: string,
+  settings: StoreSettings,
+): Promise<boolean> {
+  try {
+    localStorage.setItem(
+      this.getStoreSettingsKey(tenantSlug),
+      JSON.stringify(settings),
+    );
 
-      if (this.useSupabase && !this.isMaintenanceMode) {
-        try {
-          const result = await supabaseService.updateStoreSettings(
-            tenantSlug,
-            settings,
-          );
-          if (!result)
-            console.warn("Supabase updateStoreSettings returned false");
-        } catch (error) {
-          console.error("Supabase updateStoreSettings threw:", error);
-        }
+    if (this.useSupabase && !this.isMaintenanceMode) {
+      const ok = await supabaseService.updateStoreSettings(
+        tenantSlug,
+        settings,
+      );
+      if (!ok) {
+        throw new Error("Failed to save store settings to the server.");
       }
-      return true;
-    } catch (error) {
-      console.error("updateStoreSettings failed:", error);
-      return false;
     }
+    return true;
+  } catch (error) {
+    console.error("updateStoreSettings failed:", error);
+    throw error;
   }
+}
 
   // ============ MENU ITEMS ============
 

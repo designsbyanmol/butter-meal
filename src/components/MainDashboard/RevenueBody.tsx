@@ -13,16 +13,64 @@ import {
   Pagination,
   DropdownMenu,
   DropdownItem,
-  DropdownDivider,
+  Sheet,
+  Chip,
+  FormField,
 } from '../ui';
-import { SearchIcon, FilterIcon, KebabIcon, CloseIcon } from '../../assets/svgs';
+import {
+  SearchIcon,
+  FilterIcon,
+  KebabIcon,
+  CloseIcon,
+} from '../../assets/svgs';
 import { formatRupees } from '../../utils/subscription';
 import { useDebounce } from '../../hooks/useDebounce';
+import {
+  downloadRevenueInvoicesPdf,
+  RevenueInvoicePdfRow,
+} from '../../utils/revenueInvoicesPdf';
 import local from './RevenueBody.module.scss';
 
 const PAGE_SIZE = 10;
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled';
+
+type DatePreset =
+  | 'all'
+  | 'today'
+  | 'yesterday'
+  | 'thisWeek'
+  | 'thisMonth'
+  | 'thisYear'
+  | 'custom';
+
+/** Subset of presets offered inside the Export PDF sheet. */
+type ExportRange = 'today' | 'yesterday' | 'thisMonth' | 'thisYear' | 'custom';
+
+const EXPORT_RANGES: { key: ExportRange; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'thisMonth', label: 'This month' },
+  { key: 'thisYear', label: 'This year' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'all', label: 'All time' },
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'thisWeek', label: 'This week' },
+  { key: 'thisMonth', label: 'This month' },
+  { key: 'thisYear', label: 'This year' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+const STATUS_OPTIONS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
 
 interface InvoiceRow {
   id: string;
@@ -39,6 +87,7 @@ interface Stats {
   totalRevenue: number;
   revenueThisMonth: number;
   revenueLastMonth: number;
+  revenueThisYear: number;
   totalInvoices: number;
   pendingInvoices: number;
   pendingAmount: number;
@@ -46,6 +95,98 @@ interface Stats {
   averageInvoice: number;
 }
 
+// =========================================================
+// Date helpers
+// =========================================================
+const startOfDayIso = (d: Date): string => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.toISOString();
+};
+
+const endOfDayIso = (d: Date): string => {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x.toISOString();
+};
+
+const computePresetRange = (
+  preset: DatePreset,
+  fromDate: string,
+  toDate: string,
+): { from?: string; to?: string } => {
+  const now = new Date();
+
+  switch (preset) {
+    case 'all':
+      return {};
+    case 'today':
+      return { from: startOfDayIso(now), to: endOfDayIso(now) };
+    case 'yesterday': {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      return { from: startOfDayIso(y), to: endOfDayIso(y) };
+    }
+    case 'thisWeek': {
+      const start = new Date(now);
+      const day = start.getDay();
+      const offset = day === 0 ? 6 : day - 1;
+      start.setDate(start.getDate() - offset);
+      return { from: startOfDayIso(start), to: endOfDayIso(now) };
+    }
+    case 'thisMonth': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: startOfDayIso(start), to: endOfDayIso(now) };
+    }
+    case 'thisYear': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      return { from: startOfDayIso(start), to: endOfDayIso(now) };
+    }
+    case 'custom': {
+      return {
+        from: fromDate
+          ? new Date(`${fromDate}T00:00:00`).toISOString()
+          : undefined,
+        to: toDate
+          ? new Date(`${toDate}T23:59:59.999`).toISOString()
+          : undefined,
+      };
+    }
+    default:
+      return {};
+  }
+};
+
+/** Turn a preset into a friendly label for the PDF header. */
+const rangeLabelFor = (
+  preset: ExportRange,
+  fromDate: string,
+  toDate: string,
+): string => {
+  const labels: Record<ExportRange, string> = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    thisMonth: 'This month',
+    thisYear: 'This year',
+    custom: 'Custom range',
+  };
+  if (preset !== 'custom') return labels[preset];
+
+  const fmt = (s: string): string => {
+    if (!s) return '?';
+    const d = new Date(`${s}T00:00:00`);
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+  return `${fmt(fromDate)} → ${fmt(toDate)}`;
+};
+
+// =========================================================
+// Component
+// =========================================================
 const RevenueBody: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,6 +196,7 @@ const RevenueBody: React.FC = () => {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
@@ -64,16 +206,54 @@ const RevenueBody: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [isListLoading, setIsListLoading] = useState(false);
 
-  // ---- Export state ----
+  // ---- Export PDF state ----
+  const [isExportSheetOpen, setIsExportSheetOpen] = useState(false);
+  const [exportRange, setExportRange] = useState<ExportRange>('thisMonth');
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [expiryBySlug, setExpiryBySlug] = useState<Record<string, string>>({});
 
-  // ---- Load summary stats (respecting date range) ----
+  // ---- Filter sheet state ----
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+  // ---- Resolved date range for the current preset ----
+  const { from: fromIso, to: toIso } = useMemo(
+    () => computePresetRange(datePreset, fromDate, toDate),
+    [datePreset, fromDate, toDate],
+  );
+
+  const hasStatusFilter = statusFilter !== 'all';
+  const hasDateFilter = datePreset !== 'all';
+
+  // ---- Load tenant expiry map once (for the Expiry column) ----
+  useEffect(() => {
+    let cancelled = false;
+    supabaseService
+      .getAllTenants()
+      .then((list) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        list.forEach((t) => {
+          if (t.subscriptionExpiresAt) {
+            map[t.slug] = t.subscriptionExpiresAt;
+          }
+        });
+        setExpiryBySlug(map);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[Revenue] tenant expiry map failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- Load summary stats ----
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-
-    const fromIso = fromDate ? new Date(`${fromDate}T00:00:00`).toISOString() : undefined;
-    const toIso = toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined;
 
     Promise.all([
       supabaseService.getPlatformRevenueStats(),
@@ -82,8 +262,6 @@ const RevenueBody: React.FC = () => {
       .then(([globalStats, rangeStats]) => {
         if (cancelled || !globalStats) return;
 
-        // Merge: use globalStats for "This Month" / "Last Month"
-        // Use rangeStats for Lifetime, Pending, Paid, Total Invoices
         const avg =
           rangeStats.totalInvoices > 0
             ? Math.round(rangeStats.totalRevenue / rangeStats.totalInvoices)
@@ -93,6 +271,10 @@ const RevenueBody: React.FC = () => {
           totalRevenue: rangeStats.totalRevenue,
           revenueThisMonth: globalStats.revenueThisMonth,
           revenueLastMonth: globalStats.revenueLastMonth,
+          revenueThisYear:
+            (globalStats as any).revenueThisYear ??
+            globalStats.totalRevenue ??
+            0,
           totalInvoices: rangeStats.totalInvoices,
           pendingInvoices: rangeStats.pendingInvoices,
           pendingAmount: rangeStats.pendingAmount,
@@ -112,15 +294,12 @@ const RevenueBody: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [fromDate, toDate]); // Fetches fresh aggregates when date filters change
+  }, [fromIso, toIso]);
 
-  // ---- Reload the paged list whenever filters or page changes ----
+  // ---- Reload the paged list ----
   useEffect(() => {
     let cancelled = false;
     setIsListLoading(true);
-
-    const fromIso = fromDate ? new Date(`${fromDate}T00:00:00`).toISOString() : undefined;
-    const toIso = toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined;
 
     supabaseService
       .getPlatformInvoicesPaged({
@@ -148,14 +327,13 @@ const RevenueBody: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, debouncedSearch, statusFilter, fromDate, toDate]);
+  }, [page, debouncedSearch, statusFilter, fromIso, toIso]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  // Reset to page 1 whenever filters change.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, fromDate, toDate]);
+  }, [debouncedSearch, statusFilter, fromIso, toIso]);
 
   const growthPct = useMemo(() => {
     if (!stats) return 0;
@@ -168,175 +346,151 @@ const RevenueBody: React.FC = () => {
   const activeFilters =
     (search.trim() !== '' ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
-    (fromDate || toDate ? 1 : 0);
+    (datePreset !== 'all' ? 1 : 0);
 
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('all');
+    setDatePreset('all');
     setFromDate('');
     setToDate('');
   };
 
-  // ---- Export to CSV ----
-  const handleExport = async () => {
+  // =========================================================
+  // Export PDF
+  // =========================================================
+  const openExportSheet = () => {
+    // Default to whatever the current filter is.
+    if (datePreset === 'all' || datePreset === 'custom') {
+      setExportRange(datePreset === 'custom' ? 'custom' : 'thisMonth');
+      setExportFrom(fromDate);
+      setExportTo(toDate);
+    } else {
+      setExportRange(datePreset as ExportRange);
+      setExportFrom('');
+      setExportTo('');
+    }
+    setIsExportSheetOpen(true);
+  };
+
+  const runExport = async () => {
     setIsExporting(true);
+    setError('');
     try {
-      const fromIso = fromDate
-        ? new Date(`${fromDate}T00:00:00`).toISOString()
-        : undefined;
-      const toIso = toDate
-        ? new Date(`${toDate}T23:59:59.999`).toISOString()
-        : undefined;
+      const { from, to } = computePresetRange(
+        exportRange as DatePreset,
+        exportFrom,
+        exportTo,
+      );
 
       const all = await supabaseService.getPlatformInvoicesForExport({
         status: statusFilter,
-        fromDate: fromIso,
-        toDate: toIso,
+        fromDate: from,
+        toDate: to,
       });
 
       if (all.length === 0) {
         alert('No invoices match the selected filters.');
+        setIsExportSheetOpen(false);
+        setIsExporting(false);
         return;
       }
 
-      const header = [
-        'Invoice ID',
-        'Created',
-        'Paid',
-        'Store',
-        'Slug',
-        'Plan',
-        'Months',
-        'Base (Rs)',
-        'Final (Rs)',
-        'Status',
-      ];
+      // Recompute the total revenue for the exported range so the
+      // PDF's summary banner matches the exact rows we're shipping.
+      const totalRevenue = all
+        .filter((r) => r.status === 'paid')
+        .reduce((sum, r) => sum + Number(r.final_amount || 0), 0);
 
-      const escape = (v: string | number | null) => {
-        const s = v === null || v === undefined ? '' : String(v);
-        return `"${s.replace(/"/g, '""')}"`;
-      };
+      const pdfRows: RevenueInvoicePdfRow[] = all.map((r) => ({
+        id: r.id,
+        tenant_slug: r.tenant_slug,
+        tenant_name: r.tenant_name || r.tenant_slug,
+        plan_id: r.plan_id,
+        months: r.months,
+        base_amount: r.base_amount,
+        final_amount: r.final_amount,
+        status: r.status as 'paid' | 'pending' | 'cancelled',
+        created_at: r.created_at,
+        paid_at: r.paid_at,
+        subscription_expires_at: expiryBySlug[r.tenant_slug] ?? null,
+      }));
 
-      const lines = [header.map(escape).join(',')];
-      for (const r of all) {
-        lines.push(
-          [
-            r.id,
-            new Date(r.created_at).toLocaleString('en-IN'),
-            r.paid_at ? new Date(r.paid_at).toLocaleString('en-IN') : '',
-            r.tenant_name,
-            r.tenant_slug,
-            r.plan_id,
-            r.months,
-            r.base_amount,
-            r.final_amount,
-            r.status,
-          ]
-            .map(escape)
-            .join(','),
-        );
-      }
+      downloadRevenueInvoicesPdf({
+  storeName: 'Dozzelo',
+  rangeLabel: rangeLabelFor(exportRange, exportFrom, exportTo),
+  fromDateIso: from,
+  toDateIso: to,
+  rows: pdfRows,
+  totalRevenue,
+  statusLabel:
+    statusFilter === 'all'
+      ? 'All'
+      : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1),
+  // generatedAt intentionally omitted — the util stamps it once.
+});
 
-      const blob = new Blob([lines.join('\n')], {
-        type: 'text/csv;charset=utf-8',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoices-${Date.now()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 800);
+      setIsExportSheetOpen(false);
     } catch (err) {
-      console.error('export failed:', err);
-      alert('Export failed. Please try again.');
+      console.error('Export PDF failed:', err);
+      setError('Failed to export PDF. Please try again.');
     } finally {
       setIsExporting(false);
     }
   };
 
+  // =========================================================
+  // Filter sheet draft state
+  // =========================================================
+  const [draftStatus, setDraftStatus] = useState<StatusFilter>(statusFilter);
+  const [draftPreset, setDraftPreset] = useState<DatePreset>(datePreset);
+  const [draftFrom, setDraftFrom] = useState(fromDate);
+  const [draftTo, setDraftTo] = useState(toDate);
+
+  const openFilterSheet = () => {
+    setDraftStatus(statusFilter);
+    setDraftPreset(datePreset);
+    setDraftFrom(fromDate);
+    setDraftTo(toDate);
+    setIsFilterSheetOpen(true);
+  };
+
+  const resetDraft = () => {
+    setDraftStatus('all');
+    setDraftPreset('all');
+    setDraftFrom('');
+    setDraftTo('');
+  };
+
+  const applyDraft = () => {
+    setStatusFilter(draftStatus);
+    setDatePreset(draftPreset);
+    setFromDate(draftFrom);
+    setToDate(draftTo);
+    setIsFilterSheetOpen(false);
+  };
+
+  // =========================================================
+  // Render
+  // =========================================================
   return (
     <InlineSection
       title="Revenue & Billing"
       actions={
         <div className={local.headerActions}>
-
-          <DropdownMenu
-            minWidth={240}
-            trigger={({ toggle }) => (
-              <Button
-                variant={activeFilters > 0 ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={toggle}
-                leftIcon={<FilterIcon width={14} height={14} fill="currentColor" />}
-              >
-                Filters
-                {activeFilters > 0 && (
-                  <span className={local.filterCount}>{activeFilters}</span>
-                )}
-              </Button>
-            )}
+          <Button
+            variant={activeFilters > 0 ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={openFilterSheet}
+            leftIcon={
+              <FilterIcon width={14} height={14} fill="currentColor" />
+            }
           >
-            {({ close }) => (
-              <>
-                <div className={local.filterSection}>
-                  <span className={local.filterLabel}>Status</span>
-                  {(
-                    [
-                      { key: 'all', label: 'All' },
-                      { key: 'paid', label: 'Paid' },
-                      { key: 'pending', label: 'Pending' },
-                      { key: 'cancelled', label: 'Cancelled' },
-                    ] as { key: StatusFilter; label: string }[]
-                  ).map((o) => (
-                    <DropdownItem
-                      key={o.key}
-                      active={statusFilter === o.key}
-                      onClick={() => setStatusFilter(o.key)}
-                    >
-                      {o.label}
-                    </DropdownItem>
-                  ))}
-                </div>
-
-                <DropdownDivider />
-
-                <div className={local.filterSection}>
-                  <span className={local.filterLabel}>Date range</span>
-                  <div className={local.dateRow}>
-                    <Input
-                      type="date"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      inputSize="sm"
-                    />
-                    <Input
-                      type="date"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      inputSize="sm"
-                    />
-                  </div>
-                </div>
-
-                {activeFilters > 0 && (
-                  <>
-                    <DropdownDivider />
-                    <DropdownItem
-                      tone="danger"
-                      onClick={() => {
-                        resetFilters();
-                        close();
-                      }}
-                    >
-                      Clear filters
-                    </DropdownItem>
-                  </>
-                )}
-              </>
+            Filters
+            {activeFilters > 0 && (
+              <span className={local.filterCount}>{activeFilters}</span>
             )}
-          </DropdownMenu>
+          </Button>
 
           <DropdownMenu
             minWidth={220}
@@ -348,20 +502,19 @@ const RevenueBody: React.FC = () => {
                 tooltip="More actions"
                 onClick={toggle}
               >
-                  <KebabIcon width={18} height={18} fill="#0F172A"/>
+                <KebabIcon width={18} height={18} fill="#0F172A" />
               </IconButton>
             )}
           >
             {({ close }) => (
               <>
                 <DropdownItem
-                  disabled={isExporting}
                   onClick={() => {
                     close();
-                    handleExport();
+                    openExportSheet();
                   }}
                 >
-                  {isExporting ? 'Preparing CSV...' : 'Export all invoices'}
+                  Export invoices (PDF)
                 </DropdownItem>
                 <DropdownItem
                   onClick={() => {
@@ -384,26 +537,26 @@ const RevenueBody: React.FC = () => {
       )}
 
       <div className={local.searchBox}>
-            <Input
-              placeholder="Search by store..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              inputSize="sm"
-              leftIcon={<SearchIcon width={14} height={14} fill="#b3b3b3" />}
-              rightIcon={
-                search ? (
-                  <IconButton
-                    variant="ghost"
-                    size="xs"
-                    aria-label="Clear search"
-                    onClick={() => setSearch('')}
-                  >
-                    <CloseIcon width={18} height={18} fill="#4d4d4d" />
-                  </IconButton>
-                ) : undefined
-              }
-            />
-          </div>
+        <Input
+          placeholder="Search by store..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          inputSize="sm"
+          leftIcon={<SearchIcon width={14} height={14} fill="#b3b3b3" />}
+          rightIcon={
+            search ? (
+              <IconButton
+                variant="ghost"
+                size="xs"
+                aria-label="Clear search"
+                onClick={() => setSearch('')}
+              >
+                <CloseIcon width={18} height={18} fill="#4d4d4d" />
+              </IconButton>
+            ) : undefined
+          }
+        />
+      </div>
 
       {isLoading ? (
         <EmptyState title="Calculating platform revenue..." />
@@ -412,29 +565,24 @@ const RevenueBody: React.FC = () => {
       ) : (
         <div className={local.wrap}>
           {/* ---- Summary cards ---- */}
-          <div className={local.statsGrid}>
+          <div
+            className={`${local.statsGrid} ${
+              hasStatusFilter ? local.statsGridCompact : ''
+            }`}
+          >
             <Card padding="lg" className={local.statCard}>
-              <span className={local.statLabel}>Total Revenue</span>
-              <span className={local.statValue}>
-                {formatRupees(stats.totalRevenue)}
+              <span className={local.statLabel}>Total Invoices</span>
+              <span className={local.statValue}>{stats.totalInvoices}</span>
+              <span className={local.statSub}>
+                Avg {formatRupees(stats.averageInvoice)}
               </span>
-              {fromDate || toDate ? (
-                <span className={local.statSub}>For selected date range</span>
-              ) : null}
             </Card>
 
             <Card padding="lg" className={local.statCard}>
-              <span className={local.statLabel}>This Month</span>
-              <div className={local.statValueRow}>
-                <span className={local.statValue}>
-                  {formatRupees(stats.revenueThisMonth)}
-                </span>
-                <Badge tone={growthPct >= 0 ? 'success' : 'danger'} size="sm">
-                  {growthPct >= 0 ? '+' : '-'} {Math.abs(growthPct)}%
-                </Badge>
-              </div>
+              <span className={local.statLabel}>Paid Invoices</span>
+              <span className={local.statValue}>{stats.paidInvoices}</span>
               <span className={local.statSub}>
-                vs {formatRupees(stats.revenueLastMonth)} last month
+                Avg {formatRupees(stats.averageInvoice)}
               </span>
             </Card>
 
@@ -448,13 +596,50 @@ const RevenueBody: React.FC = () => {
               </span>
             </Card>
 
-            <Card padding="lg" className={local.statCard}>
-              <span className={local.statLabel}>Paid Invoices</span>
-              <span className={local.statValue}>{stats.paidInvoices}</span>
-              <span className={local.statSub}>
-                Avg {formatRupees(stats.averageInvoice)}
-              </span>
-            </Card>
+            {!hasStatusFilter && (
+              <>
+                <Card padding="lg" className={local.statCard}>
+                  <span className={local.statLabel}>This Month</span>
+                  <div className={local.statValueRow}>
+                    <span className={local.statValue}>
+                      {formatRupees(stats.revenueThisMonth)}
+                    </span>
+                    <Badge
+                      tone={growthPct >= 0 ? 'success' : 'danger'}
+                      size="sm"
+                    >
+                      {growthPct >= 0 ? '+' : '-'}{' '}
+                      {Math.abs(growthPct)}%
+                    </Badge>
+                  </div>
+                  <span className={local.statSub}>
+                    vs {formatRupees(stats.revenueLastMonth)} last month
+                  </span>
+                </Card>
+
+                <Card padding="lg" className={local.statCard}>
+                  <span className={local.statLabel}>This Year</span>
+                  <span className={local.statValue}>
+                    {formatRupees(stats.revenueThisYear)}
+                  </span>
+                  <span className={local.statSub}>
+                    Year-to-date revenue
+                  </span>
+                </Card>
+
+                <Card padding="lg" className={local.statCard}>
+                  <span className={local.statLabel}>Total Revenue</span>
+                  <span className={local.statValue}>
+                    {formatRupees(stats.totalRevenue)}
+                  </span>
+                  {hasDateFilter ? (
+                    <span className={local.statSub}>
+                      For selected date range
+                    </span>
+                  ) : null}
+                </Card>
+              </>
+            )}
           </div>
 
           {/* ---- Recent invoices ---- */}
@@ -502,47 +687,64 @@ const RevenueBody: React.FC = () => {
                         <th>Store</th>
                         <th>Plan</th>
                         <th>Amount</th>
+                        <th>Expires</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((inv) => (
-                        <tr key={inv.id}>
-                          <td>
-                            {new Date(inv.created_at).toLocaleDateString(
-                              'en-IN',
-                              {
+                      {rows.map((inv) => {
+                        const expiry = expiryBySlug[inv.tenant_slug];
+                        return (
+                          <tr key={inv.id}>
+                            <td>
+                              {new Date(
+                                inv.created_at,
+                              ).toLocaleDateString('en-IN', {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric',
-                              },
-                            )}
-                          </td>
-                          <td>
-                            <strong>{inv.tenant_name || inv.tenant_slug}</strong>
-                          </td>
-                          <td>
-                            {inv.plan_id} ({inv.months} mo)
-                          </td>
-                          <td className={local.amountCol}>
-                            {formatRupees(inv.final_amount)}
-                          </td>
-                          <td>
-                            <Badge
-                              tone={
-                                inv.status === 'paid'
-                                  ? 'success'
-                                  : inv.status === 'pending'
-                                    ? 'warning'
-                                    : 'danger'
-                              }
-                              size="sm"
-                            >
-                              {inv.status.toUpperCase()}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
+                              })}
+                            </td>
+                            <td>
+                              <strong>
+                                {inv.tenant_name || inv.tenant_slug}
+                              </strong>
+                            </td>
+                            <td>
+                              {inv.plan_id} ({inv.months} mo)
+                            </td>
+                            <td className={local.amountCol}>
+                              {formatRupees(inv.final_amount)}
+                            </td>
+                            <td>
+                              {expiry
+                                ? new Date(expiry).toLocaleDateString(
+                                    'en-IN',
+                                    {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    },
+                                  )
+                                : '-'}
+                            </td>
+                            <td>
+                              <Badge
+                                tone={
+                                  inv.status === 'paid'
+                                    ? 'success'
+                                    : inv.status === 'pending'
+                                      ? 'warning'
+                                      : 'danger'
+                                }
+                                size="sm"
+                              >
+                                {inv.status.toUpperCase()}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -559,6 +761,179 @@ const RevenueBody: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* =========================================================
+          Filter sheet
+         ========================================================= */}
+      <Sheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        title="Filters"
+        position="center"
+        mobileFullScreen
+        maxHeightVh={86}
+        className={local.filterSheet}
+        footer={
+          <>
+            <Button variant="ghost" onClick={resetDraft} block>
+              Reset
+            </Button>
+            <Button onClick={applyDraft} block>
+              Apply
+            </Button>
+          </>
+        }
+      >
+        <section className={local.filterSection}>
+          <h4>Status</h4>
+          <div className={local.chipGrid}>
+            {STATUS_OPTIONS.map((o) => (
+              <Chip
+                key={o.key}
+                tone="primary"
+                active={draftStatus === o.key}
+                onClick={() => setDraftStatus(o.key)}
+              >
+                {o.label}
+              </Chip>
+            ))}
+          </div>
+        </section>
+
+        <section className={local.filterSection}>
+          <h4>Date range</h4>
+          <div className={local.chipGrid}>
+            {DATE_PRESETS.map((o) => (
+              <Chip
+                key={o.key}
+                tone="primary"
+                active={draftPreset === o.key}
+                onClick={() => setDraftPreset(o.key)}
+              >
+                {o.label}
+              </Chip>
+            ))}
+          </div>
+
+          {draftPreset === 'custom' && (
+            <div className={local.dateRangeRow}>
+              <FormField label="From">
+                <Input
+                  type="date"
+                  value={draftFrom}
+                  onChange={(e) => setDraftFrom(e.target.value)}
+                  inputSize="sm"
+                />
+              </FormField>
+              <FormField label="To">
+                <Input
+                  type="date"
+                  value={draftTo}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                  inputSize="sm"
+                />
+              </FormField>
+            </div>
+          )}
+        </section>
+      </Sheet>
+
+      {/* =========================================================
+          Export PDF sheet
+         ========================================================= */}
+      <Sheet
+        isOpen={isExportSheetOpen}
+        onClose={() => {
+          if (isExporting) return;
+          setIsExportSheetOpen(false);
+        }}
+        title="Export invoices"
+        position="center"
+        mobileFullScreen
+        maxHeightVh={86}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setIsExportSheetOpen(false)}
+              disabled={isExporting}
+              block
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={runExport}
+              loading={isExporting}
+              block
+              disabled={
+                exportRange === 'custom' && (!exportFrom || !exportTo)
+              }
+            >
+              {isExporting ? 'Preparing PDF...' : 'Download PDF'}
+            </Button>
+          </>
+        }
+      >
+        <section className={local.filterSection}>
+          <h4>Date range</h4>
+          <div className={local.chipGrid}>
+            {EXPORT_RANGES.map((o) => (
+              <Chip
+                key={o.key}
+                tone="primary"
+                active={exportRange === o.key}
+                onClick={() => setExportRange(o.key)}
+                disabled={isExporting}
+              >
+                {o.label}
+              </Chip>
+            ))}
+          </div>
+
+          {exportRange === 'custom' && (
+            <div className={local.dateRangeRow}>
+              <FormField label="From">
+                <Input
+                  type="date"
+                  value={exportFrom}
+                  onChange={(e) => setExportFrom(e.target.value)}
+                  inputSize="sm"
+                  disabled={isExporting}
+                />
+              </FormField>
+              <FormField label="To">
+                <Input
+                  type="date"
+                  value={exportTo}
+                  onChange={(e) => setExportTo(e.target.value)}
+                  inputSize="sm"
+                  disabled={isExporting}
+                />
+              </FormField>
+            </div>
+          )}
+
+          <p
+            style={{
+              margin: '12px 0 0',
+              fontSize: 12.5,
+              color: '#1e1e1e',
+              lineHeight: 1.5,
+            }}
+          >
+            The PDF includes the invoices currently filtered by status
+            (
+            <strong>
+              {statusFilter === 'all'
+                ? 'All'
+                : statusFilter.charAt(0).toUpperCase() +
+                  statusFilter.slice(1)}
+            </strong>
+            ) within the date range you pick above. It matches the table
+            on this page, plus an Expiry column.
+          </p>
+        </section>
+      </Sheet>
     </InlineSection>
   );
 };

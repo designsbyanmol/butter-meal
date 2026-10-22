@@ -57,7 +57,7 @@ const SiteFooter: React.FC = () => (
       </div>
 
       <div className={local.footerBottom}>
-        <span className={local.footerLeft}><Copyright width={20} height={20}/> 2026 Dozzelo. All rights reserved.</span>
+        <span className={local.footerLeft}><Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.</span>
         <div className={local.footerLegal}>
           <a href="#top">Cookie Preferences</a>
           <a href="#top">Terms & Conditions</a>

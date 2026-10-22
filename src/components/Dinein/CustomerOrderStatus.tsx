@@ -749,7 +749,6 @@ const CustomerOrderStatus: React.FC = () => {
         aria-label="Show order status"
       >
         <span className={local.minimizedDot} aria-hidden />
-        <span className={local.minimizedOrderNo}>#{order.orderNo}</span>
         <span className={local.minimizedStatus}>{minimizedLabel}</span>
       </button>
     );
@@ -766,14 +765,14 @@ const CustomerOrderStatus: React.FC = () => {
           <div className={local.bannerAction}>{renderActions()}</div>
         </div>
         <button
-          type="button"
-          className={local.minimizeBtn}
-          onClick={() => setIsMinimized(true)}
-          aria-label="Minimize"
-          title="Minimize"
-        >
-          <MinusIcon width={16} height={16} fill="#fff" />
-        </button>
+  type="button"
+  className={local.minimizeBtn}
+  onClick={() => setIsMinimized(true)}
+  aria-label="Minimize"
+  title="Minimize"
+>
+  <MinusIcon width={16} height={16} fill="#fff" />
+</button>
       </div>
 
       <Sheet

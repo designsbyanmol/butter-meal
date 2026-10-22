@@ -1,17 +1,17 @@
 // src/apps/SuperAdminSectionApp.tsx
-import React from "react";
-import { useIsMobile } from "../hooks/useIsMobile";
+import React from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import DashboardShell, {
   NavItem,
-} from "../components/Dashboard/DashboardShell";
+} from '../components/Dashboard/DashboardShell';
 import MobileDashboardShell, {
   MobileNavItem,
   KebabItem,
-} from "../components/Dashboard/MobileDashboardShell";
-import AdminNotificationsDrawer from "../components/Header/AdminNotificationsDrawer";
-import LoginModal from "../components/Auth/LoginModal";
-import DashboardSkeleton from "../components/DashboardSkeleton/DashboardSkeleton";
-import { authService } from "../services/auth.service";
+} from '../components/Dashboard/MobileDashboardShell';
+import AdminNotificationsDrawer from '../components/Header/AdminNotificationsDrawer';
+import LoginModal from '../components/Auth/LoginModal';
+import DashboardSkeleton from '../components/DashboardSkeleton/DashboardSkeleton';
+import { authService } from '../services/auth.service';
 import {
   StoreIcon,
   StarIcon,
@@ -19,20 +19,20 @@ import {
   UsersIcon,
   PowerIcon,
   InfoIcon,
-} from "../assets/svgs";
-import { IconButton } from "../components/ui";
+} from '../assets/svgs';
 
 const LOGO_URL =
-  "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png";
+  'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png';
 
-/** Map every section key to its own HTML page. */
 const SECTION_PAGE: Record<string, string> = {
-  stores: "superadmin-stores.html",
-  reviews: "superadmin-reviews.html",
-  plans: "plans.html",
-  revenue: "superadmin-revenue.html",
-  settings: "superadmin-settings.html",
+  stores: 'superadmin-stores.html',
+  reviews: 'superadmin-reviews.html',
+  plans: 'plans.html',
+  revenue: 'superadmin-revenue.html',
+  settings: 'superadmin-settings.html',
 };
+
+const MOBILE_KEBAB_KEYS = new Set(['reviews', 'revenue']);
 
 interface Props {
   isAuthenticated: boolean;
@@ -45,18 +45,15 @@ interface Props {
 const navigateToSection = (key: string) => {
   const page = SECTION_PAGE[key];
   if (!page) return;
-  window.location.href = `./${page}`;
-};
-
-const navigateTo = (page: string) => {
   const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
   window.location.href = `${window.location.origin}${dir}${page}`;
 };
 
 const handleLogout = () => {
-  if (!window.confirm("Log out?")) return;
+  if (!window.confirm('Log out?')) return;
   authService.logout();
-  window.location.href = `${window.location.origin}/`;
+  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  window.location.href = `${window.location.origin}${dir}home.html`;
 };
 
 const SuperAdminSectionApp: React.FC<Props> = ({
@@ -74,7 +71,7 @@ const SuperAdminSectionApp: React.FC<Props> = ({
   if (!isAuthenticated) {
     return (
       <>
-        <div style={{ minHeight: "100vh", background: "#f8fafc" }} />
+        <div style={{ minHeight: '100vh', background: '#f8fafc' }} />
         <LoginModal isOpen={true} onClose={() => {}} forceOpen={true} />
       </>
     );
@@ -82,11 +79,11 @@ const SuperAdminSectionApp: React.FC<Props> = ({
   if (!isPlatformAdmin) {
     return (
       <div
-        style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}
+        style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
       >
-        <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: 'center' }}>
           <h2>Not authorized</h2>
-          <p style={{ color: "#666" }}>
+          <p style={{ color: '#666' }}>
             This page is for platform administrators only.
           </p>
         </div>
@@ -94,45 +91,43 @@ const SuperAdminSectionApp: React.FC<Props> = ({
     );
   }
 
-  // ── Nav items ──
-  // Only the CURRENT section renders `children`. All other sections
-  // navigate away, so their `render` is null.
   const navItems: NavItem[] = [
     {
-      key: "stores",
-      label: "Stores",
+      key: 'stores',
+      label: 'Stores',
       icon: <StoreIcon width={22} height={22} fill="currentColor" />,
-      render: sectionKey === "stores" ? () => children : () => null,
+      render: sectionKey === 'stores' ? () => children : () => null,
     },
     {
-      key: "reviews",
-      label: "Reviews",
+      key: 'reviews',
+      label: 'Reviews',
       icon: <StarIcon width={22} height={22} fill="currentColor" />,
-      render: sectionKey === "reviews" ? () => children : () => null,
+      render: sectionKey === 'reviews' ? () => children : () => null,
     },
     {
-      key: "plans",
-      label: "Plans",
+      key: 'plans',
+      label: 'Plans',
       icon: <Special width={22} height={22} />,
-      render: sectionKey === "plans" ? () => children : () => null,
+      render: sectionKey === 'plans' ? () => children : () => null,
     },
     {
-      key: "revenue",
-      label: "Revenue",
+      key: 'revenue',
+      label: 'Revenue',
       icon: <InfoIcon width={22} height={22} fill="currentColor" />,
-      render: sectionKey === "revenue" ? () => children : () => null,
+      render: sectionKey === 'revenue' ? () => children : () => null,
     },
     {
-      key: "settings",
-      label: "Settings",
+      key: 'settings',
+      label: 'Settings',
       icon: <UsersIcon width={22} height={22} fill="currentColor" />,
-      render: sectionKey === "settings" ? () => children : () => null,
+      render: sectionKey === 'settings' ? () => children : () => null,
     },
   ];
 
   const handleActiveKeyChange = (key: string) => {
     if (!key) {
-      window.location.href = "./superadmin.html";
+      const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+      window.location.href = `${window.location.origin}${dir}superadmin.html`;
       return;
     }
     if (key === sectionKey) return;
@@ -141,17 +136,31 @@ const SuperAdminSectionApp: React.FC<Props> = ({
 
   const kebabItems: KebabItem[] = [
     {
-      kind: "action",
-      key: "settings",
-      label: "Global Settings",
-      icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
-      onClick: () => navigateToSection("settings"),
+      kind: 'action',
+      key: 'reviews',
+      label: 'Reviews',
+      icon: <StarIcon width={18} height={18} fill="#1e7e34" />,
+      onClick: () => navigateToSection('reviews'),
     },
-    { kind: "divider" },
     {
-      kind: "action",
-      key: "logout",
-      label: "Logout",
+      kind: 'action',
+      key: 'revenue',
+      label: 'Revenue & Billing',
+      icon: <InfoIcon width={18} height={18} fill="#1e7e34" />,
+      onClick: () => navigateToSection('revenue'),
+    },
+    {
+      kind: 'action',
+      key: 'settings',
+      label: 'Global Settings',
+      icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
+      onClick: () => navigateToSection('settings'),
+    },
+    { kind: 'divider' },
+    {
+      kind: 'action',
+      key: 'logout',
+      label: 'Logout',
       icon: <PowerIcon width={18} height={18} fill="#a62d2d" />,
       onClick: handleLogout,
     },
@@ -159,17 +168,20 @@ const SuperAdminSectionApp: React.FC<Props> = ({
 
   const notificationsSlot = (
     <AdminNotificationsDrawer
-      onOpenDispute={() => navigateToSection("reviews")}
+      onOpenDispute={() => navigateToSection('reviews')}
     />
   );
 
   if (isMobile) {
+    // Every nav item is present in the array so `activeItem` can
+    // resolve kebab-only sections. `visible: false` hides them from
+    // the bottom nav row without removing them from the lookup.
     const mobileNavItems: MobileNavItem[] = navItems.map((i) => ({
       key: i.key,
       label: i.label,
       icon: i.icon,
-      render: i.render, // ← preserve, not () => null
-      visible: true,
+      render: i.render,
+      visible: !MOBILE_KEBAB_KEYS.has(i.key),
     }));
 
     return (
@@ -179,7 +191,10 @@ const SuperAdminSectionApp: React.FC<Props> = ({
         navItems={mobileNavItems}
         activeKey={sectionKey}
         onActiveKeyChange={handleActiveKeyChange}
-        onLogoClick={() => (window.location.href = "./superadmin.html")}
+        onLogoClick={() => {
+          const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+          window.location.href = `${window.location.origin}${dir}superadmin.html`;
+        }}
         greeting={null}
         kebabItems={kebabItems}
         notifications={notificationsSlot}
@@ -195,25 +210,29 @@ const SuperAdminSectionApp: React.FC<Props> = ({
       onActiveKeyChange={handleActiveKeyChange}
       greeting={null}
       onAdd={null}
-      onLogoClick={() => (window.location.href = "./superadmin.html")}
+      onLogoClick={() => {
+        const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+        window.location.href = `${window.location.origin}${dir}superadmin.html`;
+      }}
       footer={{
-  notifications: notificationsSlot,
-  kebabItems: [
-    {
-      key: 'settings',
-      label: 'Global Settings',
-      icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
-      onClick: () => navigateTo('superadmin-settings.html'),
-    },
-    {
-      key: 'logout',
-      label: 'Logout',
-      icon: <PowerIcon width={18} height={18} fill="#a62d2d" />,
-      tone: 'danger' as const,
-      onClick: handleLogout,
-    },
-  ],
-}}
+        notifications: notificationsSlot,
+        kebabItems: kebabItems
+          .filter(
+            (k) =>
+              k.kind === 'divider' || !MOBILE_KEBAB_KEYS.has(k.key),
+          )
+          .map((k) =>
+            k.kind === 'divider'
+              ? { key: `div-${Math.random()}`, label: '', onClick: () => {} }
+              : {
+                  key: k.key,
+                  label: k.label,
+                  icon: k.icon,
+                  tone: k.tone,
+                  onClick: k.onClick,
+                },
+          ),
+      }}
     />
   );
 };
