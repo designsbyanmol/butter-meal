@@ -1,7 +1,6 @@
 // src/apps/SuperAdminApp.tsx
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useIsMobile } from '../hooks/useIsMobile';
 import MainDashboard from '../components/MainDashboard/MainDashboard';
 import LoginModal from '../components/Auth/LoginModal';
 import DashboardSkeleton from '../components/DashboardSkeleton/DashboardSkeleton';
@@ -12,7 +11,6 @@ import DashboardSkeleton from '../components/DashboardSkeleton/DashboardSkeleton
  */
 const SuperAdminApp: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const isMobile = useIsMobile(900);
 
   if (isLoading) {
     return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;

@@ -42,26 +42,26 @@ const SiteFooter: React.FC = () => (
         <div className={local.footerCol}>
           <h4>Company</h4>
           <a href="#top">About</a>
-          <a href="#top">Contact</a>
+          <a href="/contact.html">Contact</a>
           <a href="#top">Partners</a>
           <a href="#top">Careers</a>
         </div>
 
         <div className={local.footerCol}>
           <h4>Legal</h4>
-          <a href="#top">Privacy Policy</a>
-          <a href="#top">Terms of Use</a>
-          <a href="#top">Cookie Policy</a>
-          <a href="#top">Security</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Use</a>
+          <a href="/cookies.html">Cookie Policy</a>
+          <a href="/security.html">Security</a>
         </div>
       </div>
 
       <div className={local.footerBottom}>
         <span className={local.footerLeft}><Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.</span>
         <div className={local.footerLegal}>
-          <a href="#top">Cookie Preferences</a>
-          <a href="#top">Terms & Conditions</a>
-          <a href="#top">Help & Support</a>
+          <a href="/cookies.html">Cookie Preferences</a>
+          <a href="/terms.html">Terms & Conditions</a>
+          <a href="/contact.html">Help & Support</a>
         </div>
       </div>
     </div>

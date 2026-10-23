@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-type RangeKey = 'today' | '7d' | '30d' | '90d' | '180d' | '365d';
+type RangeKey = 'today' | 'yesterday' | '7d' | '30d' | '90d' | '180d' | '365d';
 
 interface RangeOption {
   key: RangeKey;
@@ -23,12 +23,13 @@ interface RangeOption {
 }
 
 const RANGE_OPTIONS: RangeOption[] = [
-  { key: 'today', label: 'Today', days: 1 },
-  { key: '7d', label: 'Weekly', days: 7 },
-  { key: '30d', label: 'Monthly', days: 30 },
-  { key: '90d', label: '3 Months', days: 90 },
-  { key: '180d', label: '6 Months', days: 180 },
-  { key: '365d', label: '1 Year', days: 365 },
+  { key: 'today',     label: 'Today',     days: 1 },
+  { key: 'yesterday', label: 'Yesterday', days: 1 },
+  { key: '7d',        label: 'Weekly',    days: 7 },
+  { key: '30d',       label: 'Monthly',   days: 30 },
+  { key: '90d',       label: '3 Months',  days: 90 },
+  { key: '180d',      label: '6 Months',  days: 180 },
+  { key: '365d',      label: '1 Year',    days: 365 },
 ];
 
 const startOfDay = (d: Date): Date => {
@@ -37,22 +38,37 @@ const startOfDay = (d: Date): Date => {
   return x;
 };
 
-const rangeToFromIso = (key: RangeKey): string => {
+const endOfDay = (d: Date): Date => {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+};
+
+interface RangeWindow {
+  from: string;
+  to?: string;
+}
+
+const rangeToWindow = (key: RangeKey): RangeWindow => {
   const now = new Date();
-  switch (key) {
-    case 'today':
-      return startOfDay(now).toISOString();
-    case '7d':
-    case '30d':
-    case '90d':
-    case '180d':
-    case '365d': {
-      const opt = RANGE_OPTIONS.find((o) => o.key === key)!;
-      const from = new Date(now);
-      from.setDate(from.getDate() - opt.days);
-      return startOfDay(from).toISOString();
-    }
+
+  if (key === 'today') {
+    return { from: startOfDay(now).toISOString() };
   }
+
+  if (key === 'yesterday') {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    return {
+      from: startOfDay(y).toISOString(),
+      to: endOfDay(y).toISOString(),
+    };
+  }
+
+  const opt = RANGE_OPTIONS.find((o) => o.key === key)!;
+  const from = new Date(now);
+  from.setDate(from.getDate() - opt.days);
+  return { from: startOfDay(from).toISOString() };
 };
 
 const fmtDate = (iso: string): string =>
@@ -94,25 +110,26 @@ const OrderHistoryModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
 
   const load = useCallback(
-    async (r: RangeKey) => {
-      if (!tenant) return;
-      setLoading(true);
-      setError('');
-      try {
-        const from = rangeToFromIso(r);
-        const list = await supabaseService.getDineinOrderHistory(
-          tenant.slug,
-          from,
-        );
-        setOrders(list);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [tenant?.slug],
-  );
+  async (r: RangeKey) => {
+    if (!tenant) return;
+    setLoading(true);
+    setError('');
+    try {
+      const { from, to } = rangeToWindow(r);
+      const list = await supabaseService.getDineinOrderHistory(
+        tenant.slug,
+        from,
+        to ?? null,
+      );
+      setOrders(list);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  },
+  [tenant?.slug],
+);
 
   useEffect(() => {
     if (!isOpen) return;

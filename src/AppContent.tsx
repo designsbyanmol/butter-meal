@@ -593,6 +593,7 @@ const AppContent: React.FC = () => {
               <BrandInfo
                 brandName={tenant?.displayName ?? ShopInfo.Shop_name}
                 brandDesc={tenant?.storeTagline ?? "Menu Display by Teckut"}
+                hideBanner={!isStoreOpen}
               />
             )}
 

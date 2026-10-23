@@ -2,7 +2,15 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "../../contexts/StoreContext";
 import { StoreSettings } from "../../types";
-import { Toggle, FormField, Input, Textarea, Banner, Button } from "../ui";
+import {
+  Toggle,
+  FormField,
+  Input,
+  Textarea,
+  Banner,
+  Button,
+  useToast,
+} from "../ui";
 import { InlineSection } from "../Dashboard/inline";
 import local from "./Store.module.scss";
 
@@ -21,6 +29,7 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
   onClose: _onClose,
 }) => {
   const { storeSettings, updateStoreSettings, isLoading } = useStore();
+  const { push } = useToast();
 
   // Local editable copy. Synced with the context whenever it changes.
   const [localSettings, setLocalSettings] =
@@ -28,11 +37,7 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // ── KEY FIX: re-sync local state when the context's values change.
-  // On a fresh page load, `StoreContext` fetches the DB row async; the
-  // first render sees the default settings, then the context flips to
-  // the real values. Without this effect, the toggles would stay on the
-  // stale default forever.
+  // Re-sync local state when the context's values change.
   useEffect(() => {
     setLocalSettings(storeSettings);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,11 +78,29 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
     return Object.keys(next).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     setIsSaving(true);
-    updateStoreSettings(localSettings);
-    setTimeout(() => setIsSaving(false), 300);
+    try {
+      await updateStoreSettings(localSettings);
+      push({
+        title: "Settings saved!",
+        message: "Store updated Successfully.",
+        tone: "success",
+      });
+    } catch (err) {
+      console.error("[StoreModalBody] save failed:", err);
+      push({
+        title: "Save failed",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Could not update store settings.",
+        tone: "error",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -98,8 +121,6 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
 
   const min = getMinDateTime();
 
-  // ── Gate the toggles until the real settings are loaded. This
-  //    prevents a "flash of enabled" while the fetch is in flight.
   if (isLoading) {
     return (
       <InlineSection title="Store Management">
@@ -112,29 +133,6 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
 
   return (
     <InlineSection title="Store Management">
-      {/* ---- Accepting orders ---- */}
-      <section className={local.settingGroup}>
-        <Toggle
-          checked={localSettings.acceptingOrders !== false}
-          onChange={(e) =>
-            setLocalSettings((prev) => ({
-              ...prev,
-              acceptingOrders: e.target.checked,
-            }))
-          }
-          label={
-            localSettings.acceptingOrders !== false
-              ? "Ordering Enabled"
-              : "Ordering Disabled"
-          }
-        />
-        <p className={local.settingDescription}>
-          {localSettings.acceptingOrders !== false
-            ? "Customers can add items to the cart and place orders."
-            : "Customers can view the menu but cannot place orders. The Add button and cart are hidden."}
-        </p>
-      </section>
-
       {/* ---- Open / closed ---- */}
       <section className={local.settingGroup}>
         <Toggle
@@ -158,6 +156,29 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
           {localSettings.isOpen
             ? "Customers can place orders as Store is open"
             : "Customers will see your custom closed message"}
+        </p>
+      </section>
+
+      {/* ---- Accepting orders ---- */}
+      <section className={local.settingGroup}>
+        <Toggle
+          checked={localSettings.acceptingOrders !== false}
+          onChange={(e) =>
+            setLocalSettings((prev) => ({
+              ...prev,
+              acceptingOrders: e.target.checked,
+            }))
+          }
+          label={
+            localSettings.acceptingOrders !== false
+              ? "Ordering Enabled"
+              : "Ordering Disabled"
+          }
+        />
+        <p className={local.settingDescription}>
+          {localSettings.acceptingOrders !== false
+            ? "Customers can add items to the cart and place orders."
+            : "Customers can view the menu but cannot place orders. The Add button and cart are hidden."}
         </p>
       </section>
 

@@ -107,9 +107,9 @@ const TenantAdminShell: React.FC = () => {
   const slug = React.useMemo(() => readSlugFromUrl(), []);
   const currentSection = React.useMemo(() => currentSectionFromPath(), []);
 
-  if (isLoading || tenantLoading) {
-    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  }
+  // if (isLoading || tenantLoading) {
+  //   return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
+  // }
   if (!tenant || tenantNotFound) {
     return (
       <div
@@ -198,7 +198,7 @@ const TenantAdminShell: React.FC = () => {
   const cardDefs: CardDef[] = [
     {
       key: 'info',
-      label: 'Store Information',
+      label: 'Store Details',
       description: 'Name, banner, tagline & contact',
       icon: <EditIcon width={20} height={20} fill="#ffffff" />,
       accent: 'green',
@@ -207,7 +207,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'menu',
-      label: 'Menu Management',
+      label: 'Manage Menu',
       description: 'Items, prices & availability',
       icon: <MenuIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
@@ -216,7 +216,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'store',
-      label: 'Store Management',
+      label: 'Manage Store',
       description: 'Open / close & accepting orders',
       icon: <StoreIcon width={20} height={20} fill="#ffffff" />,
       accent: 'amber',
@@ -225,7 +225,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'users',
-      label: 'User Management',
+      label: 'Manage Staff',
       description: 'Staff accounts & access',
       icon: <UsersIcon width={20} height={20} fill="#ffffff" />,
       accent: 'purple',
@@ -234,7 +234,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'reviews',
-      label: 'Review Management',
+      label: 'Manage Reviews',
       description: 'Customer feedback & ratings',
       icon: <StarIcon width={20} height={20} fill="#ffffff" />,
       accent: 'rose',

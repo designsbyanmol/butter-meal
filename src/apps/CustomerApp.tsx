@@ -22,9 +22,14 @@ const CustomerInner: React.FC = () => {
   // Once the preloader's own timer fires, the app takes over.
   const appReady = !tenantLoading && !storeLoading && !menuLoading;
 
-  if (!minElapsed || !appReady) {
-    return <Preloader onReady={() => setMinElapsed(true)} />;
-  }
+if (!minElapsed || !appReady) {
+  return (
+    <Preloader
+      title="Loading your store..."
+      onReady={() => setMinElapsed(true)}
+    />
+  );
+}
 
   if (tenantNotFound) {
     return <TenantNotFound />;

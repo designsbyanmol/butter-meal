@@ -261,7 +261,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
           {breakdown.discountAmount > 0 && (
             <div className={`${local.summaryRow} ${local.summaryDiscount}`}>
               <span>Duration discount ({breakdown.discountPct}%)</span>
-              <span>− {formatRupees(breakdown.discountAmount)}</span>
+              <span>- {formatRupees(breakdown.discountAmount)}</span>
             </div>
           )}
 

@@ -31,6 +31,8 @@ const defaultStoreSettings: StoreSettings = {
   lastUpdated: new Date().toISOString(),
 };
 
+const POLL_INTERVAL_MS = 60_000;
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const useStore = () => {
@@ -91,6 +93,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
         // Always apply on a forced fetch; otherwise only when changed.
         if (force || latest.lastUpdated !== lastUpdateTimeRef.current) {
           setStoreSettings(latest);
+          storeSettingsRef.current = latest;
           lastUpdateTimeRef.current = latest.lastUpdated;
         }
         return latest;
@@ -104,6 +107,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     [tenant, pollingPaused],
   );
 
+  // ---------------------------------------------------------
+  // Initial load / tenant switch
+  // ---------------------------------------------------------
   useEffect(() => {
     if (tenantLoading) return;
 
@@ -126,6 +132,61 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, tenantLoading]);
 
+  // ---------------------------------------------------------
+  // Live polling — every 60s while visible, immediate on focus.
+  // Paused entirely while the tab is hidden.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (tenantLoading) return;
+    if (!tenant) return;
+    if (isLoading) return;
+    if (!settingsLoaded) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      // force=false → respects `pollingPaused`
+      await fetchLatestSettings(false);
+    };
+
+    const schedule = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(async () => {
+        await tick();
+        schedule();
+      }, POLL_INTERVAL_MS);
+    };
+
+    schedule();
+
+    // Focus / visibility → refresh now, restart the timer.
+    const onFocus = () => {
+      if (document.hidden) return;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      tick().finally(schedule);
+    };
+
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug, tenantLoading, isLoading, settingsLoaded]);
+
+  // ---------------------------------------------------------
+  // Writes — optimistic + rollback on failure.
+  // ---------------------------------------------------------
   const updateStoreSettings = useCallback(
     async (settings: Partial<StoreSettings>): Promise<void> => {
       if (!tenant) throw new Error("No tenant loaded");

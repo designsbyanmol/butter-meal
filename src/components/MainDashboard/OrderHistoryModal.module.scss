@@ -18,9 +18,11 @@
 /* ---------- Filter chips ---------- */
 .filters {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
+      overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 /* ---------- Summary card ---------- */

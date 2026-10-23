@@ -4,25 +4,22 @@
 
 .durationGrid {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
   margin-bottom: 20px;
-
-  @include mobile {
-    gap: 6px;
-  }
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 8px;
+    overflow-x: auto;
 }
 
 .durationChip {
   flex-direction: column;
   gap: 4px;
   padding: 10px 14px;
-  min-width: 92px;
+  min-width: 100px;
   align-items: center;
 
   @include mobile {
-    min-width: 78px;
+    min-width: 82px;
     padding: 8px 10px;
   }
 }
@@ -39,10 +36,10 @@
 }
 
 .durationDiscount {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: $radius-pill;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: $radius-xs;
   background: $primary-soft;
   color: $primary-dark;
   letter-spacing: 0.2px;

@@ -124,7 +124,7 @@ const TenantAdminAppInner: React.FC = () => {
   // ── 4. Signed in, tenant loading ──
   if (tenantLoading) {
     return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  }
+  }           
 
   // ── 5. Signed in, tenant didn't resolve ──
   if (tenantNotFound || !tenant) {

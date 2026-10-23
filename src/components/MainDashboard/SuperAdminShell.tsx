@@ -87,9 +87,9 @@ const SuperAdminShell: React.FC = () => {
 
   const currentSection = React.useMemo(() => currentSectionFromPath(), []);
 
-  if (isLoading) {
-    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  }
+  // if (isLoading) {
+  //   return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
+  // }
   if (!isAuthenticated) {
     return (
       <>

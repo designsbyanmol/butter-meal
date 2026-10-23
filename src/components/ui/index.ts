@@ -71,3 +71,5 @@ export { default as Pagination } from './Pagination/Pagination';
 export type { PaginationProps } from './Pagination/Pagination';
 export { default as Slider } from './Slider/Slider';
 export type { SliderProps } from './Slider/Slider';
+export { ToastProvider, useToast } from './Toast/Toast';
+export type { ToastOptions, ToastTone } from './Toast/Toast';

@@ -1,13 +1,14 @@
+// src/entries/contact.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import ContactPage from '../components/Contact/ContactPage';
+import PageLoader from '../components/Preloader/PageLoader';
 import '../index.css';
-import StaticApp from '../apps/StaticApp';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <StaticApp
-      title="Contact us"
-      description="We're preparing a dedicated contact page. In the meantime, reach us at ContactDozzelo@gmail.com."
-    />
+    <PageLoader title="Contact us">
+      <ContactPage />
+    </PageLoader>
   </React.StrictMode>,
 );

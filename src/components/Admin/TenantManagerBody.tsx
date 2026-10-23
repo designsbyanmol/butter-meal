@@ -28,6 +28,7 @@ import {
   FilterIcon,
   CloseIcon,
   DownloadIcon,
+  EyeOffIcon,
 } from "../../assets/svgs";
 import PlanBadge from "./PlanBadge";
 import PauseRequestIcon from "./PauseRequestIcon";
@@ -413,7 +414,7 @@ const TenantManagerBody: React.FC = () => {
           title: "Reset Login Credentials",
           message: (
             <>
-              Generate a new password for <strong>{t.displayName}</strong>?
+              Create new password for <strong>{t.displayName}</strong>?
               <br />
               <br />
               The current password will stop working immediately. The store
@@ -421,7 +422,7 @@ const TenantManagerBody: React.FC = () => {
               dashboard.
             </>
           ),
-          confirmText: "Reset & Show Credentials",
+          confirmText: "Reset/Copy",
           variant: "warning",
         };
       case "edit":
@@ -1191,7 +1192,7 @@ const TenantManagerBody: React.FC = () => {
                             }
                             title="Generate or reuse credentials"
                           >
-                            <CopyIcon
+                            <EyeOffIcon
                               width={16}
                               height={16}
                               fill={tokens.borderHover}

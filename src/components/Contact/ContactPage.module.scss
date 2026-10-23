@@ -1,0 +1,373 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  min-height: 100vh;
+  background: $bg-subtle;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================================
+   Header (same as legal)
+   ========================================================= */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: $z-sticky;
+  background: #fff;
+  border-bottom: 1px solid $border-soft;
+}
+
+.headerInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 24px;
+
+  @include mobile(640px) {
+    padding: 12px 16px;
+  }
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.brandLogo {
+  max-width: 130px;
+  width: 100%;
+  height: auto;
+
+  @include mobile(640px) {
+    max-width: 110px;
+  }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $radius-pill;
+  border: 1px solid $border;
+  background: #fff;
+  color: $text;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background $t-fast, border-color $t-fast;
+
+  &:hover {
+    background: $bg-subtle;
+    border-color: $border-strong;
+  }
+
+  svg { flex-shrink: 0; }
+
+  @include mobile(640px) {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* =========================================================
+   Main
+   ========================================================= */
+.main {
+  flex: 1;
+  padding: 48px 24px 72px;
+
+  @include mobile(640px) {
+    padding: 32px 16px 48px;
+  }
+}
+
+.inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.heroBlock {
+  text-align: center;
+  margin-bottom: 40px;
+
+  @include mobile(640px) {
+    margin-bottom: 28px;
+  }
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: $primary-dark;
+  margin-bottom: 10px;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 36px;
+  font-weight: 800;
+  color: $gray-950;
+  letter-spacing: -0.8px;
+  line-height: 1.15;
+
+  @include mobile(640px) {
+    font-size: 26px;
+  }
+}
+
+.subtitle {
+  margin: 0 auto;
+  max-width: 540px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: $text-muted;
+
+  @include mobile(640px) {
+    font-size: 14px;
+  }
+}
+
+/* =========================================================
+   Contact grid
+   ========================================================= */
+.grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 24px;
+  align-items: start;
+
+  @include tablet(820px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Form card ---------- */
+.card {
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  @include mobile(640px) {
+    padding: 20px;
+    border-radius: $radius-md;
+  }
+}
+
+.formHeading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.2px;
+}
+
+.formHint {
+  margin: 0;
+  font-size: 13px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @include mobile(520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.textareaWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: $text;
+  background: #fff;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  resize: vertical;
+  min-height: 120px;
+  transition: border-color $t-fast, box-shadow $t-fast;
+
+  &::placeholder { color: $text-faint; }
+  &:hover { border-color: $border-hover; }
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 4px rgba($primary, 0.12);
+  }
+}
+
+.textareaLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-muted;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+
+  @include mobile(520px) {
+    flex-direction: column-reverse;
+
+    button { width: 100%; }
+  }
+}
+
+/* ---------- Info column ---------- */
+.infoCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.infoCard {
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-lg;
+  padding: 22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  @include mobile(640px) {
+    padding: 18px;
+    border-radius: $radius-md;
+  }
+}
+
+.infoIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: $primary-tint;
+  color: $primary-dark;
+  flex-shrink: 0;
+}
+
+.infoBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.infoTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+}
+
+.infoText {
+  margin: 0;
+  font-size: 13px;
+  color: $text-muted;
+  line-height: 1.55;
+  word-break: break-word;
+
+  a {
+    color: $primary-dark;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover { color: $primary; }
+  }
+}
+
+.emailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  border: 1px solid $border-soft;
+}
+
+.emailValue {
+  flex: 1;
+  min-width: 0;
+  font-family: $font-family-mono;
+  font-size: 12.5px;
+  color: $text;
+  word-break: break-all;
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+.footer {
+  padding: 24px;
+  background: #fff;
+  border-top: 1px solid $border-soft;
+  text-align: center;
+}
+
+.footerInner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: $text-faint;
+
+  @include mobile(640px) {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+.footerLinks {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+
+  a {
+    color: $text-faint;
+    text-decoration: none;
+
+    &:hover { color: $text; }
+  }
+}

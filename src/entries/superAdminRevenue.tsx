@@ -3,9 +3,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import '../index.css';
 import SuperAdminRevenueApp from '../apps/SuperAdminRevenueApp';
+import PageLoader from '../components/Preloader/PageLoader';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <SuperAdminRevenueApp />
+    <PageLoader title="Revenue & Billing">
+      <SuperAdminRevenueApp />
+    </PageLoader>
   </React.StrictMode>,
 );

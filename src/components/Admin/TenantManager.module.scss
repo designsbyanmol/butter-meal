@@ -33,6 +33,7 @@
   border-radius: $radius-md;
   transition: border-color $t-fast, box-shadow $t-fast;
   position: relative;
+  z-index: 0;
 
   &:hover {
     border-color: $border-hover;
@@ -219,7 +220,6 @@
 /* ---------- Plan filter pills ---------- */
 .planPills {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
   scrollbar-width: none;

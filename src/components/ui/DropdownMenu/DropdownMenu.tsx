@@ -1,5 +1,12 @@
 // components/ui/DropdownMenu/DropdownMenu.tsx
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  Children,
+  isValidElement,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import local from './DropdownMenu.module.scss';
 
 export interface DropdownMenuProps {
@@ -7,13 +14,45 @@ export interface DropdownMenuProps {
   children:
     | React.ReactNode
     | ((args: { close: () => void }) => React.ReactNode);
-  /** Preferred alignment. Auto-flipped if it would overflow. */
   align?: 'left' | 'right';
   minWidth?: number;
   className?: string;
 }
 
-const VIEWPORT_MARGIN = 8; // px of breathing room from the screen edge
+const VIEWPORT_MARGIN = 8;
+
+/**
+ * Filters out children that would render nothing:
+ *  - `null`, `undefined`, `false`, `''` (React's standard skip set)
+ *  - Fragment components whose own children are all empty
+ *
+ * Use this for the *contents* of a `DropdownSection` too, so an empty
+ * section (all its items hidden) doesn't render its label.
+ */
+const isEmptyNode = (node: React.ReactNode): boolean => {
+  if (node === null || node === undefined || node === false) return true;
+  if (typeof node === 'string' && node.trim() === '') return true;
+  if (typeof node === 'number') return false;
+
+  if (isValidElement(node)) {
+    const type = node.type as any;
+    // Fragment - recurse
+    if (type === React.Fragment) {
+      const kids = (node.props as { children?: React.ReactNode }).children;
+      return isEmptyNodeArray(kids);
+    }
+    // Anything else (a real component) counts as non-empty.
+    return false;
+  }
+  return false;
+};
+
+const isEmptyNodeArray = (node: React.ReactNode): boolean =>
+  Children.toArray(node).every(isEmptyNode);
+
+/** Return only the children that would actually render something. */
+const filterRenderable = (node: React.ReactNode): React.ReactNode[] =>
+  Children.toArray(node).filter((c) => !isEmptyNode(c));
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({
   trigger,
@@ -23,65 +62,40 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [resolvedAlign, setResolvedAlign] = useState<'left' | 'right'>(align);
+  const [resolvedAlign, setResolvedAlign] =
+    useState<'left' | 'right'>(align);
 
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const close = () => setIsOpen(false);
   const toggle = () => setIsOpen((v) => !v);
 
-  // Resolve alignment whenever the menu opens.
-  useLayoutEffect(() => {
-    if (!isOpen) return;
+  // ---- Viewport-aware alignment ----
+  const computeAlign = (): 'left' | 'right' => {
     const wrap = wrapRef.current;
-    if (!wrap) {
-      setResolvedAlign(align);
-      return;
-    }
+    if (!wrap) return align;
 
     const rect = wrap.getBoundingClientRect();
     const viewportWidth =
-      window.innerWidth ||
-      document.documentElement.clientWidth ||
-      0;
+      window.innerWidth || document.documentElement.clientWidth || 0;
 
-    // Space available on each side of the trigger, in viewport px.
     const spaceRight = viewportWidth - rect.right - VIEWPORT_MARGIN;
     const spaceLeft = rect.left - VIEWPORT_MARGIN;
-
     const fitsRight = minWidth <= spaceRight;
     const fitsLeft = minWidth <= spaceLeft;
 
     let next: 'left' | 'right' = align;
+    if (align === 'right' && !fitsLeft && fitsRight) next = 'left';
+    else if (align === 'left' && !fitsRight && fitsLeft) next = 'right';
+    return next;
+  };
 
-    if (align === 'right' && !fitsRight) {
-      // Requested right-aligned (menu grows leftwards from the trigger's
-      // right edge). If that overflows the left side of the viewport,
-      // flip to left-aligned.
-      //
-      // Wait - think again. With `align="right"`, the menu's right edge
-      // is anchored to the trigger's right edge, so the menu extends
-      // to the LEFT. That means we need space on the LEFT.
-      // Conversely `align="left"` extends RIGHT and needs space on
-      // the right.
-      //
-      // So: if align is 'right' and there's not enough space on the
-      // left, flip to 'left' (if that fits).
-      if (!fitsLeft && fitsRight) next = 'left';
-    } else if (align === 'left' && !fitsLeft) {
-      // Requested left-aligned (menu extends rightwards from the
-      // trigger's left edge). If that overflows the right side of
-      // the viewport, flip to right-aligned.
-      if (!fitsRight && fitsLeft) next = 'right';
-    }
-
-    // If neither side fits (very wide menu, tiny viewport), keep the
-    // requested alignment and let the menu clamp to the viewport edge
-    // via maxWidth in SCSS.
-    setResolvedAlign(next);
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    setResolvedAlign(computeAlign());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, align, minWidth]);
 
-  // Close on outside click / Escape.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -92,71 +106,60 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
+    const onResize = () => setResolvedAlign(computeAlign());
 
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Close (and re-evaluate) on resize.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onResize = () => {
-      // Force a re-measure by toggling a throwaway state.
-      setResolvedAlign((prev) => prev);
-      // Actually re-run the layout effect logic by re-opening the
-      // menu. Simpler: just recompute here.
-      const wrap = wrapRef.current;
-      if (!wrap) return;
-      const rect = wrap.getBoundingClientRect();
-      const viewportWidth =
-        window.innerWidth || document.documentElement.clientWidth || 0;
-      const spaceRight = viewportWidth - rect.right - VIEWPORT_MARGIN;
-      const spaceLeft = rect.left - VIEWPORT_MARGIN;
-      const fitsRight = minWidth <= spaceRight;
-      const fitsLeft = minWidth <= spaceLeft;
-
-      let next: 'left' | 'right' = align;
-      if (align === 'right' && !fitsLeft && fitsRight) next = 'left';
-      else if (align === 'left' && !fitsRight && fitsLeft) next = 'right';
-      setResolvedAlign(next);
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [isOpen, align, minWidth]);
-
-  const content =
+  const rawContent =
     typeof children === 'function' ? children({ close }) : children;
+
+  // Drop every child that would render nothing.
+  const renderable = filterRenderable(rawContent);
+
+  // If absolutely everything was filtered out, don't render the menu
+  // shell either - an empty white box is worse than no menu.
+  if (!isOpen || renderable.length === 0) {
+    return (
+      <div className={local.wrap} ref={wrapRef}>
+        {trigger({ isOpen, toggle })}
+      </div>
+    );
+  }
 
   return (
     <div className={local.wrap} ref={wrapRef}>
       {trigger({ isOpen, toggle })}
 
-      {isOpen && (
-        <div
-          className={[
-            local.menu,
-            local[resolvedAlign], // ← use the flipped value
-            className ?? '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          role="menu"
-          style={{ minWidth }}
-        >
-          {content}
-        </div>
-      )}
+      <div
+        className={[
+          local.menu,
+          local[resolvedAlign],
+          className ?? '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        role="menu"
+        style={{ minWidth }}
+      >
+        {renderable}
+      </div>
     </div>
   );
 };
 
 export default DropdownMenu;
 
-/* ---------- Helpers (unchanged) ---------- */
+/* ---------- Helpers ---------- */
 
 export interface DropdownSectionProps {
   label?: React.ReactNode;
@@ -166,12 +169,18 @@ export interface DropdownSectionProps {
 export const DropdownSection: React.FC<DropdownSectionProps> = ({
   label,
   children,
-}) => (
-  <div className={local.section}>
-    {label && <span className={local.sectionLabel}>{label}</span>}
-    {children}
-  </div>
-);
+}) => {
+  const items = filterRenderable(children);
+  if (items.length === 0) return null; // ← key fix: hide empty sections
+  return (
+    <div className={local.section}>
+      {label && !isEmptyNode(label) && (
+        <span className={local.sectionLabel}>{label}</span>
+      )}
+      {items}
+    </div>
+  );
+};
 
 export interface DropdownItemProps {
   active?: boolean;
@@ -187,23 +196,30 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
   tone = 'default',
   onClick,
   children,
-}) => (
-  <button
-    type="button"
-    role="menuitem"
-    disabled={disabled}
-    className={[
-      local.item,
-      active ? local.itemActive : '',
-      tone === 'danger' ? local.itemDanger : '',
-    ]
-      .filter(Boolean)
-      .join(' ')}
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
+}) => {
+  // Nothing to render → hide the button entirely.
+  // This also lets the parent's divider-pruning strip any
+  // dividers that were hugging this item.
+  if (isEmptyNodeArray(children)) return null;
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      className={[
+        local.item,
+        active ? local.itemActive : '',
+        tone === 'danger' ? local.itemDanger : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+};
 
 export const DropdownDivider: React.FC = () => (
   <div className={local.divider} />

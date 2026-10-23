@@ -1064,33 +1064,37 @@ class SupabaseService {
 
   // ─────────────────────────────── STORE SETTINGS ───────────────────────────────
 
-  async getStoreSettings(
+  // ─────────────────────────────── STORE SETTINGS ───────────────────────────────
+
+async getStoreSettings(
   tenantSlug: string,
 ): Promise<StoreSettings | null> {
   const client = this.getClient();
   if (!client) return null;
 
-  const { data, error } = await client
-    .from("star_veg_tenants")
-    .select(
-      "is_open, closed_message, expected_open_date, expected_open_time, accepting_orders, updated_at",
-    )
-    .eq("slug", tenantSlug)
-    .maybeSingle();
+  // One RPC, one round-trip: joins tenant → store_settings by slug
+  // and returns the row. Handles the "no settings row yet" case by
+  // returning an object with column defaults.
+  const { data, error } = await client.rpc(
+    "get_store_settings_by_slug",
+    { tenant_slug_in: tenantSlug },
+  );
 
   if (error) {
-    console.error("getStoreSettings error:", error);
+    console.error("get_store_settings_by_slug error:", error);
     return null;
   }
-  if (!data) return null;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
 
   return {
-    isOpen: data.is_open ?? true,
-    closedMessage: data.closed_message || "",
-    expectedOpenDate: data.expected_open_date || "",
-    expectedOpenTime: data.expected_open_time || "",
-    acceptingOrders: data.accepting_orders !== false,
-    lastUpdated: data.updated_at || new Date().toISOString(),
+    isOpen: row.is_open ?? true,
+    closedMessage: row.closed_message || "",
+    expectedOpenDate: row.expected_open_date || "",
+    expectedOpenTime: row.expected_open_time || "",
+    acceptingOrders: row.accepting_orders !== false,
+    lastUpdated: row.last_updated || new Date().toISOString(),
   };
 }
 
@@ -1101,27 +1105,24 @@ async updateStoreSettings(
   const client = this.getClient();
   if (!client) return false;
 
-  const writes: Array<[string, string]> = [
-    ["is_open", String(settings.isOpen)],
-    ["closed_message", settings.closedMessage || ""],
-    ["expected_open_date", settings.expectedOpenDate || ""],
-    ["expected_open_time", settings.expectedOpenTime || ""],
-    ["accepting_orders", String(settings.acceptingOrders ?? true)],
-  ];
+  // Single upsert through the purpose-built RPC. No loops, no
+  // multiple round-trips, and it works against the correct table.
+  const { error } = await client.rpc("upsert_store_settings", {
+    tenant_slug_in: tenantSlug,
+    is_open_in: settings.isOpen,
+    closed_message_in: settings.closedMessage || "",
+    expected_open_date_in: settings.expectedOpenDate || null,
+    expected_open_time_in: settings.expectedOpenTime || null,
+    accepting_orders_in: settings.acceptingOrders ?? true,
+  });
 
-  for (const [field, value] of writes) {
-    const { error } = await client.rpc("update_tenant_info", {
-      tenant_slug_in: tenantSlug,
-      field_in: field,
-      value_in: value,
-    });
-    if (error) {
-      // Throw instead of returning false so the caller sees the actual message
-      throw new Error(
-        `update_tenant_info("${field}") failed: ${error.message}`,
-      );
-    }
+  if (error) {
+    console.error("upsert_store_settings error:", error);
+    throw new Error(
+      error.message || "Failed to update store settings",
+    );
   }
+
   return true;
 }
 
