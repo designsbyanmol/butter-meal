@@ -1,6 +1,7 @@
 // src/apps/StaticApp.tsx
 import React from 'react';
 import styles from './StaticApp.module.scss';
+import { Copyright } from '../assets/svgs';
 
 interface StaticAppProps {
   title: string;
@@ -32,7 +33,7 @@ const StaticApp: React.FC<StaticAppProps> = ({ title, description }) => (
     </main>
 
     <footer className={styles.footer}>
-      © 2026 Dozzelo. All rights reserved.
+      <Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.
     </footer>
   </div>
 );

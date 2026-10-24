@@ -442,6 +442,9 @@
   li {
     flex: 1 0 45%;
   }
+  @include mobile {
+    flex-direction: column;
+  }
 }
 
 .storeItem {

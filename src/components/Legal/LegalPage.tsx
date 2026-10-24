@@ -1,6 +1,6 @@
 // src/components/Legal/LegalPage.tsx
 import React from 'react';
-import { LeftArrowIcon } from '../../assets/svgs';
+import { Copyright, LeftArrowIcon } from '../../assets/svgs';
 import local from './LegalPage.module.scss';
 
 export interface LegalSection {
@@ -31,7 +31,7 @@ const LegalPage: React.FC<LegalPageProps> = ({
 
   return (
     <div className={local.page}>
-      <header className={local.header}>
+      <div className={local.header}>
         <div className={local.headerInner}>
           <a href="/" className={local.brand} onClick={goHome}>
             <img
@@ -49,7 +49,7 @@ const LegalPage: React.FC<LegalPageProps> = ({
             </a>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className={local.main}>
         <div className={local.inner}>
@@ -70,18 +70,18 @@ const LegalPage: React.FC<LegalPageProps> = ({
         </div>
       </main>
 
-      <footer className={local.footer}>
+      <div className={local.footer}>
         <div className={local.footerInner}>
-          <span>© 2026 Dozzelo. All rights reserved.</span>
+          <span className={local.footerCopy}><Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.</span>
           <div className={local.footerLinks}>
-            <a href="/privacy.html">Privacy</a>
-            <a href="/terms.html">Terms</a>
-            <a href="/cookies.html">Cookies</a>
-            <a href="/security.html">Security</a>
-            <a href="/contact.html">Contact</a>
+            <a href="/p/privacy.html">Privacy</a>
+            <a href="/p/terms.html">Terms</a>
+            <a href="/p/cookies.html">Cookies</a>
+            <a href="/p/security.html">Security</a>
+            <a href="/p/contact.html">Contact</a>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };

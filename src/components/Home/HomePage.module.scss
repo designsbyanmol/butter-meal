@@ -319,6 +319,11 @@
     color: $text-muted;
     text-decoration: none;
 
+    &.disabled {
+      color: $gray-200;
+      pointer-events: none;
+    }
+
     &:hover { color: $primary-dark; }
   }
 }

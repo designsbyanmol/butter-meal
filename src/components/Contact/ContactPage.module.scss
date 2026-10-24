@@ -289,10 +289,12 @@
 }
 
 .infoTitle {
-  margin: 0 0 4px;
+  margin: 0 0 8px;
   font-size: 14px;
   font-weight: 800;
   color: $text;
+      display: flex;
+    gap: 6px;
 }
 
 .infoText {
@@ -370,4 +372,9 @@
 
     &:hover { color: $text; }
   }
+}
+
+.footerCopy {
+  display: flex;
+  gap: 4px;
 }

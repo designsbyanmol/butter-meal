@@ -6,7 +6,7 @@ import {
   Input,
   Banner,
 } from '../ui';
-import { LeftArrowIcon, CopyIcon, EmailIcon, InfoIcon } from '../../assets/svgs';
+import { LeftArrowIcon, CopyIcon, EmailIcon, InfoIcon, Copyright } from '../../assets/svgs';
 import local from './ContactPage.module.scss';
 
 const LOGO_URL =
@@ -60,7 +60,7 @@ const ContactPage: React.FC = () => {
 
   return (
     <div className={local.page}>
-      <header className={local.header}>
+      <div className={local.header}>
         <div className={local.headerInner}>
           <a href="/" className={local.brand} onClick={goHome}>
             <img
@@ -78,7 +78,7 @@ const ContactPage: React.FC = () => {
             </a>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className={local.main}>
         <div className={local.inner}>
@@ -166,11 +166,8 @@ const ContactPage: React.FC = () => {
             {/* ---------- Right: info cards ---------- */}
             <div className={local.infoCol}>
               <div className={local.infoCard}>
-                <span className={local.infoIcon}>
-                  <EmailIcon width={20} height={20} fill="#1e7e34" />
-                </span>
                 <div className={local.infoBody}>
-                  <h3 className={local.infoTitle}>Email us</h3>
+                  <h3 className={local.infoTitle}><EmailIcon width={20} height={20} fill="#1e7e34" /> Email us</h3>
                   <p className={local.infoText}>
                     The fastest way to reach us. We usually reply within one
                     business day.
@@ -192,11 +189,8 @@ const ContactPage: React.FC = () => {
               </div>
 
               <div className={local.infoCard}>
-                <span className={local.infoIcon}>
-                  <InfoIcon width={20} height={20} fill="#1e7e34" />
-                </span>
                 <div className={local.infoBody}>
-                  <h3 className={local.infoTitle}>Include this to help us faster</h3>
+                  <h3 className={local.infoTitle}><InfoIcon width={20} height={20} fill="#1e7e34" /> Include this to help us faster</h3>
                   <p className={local.infoText}>
                     Your store name, phone number, and a short description of
                     the issue. If it's a login problem, also mention the URL you
@@ -206,16 +200,13 @@ const ContactPage: React.FC = () => {
               </div>
 
               <div className={local.infoCard}>
-                <span className={local.infoIcon}>
-                  <LeftArrowIcon width={20} height={20} fill="#1e7e34" />
-                </span>
                 <div className={local.infoBody}>
-                  <h3 className={local.infoTitle}>Looking for something else?</h3>
+                  <h3 className={local.infoTitle}><LeftArrowIcon width={20} height={20} fill="#1e7e34" /> Looking for something else?</h3>
                   <p className={local.infoText}>
                     Check our{' '}
-                    <a href="/terms.html">Terms</a>,{' '}
-                    <a href="/privacy.html">Privacy Policy</a>, or{' '}
-                    <a href="/security.html">Security</a> pages for common
+                    <a href="/p/terms.html">Terms</a>,{' '}
+                    <a href="/p/privacy.html">Privacy Policy</a>, or{' '}
+                    <a href="/p/security.html">Security</a> pages for common
                     questions.
                   </p>
                 </div>
@@ -225,17 +216,17 @@ const ContactPage: React.FC = () => {
         </div>
       </main>
 
-      <footer className={local.footer}>
+      <div className={local.footer}>
         <div className={local.footerInner}>
-          <span>© 2026 Dozzelo. All rights reserved.</span>
+          <span className={local.footerCopy}><Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.</span>
           <div className={local.footerLinks}>
-            <a href="/privacy.html">Privacy</a>
-            <a href="/terms.html">Terms</a>
-            <a href="/cookies.html">Cookies</a>
-            <a href="/security.html">Security</a>
+            <a href="/p/privacy.html">Privacy</a>
+            <a href="/p/terms.html">Terms</a>
+            <a href="/p/cookies.html">Cookies</a>
+            <a href="/p/security.html">Security</a>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };

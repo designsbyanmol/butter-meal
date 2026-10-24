@@ -173,10 +173,11 @@
   ul,
   ol {
     margin: 0;
-    padding-left: 22px;
+    padding-left: 22px !important;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    list-style: unset;
   }
 
   li {
@@ -243,4 +244,9 @@
 
     &:hover { color: $text; }
   }
+}
+
+.footerCopy {
+  display: flex;
+  gap: 4px;
 }
