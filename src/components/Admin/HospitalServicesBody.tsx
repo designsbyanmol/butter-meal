@@ -25,6 +25,7 @@ import {
   Chip,
   Pagination,
   Accordion,
+  Select
 } from "../ui";
 import { InlineSection } from "../Dashboard/inline";
 import ImageUpload from "./ImageUpload";
@@ -971,26 +972,15 @@ const [isDeletingService, setIsDeletingService] = useState(false);
                 No categories yet. Add one via Edit Categories.
               </Banner>
             ) : (
-              <select
-                value={
-                  allCategories.includes(form.category)
-                    ? form.category
-                    : allCategories[0]
-                }
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: 6,
-                  border: "1px solid #ccc",
-                }}
-              >
-                {allCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <Select
+      value={
+        allCategories.includes(form.category)
+          ? form.category
+          : allCategories[0]
+      }
+      onChange={(e) => setForm({ ...form, category: e.target.value })}
+      options={allCategories.map((c) => ({ value: c, label: c }))}
+    />
             )}
           </FormField>
 

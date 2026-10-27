@@ -21,6 +21,7 @@ import {
   EmptyState,
   Tabs,
   Chip,
+  Select
 } from "../ui";
 import { getStoreLabels } from "../../utils/storeLabels";
 import { getCategoryDefaults } from "../../data/storeDefaults";
@@ -803,17 +804,18 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
             onChange={(e) => setSearchTerm(e.target.value)}
             inputSize="sm"
           />
-          <select
-            value={filter}
-            onChange={(e) =>
-              setFilter(e.target.value as "all" | "inStock" | "outOfStock")
-            }
-            className={local.filterSelect}
-          >
-            <option value="all">All {labels.items}</option>
-            <option value="inStock">In Stock</option>
-            <option value="outOfStock">Out of Stock</option>
-          </select>
+          <Select
+    value={filter}
+    onChange={(e) =>
+      setFilter(e.target.value as "all" | "inStock" | "outOfStock")
+    }
+    options={[
+      { value: "all", label: `All ${labels.items}` },
+      { value: "inStock", label: "In Stock" },
+      { value: "outOfStock", label: "Out of Stock" },
+    ]}
+    className={local.filterSelect}
+  />
         </div>
 
         {/* ============ Category capsule filter ============ */}

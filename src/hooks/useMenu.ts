@@ -43,9 +43,14 @@ export const useMenu = () => {
         setLoading(false);
       });
 
+    // ← Start the 2-minute background poll while this hook is mounted.
+    menuService.startCustomerPoll();
+
     return () => {
       mounted = false;
       unsubscribe();
+      // ← Stop the poll when the customer leaves the menu.
+      menuService.stopCustomerPoll();
     };
   }, [tenant?.slug]);
 

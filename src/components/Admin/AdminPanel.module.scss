@@ -48,16 +48,11 @@
 
 .filterSelect {
   width: 124px;
-  padding: 8px 10px;
-  border: 1.5px solid $border;
-  border-radius: $radius-sm;
-  background: #fff;
-  font-size: 13px;
-  color: $text;
-  cursor: pointer;
+  flex-shrink: 0;
 
-  &:focus {
-    @include focus-ring;
+  > select {
+    padding: 8px 30px 8px 10px !important;
+    font-size: 13px !important;
   }
 }
 

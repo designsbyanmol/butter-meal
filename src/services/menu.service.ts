@@ -487,6 +487,87 @@ class MenuService {
   }
 
   // =========================================================
+// Background poll — every 2 min while tab is focused
+// =========================================================
+
+private pollTimer: ReturnType<typeof setInterval> | null = null;
+private visibilityListener: (() => void) | null = null;
+private focusListener: (() => void) | null = null;
+private pollInFlight = false;
+
+/**
+ * Start a 2-minute poll that checks the tenant's `menu_version`
+ * while the tab is focused. If the version changed, the full menu
+ * is refetched; otherwise nothing is fetched.
+ *
+ * This is cheap on the wire - one tiny `SELECT menu_version` per
+ * tick - and it only fires while `document.visibilityState === 'visible'`.
+ */
+startCustomerPoll(): void {
+  if (typeof window === 'undefined') return;
+
+  // Idempotent - never double-start.
+  this.stopCustomerPoll();
+
+  const POLL_MS = 2 * 60_000; // 2 minutes
+
+  const tick = async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (this.pollInFlight) return;
+    if (!this.tenantSlug) return;
+
+    this.pollInFlight = true;
+    try {
+      await this.validateAndMaybeLoad(readCache(this.tenantSlug));
+    } catch (err) {
+      // Silent - a failed poll shouldn't disturb the customer.
+      console.warn('[menu.service] poll failed:', err);
+    } finally {
+      this.pollInFlight = false;
+    }
+  };
+
+  // Steady tick.
+  this.pollTimer = setInterval(tick, POLL_MS);
+
+  // Returning to the tab after being hidden → check immediately.
+  // (Resume the timer from here as well.)
+  const onVisible = () => {
+    if (document.hidden) return;
+    void tick();
+  };
+
+  document.addEventListener('visibilitychange', onVisible);
+  this.visibilityListener = onVisible;
+
+  // window focus as a belt-and-braces trigger (in case visibility
+  // is already 'visible' but the user just switched back).
+  window.addEventListener('focus', onVisible);
+  this.focusListener = onVisible;
+}
+
+/**
+ * Stop the background poll. Call this when the customer leaves the
+ * menu page (e.g. navigates to a different entry page or the app
+ * unmounts).
+ */
+stopCustomerPoll(): void {
+  if (this.pollTimer !== null) {
+    clearInterval(this.pollTimer);
+    this.pollTimer = null;
+  }
+  if (this.visibilityListener && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', this.visibilityListener);
+    this.visibilityListener = null;
+  }
+  if (this.focusListener && typeof window !== 'undefined') {
+    window.removeEventListener('focus', this.focusListener);
+    this.focusListener = null;
+  }
+  this.pollInFlight = false;
+}
+
+  // =========================================================
   // Reads
   // =========================================================
 
