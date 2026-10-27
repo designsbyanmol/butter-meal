@@ -427,7 +427,7 @@ const RevenueBody: React.FC = () => {
     statusFilter === 'all'
       ? 'All'
       : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1),
-  // generatedAt intentionally omitted — the util stamps it once.
+  // generatedAt intentionally omitted - the util stamps it once.
 });
 
       setIsExportSheetOpen(false);

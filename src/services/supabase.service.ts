@@ -17,6 +17,7 @@ import {
   DineinOrderItem,
   DineinEvent,
 } from "../types";
+import type { MedicineStock } from '../components/Admin/PharmacyStockBody';
 import { menuService } from "./menu.service";
 
 // =========================================================
@@ -2778,6 +2779,680 @@ async updateStoreSettings(
     return typeof data === "string" ? data : null;
   }
 
+  // src/services/supabase.service.ts
+
+// Inside the SupabaseService class, add these methods:
+
+  // ─────────────────────────────── PHARMACY: STOCK ───────────────────────────────
+
+  async getMedicineStock(tenantSlug: string): Promise<any[]> {
+  const client = this.getClient();
+  if (!client) return [];
+
+  const { data: tenantRow } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return [];
+
+  const { data, error } = await client
+    .from("star_veg_medicine_stock")
+    .select("*")
+    .eq("tenant_id", tenantRow.id)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("getMedicineStock error:", error);
+    return [];
+  }
+  return data || [];
+}
+
+  async addMedicineStock(
+  tenantSlug: string,
+  item: any,
+): Promise<MedicineStock | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  const { data: tenantRow } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return null;
+
+  // pack_of: treat null/undefined/0 as 1
+  const packOf = Math.max(1, Number(item.pack_of) || 1);
+
+  const { data, error } = await client
+    .from("star_veg_medicine_stock")
+    .insert({
+      tenant_id: tenantRow.id,
+      name: item.name,
+      composition: item.composition || "",
+      manufacturer: item.manufacturer || "",
+      hsn_code: item.hsn_code || "",
+      pack_size: item.pack_size || "",
+      pack_of: packOf,
+      unit: item.unit || null,
+      batch_no: item.batch_no || "",
+      expiry_date: item.expiry_date || null,
+      mrp: item.mrp || 0,
+      price: item.price || 0,
+      stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("addMedicineStock error:", error);
+    return null;
+  }
+  return data as MedicineStock;
+}
+
+  // ─────────────────────────────── PHARMACY: BILLS ───────────────────────────────
+
+  async createPharmacyBill(tenantSlug: string, bill: any): Promise<any | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return null;
+
+    const { data, error } = await client
+      .from("star_veg_pharmacy_bills")
+      .insert({ ...bill, tenant_id: tenantRow.id })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("createPharmacyBill error:", error);
+      return null;
+    }
+    return data;
+  }
+
+  async getPharmacyBills(tenantSlug: string): Promise<any[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
+
+    const { data, error } = await client
+      .from("star_veg_pharmacy_bills")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("getPharmacyBills error:", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  // src/services/supabase.service.ts
+
+  async editMedicineStock(
+  tenantSlug: string,
+  id: string,
+  item: any,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const packOf = Math.max(1, Number(item.pack_of) || 1);
+
+  const { error } = await client
+    .from("star_veg_medicine_stock")
+    .update({
+      name: item.name,
+      composition: item.composition || "",
+      manufacturer: item.manufacturer || "",
+      hsn_code: item.hsn_code || "",
+      pack_size: item.pack_size || "",
+      pack_of: packOf,
+      unit: item.unit || null,
+      batch_no: item.batch_no || "",
+      expiry_date: item.expiry_date || null,
+      mrp: item.mrp || 0,
+      price: item.price || 0,
+      stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("editMedicineStock error:", error);
+    return false;
+  }
+  return true;
+}
+
+  // src/services/supabase.service.ts
+
+  async deleteMedicineStock(tenantSlug: string, id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    // Optional safety: ensure the item belongs to this tenant
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+      
+    if (!tenantRow) return false;
+
+    const { error } = await client
+      .from("star_veg_medicine_stock")
+      .delete()
+      .eq("id", id)
+      .eq("tenant_id", tenantRow.id); // Security check
+
+    if (error) {
+      console.error("deleteMedicineStock error:", error);
+      return false;
+    }
+    return true;
+  }
+
+  // src/services/supabase.service.ts
+
+  async deductPharmacyStock(tenantSlug: string, items: any[]): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    // We only need the name and qty to deduct stock
+    const payload = items.map(it => ({
+      name: it.name,
+      qty: it.qty
+    }));
+
+    const { error } = await client.rpc("deduct_pharmacy_stock", {
+      tenant_slug_in: tenantSlug,
+      items_in: payload,
+    });
+
+    if (error) {
+      console.error("deduct_pharmacy_stock error:", error);
+      return false;
+    }
+    return true;
+  }
+
+  // src/services/supabase.service.ts
+
+// ─────────────────────────────── HOSPITAL: SERVICES ───────────────────────────────
+
+  // src/services/supabase.service.ts
+
+  async getHospitalServices(tenantSlug: string): Promise<any[]> {
+  const client = this.getClient();
+  if (!client) return [];
+
+  const { data: tenantRow } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return [];
+
+  const { data, error } = await client
+    .from("star_veg_hospital_services")
+    .select("id, name, category, price, image, description, daily_limits, tenant_id, created_at")
+    .eq("tenant_id", tenantRow.id)
+    .order("category", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("getHospitalServices error:", error);
+    return [];
+  }
+  return data || [];
+}
+
+  // src/services/supabase.service.ts
+
+  async addHospitalService(tenantSlug: string, service: any): Promise<any | null> {
+    const client = this.getClient();
+    if (!client) return null;
+
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return null;
+
+    const { data, error } = await client
+      .from("star_veg_hospital_services")
+      .insert({ ...service, tenant_id: tenantRow.id })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("addHospitalService error:", error);
+      return null;
+    }
+    return data;
+  }
+
+// src/services/supabase.service.ts
+
+  async updateHospitalService(tenantSlug: string, id: string, updates: any): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const payload: any = {
+      name: updates.name,
+      category: updates.category,
+      price: updates.price,
+      daily_limits: updates.daily_limits,
+    };
+
+    if ('image' in updates) payload.image = updates.image || null;
+    if ('description' in updates) payload.description = updates.description || null;
+    // Only include updated_at if the column exists (safe now that we added it)
+    payload.updated_at = new Date().toISOString();
+
+    const { error } = await client
+      .from("star_veg_hospital_services")
+      .update(payload)
+      .eq("id", id);
+
+    if (error) {
+      console.error("updateHospitalService error:", error);
+      return false;
+    }
+    return true;
+  }
+
+  async deleteHospitalService(tenantSlug: string, id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { error } = await client
+      .from("star_veg_hospital_services")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("deleteHospitalService error:", error);
+      return false;
+    }
+    return true;
+  }
+
+  async getHospitalServiceCategories(
+  tenantSlug: string,
+): Promise<{ name: string; sort_order: number; hidden: boolean }[]> {
+  const client = this.getClient();
+  if (!client) return [];
+
+  const { data: tenantRow } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return [];
+
+  const { data, error } = await client
+    .from("star_veg_hospital_service_categories")
+    .select("name, sort_order, hidden")
+    .eq("tenant_id", tenantRow.id)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("getHospitalServiceCategories error:", error);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Replace the full category list for the tenant in one atomic write:
+ *   - upsert current names with their new sort_order & hidden flag
+ *   - delete any names that are no longer in the list
+ *
+ * Callers pass the full ordered array from the "Manage Categories" draft.
+ */
+async saveHospitalServiceCategories(
+  tenantSlug: string,
+  categories: { name: string; sort_order: number; hidden: boolean }[],
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const { data: tenantRow } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return false;
+
+  const tenantId = tenantRow.id;
+
+  const cleaned = categories
+    .map((c, i) => ({
+      tenant_id: tenantId,
+      name: c.name.trim(),
+      sort_order:
+        typeof c.sort_order === "number" ? c.sort_order : i,
+      hidden: !!c.hidden,
+    }))
+    .filter((c) => c.name.length > 0);
+
+  // Fetch existing rows so we can delete the ones that disappeared
+  const { data: existing, error: exErr } = await client
+    .from("star_veg_hospital_service_categories")
+    .select("id, name")
+    .eq("tenant_id", tenantId);
+  if (exErr) {
+    console.error("saveHospitalServiceCategories existing error:", exErr);
+    return false;
+  }
+
+  const incomingNames = new Set(cleaned.map((c) => c.name));
+  const toDelete = (existing || [])
+    .filter((r: any) => !incomingNames.has(r.name))
+    .map((r: any) => r.id);
+
+  if (cleaned.length > 0) {
+    const { error: upsertErr } = await client
+      .from("star_veg_hospital_service_categories")
+      .upsert(cleaned, { onConflict: "tenant_id,name" });
+    if (upsertErr) {
+      console.error("saveHospitalServiceCategories upsert error:", upsertErr);
+      return false;
+    }
+  }
+
+  if (toDelete.length > 0) {
+    const { error: delErr } = await client
+      .from("star_veg_hospital_service_categories")
+      .delete()
+      .in("id", toDelete);
+    if (delErr) {
+      console.error("saveHospitalServiceCategories delete error:", delErr);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+  // ─────────────────────────────── HOSPITAL: APPOINTMENTS ───────────────────────────────
+
+  async getTodaysAppointments(tenantSlug: string): Promise<any[]> {
+    const client = this.getClient();
+    if (!client) return [];
+
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
+
+    // Get today's date in YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await client
+      .from("star_veg_hospital_appointments")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .eq("booking_date", today)
+      .order("token_no", { ascending: true });
+
+    if (error) {
+      console.error("getTodaysAppointments error:", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async getAllAppointmentsHistory(tenantSlug: string): Promise<any[]> {
+    const client = this.getClient();
+    if (!client) return [];
+
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
+
+    const { data, error } = await client
+      .from("star_veg_hospital_appointments")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("created_at", { ascending: false })
+      .limit(500); // Limit to last 500 for performance
+
+    if (error) {
+      console.error("getAllAppointmentsHistory error:", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async updateAppointmentStatus(appointmentId: string, status: string, payment_status?: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const updates: any = { status, updated_at: new Date().toISOString() };
+    if (payment_status) updates.payment_status = payment_status;
+
+    const { error } = await client
+      .from("star_veg_hospital_appointments")
+      .update(updates)
+      .eq("id", appointmentId);
+
+    if (error) {
+      console.error("updateAppointmentStatus error:", error);
+      return false;
+    }
+    return true;
+  }
+
+  async getNextHospitalToken(tenantSlug: string): Promise<number> {
+    const client = this.getClient();
+    if (!client) return 1;
+
+    const { data, error } = await client.rpc("get_next_hospital_token", {
+      tenant_slug_in: tenantSlug,
+    });
+
+    if (error) {
+      console.error("getNextHospitalToken error:", error);
+      return 1;
+    }
+    return Number(data) || 1;
+  }
+
+  async getHospitalDoctors(tenantSlug: string): Promise<any[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!tenantRow) return [];
+
+    const { data } = await client
+      .from("star_veg_hospital_doctors")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("name", { ascending: true });
+    return data || [];
+  }
+
+  async addHospitalDoctor(tenantSlug: string, doctor: any): Promise<any | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!tenantRow) return null;
+
+    const { data, error } = await client
+      .from("star_veg_hospital_doctors")
+      .insert({ ...doctor, tenant_id: tenantRow.id })
+      .select().single();
+    return error ? null : data;
+  }
+
+  async deleteHospitalDoctor(id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.from("star_veg_hospital_doctors").delete().eq("id", id);
+    return !error;
+  }
+
+  // ─────────────────────────────── HOSPITAL: PATIENTS ───────────────────────────────
+
+  async getHospitalPatients(tenantSlug: string): Promise<any[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!tenantRow) return [];
+
+    const { data } = await client
+      .from("star_veg_hospital_patients")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("name", { ascending: true });
+    return data || [];
+  }
+
+  async addHospitalPatient(tenantSlug: string, patient: any): Promise<any | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!tenantRow) return null;
+
+    const { data, error } = await client
+      .from("star_veg_hospital_patients")
+      .insert({ ...patient, tenant_id: tenantRow.id })
+      .select().single();
+    return error ? null : data;
+  }
+
+  /**
+ * Ensures a patient record exists for the given phone number.
+ * If a patient with the same phone already exists for this tenant,
+ * we do nothing. Otherwise we create one using the supplied details.
+ *
+ * Used by the customer booking flow so that every appointment
+ * automatically appears under Admin → Patients.
+ */
+async upsertHospitalPatientByPhone(
+  tenantSlug: string,
+  patient: {
+    name: string;
+    phone: string;
+    address?: string;
+    age?: number | null;
+    gender?: string | null;
+  },
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const phone = (patient.phone || '').trim();
+  const name = (patient.name || '').trim();
+  if (!phone || !name) return false;
+
+  const { data: tenantRow } = await client
+    .from('star_veg_tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+  if (!tenantRow) return false;
+
+  // Look for an existing record with the same phone for this tenant.
+  const { data: existing } = await client
+    .from('star_veg_hospital_patients')
+    .select('id')
+    .eq('tenant_id', tenantRow.id)
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (existing) return true; // already there — nothing to do
+
+  const { error } = await client
+    .from('star_veg_hospital_patients')
+    .insert({
+      tenant_id: tenantRow.id,
+      name,
+      phone,
+      address: patient.address || '',
+      age:
+        patient.age !== undefined && patient.age !== null
+          ? Number(patient.age) || null
+          : null,
+      gender: patient.gender || null,
+    });
+
+  if (error) {
+    console.warn('upsertHospitalPatientByPhone error:', error);
+    return false;
+  }
+  return true;
+}
+
+  async deleteHospitalPatient(id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.from("star_veg_hospital_patients").delete().eq("id", id);
+    return !error;
+  }
+  
+  // src/services/supabase.service.ts
+
+// ─────────────────────────────── HOSPITAL: DOCTORS ───────────────────────────────
+
+  async updateHospitalDoctor(id: string, updates: any): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { error } = await client
+      .from("star_veg_hospital_doctors")
+      .update(updates)
+      .eq("id", id);
+
+    if (error) {
+      console.error("updateHospitalDoctor error:", error);
+      return false;
+    }
+    return true;
+  }
+
+// ─────────────────────────────── HOSPITAL: PATIENTS ───────────────────────────────
+
+  async updateHospitalPatient(id: string, updates: any): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { error } = await client
+      .from("star_veg_hospital_patients")
+      .update(updates)
+      .eq("id", id);
+
+    if (error) {
+      console.error("updateHospitalPatient error:", error);
+      return false;
+    }
+    return true;
+  }
   // ─────────────────────────────── MAPPERS ───────────────────────────────
 
   private mapUser(row: any): User {

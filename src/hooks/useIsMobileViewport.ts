@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * Returns true when the viewport is <= `maxWidth` px (default 640).
  *
  * Distinct from `useIsMobile` which returns a "should show mobile
- * layout" boolean — this hook always reflects the CURRENT viewport
+ * layout" boolean - this hook always reflects the CURRENT viewport
  * width regardless of any other logic. Used by Modal and Sheet to
  * gate mobile-only behaviours (history push, exit animation) on
  * actual mobile viewports, not on the `mobileFullScreen` prop.

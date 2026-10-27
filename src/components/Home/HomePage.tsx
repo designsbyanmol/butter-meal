@@ -25,6 +25,11 @@ const HomePage: React.FC<HomePageProps> = ({ onSignup, onTrySample }) => {
 
   const closeNav = () => setMobileNavOpen(false);
 
+  const handleTrySample = () => {
+  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  window.location.href = `${window.location.origin}${dir}contact.html`;
+};
+
   return (
     <div className={local.page} id="top">
       <SiteHeader
@@ -36,7 +41,7 @@ const HomePage: React.FC<HomePageProps> = ({ onSignup, onTrySample }) => {
 
       <Hero 
         onSignup={onSignup} 
-        onTrySample={onTrySample} 
+        onTrySample={handleTrySample} 
       />
       
       <Audience />

@@ -309,7 +309,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
     //
     // Deps intentionally include only the state the handle reads
     // (`hasPending`, `singlePreview`, `currentImage`), not the
-    // callbacks — otherwise the handle is rebuilt on every render,
+    // callbacks - otherwise the handle is rebuilt on every render,
     // and callers that stored the ref lose their reference.
     // ---------------------------------------------------------
     useImperativeHandle(
@@ -330,7 +330,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
         },
 
         upload: async () => {
-          // Case 1 — the user removed the current image and pressed Save.
+          // Case 1 - the user removed the current image and pressed Save.
           if (removedStagedRef.current) {
             removedStagedRef.current = false;
             setHasPending(false);
@@ -338,13 +338,13 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
             return '';
           }
 
-          // Case 2 — nothing staged. Return whatever's already committed.
+          // Case 2 - nothing staged. Return whatever's already committed.
           const file = stagedFileRef.current;
           if (!file) {
             return singlePreview ?? null;
           }
 
-          // Case 3 — a fresh file is staged. Upload it.
+          // Case 3 - a fresh file is staged. Upload it.
           setUploading(true);
           setError(null);
           setUploadProgress(30);

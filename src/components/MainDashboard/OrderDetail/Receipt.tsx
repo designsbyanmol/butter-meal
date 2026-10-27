@@ -10,27 +10,36 @@ interface ReceiptProps {
   order: DineinOrder;
 }
 
-
 const Receipt: React.FC<ReceiptProps> = ({ order }) => {
   const { tenant } = useTenant();
   if (!tenant) return null;
-  
+
   const tableHeading =
-  order.tableLabelKind === 'number'
-  ? `Table ${order.tableLabel}`
-  : order.tableLabel;
-  
+    order.tableLabelKind === 'number'
+      ? `Table ${order.tableLabel}`
+      : order.tableLabel;
+
   const lines = consolidateItems(order.items);
   const receiptTotal = order.totalAmount - (order.staffTip ?? 0);
 
   return (
     <div className={local.receipt}>
-      {/* ---------- Header ---------- */}
+      {/* ---------- Header (single centered column) ---------- */}
       <div className={local.header}>
         <h2>{tenant.displayName}</h2>
+
+        {tenant.storeAddress && (
+          <p className={local.address}>{tenant.storeAddress}</p>
+        )}
+
         {tenant.storeTagline && (
           <p className={local.tagline}>{tenant.storeTagline}</p>
         )}
+
+        {tenant.gstNo && (
+          <p className={local.gstin}>GSTIN: {tenant.gstNo}</p>
+        )}
+
         <div className={local.tableLine}>{tableHeading}</div>
         <div className={local.orderNo}>Order #{order.orderNo}</div>
         <div className={local.dateLine}>
@@ -110,9 +119,9 @@ const Receipt: React.FC<ReceiptProps> = ({ order }) => {
         )}
 
         <div className={`${local.row} ${local.total}`}>
-  <span>Total</span>
-  <span>{formatRupees(receiptTotal)}</span>
-</div>
+          <span>Total</span>
+          <span>{formatRupees(receiptTotal)}</span>
+        </div>
       </div>
 
       {/* ---------- Footer ---------- */}

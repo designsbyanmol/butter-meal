@@ -2,81 +2,38 @@
 import type { StoreCategory, FormFieldOption } from '../types';
 
 export interface StoreCategoryDef {
-  /** Value stored in the DB (`star_veg_tenants.store_category`). */
   value: StoreCategory;
-  /** Short label used in selects, pills, badges. */
   label: string;
-  /** Short hint shown inside the option row. */
   hint: string;
-  /** One-sentence description shown as a banner under the select. */
   description: string;
-  /** Marketing image for the homepage audience card. */
   image: string;
-  /** Accent color used on the audience card's icon chip. */
   accent: 'green' | 'blue' | 'amber' | 'purple' | 'rose' | 'teal';
-
-  /**
-   * Human-friendly overrides for standard field labels. Keys match
-   * `FormFieldConfig.key` values (`desc`, `ingredients`, `nutritionalInfo`,
-   * `preparationTime`, `calories`, `isSpicy`, `isGlutenFree`, etc.).
-   * Only applied when the tenant hasn't already customized the label.
-   */
   fieldLabels?: Partial<Record<string, string>>;
-
-  /**
-   * Which built-in fields are disabled for this category. Fields in
-   * this list are forced to `enabled: false` and do not render in the
-   * admin form.
-   */
   disabledFields?: string[];
-
-  /**
-   * Optional per-category overrides for badge labels ("Popular",
-   * "New", "Chef's Special", "Limited"). Badges not overridden keep
-   * their default label.
-   */
   badgeLabels?: Partial<Record<string, string>>;
-
-  /**
-   * Which built-in badges make sense for this category. Badges not
-   * listed are auto-disabled for new signups.
-   */
   enabledBadges?: string[];
-
-  /**
-   * Replaces the food-default `nutritionalInfo` headings. Only applied
-   * when the tenant hasn't customized the headings. Accepts plain
-   * strings or `{ name, value }` where `value` is the placeholder text.
-   */
   nutritionalHeadings?: Array<string | FormFieldOption>;
 }
 
+const CDN = 'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/assets';
+
 export const STORE_CATEGORIES: StoreCategoryDef[] = [
-  // ============================================================
-  // FOOD & BEVERAGE — uses the food defaults unchanged
-  // ============================================================
   {
     value: 'food-beverage',
     label: 'Food & Beverage',
     hint: 'Restaurants, cafes, cloud kitchens',
     description:
       'Perfect for restaurants, cafes and cloud kitchens. Get a QR menu, take WhatsApp orders, run dine-in and print instant bills.',
-    image:
-      'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&q=80',
+    image: `${CDN}/coffee.webp`.replace('dining', 'dinin'), // dinin.webp
     accent: 'amber',
   },
-
-  // ============================================================
-  // FASHION & LIFESTYLE
-  // ============================================================
   {
     value: 'fashion-lifestyle',
     label: 'Fashion & Lifestyle',
     hint: 'Clothing, jewellery, beauty',
     description:
       'Show off your collection with galleries and variants. Share a single store link customers can browse and order from.',
-    image:
-      'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80',
+    image: `${CDN}/ear-rings.webp`,
     accent: 'rose',
     fieldLabels: {
       desc: 'Description',
@@ -99,18 +56,13 @@ export const STORE_CATEGORIES: StoreCategoryDef[] = [
       { name: 'Fit', value: 'e.g. Regular' },
     ],
   },
-
-  // ============================================================
-  // HOME & LIVING (furniture, decor, home essentials)
-  // ============================================================
   {
     value: 'home-living',
     label: 'Home & Living',
     hint: 'Furniture, decor, home essentials',
     description:
       'A visual catalogue for furniture, decor and home essentials. Customers can browse by category and reach out to order.',
-    image:
-      'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80',
+    image: `${CDN}/living-room.webp`,
     accent: 'teal',
     fieldLabels: {
       desc: 'Product Description',
@@ -133,18 +85,13 @@ export const STORE_CATEGORIES: StoreCategoryDef[] = [
       { name: 'SKU', value: 'e.g. SKU-1042' },
     ],
   },
-
-  // ============================================================
-  // BOOKS & OFFICE
-  // ============================================================
   {
     value: 'books-office',
     label: 'Books & Office',
     hint: 'Stationery, books, office supplies',
     description:
       'A searchable catalogue of books, stationery and office supplies. Customers find what they need and order directly.',
-    image:
-      'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80',
+    image: `${CDN}/library.webp`,
     accent: 'blue',
     fieldLabels: {
       desc: 'Description / Synopsis',
@@ -166,18 +113,13 @@ export const STORE_CATEGORIES: StoreCategoryDef[] = [
       { name: 'ISBN', value: 'e.g. 978-3-16-148410-0' },
     ],
   },
-
-  // ============================================================
-  // SERVICES & EVENTS
-  // ============================================================
   {
     value: 'services-events',
     label: 'Services & Events',
     hint: 'Salons, photographers, event pros',
     description:
       'A service catalogue with descriptions and pricing. Customers book or enquire directly via WhatsApp.',
-    image:
-      'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80',
+    image: `${CDN}/balooon.webp`,
     accent: 'purple',
     fieldLabels: {
       desc: 'Service Description',
@@ -199,18 +141,39 @@ export const STORE_CATEGORIES: StoreCategoryDef[] = [
       { name: 'Best For', value: 'e.g. Weddings, birthdays' },
     ],
   },
-
-  // ============================================================
-  // OTHER SHOPS — flexible / generic
-  // ============================================================
+  {
+    value: 'hospital-pharmacy',
+    label: 'Hospital & Pharmacy',
+    hint: 'Clinics, pharmacies, hospitals',
+    description:
+      'Manage pharmacy stock, print A5 GST bills, and track patient history. Includes OPD/IPD (coming soon).',
+    image: `${CDN}/apple.webp`, // Replace with a real hospital image on your CDN
+    accent: 'teal',
+    fieldLabels: {
+      desc: 'Composition / Description',
+      ingredients: 'Active Ingredients',
+      preparationTime: 'Dosage',
+      calories: 'Strength / Weight',
+      isVeg: 'Prescription Required',
+      isSpicy: 'Schedule H Drug',
+    },
+    disabledFields: ['isGlutenFree', 'nutritionalInfo'],
+    badgeLabels: {
+      isPopular: 'Fast Moving',
+      isNew: 'New Stock',
+      isChefSpecial: 'Critical Care',
+      isLimited: 'Low Stock',
+    },
+    enabledBadges: ['isPopular', 'isNew', 'isChefSpecial', 'isLimited'],
+    nutritionalHeadings: [],
+  },
   {
     value: 'other-shops',
     label: 'Other Shops',
     hint: 'Anything else you sell',
     description:
       "A flexible catalogue for any shop that doesn't fit the other categories. Add products, set prices, share your link.",
-    image:
-      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
+    image: `${CDN}/computer%20table.webp`,
     accent: 'green',
     fieldLabels: {
       desc: 'Description',
@@ -234,7 +197,6 @@ export const STORE_CATEGORIES: StoreCategoryDef[] = [
   },
 ];
 
-/** Label lookup used by badges, admin panel, etc. */
 export const getCategoryLabel = (
   value: StoreCategory | undefined,
 ): string => {
@@ -244,13 +206,11 @@ export const getCategoryLabel = (
   );
 };
 
-/** Full definition lookup - used by the signup banner and homepage. */
 export const getCategoryDef = (
   value: StoreCategory | undefined,
 ): StoreCategoryDef | undefined =>
   value ? STORE_CATEGORIES.find((c) => c.value === value) : undefined;
 
-/** Helper for the admin form: does this category disable a field? */
 export const isFieldDisabledForCategory = (
   category: StoreCategory | undefined,
   fieldKey: string,
@@ -260,7 +220,6 @@ export const isFieldDisabledForCategory = (
   return def?.disabledFields?.includes(fieldKey) ?? false;
 };
 
-/** Helper for the admin form: override label or fall back. */
 export const getFieldLabelForCategory = (
   category: StoreCategory | undefined,
   fieldKey: string,

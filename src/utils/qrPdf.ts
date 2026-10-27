@@ -148,7 +148,7 @@ export const downloadQrPdf = async (payload: QrPdfPayload): Promise<void> => {
   const accentBorder = isAdmin
     ? ([209, 234, 214] as [number, number, number])
     : BORDER;
-  const chipLabel = isAdmin ? "ADMIN" : "PUBLIC";
+  const chipLabel = isAdmin ? "ADMIN" : "CUSTOMER";
 
   const qrPng = await qrToPngDataUrl(url, 900, isAdmin ? "#1e1e11" : "#000000");
 
@@ -159,7 +159,7 @@ export const downloadQrPdf = async (payload: QrPdfPayload): Promise<void> => {
   });
 
     // ---------------------------------------------------------------------
-  // Dark header band — store name + title + variant chip, all inside
+  // Dark header band - store name + title + variant chip, all inside
   // a strip that spans the full page width.
   // ---------------------------------------------------------------------
   const HEADER_BG: [number, number, number] = [15, 23, 42]; // #0F172A
@@ -220,7 +220,7 @@ export const downloadQrPdf = async (payload: QrPdfPayload): Promise<void> => {
     y += 6 + subLines.length * subtitleLineH;
   }
 
-  // Variant chip — top-right corner of the band.
+  // Variant chip - top-right corner of the band.
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   const chipW = pdf.getTextWidth(chipLabel) + 32;

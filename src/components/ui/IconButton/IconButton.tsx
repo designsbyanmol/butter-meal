@@ -16,7 +16,7 @@ export interface IconButtonProps
   variant?: IconButtonVariant;
   size?: IconButtonSize;
   /** Accessible label - required for icon-only buttons. */
-  'aria-label': string;
+  'aria-label'?: string;
   /** Optional visible tooltip via `title`. */
   tooltip?: string;
   /** Render as a circle (default) or a rounded square. */

@@ -42,7 +42,9 @@ type EditableField =
   | "storewide_discount"
   | "gst_percent"
   | "packing_charge"
-  | "upi_id";
+  | "upi_id"
+  | "gst_no"           // <-- ADDED
+  | "store_address";
 
 interface FieldDef {
   key: EditableField;
@@ -97,6 +99,20 @@ const FIELDS: FieldDef[] = [
     label: "Store Tagline",
     type: "text",
     getValue: (t) => t?.storeTagline || ShopInfo.Shop_tagline,
+  },
+    {
+    key: "store_address",
+    label: "Store Address",
+    type: "text",
+    getValue: (t) => t?.storeAddress || "",
+    hint: "Will appear on all printed bills.",
+  },
+  {
+    key: "gst_no",
+    label: "GST Number",
+    type: "text",
+    getValue: (t) => t?.gstNo || "",
+    hint: "Will appear on all printed bills. e.g. 22AAAAA0000A1Z5",
   },
   {
     key: "owner_phone",
@@ -202,38 +218,25 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
   const currentAvatarSrc = tenant.avatarUrl || ROLE_AVATAR_URL[roleKey];
 
   const isDefault = (key: EditableField): boolean => {
-    if (!tenant.infoDefaults) return false;
-    switch (key) {
-      case "display_name":
-        return !!tenant.infoDefaults.displayName;
-      case "store_tagline":
-        return !!tenant.infoDefaults.storeTagline;
-      case "owner_phone":
-        return !!tenant.infoDefaults.ownerPhone;
-      case "whatsapp_phone":
-        return !!tenant.infoDefaults.whatsappPhone;
-      case "banner_url":
-        return !!tenant.infoDefaults.bannerUrl;
-      case "delivery_charge":
-        return !!tenant.infoDefaults.deliveryCharge;
-      case "storewide_discount":
-        return !!tenant.infoDefaults.storewideDiscount;
-      case "gst_percent":
-        return (
-          !Number.isFinite(Number(tenant.gstPercent)) ||
-          Number(tenant.gstPercent) === 0
-        );
-      case "packing_charge":
-        return (
-          !Number.isFinite(Number(tenant.packingCharge)) ||
-          Number(tenant.packingCharge) === 0
-        );
-      case "upi_id":
-        return !tenant.upiId;
-      default:
-        return false;
-    }
-  };
+  if (!tenant.infoDefaults) return false;
+  switch (key) {
+    case "display_name": return !!tenant.infoDefaults.displayName;
+    case "store_tagline": return !!tenant.infoDefaults.storeTagline;
+    case "owner_phone": return !!tenant.infoDefaults.ownerPhone;
+    case "whatsapp_phone": return !!tenant.infoDefaults.whatsappPhone;
+    case "banner_url": return !!tenant.infoDefaults.bannerUrl;
+    case "delivery_charge": return !!tenant.infoDefaults.deliveryCharge;
+    case "storewide_discount": return !!tenant.infoDefaults.storewideDiscount;
+    case "gst_percent": 
+      return !Number.isFinite(Number(tenant.gstPercent)) || Number(tenant.gstPercent) === 0;
+    case "packing_charge": 
+      return !Number.isFinite(Number(tenant.packingCharge)) || Number(tenant.packingCharge) === 0;
+    case "upi_id": return !tenant.upiId;
+    case "gst_no": return !tenant.gstNo;
+    case "store_address": return !tenant.storeAddress;
+    default: return false;
+  }
+};
 
   const copyToClipboard = async (text: string) => {
     try {

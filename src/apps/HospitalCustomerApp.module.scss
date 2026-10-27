@@ -1,0 +1,294 @@
+// src/apps/HospitalCustomerApp.module.scss
+@use '../styles/tokens' as *;
+@use '../styles/mixins' as *;
+
+/* =========================================================
+   Page shell
+   ========================================================= */
+.pageWrap {
+  padding: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: $text;
+}
+
+.pageSubtitle {
+  color: $text-muted;
+  margin: 0;
+  font-size: 14px;
+}
+
+.loaderWrap {
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+.categorySection {
+  margin-bottom: 30px;
+}
+
+.categoryHeading {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: $text;
+  border-bottom: 1px solid $border-soft;
+  padding-bottom: 8px;
+}
+
+/* =========================================================
+   Detail modal body
+   ========================================================= */
+.detailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detailBody {
+  padding-top: 16px;
+}
+
+.detailTitle {
+  font-size: 20px;
+  margin: 0 0 8px;
+  color: $text;
+}
+
+.detailPrice {
+  font-size: 24px;
+  font-weight: 800;
+  color: #166534;
+  margin-bottom: 16px;
+}
+
+/* =========================================================
+   Booking form layout
+   ========================================================= */
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.paymentSummary {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.paymentAmount {
+  color: #166534;
+  font-size: 32px;
+  margin: 0 0 8px;
+}
+
+.paymentHint {
+  color: $text-muted;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* =========================================================
+   Live token screen — refined
+   ========================================================= */
+
+/* Neutral page wrapper — colour state now lives in one card,
+   not on the whole viewport, so the page never flashes. */
+.waitingScreen {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: #f8fafc;
+}
+
+/* Colour variants kept for backwards compat, but I recommend
+   removing them from this screen — the card below drives the
+   colour state instead. */
+.successBg { background: #f0fdf4; }
+.failedBg  { background: #fef2f2; }
+.turnBg    { background: #f8fafc; }
+.closeBg   { background: #f8fafc; }
+.idleBg    { background: #f8fafc; }
+
+.tokenHeader {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* Hero card: label + big number + status line */
+.nowServingCard {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px 20px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.nowServingLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.nowServingNumber {
+  font-size: 80px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One-liner status below the number — replaces the old banners */
+.statusLine {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.5;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.statusLineSuccess {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusLineWarning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Appointment details card */
+.appointmentCard {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+
+.appointmentTitle {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.rowKey {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.rowValue {
+  color: #0f172a;
+}
+
+/* Action buttons */
+.waitingActions {
+  width: 100%;
+  max-width: 480px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.refreshBtn {
+  width: 100%;
+}
+
+.downloadBtn {
+  width: 100%;
+}
+
+/* Small-screen polish */
+@media (max-width: 420px) {
+  .nowServingNumber {
+    font-size: 64px;
+  }
+  .waitingActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   Terminal (resolved / failed) screens — reused across both
+   states so they look like siblings
+   ========================================================= */
+
+.emoji {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.statusHeading {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #16a34a;
+  text-align: center;
+}
+
+.statusFailed {
+  color: #dc2626;
+}
+
+.statusSubtext {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+  text-align: center;
+  max-width: 340px;
+  line-height: 1.5;
+}
+
+.primaryCta {
+  margin-top: 8px;
+  min-width: 180px;
+}

@@ -9,7 +9,7 @@ import { AuthState, User } from '../types';
  * Subscribes to authService.getState() changes so any consumer
  * re-renders after a login, logout, or bindTenant.
  *
- * Does NOT call bindTenant itself — that responsibility lives in
+ * Does NOT call bindTenant itself - that responsibility lives in
  * the entry apps (module-load bindFromUrlOnce) and in TenantContext
  * (enforceTenantScope). Calling bindTenant from here has been
  * racing with those paths and resetting auth scope mid-login.

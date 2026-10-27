@@ -1,7 +1,7 @@
 // components/Home/sections/Plans.tsx
 import React, { useState } from 'react';
 import { Button, Badge } from '../../ui';
-import { RightArrow, CheckIcon, RupeeIcon } from '../../../assets/svgs';
+import { CheckIcon, RupeeIcon } from '../../../assets/svgs';
 import {
   PLAN_DISPLAY_PRICES,
   getPlanDefinition,
@@ -43,13 +43,14 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
             const price = PLAN_DISPLAY_PRICES[id];
             const name = PLAN_NAMES[id] ?? id;
             const isHighlight = def.featured === true;
+            const isDynamic = id === 'dynamic';
 
             return (
               <div
                 key={id}
                 className={`${local.card} ${
                   isHighlight ? local.cardHighlight : ''
-                }`}
+                } ${isDynamic ? local.cardDynamic : ''}`}
               >
                 {isHighlight && (
                   <span className={local.popularRibbon}>Most popular</span>
@@ -58,7 +59,10 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
                 <div className={local.cardHead}>
                   <h3 className={local.planName}>{name}</h3>
                   {isHighlight && (
-                    <Badge tone="success" size="sm">Best value</Badge>
+                    <Badge tone="success" size="sm">Best</Badge>
+                  )}
+                  {isDynamic && (
+                    <Badge tone="warning" size="sm">Most booked</Badge>
                   )}
                 </div>
 
@@ -66,12 +70,16 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
 
                 <div className={local.promoPrice}>
                   <span className={local.promoStrike}>
-                    <RupeeIcon width={14} height={14} fill="#5c6b87" className='rupeeIcon'/>{price}
+                    <RupeeIcon
+                      width={14}
+                      height={14}
+                      fill="#5c6b87"
+                      className="rupeeIcon"
+                    />
+                    {price}
                   </span>
                   <span className={local.promoBig}>1</span>
-                  <span className={local.promoUnit}>
-                    first month
-                  </span>
+                  <span className={local.promoUnit}>first month</span>
                 </div>
                 <p className={local.promoNote}>
                   Then Rs{price}/month from month 2
@@ -101,6 +109,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
                 <Button
                   block
                   variant={isHighlight ? 'primary' : 'ghost'}
+                  className={isDynamic ? local.ctaAmber : undefined}
                   onClick={onSignup}
                 >
                   Get this plan
@@ -126,7 +135,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
         onPrimaryAction={
           detailId
             ? {
-                label: `Start ${PLAN_NAMES[detailId] ?? detailId} for Rs1`,
+                label: `Start with Rs1`,
                 onClick: () => {
                   setDetailId(null);
                   onSignup();

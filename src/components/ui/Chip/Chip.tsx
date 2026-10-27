@@ -16,7 +16,7 @@ export type ChipTone =
   | 'info';
 
 export type ChipShape =
-  | 'pill'      // fully rounded — default
+  | 'pill'      // fully rounded - default
   | 'rounded'   // 8px corners
   | 'soft'      // 6px corners (subtle rounding)
   | 'square';   // 0px corners

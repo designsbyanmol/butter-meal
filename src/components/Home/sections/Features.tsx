@@ -14,31 +14,37 @@ import shell from '../HomePage.module.scss';
 const FEATURES = [
   {
     icon: <MenuIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconMenu,
     title: 'Online Menu & Catalogue',
     desc: 'Build a beautiful menu with photos, prices, variants and add-ons. Live in minutes, edited anytime.',
   },
   {
     icon: <StoreIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconQr,
     title: 'Instant QR Codes',
     desc: 'Print a QR for each table or the storefront. Customers scan, browse, and order - no app required.',
   },
   {
     icon: <UtensilsIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconDineIn,
     title: 'Dine-in Ordering',
-    desc: 'Let guests order from their table, track item-by-item prep, and call for the bill when they\'re done.',
+    desc: "Let guests order from their table, track item-by-item prep, and call for the bill when they're done.",
   },
   {
     icon: <CheckIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconWhatsApp,
     title: 'Direct WhatsApp Orders',
     desc: 'Skip commissions. Every order arrives as a formatted WhatsApp message you can act on instantly.',
   },
   {
     icon: <StarIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconBilling,
     title: 'Instant Billing & Receipts',
     desc: 'Generate and print 80mm thermal bills in one tap. GST, packing charges and tips handled for you.',
   },
   {
     icon: <UsersIcon width={20} height={20} fill="#fff" />,
+    iconClass: local.iconTeam,
     title: 'Team & User Management',
     desc: 'Give staff their own logins with scoped access. Owners keep full control of the store.',
   },
@@ -59,7 +65,7 @@ const Features: React.FC = () => (
       <div className={local.grid}>
         {FEATURES.map((f) => (
           <div key={f.title} className={local.card}>
-            <span className={local.icon}>{f.icon}</span>
+            <span className={`${local.icon} ${f.iconClass}`}>{f.icon}</span>
             <h3 className={local.cardTitle}>{f.title}</h3>
             <p className={local.cardDesc}>{f.desc}</p>
           </div>

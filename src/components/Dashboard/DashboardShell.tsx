@@ -93,12 +93,12 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
   return (
     <div className={local.shell}>
       <aside className={local.sidebar}>
-        {/* Logo — decorative only (clicking does nothing). */}
+        {/* Logo - decorative only (clicking does nothing). */}
         <div className={local.logo}>
           <img src={logoUrl} alt="Logo" draggable={false} />
         </div>
 
-        {/* Home — the primary way to return to the greeting screen. */}
+        {/* Home - the primary way to return to the greeting screen. */}
         {onLogoClick && (
           <button
             type="button"

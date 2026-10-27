@@ -5,7 +5,7 @@
  * dashboard shell to highlight the correct bottom-nav tab.
  *
  * Returns `''` when the current page is the landing page (greeting
- * screen) — no tab is active.
+ * screen) - no tab is active.
  */
 export const sectionFromPath = (
   fileNameToKey: Record<string, string>,

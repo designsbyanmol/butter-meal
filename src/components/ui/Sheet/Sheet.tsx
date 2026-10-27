@@ -49,7 +49,7 @@ const Sheet: React.FC<SheetProps> = ({
   const isMobileViewport = useIsMobileViewport();
 
   // Full-screen takeover on mobile only. Ignored when position is
-  // top/bottom — those anchor modes already work fine on mobile.
+  // top/bottom - those anchor modes already work fine on mobile.
   const applyMobileFullScreen =
     mobileFullScreen && isMobileViewport && position === 'center';
 

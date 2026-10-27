@@ -11,7 +11,7 @@ interface StoreBannerProps {
  * Renders a large "we're closed" card when the store is not open.
  *
  * Self-gates on `isStoreOpen` from StoreContext, so it's safe to
- * mount unconditionally in AppContent — it will return null when
+ * mount unconditionally in AppContent - it will return null when
  * the store is open.
  *
  * The displayed message uses:

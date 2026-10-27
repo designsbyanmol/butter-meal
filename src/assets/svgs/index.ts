@@ -43,3 +43,4 @@ export { default as LimitedIcon } from './LimitedIcon';
 export { default as KebabIcon } from './KebabIcon';
 export { default as RecieptIcon } from './RecieptIcon';
 export { default as HomeIcon } from './HomeIcon';
+export { default as DownArrowIcon } from './DownArrowIcon';

@@ -133,7 +133,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
   }, [tenant?.slug, tenantLoading]);
 
   // ---------------------------------------------------------
-  // Live polling — every 60s while visible, immediate on focus.
+  // Live polling - every 60s while visible, immediate on focus.
   // Paused entirely while the tab is hidden.
   // ---------------------------------------------------------
   useEffect(() => {
@@ -185,7 +185,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
   }, [tenant?.slug, tenantLoading, isLoading, settingsLoaded]);
 
   // ---------------------------------------------------------
-  // Writes — optimistic + rollback on failure.
+  // Writes - optimistic + rollback on failure.
   // ---------------------------------------------------------
   const updateStoreSettings = useCallback(
     async (settings: Partial<StoreSettings>): Promise<void> => {
@@ -206,7 +206,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
         updated.expectedOpenTime = "";
       }
 
-      // Optimistic update — UI reflects change immediately.
+      // Optimistic update - UI reflects change immediately.
       setStoreSettings(updated);
       storeSettingsRef.current = updated;
       lastUpdateTimeRef.current = updated.lastUpdated;

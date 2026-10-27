@@ -1,3 +1,4 @@
+// src/components/MainDashboard/OrderDetail/Receipt.module.scss
 @use '../../../styles/tokens' as *;
 @use '../../../styles/mixins' as *;
 
@@ -10,7 +11,6 @@
 }
 
 .receipt {
-  /* 80mm roll, printable width ~72mm inside 4mm margins. */
   width: 80mm;
   box-sizing: border-box;
   background: #fff;
@@ -20,12 +20,12 @@
   line-height: 1.3;
   padding: 6mm;
   margin: 0 auto;
-  border: 1px dashed $border; /* on-screen preview only */
+  border: 1px dashed $border;
   border-radius: 0;
 }
 
 /* =========================================================
-   Header (slightly larger - anchors the slip)
+   Header - single centered column
    ========================================================= */
 .header {
   text-align: center;
@@ -42,10 +42,27 @@
     text-transform: uppercase;
   }
 
+  .address {
+    margin: 2px 0 0;
+    font-size: 8.5px;
+    color: #000;
+    line-height: 1.3;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   .tagline {
-    margin: 0;
+    margin: 2px 0 0;
     font-size: 9px;
     color: #000;
+  }
+
+  .gstin {
+    margin: 2px 0 0;
+    font-size: 9px;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: 0.3px;
   }
 
   .tableLine {
@@ -72,8 +89,6 @@
 
 /* =========================================================
    Shared column grid
-   Columns: # | Item | Qty | Price | Total
-   Rebalanced for the smaller font sizes.
    ========================================================= */
 $grid-cols: 14px 1fr 22px 40px 50px;
 $grid-gap: 3px;
@@ -115,14 +130,12 @@ $grid-gap: 3px;
   line-height: 1.3;
 }
 
-/* ---- Columns ---- */
 .colSn {
   color: #000;
   font-size: 8.5px;
 }
 
 .colName {
-  /* The only column allowed to wrap. */
   white-space: normal;
   word-break: break-word;
   line-height: 1.25;
@@ -130,13 +143,7 @@ $grid-gap: 3px;
   font-size: 9.5px;
 }
 
-.colQty {
-  text-align: right;
-  white-space: nowrap;
-  color: #000;
-  font-size: 9.5px;
-}
-
+.colQty,
 .colPrice,
 .colTotal {
   text-align: right;
@@ -145,7 +152,6 @@ $grid-gap: 3px;
   font-size: 9.5px;
 }
 
-/* ---- Customizations + note under the row ---- */
 .itemCustom {
   font-size: 8.5px;
   color: #000;
@@ -161,9 +167,6 @@ $grid-gap: 3px;
   line-height: 1.25;
 }
 
-/* =========================================================
-   Totals (moderately larger than the item table)
-   ========================================================= */
 .totals {
   padding-top: 4px;
   display: flex;
@@ -191,9 +194,6 @@ $grid-gap: 3px;
   font-size: 11px;
 }
 
-/* =========================================================
-   Footer
-   ========================================================= */
 .footer {
   margin-top: 6px;
   padding-top: 5px;
@@ -207,9 +207,6 @@ $grid-gap: 3px;
   }
 }
 
-/* =========================================================
-   Print - thermal roll
-   ========================================================= */
 @media print {
   @page {
     size: 80mm auto;

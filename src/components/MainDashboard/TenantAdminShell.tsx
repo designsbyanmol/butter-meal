@@ -24,6 +24,8 @@ import {
   UtensilsIcon as OrdersIcon,
   PowerIcon,
   InfoIcon as SupportIcon,
+  RecieptIcon,
+  ClockIcon, // <-- ADDED
 } from '../../assets/svgs';
 import shell from '../Dashboard/DashboardShell.module.scss';
 
@@ -33,6 +35,8 @@ const LOGO_URL =
 
 const PAGE_FOR_SECTION: Record<string, string> = {
   menu: 'admin-menu.html',
+  billing: 'admin-pharmacy-billing.html',
+  appointments: 'admin-appointments.html', // <-- ADDED
   store: 'admin-store.html',
   users: 'admin-users.html',
   orders: 'admin-orders.html',
@@ -43,6 +47,8 @@ const PAGE_FOR_SECTION: Record<string, string> = {
 /** Reverse map: filename → section key. `admin.html` → '' (landing). */
 const SECTION_FOR_PAGE: Record<string, string> = {
   'admin-menu.html': 'menu',
+  'admin-pharmacy-billing.html': 'billing',
+  'admin-appointments.html': 'appointments', // <-- ADDED
   'admin-store.html': 'store',
   'admin-users.html': 'users',
   'admin-orders.html': 'orders',
@@ -107,9 +113,6 @@ const TenantAdminShell: React.FC = () => {
   const slug = React.useMemo(() => readSlugFromUrl(), []);
   const currentSection = React.useMemo(() => currentSectionFromPath(), []);
 
-  // if (isLoading || tenantLoading) {
-  //   return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  // }
   if (!tenant || tenantNotFound) {
     return (
       <div
@@ -144,6 +147,7 @@ const TenantAdminShell: React.FC = () => {
   if (!slug) return null;
 
   const isDinein = tenant.dineinEnabled === true;
+  const isHospital = tenant.storeCategory === 'hospital-pharmacy'; // <-- ADDED
 
   const handleLogout = () => {
     if (!window.confirm('Log out?')) return;
@@ -158,9 +162,25 @@ const TenantAdminShell: React.FC = () => {
   };
 
   const items: NavItem[] = [
+    // Pharmacy Billing
+    {
+      key: 'billing',
+      label: 'Billing',
+      icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
+      visible: isHospital && isAdmin,
+      render: () => null,
+    },
+    // Appointments (Hospital only)
+    {
+      key: 'appointments',
+      label: 'Appointments',
+      icon: <ClockIcon width={20} height={20} fill="currentColor" />,
+      visible: isHospital,
+      render: () => null,
+    },
     {
       key: 'menu',
-      label: 'Menu',
+      label: isHospital ? 'Stock' : 'Menu',
       icon: <MenuIcon width={20} height={20} fill="currentColor" />,
       visible: plan.canEditFields || plan.canManageStore,
       render: () => null,
@@ -206,8 +226,27 @@ const TenantAdminShell: React.FC = () => {
       target: 'info',
     },
     {
+      key: 'billing',
+      label: 'Pharmacy Billing',
+      description: 'Create bills & print receipts',
+      icon: <RecieptIcon width={20} height={20} fill="#ffffff" />,
+      accent: 'amber',
+      visible: isHospital && isAdmin,
+      target: 'billing',
+    },
+    // 🔥 NEW APPOINTMENTS CARD 🔥
+    {
+      key: 'appointments',
+      label: 'Appointments',
+      description: 'Manage today\'s patient queue & tokens',
+      icon: <ClockIcon width={20} height={20} fill="#ffffff" />,
+      accent: 'blue',
+      visible: isHospital,
+      target: 'appointments',
+    },
+    {
       key: 'menu',
-      label: 'Manage Menu',
+      label: isHospital ? 'Pharmacy Stock' : 'Manage Menu',
       description: 'Items, prices & availability',
       icon: <MenuIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
@@ -312,6 +351,20 @@ const TenantAdminShell: React.FC = () => {
   );
 
   const kebabItems: KebabItem[] = [
+    // Appointments for hospital
+    ...(isHospital
+      ? [
+          {
+            kind: 'action' as const,
+            key: 'appointments',
+            label: 'Appointments',
+            icon: <ClockIcon width={18} height={18} fill="#1e7e34" />,
+            onClick: () => {
+              window.location.href = sectionUrl(slug, 'appointments');
+            },
+          },
+        ]
+      : []),
     ...(isAdmin && plan.canReview
       ? [
           {
@@ -350,7 +403,7 @@ const TenantAdminShell: React.FC = () => {
 
   if (isMobile) {
     const mobileNavItems: MobileNavItem[] = items
-      .filter((i) => i.key !== 'reviews')
+      .filter((i) => i.key !== 'reviews' && i.key !== 'appointments')
       .map((i) => ({
         key: i.key,
         label: i.label,
@@ -399,19 +452,17 @@ const TenantAdminShell: React.FC = () => {
         onAdd={null}
         footer={{
           notifications: notificationsSlot,
-          kebabItems: kebabItems
-            .filter((k) => k.kind === 'divider' || k.key !== 'reviews')
-            .map((k) =>
-              k.kind === 'divider'
-                ? { key: `div-${Math.random()}`, label: '', onClick: () => {} }
-                : {
-                    key: k.key,
-                    label: k.label,
-                    icon: k.icon,
-                    tone: k.tone,
-                    onClick: k.onClick,
-                  },
-            ),
+          kebabItems: kebabItems.map((k) =>
+            k.kind === 'divider'
+              ? { key: `div-${Math.random()}`, label: '', onClick: () => {} }
+              : {
+                  key: k.key,
+                  label: k.label,
+                  icon: k.icon,
+                  tone: k.tone,
+                  onClick: k.onClick,
+                },
+          ),
         }}
       />
       {supportOpen && (

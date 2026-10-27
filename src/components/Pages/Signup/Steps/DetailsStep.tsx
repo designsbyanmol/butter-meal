@@ -131,7 +131,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
         setForm((f) => ({ ...f, slug: cached }));
         onFieldChange?.({ slug: cached });
         setAutoSuffixNote(
-          `"${slug}" was taken — using "${cached}" instead`,
+          `"${slug}" was taken - using "${cached}" instead`,
         );
       }
       setSlugStatus('available');
@@ -170,7 +170,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
           setForm((f) => ({ ...f, slug: data }));
           onFieldChange?.({ slug: data });
           setAutoSuffixNote(
-            `"${slug}" was taken — using "${data}" instead`,
+            `"${slug}" was taken - using "${data}" instead`,
           );
         }
         setSlugStatus('available');

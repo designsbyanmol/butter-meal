@@ -58,6 +58,8 @@ export interface Tenant {
   pauseRequestedAt?: string;
   daysUntilExpiry?: number;
   staffTippingEnabled?: boolean;
+  gstNo?: string;         // <-- ADDED
+  storeAddress?: string;  // <-- ADDED
   infoDefaults?: Partial<
     Record<
       | "displayName"
@@ -431,6 +433,8 @@ const buildTenant = (
       ? ShopInfo.Shop_banner || undefined
       : String(row.banner_url),
     avatarUrl: isBlank(row.avatar_url) ? undefined : String(row.avatar_url),
+    gstNo: isBlank(row.gst_no) ? undefined : String(row.gst_no),
+  storeAddress: isBlank(row.store_address) ? undefined : String(row.store_address),
     storeTagline: pickString(
       row.store_tagline,
       row.store_category
@@ -478,9 +482,14 @@ const fetchTenantBySlug = async (
       const [tenantRes, mainRes] = await Promise.all([
         supabase
           .from("star_veg_tenants")
-          .select(
-            "id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, banner_url, store_tagline, delivery_charge, storewide_discount, message_template, reviews_enabled, plan_id, subscription_status, subscription_started_at, subscription_expires_at, pause_requested, pause_requested_at, store_category, gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, avatar_url",
-          )
+          .select(`
+  id, slug, display_name, is_active, whatsapp_phone, owner_phone, form_schema, 
+  banner_url, store_tagline, delivery_charge, storewide_discount, message_template, 
+  reviews_enabled, plan_id, subscription_status, subscription_started_at, 
+  subscription_expires_at, pause_requested, pause_requested_at, store_category, 
+  gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, 
+  avatar_url, gst_no, store_address
+`)
           .eq("slug", slug)
           .maybeSingle(),
         supabase

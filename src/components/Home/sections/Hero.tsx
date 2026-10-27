@@ -9,6 +9,7 @@ interface HeroProps {
   onTrySample?: () => void;
 }
 
+
 const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
   <section className={local.hero}>
     <div className={local.heroInner}>
@@ -46,16 +47,16 @@ const Hero: React.FC<HeroProps> = ({ onSignup, onTrySample }) => (
             variant="ghost"
             onClick={onTrySample}
           >
-            Try a Sample Store
+            Get a custom plan
           </Button>
         )}
       </div>
 
       <div className={local.promise}>
         {[
-          'Free to start',
+          'Start with Rs1',
           'No credit card',
-          'Instant QR menu',
+          'Instant QR',
         ].map((p) => (
           <span key={p} className={local.promiseItem}>
             <CheckIcon width={14} height={14} fill="#1e7e34" />

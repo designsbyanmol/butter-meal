@@ -5,7 +5,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -56,9 +56,8 @@
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+  border-radius: $radius-sm;
   animation: imgFadeIn 0.18s ease;
-  border-radius: 6px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes imgFadeIn {

@@ -21,17 +21,28 @@ export const printReceiptNode = (node: HTMLElement | null): boolean => {
     .join('\n');
 
   w.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Bill</title>
-        ${styles}
-      </head>
-      <body style="margin:0;background:#fff;font-family:system-ui,Arial,sans-serif;">
-        ${node.innerHTML}
-      </body>
-    </html>
-  `);
+  <!doctype html>
+  <html>
+    <head>
+      <title>Bill</title>
+      <style>
+        @page {
+          margin: 8mm;
+          @top-left { content: ''; }
+          @top-center { content: ''; }
+          @top-right { content: ''; }
+          @bottom-left { content: ''; }
+          @bottom-center { content: ''; }
+          @bottom-right { content: ''; }
+        }
+      </style>
+      ${styles}
+    </head>
+    <body style="margin:0;background:#fff;font-family:system-ui,Arial,sans-serif;">
+      ${node.innerHTML}
+    </body>
+  </html>
+`);
   w.document.close();
   w.focus();
 

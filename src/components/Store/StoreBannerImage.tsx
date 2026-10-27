@@ -1,8 +1,8 @@
 // src/components/Store/StoreBannerImage.tsx
-import React, { useEffect, useState } from 'react';
-import { useTenant } from '../../contexts/TenantContext';
-import { getCategoryDefaults } from '../../data/storeDefaults';
-import styles from './StoreBannerImage.module.scss';
+import React, { useEffect, useState } from "react";
+import { useTenant } from "../../contexts/TenantContext";
+import { getCategoryDefaults } from "../../data/storeDefaults";
+import styles from "./StoreBannerImage.module.scss";
 
 interface StoreBannerImageProps {
   className?: string;
@@ -11,7 +11,7 @@ interface StoreBannerImageProps {
 
 /** Last-resort banner if every other source is empty. */
 const HARD_FALLBACK =
-  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&q=80&auto=format&fit=crop';
+  'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/assets/dinin.webp';
 
 /**
  * Renders the tenant's banner image with a three-tier fallback:
@@ -29,9 +29,7 @@ const StoreBannerImage: React.FC<StoreBannerImageProps> = ({
 }) => {
   const { tenant } = useTenant();
 
-  const categoryFallback = getCategoryDefaults(
-    tenant?.storeCategory,
-  ).bannerUrl;
+  const categoryFallback = getCategoryDefaults(tenant?.storeCategory).bannerUrl;
 
   // Three-tier resolution: tenant value - category default - hardcode.
   const primarySrc =
@@ -45,13 +43,13 @@ const StoreBannerImage: React.FC<StoreBannerImageProps> = ({
     setSrc(primarySrc);
   }, [primarySrc]);
 
-  // Debug log — only fires when ?_debug=banner is set.
+  // Debug log - only fires when ?_debug=banner is set.
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get('_debug') === 'banner') {
+      if (url.searchParams.get("_debug") === "banner") {
         // eslint-disable-next-line no-console
-        console.log('[StoreBannerImage] resolution', {
+        console.log("[StoreBannerImage] resolution", {
           tenantExists: !!tenant,
           tenantSlug: tenant?.slug,
           tenantBannerUrl: tenant?.bannerUrl,
@@ -72,23 +70,24 @@ const StoreBannerImage: React.FC<StoreBannerImageProps> = ({
     // Should never happen now (HARD_FALLBACK is non-empty), but
     // render an empty placeholder to avoid a silent crash.
     return (
-      <div
-        className={`${styles.bannerWrap} ${className ?? ''}`}
-        aria-hidden
-      />
+      <div className={`${styles.bannerWrap} ${className ?? ""}`} aria-hidden />
     );
   }
 
   return (
-    <div className={`${styles.bannerWrap} ${className ?? ''}`}>
+    <div className={`${styles.bannerWrap} ${className ?? ""}`}>
       <img
         src={src}
-        alt={`${tenant?.displayName ?? 'Store'} banner`}
+        alt={`${tenant?.displayName ?? "Store"} banner`}
         loading="eager"
         decoding="async"
         onError={() => {
           // Fall through: tenant URL - category fallback - hardcode.
-          if (tenant?.bannerUrl && src !== categoryFallback && categoryFallback) {
+          if (
+            tenant?.bannerUrl &&
+            src !== categoryFallback &&
+            categoryFallback
+          ) {
             setSrc(categoryFallback);
             return;
           }

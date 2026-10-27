@@ -19,7 +19,7 @@ export interface RevenueInvoicePdfPayload {
   storeName: string;
   /** Human label used only as a fallback when the ISO dates aren't supplied. */
   rangeLabel: string;
-  /** Real filter range — used to render "01 Oct 2026 → 22 Oct 2026". */
+  /** Real filter range - used to render "01 Oct 2026 → 22 Oct 2026". */
   fromDateIso?: string | null;
   toDateIso?: string | null;
   rows: RevenueInvoicePdfRow[];
@@ -248,7 +248,7 @@ export const downloadRevenueInvoicesPdf = async (
   };
 
   // ---------------------------------------------------------
-  // Footer — left: generated timestamp. Right: page counter.
+  // Footer - left: generated timestamp. Right: page counter.
   // No divider, no text in the middle.
   // ---------------------------------------------------------
   const drawFooter = (pageNum: number, total: number) => {

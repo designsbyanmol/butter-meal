@@ -32,7 +32,7 @@ const BuildingStep: React.FC<BuildingStepProps> = ({
     <div className={local.buildingWrap}>
       <div className={local.buildingCard}>
         <div className={local.successIcon}>
-          <CheckIcon width={14} height={14} fill="#1e7e34" />
+          <CheckIcon width={32} height={32} fill="#1e7e34" />
         </div>
         <h2>Congratulations!</h2>
         <p className={local.buildingLead}>

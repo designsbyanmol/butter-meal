@@ -9,7 +9,7 @@ interface BrandInfoProps {
   brandDesc?: string;
   /**
    * Hide the store banner image. Used by the admin dashboard where
-   * the shell already provides a hero area — avoids duplicating the
+   * the shell already provides a hero area - avoids duplicating the
    * visual. NEVER pass `true` on the customer menu.
    */
   hideBanner?: boolean;

@@ -34,7 +34,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Detect "just opened" — on that render, prefer `safeInitial` over
+  // Detect "just opened" - on that render, prefer `safeInitial` over
   // the (possibly stale) `index` state so the very first frame
   // shows the correct image.
   const justOpened = isOpen && index !== safeInitial && openKey === 0;
@@ -94,7 +94,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
           onClose();
         }}
       >
-        <CloseIcon width={22} height={22} fill="#fff" />
+        <CloseIcon width={22} height={22} fill="#1e1e1e" />
       </IconButton>
 
       <div className={local.stage} onClick={(e) => e.stopPropagation()}>
@@ -105,7 +105,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
           onIndexChange={(next) => {
             setIndex(next);
             // Once the user interacts, `openKey` no longer needs to
-            // pin the index — future renders rely on `index`.
+            // pin the index - future renders rely on `index`.
             if (openKey === 0) setOpenKey(1);
           }}
           loop

@@ -19,6 +19,7 @@ import {
   Accordion,
   Badge,
   EmptyState,
+  Tabs,
   Chip,
 } from "../ui";
 import { getStoreLabels } from "../../utils/storeLabels";
@@ -31,6 +32,10 @@ import FormBuilder from "./FormBuilder";
 import { InlineSection } from "../Dashboard/inline";
 import AdminPanelSettingsMenu from "./AdminPanelSettingsMenu";
 import ImportMenuListModal from "./ImportMenuListModal";
+import PharmacyStockBody from "./PharmacyStockBody";
+import HospitalServicesBody from './HospitalServicesBody';
+import HospitalDoctorsBody from './HospitalDoctorsBody';
+import HospitalPatientsBody from './HospitalPatientsBody';
 import local from "./AdminPanel.module.scss";
 
 type MenuItemFormValue = Omit<Partial<MenuItem>, "img"> & {
@@ -126,8 +131,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canReorder =
-    isAdmin && searchTerm === "" && filter === "all";
+  const canReorder = isAdmin && searchTerm === "" && filter === "all";
 
   const schemaCategorySet = useMemo(() => {
     const catField = schema.fields.find((f) => f.key === "category");
@@ -197,13 +201,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 
       return matchesSearch && matchesFilter && matchesCategory;
     });
-  }, [
-    items,
-    searchTerm,
-    filter,
-    activeCategory,
-    schemaCategorySet,
-  ]);
+  }, [items, searchTerm, filter, activeCategory, schemaCategorySet]);
 
   const inStockCount = items.filter((i) => i.inStock === true).length;
   const outOfStockCount = items.filter((i) => i.inStock === false).length;
@@ -239,7 +237,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
   // Default-collapse behaviour
   //
   // Every category group starts collapsed. This runs on every new
-  // set of groups — so it works whether items were already loaded
+  // set of groups - so it works whether items were already loaded
   // or arrive later. Categories that the user has *explicitly
   // opened* stay open (tracked in `userOpened`).
   // ---------------------------------------------------------
@@ -757,6 +755,10 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 
   const [showBanner, setShowBanner] = useState(true);
 
+if (tenant?.storeCategory === 'hospital-pharmacy') {
+    return <HospitalAdminView />;
+  }
+
   return (
     <>
       <InlineSection
@@ -830,9 +832,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
                 tone="primary"
                 active={activeCategory === c}
                 onClick={() =>
-                  setActiveCategory((prev) =>
-                    prev === c ? ALL_CATEGORIES : c,
-                  )
+                  setActiveCategory((prev) => (prev === c ? ALL_CATEGORIES : c))
                 }
               >
                 {c}
@@ -1211,3 +1211,84 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 };
 
 export default AdminPanelBody;
+
+const HospitalAdminView: React.FC = () => {
+  const getInitialTab = ():
+    | 'services'
+    | 'pharmacy'
+    | 'doctors'
+    | 'patients' => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'patients' || tab === 'doctors' || tab === 'pharmacy')
+      return tab;
+    return 'pharmacy';
+  };
+
+  const [tab, setTab] = useState<
+    'services' | 'pharmacy' | 'doctors' | 'patients'
+  >(getInitialTab);
+
+  const [counts, setCounts] = useState<{
+    services: number;
+    pharmacy: number;
+    doctors: number;
+    patients: number;
+  }>({ services: 0, pharmacy: 0, doctors: 0, patients: 0 });
+
+  const handleTabChange = (newTab: string) => {
+    setTab(newTab as any);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', newTab);
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  const tabItems = [
+    { key: 'services', label: `Services (${counts.services})` },
+    { key: 'pharmacy', label: `Pharmacy (${counts.pharmacy})` },
+    { key: 'doctors', label: `Doctors (${counts.doctors})` },
+    { key: 'patients', label: `Patients (${counts.patients})` },
+  ];
+
+  // ◀── NEW: keep all tabs mounted, hide inactive ones with `display:none`.
+  // Each child component loads its own data ONCE on mount and caches it
+  // in local state. Switching tabs becomes a pure CSS toggle — no fetches.
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Tabs block items={tabItems} value={tab} onChange={handleTabChange} />
+
+      <div style={{ display: tab === 'services' ? 'block' : 'none' }}>
+        <HospitalServicesBody
+          onCountChange={(n) =>
+            setCounts((prev) => ({ ...prev, services: n }))
+          }
+        />
+      </div>
+
+      <div style={{ display: tab === 'pharmacy' ? 'block' : 'none' }}>
+        <PharmacyStockBody
+          embedded={true}
+          onCountChange={(n) =>
+            setCounts((prev) => ({ ...prev, pharmacy: n }))
+          }
+        />
+      </div>
+
+      <div style={{ display: tab === 'doctors' ? 'block' : 'none' }}>
+        <HospitalDoctorsBody
+          onCountChange={(n) =>
+            setCounts((prev) => ({ ...prev, doctors: n }))
+          }
+        />
+      </div>
+
+      <div style={{ display: tab === 'patients' ? 'block' : 'none' }}>
+        <HospitalPatientsBody
+          onCountChange={(n) =>
+            setCounts((prev) => ({ ...prev, patients: n }))
+          }
+        />
+      </div>
+    </div>
+  );
+};

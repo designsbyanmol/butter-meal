@@ -2,7 +2,7 @@
 import { it, u, type CategoryDefaults } from './types';
 
 const FASHION_LIFESTYLE_ITEMS = [
-  it(1, 'Cotton Crew T-Shirt', 799, u('1521572163474-6864f9cf17ab'), 'Unisex, multiple colors', {
+  it(1, 'Cotton Crew T-Shirt', 799, u('white-tshirt.webp'), 'Unisex, multiple colors', {
     attributes: { isPopular: true },
     customizationOptions: [
       {
@@ -29,7 +29,7 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(2, 'Slim-Fit Denim Jeans', 1899, u('1542272604-787c3835535d'), 'Stretch denim, mid-rise', {
+  it(2, 'Slim-Fit Denim Jeans', 1899, u('jeans.webp'), 'Stretch denim, mid-rise', {
     customizationOptions: [
       {
         name: 'Size',
@@ -53,7 +53,7 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(3, 'Floral Summer Dress', 2199, u('1595777457583-95e059d581b8'), 'Midi length, breathable', {
+  it(3, 'Floral Summer Dress', 2199, u('red-frock.webp'), 'Midi length, breathable', {
     attributes: { isNew: true },
     customizationOptions: [
       {
@@ -68,7 +68,7 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(4, 'Kurta Set (Men)', 2499, u('1610180318691-1e67dbfad3dd'), 'Cotton blend, festive', {
+  it(4, 'Kurta Set (Men)', 2499, u('wrap.webp'), 'Cotton blend, festive', {
     customizationOptions: [
       {
         name: 'Size',
@@ -91,10 +91,10 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(5, 'Saree (Silk Blend)', 3499, u('1610030469983-98e550d6193c'), 'Traditional, with blouse piece', {
+  it(5, 'Saree (Silk Blend)', 3499, u('saree.webp'), 'Traditional, with blouse piece', {
     attributes: { isChefSpecial: true },
   }),
-  it(6, 'Running Sneakers', 3299, u('1542291026-7eec264c27ff'), 'Cushioned, breathable mesh', {
+  it(6, 'Running Sneakers', 3299, u('nike-shoe.webp'), 'Cushioned, breathable mesh', {
     customizationOptions: [
       {
         name: 'Size',
@@ -109,13 +109,13 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(7, 'Leather Wallet', 899, u('1627123424574-724758594e93'), 'Bifold, RFID-blocking'),
-  it(8, 'Silver Chain Necklace', 2499, u('1599643478518-a784e5dc4c8f'), '925 sterling silver, 20"', {
+  it(7, 'Leather Wallet', 899, u('waller.webp'), 'Bifold, RFID-blocking'),
+  it(8, 'Silver Chain Necklace', 2499, u('necklace.webp'), '925 sterling silver, 20"', {
     attributes: { isPopular: true },
   }),
-  it(9, 'Gold-Plated Earrings', 1899, u('1535632066927-ab7c9ab60908'), 'Pair, anti-tarnish finish'),
-  it(10, 'Designer Sunglasses', 2499, u('1572635196237-14b3f281503f'), 'UV400, unisex frame'),
-  it(11, 'Vitamin C Serum', 999, u('1620916566398-39f1143ab7be'), '20% concentration, 30ml', {
+  it(9, 'Gold-Plated Earrings', 1899, u('ear-rings.webp'), 'Pair, anti-tarnish finish'),
+  it(10, 'Designer Sunglasses', 2499, u('sunglasses.webp'), 'UV400, unisex frame'),
+  it(11, 'Vitamin C Serum', 999, u('serum.webp'), '20% concentration, 30ml', {
     customizationOptions: [
       {
         name: 'Quantity',
@@ -127,8 +127,8 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(12, 'Moisturizer SPF 30', 799, u('1556228720-195a672e8a03'), 'Daily use, 50ml'),
-  it(13, 'Perfume (Eau de Parfum)', 2499, u('1541643600914-78b084683601'), '50ml, long-lasting', {
+  it(12, 'Moisturizer SPF 30', 799, u('moisture-cream.webp'), 'Daily use, 50ml'),
+  it(13, 'Perfume (Eau de Parfum)', 2499, u('perfume.webp'), '50ml, long-lasting', {
     customizationOptions: [
       {
         name: 'Size',
@@ -149,7 +149,7 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(14, 'Lipstick', 799, u('1586495777744-4413f21062fa'), 'Matte finish, assorted shades', {
+  it(14, 'Lipstick', 799, u('lipstick.webp'), 'Matte finish, assorted shades', {
     customizationOptions: [
       {
         name: 'Shade',
@@ -163,12 +163,12 @@ const FASHION_LIFESTYLE_ITEMS = [
       },
     ],
   }),
-  it(15, 'Hair Shampoo', 499, u('1585232004423-244e0e6904e3'), 'Sulfate-free, 300ml'),
-  it(16, 'Multivitamin (60 tabs)', 699, u('1587854692152-cbe660dbde88'), 'Daily, men & women'),
+  it(15, 'Hair Shampoo', 499, u('hair.webp'), 'Sulfate-free, 300ml'),
+  it(16, 'Multivitamin (60 tabs)', 699, u('tablets.webp'), 'Daily, men & women'),
 ];
 
 export const FASHION_LIFESTYLE_DEFAULTS: CategoryDefaults = {
   bannerUrl:
-    'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600&q=80&auto=format&fit=crop',
+    'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/assets/red-frock.webp',
   items: FASHION_LIFESTYLE_ITEMS,
 };

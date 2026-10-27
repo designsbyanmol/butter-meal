@@ -15,7 +15,7 @@ interface BadgeSelectorProps {
  * Labels and icons come from the schema so renaming a badge in
  * FormBuilder updates the selector too.
  *
- * Disabled badges are not shown — the owner has turned them off.
+ * Disabled badges are not shown - the owner has turned them off.
  * The section header text ("Badges" by default) is configurable
  * via `schema.badgesLabel`.
  */

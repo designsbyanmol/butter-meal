@@ -1,0 +1,1166 @@
+// src/components/Admin/Pharmacy.module.scss
+@use "../../styles/tokens" as *;
+@use "../../styles/mixins" as *;
+
+@page {
+  margin: 8mm;
+  size: auto;
+
+  @top-left {
+    content: "";
+  }
+  @top-center {
+    content: "";
+  }
+  @top-right {
+    content: "";
+  }
+  @bottom-left {
+    content: "";
+  }
+  @bottom-center {
+    content: "";
+  }
+  @bottom-right {
+    content: "";
+  }
+}
+
+/* =========================================================
+   In-App UI (not printed)
+   ========================================================= */
+
+.tableWrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  margin-bottom: 20px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    background: $bg-subtle;
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid $border;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid $border-soft;
+    @include mobile {
+      min-width: 100px;
+    }
+  }
+}
+
+.unitTotalCell {
+  font-size: 12px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.inputSm {
+  width: 100%;
+  min-width: 60px;
+  padding: 6px;
+  border: 1px solid $border;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.lowStock {
+  color: red;
+  font-weight: bold;
+}
+
+.patientForm {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr 2fr;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.patientNameWrap {
+  position: relative;
+}
+
+/* ---------- Patient suggestion dropdown (custom) ---------- */
+.suggestionDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestionItem {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.suggestionPhone {
+  color: #64748b;
+  margin-left: 8px;
+}
+
+.suggestionAddNew {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: #1e7e34;
+  font-weight: 600;
+  font-size: 13px;
+  background: #f0fdf4;
+}
+
+.suggestionEmpty {
+  padding: 12px;
+  cursor: pointer;
+  color: #1e7e34;
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------- Grids ---------- */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+/* ---------- Add row + terms ---------- */
+.addRowWrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.termsEditor {
+  margin-top: 20px;
+  margin-bottom: 16px;
+  flex: 1;
+  max-width: 500px;
+
+  @include mobile {
+    order: 1;
+  }
+}
+
+.termsHint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* ---------- Totals (in-app) ---------- */
+.totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: 16px;
+  @include mobile {
+    flex: 1;
+  }
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+    gap: 10px;
+  span {
+  font-size: 12px;
+  }
+}
+
+.grandTotal {
+  font-weight: 800;
+  font-size: 16px;
+  border-top: 1px dashed $border;
+  padding-top: 8px;
+    gap: 10px;
+  margin: 5px 0 0;
+  span {
+  font-size: 12px;
+  }
+}
+
+.printBtn {
+  margin-top: 16px;
+}
+
+.delBtn {
+  background: $red-50;
+  color: $red-700;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: bold;
+  &:hover {
+    background: $red-100;
+  }
+}
+
+/* =========================================================
+   A5 PRINT LAYOUT
+   ========================================================= */
+
+.printHiddenContainer {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  pointer-events: none;
+}
+
+.printPage {
+  width: 148mm;
+  min-height: 210mm;
+  padding: 10mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+/* ---------- Header ---------- */
+.printHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+
+  h2,
+  h3 {
+    margin: 0 0 2px;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0 0 2px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .printLeft {
+    flex: 1;
+    min-width: 0;
+
+    h2 {
+      font-size: 26px;
+    }
+  }
+
+  .printRight {
+    flex-shrink: 0;
+    text-align: right;
+
+    h3 {
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+.printTagline {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.printAddress {
+  margin: 2px 0 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.printContact {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+
+.printGstin {
+  margin: 2px 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.printMeta {
+  margin: 0;
+  font-size: 11px;
+}
+
+/* ---------- Patient bar ---------- */
+.printPatientBar {
+  display: flex;
+  justify-content: space-between;
+  background: #e5e5e5;
+  padding: 4px 0;
+  font-size: 12px;
+  margin-bottom: 6px;
+
+  p {
+    margin: 0;
+  }
+}
+
+/* ---------- Items table ---------- */
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+  font-size: 11px;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+
+  th {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    text-align: left;
+    background: #e5e5e5;
+    font-weight: bold;
+  }
+
+  td {
+    border: none;
+    padding: 4px 6px;
+    text-align: left;
+  }
+
+  td:last-child,
+  th:last-child {
+    text-align: right;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #d0d0d0;
+  }
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ---------- Footer (terms LEFT, totals RIGHT) ---------- */
+.printFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 11px;
+  margin-top: 20px;
+}
+
+.footerTermTotal {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.printTerms {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+
+  h4 {
+    margin: 0 0 4px;
+    font-weight: bold;
+  }
+
+  p {
+    margin: 0 0 2px;
+  }
+}
+
+.printTermsBody {
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #333;
+}
+
+.printTotals {
+  flex-shrink: 0;
+  width: 35%;
+  text-align: right;
+
+  p {
+    margin: 0 0 4px;
+  }
+
+  h3 {
+    margin: 8px 0 0;
+    font-size: 14px;
+    font-weight: 800;
+  }
+}
+
+/* =========================================================
+   Billing History - inline-style replacements
+   ========================================================= */
+
+/* ---------- Stats cards ---------- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  @include mobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.statCardToday {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.statLabelToday {
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+}
+
+.statValueToday {
+  font-size: 20px;
+  font-weight: 800;
+  color: #15803d;
+  margin-top: 4px;
+}
+
+.statCardYesterday {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.statLabelYesterday {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.statValueYesterday {
+  font-size: 20px;
+  font-weight: 800;
+  color: #334155;
+  margin-top: 4px;
+}
+
+.statCardMonth {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.statLabelMonth {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+}
+
+.statValueMonth {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1d4ed8;
+  margin-top: 4px;
+}
+
+/* ---------- Search bar row ---------- */
+.searchBarRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.searchBarInputWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- History table helpers ---------- */
+.mutedSmall {
+  color: #666;
+}
+
+.amountCell {
+  font-weight: 700;
+}
+
+/* ---------- Filter sheet ---------- */
+.filterSection {
+  margin-bottom: 22px;
+}
+
+.filterSectionHeading {
+  margin: 0 0 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.filterFieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dateRangeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ---------- Details modal modifiers ---------- */
+.detailsPatientForm {
+  margin-bottom: 20px;
+}
+
+.detailsTotals {
+  margin-top: 20px;
+}
+
+/* ---------- Print layout helpers ---------- */
+.printTitle {
+  font-size: 18px;
+}
+
+/* =========================================================
+   Billing - Pack × Qty cell
+   ========================================================= */
+
+.packQtyCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+
+.packQtyRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.packQtyTimes {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.packQtyUnit {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.packQtyTotal {
+  font-size: 11px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Billing - compound Qty cell (packs + loose units)
+   ========================================================= */
+
+.qtyCompound {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.qtyCompoundRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.qtyCompoundPlus {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.qtyCompoundUnit {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+  margin-left: 2px;
+  text-transform: lowercase;
+}
+
+.qtyCompoundTotal {
+  font-size: 11px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Stock - layout helpers (replaces inline styles)
+   ========================================================= */
+
+.stockHeaderActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stockSearchRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stockSearchInputWrap {
+  flex: 1;
+  min-width: 250px;
+}
+
+.stockTableWrap {
+  padding-bottom: 80px;
+}
+
+.dropdownRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.medNameWrap {
+  position: relative;
+}
+
+.searchingHint {
+  color: #666;
+  margin-top: 4px;
+  display: block;
+}
+
+.addMedicineFab {
+  position: fixed;
+  bottom: 24px;
+  left: 45%;
+  z-index: 100;
+}
+
+.loadingState {
+  text-align: center;
+  font-size: 12px;
+  color: $gray-400;
+}
+
+.addMedicineFabBtn {
+  border-radius: 50px;
+  padding: 12px 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Filter count chip used in both stock and billing headers */
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* Billing - derived unit price hint under the price input */
+.priceUnitHint {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Stock - packs / loose breakdown shown next to stock_qty */
+.stockBreakdown {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+/* Billing - max quantity hints in the Qty cell */
+.amountHint {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Billing - Additional Discount row
+   ========================================================= */
+
+.additionalDiscountRow {
+  align-items: center;
+}
+
+.additionalDiscountInputWrap {
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.additionalDiscountInput {
+  width: 100px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: right;
+  background: #fff;
+  color: #0f172a;
+
+  &:focus {
+    outline: none;
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+  }
+
+  /* hide the number spinner on desktop for a clean look */
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+/* =========================================================
+   Billing - Excel-style table (grid with borders everywhere)
+   ========================================================= */
+
+.xlWrap {
+  background: #ffffff;
+  border: 1px solid #c7cdd4; /* single hard border around the grid */
+  border-radius: 4px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.xlTable {
+  width: 100%;
+  border-collapse: collapse; /* collapse => single-line borders like Excel */
+  border-spacing: 0;
+  font-size: 12px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  table-layout: fixed;
+  background: #fff;
+
+  /* Every cell has a border on all four sides */
+  th,
+  td {
+    padding: 4px 6px;
+    vertical-align: middle;
+    text-align: left;
+    line-height: 1.2;
+    background-clip: padding-box;
+  }
+
+  td {
+    border: 1px solid #c7cdd4;
+    border-bottom: none;
+    padding: 0;
+    &:nth-child(1) {
+      border-left: none;
+    }
+    &:last-child {
+      border-right: none;
+    }
+
+    &.xlCellAmount {
+      padding: 0 10px;
+    }
+
+    &.xlCellDel {
+      text-align: center;
+    }
+
+    small {
+      display: block;
+      font-size: 10px;
+      color: #94a3b8;
+      padding: 2px;
+      white-space: nowrap;
+    }
+  }
+
+  .infoRow {
+    border: none;
+    td {
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+    }
+  }
+
+  thead th {
+    background: #eef2f7;
+    color: #1f2937;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 6px 6px;
+    white-space: nowrap;
+  }
+
+  /* Zebra rows - subtle, like Excel's banded rows */
+  tbody tr:nth-child(even) td {
+    background: #fafbfc;
+  }
+
+  /* No sticky / no hover highlight (breaks the "grid" feel) */
+  tbody td {
+    background: #fff;
+    transition: background 0.1s ease;
+  }
+  tbody tr:nth-child(even) td {
+    background: #fafbfc;
+  }
+
+  /* Inputs inside the grid look like text, only the border shows on focus */
+  input {
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    min-height: 32px;
+    font-size: 11px;
+    color: #111827;
+    outline: none;
+    border-radius: 0;
+    box-sizing: border-box;
+
+    &::placeholder {
+      color: #9aa5b1;
+    }
+
+    &:focus {
+      background: #eef4ff;
+      box-shadow: inset 0 0 0 1px #1d4ed8;
+    }
+  }
+
+  /* Remove spinner arrows for a clean numeric grid */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+}
+
+/* Column widths - driven by <colgroup>, one class per column */
+.xlColName {
+  width: 200px;
+}
+.xlColHsn {
+  width: 60px;
+}
+.xlColPack {
+  width: 90px;
+}
+.xlColBatch {
+  width: 60px;
+}
+.xlColExp {
+  width: 70px;
+}
+.xlColQty {
+  width: 120px;
+}
+.xlColMrp {
+  width: 50px;
+}
+.xlColDisc {
+  width: 50px;
+}
+.xlColAmount {
+  width: 50px;
+}
+.xlColDel {
+  width: 40px;
+}
+
+/* Per-cell modifiers */
+.xlCellName {
+  /* the small "N tablets in stock" hint sits under the input */
+  vertical-align: top;
+}
+.xlCellAmount strong {
+  display: block;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+/* Qty cell - inline pk + loose on one row */
+.xlQtyRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.xlQtyField {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px;
+
+  input {
+    max-width: 60px;
+    min-width: 52px;
+    text-align: center;
+    border: 1px solid #c7cdd4;
+    border-radius: $radius-sm;
+  }
+}
+.xlQtySuffix {
+  font-size: 10px;
+  color: #475569;
+  font-weight: 600;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+.xlQtyPlus {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+/* =========================================================
+   Billing - Additional Discount as %
+   ========================================================= */
+
+.additionalDiscountRow {
+  align-items: center;
+}
+
+.pctInputWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 6px 0 0;
+  background: #fff;
+}
+.pctInputWrap:focus-within {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+}
+
+.pctInput {
+  width: 60px;
+  padding: 6px 4px 6px 8px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  text-align: right;
+  background: transparent;
+  color: #0f172a;
+
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+.pctInputSuffix {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.additionalDiscountAmountRow {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* =========================================================
+   Billing - max-quantity hints under the medicine name
+   ========================================================= */
+
+.stockLimitHintOos {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* =========================================================
+   Billing - Locked / editable Terms & Conditions
+   ========================================================= */
+
+.termsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Locked display box - looks like a textarea but is read-only */
+.termsReadonly {
+  display: block;
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus {
+    outline: none;
+    border-color: #1d4ed8;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+  }
+}
+
+/* Edit-mode action row */
+.termsActionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.termsEditingHint {
+  font-size: 11px;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.termsActionBtns {
+  display: flex;
+  gap: 6px;
+}
+
+/* =========================================================
+   Bill Details modal — clean read-only header
+   ========================================================= */
+
+.billHeader {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 20px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  background: #f8fafc;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+.billHeaderItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* Address spans the full row on desktop, all rows on mobile */
+.billHeaderItemWide {
+  grid-column: 1 / -1;
+}
+
+.billHeaderLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.billHeaderValue {
+  font-size: 13px;
+  color: #0f172a;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.billHeaderSub {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}

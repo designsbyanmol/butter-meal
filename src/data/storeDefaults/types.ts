@@ -29,5 +29,6 @@ export const it = (
   ...overrides,
 });
 
-export const u = (id: string): string =>
-  `https://images.unsplash.com/photo-${id}?w=800&q=80&auto=format&fit=crop`;
+/** Resolve a filename to the jsDelivr CDN URL. */
+export const u = (filename: string): string =>
+  `https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/assets/${filename}`;

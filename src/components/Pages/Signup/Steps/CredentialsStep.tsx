@@ -5,12 +5,13 @@ import {
   downloadAdminQrPdf,
   downloadPublicQrPdf,
 } from '../../../../utils/qrPdf';
-import { Card, Button } from '../../../ui';
-import { DownloadIcon } from '../../../../assets/svgs';
+import { Card, Button, Modal, IconButton } from '../../../ui';
+import { DownloadIcon, CheckIcon } from '../../../../assets/svgs';
 import local from '../Signup.module.scss';
 
 interface CredentialsStepProps {
   storeName: string;
+  slug: string;
   publicUrl: string;
   adminUrl: string;
   phone: string;
@@ -21,8 +22,11 @@ interface CredentialsStepProps {
   onDone?: () => void;
 }
 
+type Busy = 'credentials' | 'adminQr' | 'publicQr' | null;
+
 const CredentialsStep: React.FC<CredentialsStepProps> = ({
   storeName,
+  slug,
   publicUrl,
   adminUrl,
   phone,
@@ -32,9 +36,8 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
   expiresAtIso,
   onDone,
 }) => {
-  const [busy, setBusy] = useState<
-    'credentials' | 'adminQr' | 'publicQr' | null
-  >(null);
+  const [busy, setBusy] = useState<Busy>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const expiresDisplay = new Date(expiresAtIso).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -42,10 +45,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
     year: 'numeric',
   });
 
-  const runTask = async (
-    key: 'credentials' | 'adminQr' | 'publicQr',
-    task: () => Promise<void>,
-  ) => {
+  const runTask = async (key: Busy, task: () => Promise<void>) => {
     if (busy) return;
     setBusy(key);
     try {
@@ -83,6 +83,18 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
     window.open(url, '_blank');
   };
 
+  // "Yes, close" → redirect to the tenant admin login page.
+  const handleConfirmClose = () => {
+    setConfirmOpen(false);
+    try {
+      onDone?.();
+    } catch {
+      /* ignore */
+    }
+    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+    window.location.href = `${window.location.origin}${dir}admin.html?t=${slug}_admin`;
+  };
+
   return (
     <div className={local.stepWrap}>
       <div className={local.stepHeader}>
@@ -90,100 +102,156 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
         <p>Save these credentials. You won't see the password again.</p>
       </div>
 
-      <Card padding="lg" className={local.credCard}>
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Store Name</div>
-          <div className={local.credValue}>{storeName}</div>
+      <div className={local.credCardWrap}>
+        {/* Top-right action cluster: credentials + QRs */}
+        <div className={local.credTopActions}>
+          <IconButton
+            variant="ghost"
+            size="lg"
+            shape="square"
+            aria-label="Download credentials PDF"
+            tooltip="Download credentials"
+            disabled={busy === 'credentials'}
+            onClick={handleDownloadCredentials}
+          >
+            <DownloadIcon width={16} height={16} fill="#1e1e1e" />
+          </IconButton>
+
+          <Button
+            size="md"
+            variant="ghost"
+            aria-label="Download customer QR PDF"
+            disabled={busy === 'publicQr'}
+            onClick={handleDownloadPublicQr}
+          >
+            <DownloadIcon width={14} height={14} fill="#1e1e1e" /> Customer-QR
+          </Button>
+
+          <Button
+            size="md"
+            variant="ghost"
+            aria-label="Download admin QR PDF"
+            disabled={busy === 'adminQr'}
+            onClick={handleDownloadAdminQr}
+          >
+            <DownloadIcon width={14} height={14} fill="#1e1e1e" /> Login-QR
+          </Button>
         </div>
 
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Plan</div>
-          <div className={local.credValue}>
-            {planName} - {months} month{months > 1 ? 's' : ''}
+        <Card padding="lg" className={local.credCard}>
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Store Name</div>
+            <div className={local.credValue}>{storeName}</div>
           </div>
-        </div>
 
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Valid till</div>
-          <div className={local.credValue}>{expiresDisplay}</div>
-        </div>
-
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Public Store URL</div>
-          <div className={local.credValue}>
-            <code>{publicUrl}</code>
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Plan</div>
+            <div className={local.credValue}>
+              {planName} - {months} month{months > 1 ? 's' : ''}
+            </div>
           </div>
-        </div>
 
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Admin Store URL</div>
-          <div className={local.credValue}>
-            <code>{adminUrl}</code>
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Valid till</div>
+            <div className={local.credValue}>{expiresDisplay}</div>
           </div>
-        </div>
 
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Phone</div>
-          <div className={local.credValue}>{phone}</div>
-        </div>
-
-        <div className={local.credRow}>
-          <div className={local.credLabel}>Password</div>
-          <div className={local.credValue}>
-            <span className={local.monoPassword}>{password}</span>
+          {/* Public URL row — link + open button inline */}
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Customer Store URL</div>
+            <div className={local.credUrlRow}>
+              <code className={local.credUrlCode}>{publicUrl}</code>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Open customer store"
+                onClick={() => openUrl(publicUrl)}
+              >
+                visit
+              </Button>
+            </div>
           </div>
-        </div>
-      </Card>
 
-      <div className={local.credActions}>
+          {/* Admin URL row — link + open button inline */}
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Admin Store URL</div>
+            <div className={local.credUrlRow}>
+              <code className={local.credUrlCode}>{adminUrl}</code>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Open admin store"
+                onClick={() => openUrl(adminUrl)}
+              >
+                visit
+              </Button>
+            </div>
+          </div>
+
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Phone</div>
+            <div className={local.credValue}>{phone}</div>
+          </div>
+
+          <div className={local.credRow}>
+            <div className={local.credLabel}>Password</div>
+            <div className={local.credValue}>
+              <span className={local.monoPassword}>{password}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Single bottom CTA */}
+      <div className={local.credDoneRow}>
         <Button
-          variant="ghost"
-          onClick={handleDownloadCredentials}
-          loading={busy === 'credentials'}
-          disabled={busy !== null && busy !== 'credentials'}
-          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
+          onClick={() => setConfirmOpen(true)}
+          className={local.credDoneBtn}
         >
-          {busy === 'credentials'
-            ? 'Preparing PDF...'
-            : 'Download credentials'}
-        </Button>
-
-        <Button
-          variant="ghost"
-          onClick={handleDownloadAdminQr}
-          loading={busy === 'adminQr'}
-          disabled={busy !== null && busy !== 'adminQr'}
-          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
-        >
-          {busy === 'adminQr' ? 'Preparing...' : 'Admin QR (PDF)'}
-        </Button>
-
-        <Button
-          variant="ghost"
-          onClick={handleDownloadPublicQr}
-          loading={busy === 'publicQr'}
-          disabled={busy !== null && busy !== 'publicQr'}
-          leftIcon={<DownloadIcon width={18} height={18} fill="#4d4d4d" />}
-        >
-          {busy === 'publicQr' ? 'Preparing...' : 'Public QR (PDF)'}
+          Save &amp; Done
         </Button>
       </div>
 
-      <div className={local.credActions}>
-        <Button variant="secondary" onClick={() => openUrl(publicUrl)}>
-          Open Public Store
-        </Button>
-        <Button onClick={() => openUrl(adminUrl)}>Open Admin Store</Button>
-      </div>
-
-      {onDone && (
-        <div
-          className={local.credActions}
-          style={{ marginTop: 12, justifyContent: 'center' }}
+      {/* Confirmation modal */}
+      <Modal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Have you saved your credentials?"
+        size="sm"
+        disableBackdropClose={true}
+        mobileFullScreen
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={handleDownloadCredentials}
+              loading={busy === 'credentials'}
+              leftIcon={<DownloadIcon width={16} height={16} fill="#4d4d4d" />}
+            >
+              Download
+            </Button>
+            <Button onClick={handleConfirmClose}>
+              Yes, Close
+            </Button>
+          </>
+        }
+      >
+        <p
+          style={{
+            margin: '0 0 10px',
+            fontSize: 14,
+            lineHeight: 1.55,
+            color: '#4d4d4d',
+          }}
         >
-          <Button onClick={onDone}>Done - I've saved these</Button>
-        </div>
-      )}
+          If you haven't already, please download your credentials before
+          closing this page. The password will not be shown again.
+        </p>
+        <p style={{ margin: 0, fontSize: 12, color: '#888' }}>
+          Clicking <strong>Yes, Close</strong> will open the store admin
+          login page.
+        </p>
+      </Modal>
     </div>
   );
 };

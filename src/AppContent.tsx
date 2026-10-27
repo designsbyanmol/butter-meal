@@ -581,7 +581,7 @@ const AppContent: React.FC = () => {
           getTotalItems() > 0 && isStoreOpen ? styles.hasFloatingCart : ""
         }`}
       >
-        {/* Global loading — includes store state */}
+        {/* Global loading - includes store state */}
         {isAppLoading && <DashboardSkeleton count={6} />}
 
         {!isAppLoading && tenant && isDeactivated && <StoreDeactivated />}

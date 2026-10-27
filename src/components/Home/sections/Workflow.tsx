@@ -4,26 +4,28 @@ import { Badge } from '../../ui';
 import local from './Workflow.module.scss';
 import shell from '../HomePage.module.scss';
 
+const CDN = 'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/assets';
+
 const STEPS = [
   {
     num: '01',
     title: 'Create your store',
-    desc: 'Sign up, enter your store name, choose a plan. No credit card, no setup fees - you\'re live in 5 minutes.',
-    img: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
+    desc: 'Sign up, enter your store name, choose a plan. No credit card, no setup fees - you\'re live in 5 mins.',
+    img: `${CDN}/payment-counter.webp`,
     note: 'Free 1 month starter on signup',
   },
   {
     num: '02',
     title: 'Add your menu & QR',
-    desc: 'Upload items with photos and prices. Download your store QR, print it for tables, counters or flyers.',
-    img: 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&q=80',
+    desc: 'Upload items with photos and prices. Download your store QR, print it for tables or flyers.',
+    img: `${CDN}/cooking.webp`,
     note: 'No Limits Menu . Unlimited',
   },
   {
     num: '03',
     title: 'Start taking orders',
     desc: 'Customers scan, browse, and order - via WhatsApp or dine-in. Bills print in one tap.',
-    img: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80',
+    img: `${CDN}/dinin.webp`,
     note: 'Instant Dine-in . Instant Order',
   },
 ];

@@ -5,10 +5,14 @@
 .durationGrid {
   display: flex;
   margin-bottom: 20px;
+  justify-content: center;
     scrollbar-width: none;
     -ms-overflow-style: none;
     gap: 8px;
     overflow-x: auto;
+  @include mobile {
+    justify-content: flex-start;
+  }
 }
 
 .durationChip {

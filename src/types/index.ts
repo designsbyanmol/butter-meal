@@ -27,6 +27,7 @@ export type StoreCategory =
   | "home-living"
   | "books-office"
   | "services-events"
+  | "hospital-pharmacy"
   | "other-shops";
 
 // =========================================================
@@ -639,4 +640,50 @@ export interface DineinEvent {
   payload?: Record<string, any>;
   createdAt: string;
   readAt?: string | null;
+}
+
+// =========================================================
+// HOSPITAL / PHARMACY
+// =========================================================
+
+export interface MedicineStock {
+  id: string;
+  name: string;
+  composition?: string;
+  manufacturer?: string;
+  hsnCode?: string;
+  packSize?: string;
+  batchNo?: string;
+  expiryDate?: string;
+  mrp: number;
+  price: number;
+  stockQty: number;
+}
+
+export interface PharmacyBillItem {
+  medicineId?: string;
+  name: string;
+  hsnCode: string;
+  packSize: string;
+  batchNo: string;
+  expiryDate: string;
+  quantity: number;
+  mrp: number;
+  discountPercent: number;
+  price: number;
+  amount: number;
+}
+
+export interface PharmacyBill {
+  id?: string;
+  billNo: string;
+  patientName: string;
+  phone: string;
+  address: string;
+  doctorName: string;
+  items: PharmacyBillItem[];
+  subtotal: number;
+  discount: number;
+  finalAmount: number;
+  createdAt?: string;
 }

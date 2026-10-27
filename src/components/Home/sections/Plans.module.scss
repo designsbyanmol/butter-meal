@@ -37,6 +37,17 @@
   box-shadow: 0 12px 30px rgba($primary, 0.12);
 }
 
+/* ---------- Dynamic card: subtle amber accent ---------- */
+.cardDynamic {
+  border-color: rgba($amber-500, 0.35);
+  box-shadow: 0 8px 22px rgba($amber-500, 0.08);
+
+  &:hover {
+    border-color: rgba($amber-500, 0.55);
+    box-shadow: 0 12px 28px rgba($amber-500, 0.15);
+  }
+}
+
 .popularRibbon {
   position: absolute;
   top: -10px;
@@ -183,4 +194,22 @@
   font-size: 12px;
   color: $text-muted;
   font-weight: 500;
+}
+
+/* =========================================================
+   Amber CTA for the Dynamic plan
+   Overrides the ghost Button default so the "Get this plan"
+   button stands out in amber.
+   ========================================================= */
+.ctaAmber {
+  background: $amber-500 !important;
+  border-color: $amber-500 !important;
+  color: #fff !important;
+  font-weight: 700;
+
+  &:hover:not(:disabled) {
+    background: $amber-600 !important;
+    border-color: $amber-600 !important;
+    box-shadow: 0 4px 12px rgba($amber-500, 0.35);
+  }
 }

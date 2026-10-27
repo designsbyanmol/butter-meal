@@ -170,7 +170,7 @@
 }
 
 /* =========================================================
-   Static mode — every item shown at once, no carousel chrome.
+   Static mode - every item shown at once, no carousel chrome.
    ========================================================= */
 .staticWrap {
   display: block;
@@ -181,6 +181,7 @@
   /* gridTemplateColumns is injected inline as `repeat(N, minmax(0, 1fr))`. */
   width: 100%;
   align-items: stretch;
+  height: 100%;
 }
 
 .staticSlide {

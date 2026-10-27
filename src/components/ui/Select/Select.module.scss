@@ -2,20 +2,33 @@
 @use '../../../styles/tokens' as *;
 @use '../../../styles/mixins' as *;
 
+.wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
 .select {
   width: 100%;
-  padding: 10px 12px;
+  line-height: 1.5;
+  padding: 10px 38px 10px 12px;
   font-size: 14px;
   font-family: inherit;
   color: $text;
-  background: #fff;
+  background: transparent;
   border: 1.5px solid $border;
   border-radius: $radius-sm;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   transition: border-color $t-fast, box-shadow $t-fast;
+
+  &::-ms-expand { display: none; }
 
   &:hover:not(:disabled) { border-color: $border-hover; }
   &:focus { @include focus-ring; }
+
   &:disabled {
     background: $bg-subtle;
     color: $text-faint;
@@ -23,8 +36,33 @@
   }
 }
 
-.invalid {
+/* Chevron container: vertically centred, purely decorative. */
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);         /* closed: points down */
+  transition: transform $t-fast ease;
+  pointer-events: none;
+  color: $text-muted;
+  flex-shrink: 0;
+}
+
+/* Open: flip the arrow up. */
+.open .chevron {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.invalid .select {
   border-color: $danger !important;
   background-color: $red-50 !important;
   box-shadow: 0 0 0 4px rgba($danger, 0.12) !important;
+}
+
+.disabled .chevron {
+  color: $text-faint;
+  opacity: 0.6;
 }

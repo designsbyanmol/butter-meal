@@ -84,7 +84,7 @@
     color $t-fast;
   flex-shrink: 0;
 
-  /* Hover tooltip — matches the navItem tooltip style. */
+  /* Hover tooltip - matches the navItem tooltip style. */
   &::after {
     content: 'Home';
     position: absolute;

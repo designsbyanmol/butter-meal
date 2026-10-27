@@ -142,9 +142,10 @@
   margin: 0;
   padding: 8px 12px;
   border-radius: $radius-sm;
-  background: rgba($primary, 0.08);
-  color: $primary-dark;
+  background: rgba($gray-400, 0.08);
+  color: $black;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 400;
+  letter-spacing: 0.4px;
   text-align: center;
 }

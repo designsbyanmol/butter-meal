@@ -6,7 +6,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   transition:
     background $t-fast,
@@ -52,8 +52,8 @@
 }
 
 .lg {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   font-size: 18px;
 }
 
@@ -89,6 +89,7 @@
 .ghost {
   background: transparent;
   color: inherit;
+  border-color: $border;
 
   &:hover:not(:disabled) {
     background: rgba(0, 0, 0, 0.05);

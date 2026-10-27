@@ -4,6 +4,8 @@ import { Card, Avatar, Badge, Slider } from '../../ui';
 import local from './Testimonials.module.scss';
 import shell from '../HomePage.module.scss';
 
+const CDN = 'https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/avatar';
+
 const QUOTES = [
   {
     label: 'Restaurant owner',
@@ -12,7 +14,7 @@ const QUOTES = [
     name: 'Rahul Mehta',
     role: 'Owner - Spice Route, Pune',
     avatar:
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop',
+      `${CDN}/user-1.webp`,
   },
   {
     label: 'Cloud kitchen',
@@ -21,7 +23,7 @@ const QUOTES = [
     name: "Elena D'Souza",
     role: 'Chef-owner - Elena Bakes, Goa',
     avatar:
-      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop',
+      `${CDN}/user-2.webp`,
   },
   {
     label: 'Cafe chain',
@@ -30,7 +32,7 @@ const QUOTES = [
     name: 'Ananya Krishnan',
     role: 'Co-founder - Filter Coffee Co., Bengaluru',
     avatar:
-      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop',
+      `${CDN}/user-3.webp`,
   },
   {
     label: 'Sweets & snacks',
@@ -39,7 +41,7 @@ const QUOTES = [
     name: 'Vikram Singh Rathore',
     role: 'Owner - Mithai Mahal, Jaipur',
     avatar:
-      'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=80&h=80&fit=crop',
+      `${CDN}/user-4.webp`,
   },
   {
     label: 'Online bakery',
@@ -48,7 +50,7 @@ const QUOTES = [
     name: 'Priya Raghavan',
     role: 'Head baker - The Butter Tin, Chennai',
     avatar:
-      'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=80&h=80&fit=crop',
+      `${CDN}/user-5.webp`,
   },
   {
     label: 'Quick-service',
@@ -57,7 +59,7 @@ const QUOTES = [
     name: 'Arjun Banerjee',
     role: 'Franchise owner - Kolkata Roll Co., Kolkata',
     avatar:
-      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&h=80&fit=crop',
+      `${CDN}/user-6.webp`,
   },
 ];
 
@@ -95,7 +97,7 @@ const Testimonials: React.FC = () => {
           mobilePeek={1.1}
           gap={10}
           loop={false}
-          autoPlayMs={7000}
+          // autoPlayMs={7000}
           pauseOnHover
           showDots
           showArrows = {false}

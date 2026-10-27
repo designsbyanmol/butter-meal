@@ -349,6 +349,7 @@
 
 .stepHeader {
   margin-bottom: $space-6;
+    text-align: center;
 
   h2 {
     margin: 0 0 $space-2;
@@ -511,6 +512,9 @@
   font-size: 48px;
   line-height: 1;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .buildingLead {
@@ -772,5 +776,86 @@
   .categoryBannerIcon {
     width: 36px;
     height: 36px;
+  }
+}
+
+/* ---------- Credentials step: top-right action cluster ---------- */
+.credTopActions {
+  position: absolute;
+  top:8px;
+  right: 2px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+
+  @include mobile {
+    gap: 4px;
+    padding: 4px;
+    position: unset;
+    justify-content: center;
+        flex-wrap: wrap;
+        width: 100%;
+  }
+}
+
+.credQrGlyph {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: $primary-dark;
+  line-height: 1;
+}
+
+/* Wrapper must be position: relative for the top-right cluster */
+.credCardWrap {
+  position: relative;
+  padding-top: 6px;
+}
+
+/* ---------- Credentials step: URL row with inline open button ---------- */
+.credUrlRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.credUrlCode {
+  flex: 1;
+  min-width: 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-base;
+  color: $primary-dark;
+  background: $primary-soft;
+  padding: 6px;
+  border-radius: $radius-xs;
+  word-break: keep-all;
+    white-space: nowrap;
+    overflow: hidden;
+    -webkit-line-clamp: 1;
+    text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.credOpenGlyph {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: $primary-dark;
+}
+
+/* ---------- Credentials step: bottom CTA ---------- */
+.credDoneRow {
+  display: flex;
+  justify-content: center;
+  margin-top: $space-5;
+}
+
+.credDoneBtn {
+  min-width: 220px;
+
+  @include mobile {
+    width: 100%;
   }
 }

@@ -2,6 +2,82 @@
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 
+// ---------------------------------------------------------------------------
+// Footer logo
+// ---------------------------------------------------------------------------
+const FOOTER_LOGO_URL =
+  "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/dozzelo-full-logo.webp";
+
+interface DecodedLogo {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Fetch an image URL, convert to a PNG data URL, and report its
+ * intrinsic size. jsPDF needs the dimensions to compute aspect ratio.
+ * Returns null on failure so the caller can fall back to text.
+ */
+const fetchImageAsPngDataUrl = async (
+  url: string,
+): Promise<DecodedLogo | null> => {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+
+    // Convert whatever blob we got (webp/png/jpeg) into a PNG data URL.
+    const dataUrl = await new Promise<string | null>((resolve) => {
+      const img = new Image();
+      const objUrl = URL.createObjectURL(blob);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            URL.revokeObjectURL(objUrl);
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          const png = canvas.toDataURL("image/png");
+          URL.revokeObjectURL(objUrl);
+          resolve(png);
+        } catch {
+          URL.revokeObjectURL(objUrl);
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        resolve(null);
+      };
+      img.src = objUrl;
+    });
+
+    if (!dataUrl) return null;
+
+    // Measure intrinsic size.
+    const dims = await new Promise<{ width: number; height: number } | null>(
+      (resolve) => {
+        const img = new Image();
+        img.onload = () =>
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      },
+    );
+
+    if (!dims || dims.width === 0 || dims.height === 0) return null;
+
+    return { dataUrl, width: dims.width, height: dims.height };
+  } catch {
+    return null;
+  }
+};
 export interface CredentialsPdfPayload {
   storeName: string;
   publicUrl: string;
@@ -94,7 +170,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(11);
   pdf.setTextColor(...TEXT_MUTED);
-  pdf.text('Account Credentials . Store Login Details', MARGIN, y);
+  pdf.text('Store Login Details . Do not share with anyone', MARGIN, y);
   y += 20;
 
   pdf.setFontSize(8);
@@ -131,7 +207,7 @@ export const downloadCredentialsPdf = async (
   pdf.setTextColor(...TEXT_MUTED);
   pdf.text(
     `. ${months} month${months > 1 ? 's' : ''}`,
-    MARGIN + 24 + pdf.getTextWidth(`${planName}`) + 8,
+    MARGIN + 24 + pdf.getTextWidth(`${planName}`) + 18,
     y + 36,
   );
 
@@ -179,7 +255,7 @@ export const downloadCredentialsPdf = async (
     pdf.text(value, PAGE_W - MARGIN - 16, topY + 21, { align: 'right' });
   };
 
-  drawRow(y + 4, 'Login Phone', `+91 ${phone}`, false);
+  drawRow(y + 4, 'Login Number', `${phone}`, false);
   drawRow(y + 4 + rowH, 'Password', password, true, GREEN_DARK, true);
 
   y += detailBoxH + 22;
@@ -197,7 +273,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFontSize(11);
   pdf.text('Sign in to manage', MARGIN + 14, y + 32);
   pdf.setFontSize(16);
-  pdf.text('›', MARGIN + btnW - 16, y + 28, { align: 'right' });
+  pdf.text('view', MARGIN + btnW - 16, y + 28, { align: 'right' });
 
   pdf.setFillColor(...WHITE);
   pdf.setDrawColor(...GREEN_DARK);
@@ -206,7 +282,7 @@ export const downloadCredentialsPdf = async (
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
   pdf.setTextColor(...GREEN_DARK);
-  pdf.text('PUBLIC STORE', MARGIN + btnW + btnGap + 14, y + 16);
+  pdf.text('CUSTOMER STORE', MARGIN + btnW + btnGap + 14, y + 16);
   pdf.setTextColor(...TEXT);
   pdf.setFontSize(11);
   pdf.text(
@@ -216,7 +292,7 @@ export const downloadCredentialsPdf = async (
   );
   pdf.setTextColor(...GREEN_DARK);
   pdf.setFontSize(16);
-  pdf.text('›', PAGE_W - MARGIN - 16, y + 28, { align: 'right' });
+  pdf.text('view', PAGE_W - MARGIN - 16, y + 28, { align: 'right' });
 
   pdf.link(MARGIN, y, btnW, btnH, { url: adminUrl });
   pdf.link(MARGIN + btnW + btnGap, y, btnW, btnH, { url: publicUrl });
@@ -251,12 +327,12 @@ export const downloadCredentialsPdf = async (
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
   pdf.setTextColor(...GREEN_DARK);
-  pdf.text('ADMIN QR', qrTextX, y + 26);
+  pdf.text('ADMIN QR', qrTextX, y + 56);
 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
   pdf.setTextColor(...TEXT);
-  pdf.text('Scan to open', qrTextX, y + 42);
+  pdf.text('Scan to open', qrTextX, y + 70);
 
   const qrX2 = MARGIN + qrCardW + qrCardGap;
   pdf.setFillColor(250, 250, 250);
@@ -280,11 +356,11 @@ export const downloadCredentialsPdf = async (
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
   pdf.setTextColor(...TEXT);
-  pdf.text('PUBLIC QR', qrTextX2, y + 26);
+  pdf.text('CUSTOMER QR', qrTextX2, y + 56);
 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
-  pdf.text('Scan to open', qrTextX2, y + 42);
+  pdf.text('Scan to open', qrTextX2, y + 70);
 
   y += qrCardH + 22;
 
@@ -292,7 +368,7 @@ export const downloadCredentialsPdf = async (
     'Click the two buttons above, or scan the QR codes, to open the store URLs.',
     'Keep these credentials safe - do not share them with anyone.',
     'Admin URL is where you sign in to manage your store.',
-    'Public URL is what you share with customers.',
+    'Customer URL is what you share with customers.',
   ];
 
   pdf.setFont('helvetica', 'normal');
@@ -315,20 +391,46 @@ export const downloadCredentialsPdf = async (
   pdf.setFontSize(9.5);
   pdf.setTextColor(...TEXT_MUTED);
   notes.forEach((n, i) => {
-    pdf.text(`•  ${n}`, MARGIN + 14, y + 18 + 14 + i * lineH);
+    pdf.text(`-  ${n}`, MARGIN + 14, y + 18 + 14 + i * lineH);
   });
 
   y += notesH + 20;
 
+  const footerY = PAGE_H - MARGIN;
   pdf.setDrawColor(...BORDER_SOFT);
   pdf.setLineWidth(0.8);
-  pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
+  pdf.line(MARGIN, footerY - 16, PAGE_W - MARGIN, footerY - 16);
 
-  pdf.setFont('helvetica', 'normal');
+  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
   pdf.setTextColor(...TEXT_FAINT);
-  pdf.text(`Generated: ${gen}`, MARGIN, y + 14);
-  pdf.text('- Butter Meal', PAGE_W - MARGIN, y + 14, { align: 'right' });
+  pdf.text(`Generated: ${gen}`, MARGIN, footerY - 2);
+
+  // Right-aligned brand logo, max 80px wide, proportional height.
+  try {
+    const logoData = await fetchImageAsPngDataUrl(FOOTER_LOGO_URL);
+    if (logoData) {
+      const logo = logoData; // { dataUrl, width, height }
+
+      const maxLogoWidth = 80;
+      const scale = Math.min(1, maxLogoWidth / logo.width);
+      const drawW = logo.width * scale;
+      const drawH = logo.height * scale;
+      // Vertically center against the footer line.
+      const logoX = PAGE_W - MARGIN - drawW;
+      const logoY = footerY + 10 - drawH; // sit above the baseline
+      pdf.addImage(logo.dataUrl, "PNG", logoX, logoY, drawW, drawH);
+    } else {
+      // Fallback: text if the image fails to load.
+      pdf.text("- Dozzelo", PAGE_W - MARGIN, footerY - 2, {
+        align: "right",
+      });
+    }
+  } catch {
+    pdf.text("- Dozzelo", PAGE_W - MARGIN, footerY - 2, {
+      align: "right",
+    });
+  }
 
   pdf.save(`${slugify(storeName)}-credentials.pdf`);
 };
