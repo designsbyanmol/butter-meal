@@ -70,107 +70,173 @@
   }
 }
 
-// =========================================================
-// Store banner (StoreBanner.tsx + StoreDeactivated.tsx)
-// =========================================================
-.storeBanner {
-  padding: 20px 24px;
+/* =========================================================
+   Closed-store card (StoreBanner)
+   ========================================================= */
+.closedCard {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px 18px 24px;
   margin: 20px 0;
-  text-align: center;
-  background: #f6f6f6;
-  border: 2px solid #f3f3f3;
-  border-radius: $radius-sm;
+  background: linear-gradient(
+    180deg,
+    rgba($red-50, 0.2) 0%,
+    rgba($red-50, 0.4) 100%
+  );
+  border: 1px solid rgba($red-500, 0.25);
+  border-radius: 0 $radius-sm $radius-sm 0;
+  overflow: hidden;
+  animation: closedCardFade 0.25s ease-out;
+
+  @include mobile(520px) {
+    padding: 16px 16px 16px 20px;
+    gap: 12px;
+    flex-direction: column;
+  }
 }
 
-.bannerContent {
-  display: flex;
-  flex-direction: column;
+@keyframes closedCardFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Left accent bar */
+.closedAccent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    $red-400 0%,
+    $red-600 100%
+  );
+}
+
+/* ---------- Icon tile ---------- */
+.closedIcon {
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: $radius-md;
+  background: #fff;
+  border: 1px solid rgba($red-500, 0.25);
+  color: $red-700;
+  box-shadow: 0 2px 6px rgba($red-500, 0.1);
+  margin-top: 2px;
 
-  .tagLine {
-    font-size: 14px;
-    color: #9b9b9b;
-    letter-spacing: 2px;
-    margin: 0;
+  @include mobile(520px) {
+    width: 36px;
+    height: 36px;
   }
 }
 
-.bannerIcon {
-  font-size: 44px;
+/* ---------- Body ---------- */
+.closedBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.closedEyebrow {
+  font-size: 16px;
   font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: $red-700;
+  margin-bottom: 2px;
+}
+
+.closedTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
   color: $text;
+  letter-spacing: -0.1px;
 
-  svg {
-    display: block;
+  @include mobile(520px) {
+    font-size: 14px;
   }
 }
 
-.bannerText {
-  text-align: center;
+.closedSubtitle {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
+}
 
-  .heading {
-    font-size: 14px;
-    color: #aaaaaa;
-    background: #f6f6f6;
-    display: inline-block;
-    padding: 0 10px;
-  }
-
-  h3 {
-    border-radius: $radius-sm;
-    border: 1px dashed $border;
-    padding: 20px;
-    margin: -11px 0 0;
-    font-size: 18px;
-    font-style: italic;
-    font-weight: 400;
-    color: $text;
-    max-width: 500px;
-  }
-
-  .p {
-    margin: 20px 0 0;
-    font-size: 14px;
-    color: $text-muted;
-
-    div {
-      margin: 10px 0;
-    }
-
-    span {
-      font-weight: 600;
-      padding: 5px 10px;
-      background: #f6f6f6;
-      display: inline-block;
-      border-radius: $radius-xs;
-      border: 1px dashed $border;
-      color: #076f05;
-      margin: 0 5px;
-    }
+/* ---------- Reopen chip ---------- */
+.closedReopen {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  background: #fff;
+  border: 1px solid rgba($gray-500, 0.35);
+  font-size: 12px;
+  flex-wrap: wrap;
+  color: $gray-800;
+  @include mobile {
+    gap: 6px;
   }
 }
 
-// =========================================================
-// Deactivated variant
-// =========================================================
+.closedReopenLabel {
+  font-weight: 800;
+  color: $gray-800;
+}
+
+.closedReopenValue {
+  font-weight: 500;
+  color: $primary-700;
+  border-left: 1px solid rgba($amber-500, 0.35);
+  @include mobile {
+  border-left: none;
+  }
+}
+
+/* =========================================================
+   Deactivated variant — reuse the new structure
+   ========================================================= */
 .deactivatedBanner {
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-  border: 1px solid #d0d0d0;
+  background: $gray-50;
+  border-color: $gray-250;
 
-  .bannerIcon {
+  .closedIcon {
+    background: $gray-150;
     filter: grayscale(1);
   }
-  .tagLine { color: #666; }
-  .heading { color: #333; }
-  h3 { color: #555; }
-  .p { color: #777; }
+
+  .closedIconDot {
+    background: $gray-500;
+    animation: none;
+    box-shadow: none;
+  }
+
+  .closedTitle {
+    color: $text-muted;
+  }
+
+  .closedSubtitle {
+    color: $text-faint;
+  }
 }
 
 .bodyActions {
+  margin: 25px 0 0;
   display: flex;
-  gap: 10px;
-  margin-top: 24px;
-  padding-top: 20px;
+  gap: 15px;
 }

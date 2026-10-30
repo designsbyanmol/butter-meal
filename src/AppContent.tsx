@@ -10,7 +10,6 @@ import BrandInfo from "./components/BrandInfo/BrandInfo";
 import CartModal from "./components/Cart/CartModal";
 import FloatingCart from "./components/FloatingCart/FloatingCart";
 import ScheduleModal from "./components/Schedule/ScheduleModal";
-import LocationModal from "./components/Location/LocationModal";
 import MenuDetail from "./components/MenuDetail/MenuDetail";
 import StoreBanner from "./components/Store/StoreBanner";
 import StoreDeactivated from "./components/Store/StoreDeactivated";
@@ -28,10 +27,13 @@ import CustomerOrderStatus from "./components/Dinein/CustomerOrderStatus";
 import { getCustomerName } from "./utils/customerName";
 import { getStoreLabels } from "./utils/storeLabels";
 import { DEFAULT_MESSAGE_TEMPLATE, MenuItem } from "./types";
+import type { CartItem, PaymentMode, DeliveryType, ScheduleData } from "./types";
 import {
   getAllPendingItems,
   dropCommittedPendingItem,
 } from "./utils/dineinPendingItems";
+import OrderCheckoutModal from "./components/Order/OrderCheckoutModal";
+import { setCustomerName as persistCustomerName } from "./utils/customerName";
 import styles from "./App.module.scss";
 
 const FILTER_LOADER_MS = 2000;
@@ -81,7 +83,6 @@ const AppContent: React.FC = () => {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-  const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNameOpen, setIsNameOpen] = useState(false);
@@ -413,160 +414,105 @@ const AppContent: React.FC = () => {
     setIsScheduleOpen(false);
   };
 
-  // ---------------------------------------------------------
-  // Order placement
-  // ---------------------------------------------------------
-  const handlePlaceOrder = () => {
-    if (!isStoreOpen) {
-      alert("Store is currently closed. Please try again later.");
-      return;
-    }
-    if (!isAcceptingOrders) {
-      alert("This store is not accepting orders right now.");
-      return;
-    }
-    if (deliveryType === "schedule" && !scheduleData) {
-      setIsScheduleOpen(true);
-      return;
-    }
-    setIsNameOpen(true);
-  };
+// ---------------------------------------------------------
+// Order placement — new 2-step flow
+// ---------------------------------------------------------
+const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+const [pendingOrderNo, setPendingOrderNo] = useState<string>("");
 
-  const handleNameConfirmed = (name: string) => {
-    setCustomerName(name);
-    setIsNameOpen(false);
-    setIsLocationOpen(true);
-  };
+// Flag set by handleNameConfirmed. A useEffect watches it and only
+// then opens the checkout modal — guaranteeing the name modal has
+// finished its exit animation and released the history entry before
+// the checkout modal mounts. This is the fix for the mobile race.
+const [pendingOpenCheckout, setPendingOpenCheckout] = useState(false);
 
-  const handleConfirmLocation = () => {
-    setIsLocationOpen(false);
+const handlePlaceOrder = () => {
+  if (!isStoreOpen) {
+    alert("Store is currently closed. Please try again later.");
+    return;
+  }
+  if (!isAcceptingOrders) {
+    alert("This store is not accepting orders right now.");
+    return;
+  }
+  if (deliveryType === "schedule" && !scheduleData) {
+    setIsScheduleOpen(true);
+    return;
+  }
+
+  if (customerName && customerName.trim().length >= 2) {
+    // Name already known → open checkout directly.
+    setPendingOrderNo(generateOrderNumber());
     setIsCartOpen(false);
-    sendWhatsAppMessage(customerName);
-  };
+    setIsCheckoutOpen(true);
+    return;
+  }
 
-  // ---------------------------------------------------------
-  // WhatsApp order message
-  // ---------------------------------------------------------
-  const sendWhatsAppMessage = (nameForOrder: string) => {
-    if (cart.length === 0) return;
+  setIsNameOpen(true);
+};
 
-    const tpl = tenant?.messageTemplate ?? DEFAULT_MESSAGE_TEMPLATE;
+const handleNameConfirmed = (name: string) => {
+  persistCustomerName(name);
+  setCustomerName(name);
+  setIsNameOpen(false);
+  setIsCartOpen(false);
+  setPendingOrderNo(generateOrderNumber());
+  // Do NOT open the checkout here. Defer to the effect below so the
+  // name modal's 220ms exit animation + history cleanup completes
+  // before the checkout modal mounts.
+  setPendingOpenCheckout(true);
+};
 
-    const totalItems = getTotalItems();
-    const subtotal = getSubtotal();
-    const gstAmount = getGstAmount();
-    const discount = getDiscountAmount();
-    const discountPercent = getDiscountPercent();
-    const finalTotal = getTotalWithDelivery();
-    const orderNo = generateOrderNumber();
-    const deliveryTime = getDeliveryTime();
-    const brandName = tenant?.displayName ?? "";
-    const tagline = tenant?.storeTagline ?? "";
+// Open the checkout modal only after the name modal is fully closed.
+useEffect(() => {
+  if (!pendingOpenCheckout) return;
+  if (isNameOpen) return; // wait for name modal to finish closing
 
-    const orderLabel = (
-      tpl.orderLabel || "New Order From {customerName}"
-    ).replace("{customerName}", nameForOrder || "Customer");
+  const t = window.setTimeout(() => {
+    setIsCheckoutOpen(true);
+    setPendingOpenCheckout(false);
+  }, 260); // > MOBILE_EXIT_MS (220ms) + history cleanup buffer
 
-    let message = `*${orderLabel}*\n`;
-    message += `-----------------\n`;
-    if (brandName) message += `*${brandName}*\n`;
-    if (tagline) message += `_${tagline}_\n`;
-    message += `Order ID. - ${orderNo}\n`;
-    message += `Total Items - ${totalItems}\n`;
-    message += `Payment - ${paymentMode}`;
-    if (paymentMode === "Online" && discountPercent > 0) {
-      message += ` (${discountPercent}% OFF)`;
-    }
-    message += `\n`;
-    message += `Exp. Delivery - ${deliveryTime}\n`;
+  return () => window.clearTimeout(t);
+}, [pendingOpenCheckout, isNameOpen]);
 
-    if (deliveryType === "schedule" && scheduleData) {
-      const sdt = new Date(`${scheduleData.date}T${scheduleData.time}`);
-      let h = sdt.getHours();
-      const m = String(sdt.getMinutes()).padStart(2, "0");
-      const ap = h >= 12 ? "PM" : "AM";
-      h = h % 12;
-      h = h ? h : 12;
-      message += `Scheduled Delivery - ${scheduleData.date} at ${h}:${m} ${ap}\n`;
-      message += `*Note:* Prepaid . Send Reminder before 1hr\n`;
-    }
+// Called by the checkout modal when it finishes (success or close).
+const handleCheckoutClose = ({ orderPlaced }: { orderPlaced: boolean }) => {
+  setIsCheckoutOpen(false);
+  if (orderPlaced) {
+    clearCart();
+    setPendingOrderNo("");
+  }
+};
 
-    message += `-----------------\n`;
-    message += `*${tpl.itemListTitle || "Item List"}*\n`;
+const handleReorder = (snapshot: {
+  cart: CartItem[];
+  paymentMode: PaymentMode;
+  deliveryType: DeliveryType;
+  scheduleData: ScheduleData | null;
+}) => {
+  setIsCheckoutOpen(false);
+  clearCart();
+  setPendingOrderNo("");
 
-    cart.forEach((item) => {
-      const baseForItem = item.basePrice || item.price;
-      const addons = item.addonPrice || 0;
-      const unitPrice = baseForItem + addons;
-      const total = unitPrice * item.quantity;
+  // Restore the previous order's items and checkout state.
+  snapshot.cart.forEach((item) => {
+    addItem(
+      item,
+      item.customizations,
+      item.customMessage,
+      item.quantity,
+    );
+  });
 
-      let line = (tpl.itemLineTemplate || "{name} x {qty}")
-        .replace("{name}", item.name)
-        .replace("{qty}", String(item.quantity));
+  setPaymentMode(snapshot.paymentMode);
+  setDeliveryType(snapshot.deliveryType);
+  setScheduleData(snapshot.scheduleData);
 
-      if (
-        tpl.showItemCustomizations &&
-        item.customizations &&
-        Object.keys(item.customizations).length > 0
-      ) {
-        const cs = Object.entries(item.customizations)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(", ");
-        line += ` (${cs})`;
-      }
-      if (tpl.showItemAddons && addons > 0) {
-        line += ` [+Rs${addons} add-ons]`;
-      }
-      if (tpl.showItemDiscount) {
-        const d = Number(item.discount ?? 0);
-        if (d > 0 && d <= 100) line += ` [${d}% off]`;
-      }
-      line += ` - Rs ${total}`;
-      message += `- - - - - - -\n${line}\n`;
-
-      if (
-        tpl.showItemNotes &&
-        item.customMessage &&
-        item.customMessage.trim()
-      ) {
-        message += `   Note: ${item.customMessage.trim()}\n`;
-      }
-    });
-
-    message += `-----------------\n`;
-    message += `${tpl.subtotalLabel || "Subtotal"} - Rs ${Math.round(subtotal)}\n`;
-    message += `${tpl.deliveryLabel || "Delivery"} - Rs ${DELIVERY_FEE}\n`;
-
-    if (PACKING_CHARGE > 0) {
-      message += `Packing - Rs ${PACKING_CHARGE}\n`;
-    }
-    if (GST_PERCENT > 0 && gstAmount > 0) {
-      message += `GST (${GST_PERCENT}%) - Rs ${gstAmount}\n`;
-    }
-
-    if (paymentMode === "Online" && discountPercent > 0) {
-      message += `${tpl.discountLabel || "Discount"} (${discountPercent}%) - Rs ${discount}\n`;
-      message += `-----------------\n`;
-      message += `\n*${tpl.totalLabel || "Total Amount"} - Rs ${finalTotal}*\n`;
-      message += `(${discountPercent}% discount applied on total)\n`;
-    } else {
-      message += `-----------------\n`;
-      message += `\n*${tpl.totalLabel || "Total Amount"} - Rs ${finalTotal}*\n`;
-      const feeLine = (
-        tpl.freeDeliveryLabel || "(+Rs {fee} Inc. for delivery)"
-      ).replace("{fee}", String(DELIVERY_FEE));
-      message += `${feeLine}\n`;
-    }
-
-    message += `\n-----------------\n`;
-    if (tpl.footerNote1) message += `_${tpl.footerNote1}_\n`;
-    if (tpl.footerNote2) message += `_${tpl.footerNote2}_\n`;
-    if (tpl.footerSignature) message += `_${tpl.footerSignature}_`;
-
-    const encoded = encodeURIComponent(message);
-    const url = `https://wa.me/${RESTAURANT_PHONE}?text=${encoded}`;
-    window.open(url, "_blank");
-  };
+  // Re-open the cart so the customer can review and place the
+  // order again through the same flow.
+  window.setTimeout(() => setIsCartOpen(true), 120);
+};
 
   // =========================================================
   // Render
@@ -613,17 +559,10 @@ const AppContent: React.FC = () => {
                 />
 
                 {showFilterLoader ? (
-                  <DashboardSkeleton
-                    count={6}
-                    hideHeader
-                    hideBrand
-                    hidePill
-                  />
+                  <DashboardSkeleton count={6} hideHeader hideBrand hidePill />
                 ) : filteredItems.length === 0 ? (
                   <div className={styles.emptyFilterState}>
-                    <p>
-                      No {labels.items.toLowerCase()} match your filters.
-                    </p>
+                    <p>No {labels.items.toLowerCase()} match your filters.</p>
                     <button type="button" onClick={resetFilters}>
                       Clear filters
                     </button>
@@ -704,11 +643,35 @@ const AppContent: React.FC = () => {
           onSave={handleScheduleSave}
         />
 
-        <LocationModal
-          isOpen={isLocationOpen}
-          onClose={() => setIsLocationOpen(false)}
-          onConfirm={handleConfirmLocation}
-        />
+  <OrderCheckoutModal
+    isOpen={isCheckoutOpen}
+    customerName={customerName}
+    cart={cart}
+    paymentMode={paymentMode}
+    deliveryType={deliveryType}
+    scheduleData={scheduleData}
+    tenant={{
+      displayName: tenant?.displayName ?? "",
+      storeTagline: tenant?.storeTagline,
+      storeAddress: tenant?.storeAddress,
+      gstNo: tenant?.gstNo,
+      whatsappPhone: tenant?.whatsappPhone,
+      upiId: tenant?.upiId,
+      gstPercent: GST_PERCENT,
+    }}
+    orderNo={pendingOrderNo}
+    subtotal={getSubtotal()}
+    gstAmount={getGstAmount()}
+    discountAmount={getDiscountAmount()}
+    discountPercent={getDiscountPercent()}
+    deliveryFee={DELIVERY_FEE}
+    packingCharge={PACKING_CHARGE}
+    total={getTotalWithDelivery()}
+    deliveryTime={getDeliveryTime()}
+    whatsappPhone={RESTAURANT_PHONE}
+    onClose={handleCheckoutClose}
+    onReorder={handleReorder}
+  />
 
         <CustomerNameModal
           isOpen={isNameOpen}

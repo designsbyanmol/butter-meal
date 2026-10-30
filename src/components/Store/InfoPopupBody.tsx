@@ -22,10 +22,7 @@ import { ShopInfo } from "../../config/credentials";
 import { usePlan } from "../../hooks/usePlan";
 import { ROLE_AVATAR_URL } from "../ui/Avatar/Avatar";
 import { InlineSection } from "../Dashboard/inline";
-import {
-  downloadAdminQrPdf,
-  downloadPublicQrPdf,
-} from "../../utils/qrPdf";
+import { downloadAdminQrPdf, downloadPublicQrPdf } from "../../utils/qrPdf";
 import local from "./InfoPopup.module.scss";
 
 interface InfoPopupBodyProps {
@@ -43,8 +40,10 @@ type EditableField =
   | "gst_percent"
   | "packing_charge"
   | "upi_id"
-  | "gst_no"           // <-- ADDED
+  | "gst_no" // <-- ADDED
   | "store_address";
+
+// src/components/Store/InfoPopupBody.tsx — replace the FieldDef interface
 
 interface FieldDef {
   key: EditableField;
@@ -55,6 +54,10 @@ interface FieldDef {
   hint?: string;
   dineinHidden?: boolean;
   dineinOnly?: boolean;
+  /** Hide this field entirely for hospital-pharmacy stores. */
+  hospitalHidden?: boolean;
+  /** Relabel this field for hospital-pharmacy stores. */
+  hospitalLabel?: string;
 }
 
 type PendingToggle =
@@ -80,29 +83,35 @@ const restoreZeroIfBlank = (
   }
 };
 
+// src/components/Store/InfoPopupBody.tsx — replace the FIELDS array
+
 const FIELDS: FieldDef[] = [
   {
     key: "banner_url",
-    label: "Store Offer Banner",
+    label: "Offer Banner",
+    hospitalLabel: "Hospital Banner",
     type: "image",
     getValue: (t) => t?.bannerUrl || "",
     hint: "Shown at the top of the menu page. Leave blank to use the default banner.",
   },
   {
     key: "display_name",
-    label: "Store Name",
+    label: "Company name",
+    hospitalLabel: "Hospital name",
     type: "text",
     getValue: (t) => t?.displayName || ShopInfo.Shop_name,
   },
   {
     key: "store_tagline",
-    label: "Store Tagline",
+    label: "Company Tagline",
+    hospitalLabel: "Hospital Tagline",
     type: "text",
     getValue: (t) => t?.storeTagline || ShopInfo.Shop_tagline,
   },
-    {
+  {
     key: "store_address",
-    label: "Store Address",
+    label: "Company Address",
+    hospitalLabel: "Hospital Address",
     type: "text",
     getValue: (t) => t?.storeAddress || "",
     hint: "Will appear on all printed bills.",
@@ -117,12 +126,14 @@ const FIELDS: FieldDef[] = [
   {
     key: "owner_phone",
     label: "Owner Phone",
+    hospitalLabel: "Owner Phone",
     type: "tel",
     getValue: (t) => t?.ownerPhone || ShopInfo.Owner_phone,
   },
   {
     key: "whatsapp_phone",
-    label: "Store WhatsApp Number",
+    label: "WhatsApp Number",
+    hospitalLabel: "Hospital WhatsApp Number",
     type: "tel",
     getValue: (t) => t?.whatsappPhone || ShopInfo.Store_whatsapp,
     hint: "Customer orders arrive here.",
@@ -137,6 +148,7 @@ const FIELDS: FieldDef[] = [
       return Number.isFinite(n) ? String(n) : String(ShopInfo.Delivery_charge);
     },
     dineinHidden: true,
+    hospitalHidden: true,
   },
   {
     key: "packing_charge",
@@ -148,6 +160,7 @@ const FIELDS: FieldDef[] = [
     },
     hint: "Fixed amount added to every order. Set to 0 to disable.",
     dineinHidden: true,
+    hospitalHidden: true,
   },
   {
     key: "gst_percent",
@@ -161,7 +174,7 @@ const FIELDS: FieldDef[] = [
   },
   {
     key: "storewide_discount",
-    label: "Storewide Discount (%)",
+    label: "Discount (%)",
     type: "number",
     getValue: (t) => {
       const n = Number(t?.storewideDiscount);
@@ -170,6 +183,7 @@ const FIELDS: FieldDef[] = [
         : String(ShopInfo.Storewide_discount);
     },
     hint: "0-100. Applied on Online payment.",
+    hospitalHidden: true,
   },
   {
     key: "upi_id",
@@ -204,7 +218,9 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
 
   if (!tenant) return null;
 
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  const isHospital = tenant?.storeCategory === "hospital-pharmacy";
+
+  const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
   const base = `${window.location.origin}${dir}`;
   const adminUrl = `${base}admin.html?t=${tenant.slug}_admin`;
   const publicUrl = `${base}customer.html?t=${tenant.slug}`;
@@ -218,25 +234,42 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
   const currentAvatarSrc = tenant.avatarUrl || ROLE_AVATAR_URL[roleKey];
 
   const isDefault = (key: EditableField): boolean => {
-  if (!tenant.infoDefaults) return false;
-  switch (key) {
-    case "display_name": return !!tenant.infoDefaults.displayName;
-    case "store_tagline": return !!tenant.infoDefaults.storeTagline;
-    case "owner_phone": return !!tenant.infoDefaults.ownerPhone;
-    case "whatsapp_phone": return !!tenant.infoDefaults.whatsappPhone;
-    case "banner_url": return !!tenant.infoDefaults.bannerUrl;
-    case "delivery_charge": return !!tenant.infoDefaults.deliveryCharge;
-    case "storewide_discount": return !!tenant.infoDefaults.storewideDiscount;
-    case "gst_percent": 
-      return !Number.isFinite(Number(tenant.gstPercent)) || Number(tenant.gstPercent) === 0;
-    case "packing_charge": 
-      return !Number.isFinite(Number(tenant.packingCharge)) || Number(tenant.packingCharge) === 0;
-    case "upi_id": return !tenant.upiId;
-    case "gst_no": return !tenant.gstNo;
-    case "store_address": return !tenant.storeAddress;
-    default: return false;
-  }
-};
+    if (!tenant.infoDefaults) return false;
+    switch (key) {
+      case "display_name":
+        return !!tenant.infoDefaults.displayName;
+      case "store_tagline":
+        return !!tenant.infoDefaults.storeTagline;
+      case "owner_phone":
+        return !!tenant.infoDefaults.ownerPhone;
+      case "whatsapp_phone":
+        return !!tenant.infoDefaults.whatsappPhone;
+      case "banner_url":
+        return !!tenant.infoDefaults.bannerUrl;
+      case "delivery_charge":
+        return !!tenant.infoDefaults.deliveryCharge;
+      case "storewide_discount":
+        return !!tenant.infoDefaults.storewideDiscount;
+      case "gst_percent":
+        return (
+          !Number.isFinite(Number(tenant.gstPercent)) ||
+          Number(tenant.gstPercent) === 0
+        );
+      case "packing_charge":
+        return (
+          !Number.isFinite(Number(tenant.packingCharge)) ||
+          Number(tenant.packingCharge) === 0
+        );
+      case "upi_id":
+        return !tenant.upiId;
+      case "gst_no":
+        return !tenant.gstNo;
+      case "store_address":
+        return !tenant.storeAddress;
+      default:
+        return false;
+    }
+  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -441,7 +474,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
   return (
     <>
       <InlineSection
-        title="Store Information"
+        title={isHospital ? "Hospital Information" : "Store Information"}
         actions={
           isAdmin ? (
             <button
@@ -496,7 +529,9 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           <div className={local.row}>
             <div className={local.rowMain}>
               <div className={local.labelRow}>
-                <span className={local.label}>Public Store URL</span>
+                <span className={local.label}>
+                  {isHospital ? "Customer URL" : "Public Store URL"}
+                </span>
               </div>
               <div className={local.value}>{publicUrl}</div>
             </div>
@@ -514,7 +549,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           <div className={local.row}>
             <div className={local.rowMain}>
               <div className={local.labelRow}>
-                <span className={local.label}>Admin Store URL</span>
+                <span className={local.label}>Admin URL</span>
               </div>
               <div className={local.value}>{adminUrl}</div>
             </div>
@@ -551,7 +586,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                     <DownloadIcon width={16} height={16} fill="#4d4d4d" />
                   }
                 >
-                  Public QR
+                  Customer QR
                 </Button>
                 <Button
                   variant="ghost"
@@ -621,18 +656,16 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                     <span className={local.label}>Allow staff tips</span>
                   </div>
                   <div className={local.value}>
-                    Show tip options (Rs 10 / 20 / 50 / 100 / 150) to
-                    customers on the bill screen. The tip is added to the
-                    total and is visible to you on the order card. Not shown
-                    on receipts or order history.
+                    Show tip options (Rs 10 / 20 / 50 / 100 / 150) to customers
+                    on the bill screen. The tip is added to the total and is
+                    visible to you on the order card. Not shown on receipts or
+                    order history.
                   </div>
                 </div>
                 <Toggle
                   checked={tenant.staffTippingEnabled === true}
                   disabled={toggleBusy}
-                  onChange={(e) =>
-                    requestStaffTippingToggle(e.target.checked)
-                  }
+                  onChange={(e) => requestStaffTippingToggle(e.target.checked)}
                 />
               </div>
             )}
@@ -641,8 +674,16 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
             const canEdit = plan.canEditProfileField(field.key);
             if (!canEdit) return null;
 
+            // Hospital-pharmacy specific visibility / labels.
+            if (isHospital && field.hospitalHidden) return null;
+
             if (field.dineinHidden && isDinein) return null;
             if (field.dineinOnly && !dineinToggleVisible) return null;
+
+            const displayLabel =
+              isHospital && field.hospitalLabel
+                ? field.hospitalLabel
+                : field.label;
 
             const isImage = field.type === "image";
             const usingDefault = isDefault(field.key);
@@ -656,7 +697,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
               <div key={field.key} className={local.row}>
                 <div className={local.rowMain}>
                   <div className={local.labelRow}>
-                    <span className={local.label}>{field.label}</span>
+                    <span className={local.label}>{displayLabel}</span>
                     {usingDefault && (
                       <span className={local.defaultPill}>Using default</span>
                     )}
@@ -666,7 +707,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                     value ? (
                       <img
                         src={value}
-                        alt={field.label}
+                        alt={displayLabel}
                         className={local.previewImg}
                         onError={(e) => {
                           const fallbackUrl = ShopInfo.Shop_banner;
@@ -697,8 +738,8 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 <IconButton
                   variant="ghost"
                   size="md"
-                  aria-label={`Edit ${field.label}`}
-                  tooltip={`Edit ${field.label}`}
+                  aria-label={`Edit ${displayLabel}`}
+                  tooltip={`Edit ${displayLabel}`}
                   onClick={() => openEditor(field)}
                 >
                   <EditIcon width={16} height={16} fill="#0F172A" />
@@ -707,13 +748,13 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
             );
           })}
 
-          {!isDinein && plan.canEditProfileField("message_template") && (
+          {!isHospital &&
+  !isDinein &&
+  plan.canEditProfileField("message_template") && (
             <div className={local.row}>
               <div className={local.rowMain}>
                 <div className={local.labelRow}>
-                  <span className={local.label}>
-                    WhatsApp Message Template
-                  </span>
+                  <span className={local.label}>WhatsApp Message Template</span>
                 </div>
                 <div className={local.value}>
                   Customize the exact text customers send to your WhatsApp.
@@ -764,9 +805,9 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           <>
             <p className={local.confirmLead}>
               Once dine-in is on,{" "}
-              <strong>online WhatsApp ordering stops working</strong>.
-              Customers will only be able to place orders while they are
-              inside the restaurant, from their table.
+              <strong>online WhatsApp ordering stops working</strong>. Customers
+              will only be able to place orders while they are inside the
+              restaurant, from their table.
             </p>
             <ul className={local.confirmList}>
               <li>
@@ -778,13 +819,12 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 <strong>Place Order</strong>.
               </li>
               <li>
-                The store WhatsApp number, delivery charge, packing charge,
-                and message template stop applying and are hidden from this
-                screen.
+                The store WhatsApp number, delivery charge, packing charge, and
+                message template stop applying and are hidden from this screen.
               </li>
               <li>
-                Online payment works only through the store's UPI ID
-                (which is already set).
+                Online payment works only through the store's UPI ID (which is
+                already set).
               </li>
             </ul>
             <p className={local.confirmNote}>
@@ -809,8 +849,8 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
                 <strong>Add to Cart</strong> again.
               </li>
               <li>
-                Staff tip options are hidden from customers (they only appear
-                in the dine-in bill flow).
+                Staff tip options are hidden from customers (they only appear in
+                the dine-in bill flow).
               </li>
               <li>
                 Any in-progress dine-in orders at tables will continue to work
@@ -824,19 +864,17 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
           <>
             <p className={local.confirmLead}>
               Enabling staff tips will show{" "}
-              <strong>Rs 10 / 20 / 50 / 100 / 150</strong> buttons to
-              customers above the Request Bill button.
+              <strong>Rs 10 / 20 / 50 / 100 / 150</strong> buttons to customers
+              above the Request Bill button.
             </p>
             <ul className={local.confirmList}>
               <li>
-                The tip amount is{" "}
-                <strong>added to the customer's total</strong> and
-                included in the amount they pay.
+                The tip amount is <strong>added to the customer's total</strong>{" "}
+                and included in the amount they pay.
               </li>
               <li>
-                The tip is only visible to you on the order card after the
-                order is paid - it is not itemized on receipts or order
-                history.
+                The tip is only visible to you on the order card after the order
+                is paid - it is not itemized on receipts or order history.
               </li>
               <li>
                 Customers can change or remove the tip any time before
@@ -876,7 +914,15 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
         isOpen={!!activeFieldDef}
         onClose={closeEditor}
         disableBackdropClose={true}
-        title={activeFieldDef ? `Edit ${activeFieldDef.label}` : ""}
+title={
+  activeFieldDef
+    ? `Edit ${
+        isHospital && activeFieldDef.hospitalLabel
+          ? activeFieldDef.hospitalLabel
+          : activeFieldDef.label
+      }`
+    : ""
+}
         size="sm"
         footer={
           activeFieldDef ? (
@@ -1026,8 +1072,8 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
             className={local.avatarPreviewImg}
           />
           <div className={local.avatarPreviewHint}>
-            Upload a square image. It will be resized to a maximum of
-            128x128 pixels and uploaded only when you press Save.
+            Upload a square image. It will be resized to a maximum of 128x128
+            pixels and uploaded only when you press Save.
           </div>
         </div>
 

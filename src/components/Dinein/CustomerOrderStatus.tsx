@@ -18,8 +18,8 @@ import {
 } from "../../utils/dineinPendingItems";
 import local from "./CustomerOrderStatus.module.scss";
 
-const POLL_MS_ACTIVE = 15_000;
-const POLL_MS_BILL = 30_000;
+const POLL_MS_ACTIVE = 60_000;
+const POLL_MS_BILL = 90_000;
 const POLL_MS_TERMINAL = 120_000;
 
 const ACTIVE_ORDER_KEY_PREFIX = "dinein-active-order::";

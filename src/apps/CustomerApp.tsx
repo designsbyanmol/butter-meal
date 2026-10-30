@@ -26,7 +26,7 @@ const CustomerInner: React.FC = () => {
   if (!minElapsed || !appReady) {
     return (
       <Preloader
-        title="Loading your store..."
+        title="Loading store..."
         onReady={() => setMinElapsed(true)}
       />
     );

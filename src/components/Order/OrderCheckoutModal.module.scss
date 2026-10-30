@@ -1,0 +1,225 @@
+// src/components/Order/OrderCheckoutModal.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------- Close glyph (replaces the default X) ---------- */
+.closeGlyph {
+  font-size: 18px;
+  line-height: 1;
+  color: $text;
+}
+
+/* ---------- Bill card (step 1) ---------- */
+.billCard {
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  background: $bg-subtle;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.billHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed $border;
+}
+
+.billRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.billLabel {
+  font-weight: 600;
+  color: $text-faint;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
+
+.billValue {
+  font-weight: 700;
+  color: $text;
+}
+
+/* ---------- Items ---------- */
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  color: $text;
+}
+
+.itemName {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.itemPrice {
+  white-space: nowrap;
+  font-weight: 600;
+  color: $text-muted;
+}
+
+/* ---------- Totals ---------- */
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed $border;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: $text-muted;
+}
+
+.discountRow {
+  color: $primary-dark;
+
+  span {
+    color: $primary-dark;
+  }
+}
+
+.grandTotal {
+  padding-top: 8px;
+  border-top: 1px dashed $border;
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+
+  span {
+    color: $text;
+  }
+}
+
+/* ---------- Send instructions (step 2) ---------- */
+.sendInstructions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid $border-soft;
+  border-radius: $radius-md;
+  background: #fff;
+}
+
+.sendTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: $text;
+}
+
+.sendSteps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  list-style-type: number!important;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: $text;
+
+  li {
+    color: $text-muted;
+
+    strong {
+      color: $text;
+      font-weight: 700;
+    }
+  }
+}
+
+.sendNote {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  border: 1px dashed $border;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-muted;
+
+  strong {
+    color: $text;
+  }
+}
+
+.paidBadge {
+  align-self: center;
+  padding: 6px 14px;
+  border-radius: $radius-pill;
+  background: $primary-tint;
+  color: $primary-dark;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ---------- Success ---------- */
+.successBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 20px 8px;
+}
+
+.successIcon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.successTitle {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: $text;
+}
+
+.successText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: $text-muted;
+  max-width: 360px;
+}
+
+/* ---------- Small screens ---------- */
+@include mobile(480px) {
+  .billCard,
+  .sendInstructions {
+    padding: 12px;
+  }
+  .grandTotal {
+    font-size: 13px;
+  }
+}

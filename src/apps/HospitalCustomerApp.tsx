@@ -372,59 +372,64 @@ export default function HospitalCustomerApp() {
     setBookingStep('payment');
   };
 
-  const handlePay = async () => {
-    if (!tenant || !selectedService || !supabase) return;
-    setIsProcessing(true);
-    setError('');
+  // src/apps/HospitalCustomerApp.tsx — handlePay()
 
-    try {
-      const tokenNo = await supabaseService.getNextHospitalToken(tenant.slug);
-      const today = new Date().toISOString().split('T')[0];
-      const ageNum =
-        formData.age !== '' ? Number(formData.age) || null : null;
+const handlePay = async () => {
+  if (!tenant || !selectedService || !supabase) return;
+  setIsProcessing(true);
+  setError('');
 
-      const { data, error: insertErr } = await supabase
-        .from('star_veg_hospital_appointments')
-        .insert({
-          tenant_id: tenant.id,
-          service_id: selectedService.id,
-          category: selectedService.category,
-          token_no: tokenNo,
-          patient_name: formData.name,
-          phone: formData.phone,
-          address: formData.address,
-          doctor_name: formData.doctor,
-          age: ageNum,
-          gender: formData.gender || null,
-          payment_status: 'pending',
-          status: 'new',
-          booking_date: today,
-          price: selectedService.price,
-        })
-        .select()
-        .single();
+  const client = supabase;        // ← non-null narrow for TS
+  const ageYears =
+    formData.age !== '' ? Number(formData.age) || null : null;
 
-      if (insertErr) throw insertErr;
+  try {
+    const tokenNo = await supabaseService.getNextHospitalToken(tenant.slug);
+    const today = new Date().toISOString().split('T')[0];
 
-      await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
-        name: formData.name,
+    const { data, error: insertErr } = await client
+      .from('star_veg_hospital_appointments')
+      .insert({
+        tenant_id: tenant.id,
+        service_id: selectedService.id,
+        category: selectedService.category,
+        token_no: tokenNo,
+        patient_name: formData.name,
         phone: formData.phone,
         address: formData.address,
-        age: ageNum,
+        doctor_name: formData.doctor,
+        age: ageYears,
         gender: formData.gender || null,
-      });
+        payment_status: 'pending',
+        status: 'new',
+        booking_date: today,
+        price: selectedService.price,
+      })
+      .select()
+      .single();
 
-      sessionStorage.setItem(ACTIVE_TOKEN_KEY, data.id);
-      setMyToken(data);
-      setBookingStep('waiting');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to book appointment. Please try again.');
-      setBookingStep('form');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    if (insertErr) throw insertErr;
+
+    await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      age_years: ageYears,
+      age_months: null,
+      gender: formData.gender || null,
+    });
+
+    sessionStorage.setItem(ACTIVE_TOKEN_KEY, data.id);
+    setMyToken(data);
+    setBookingStep('waiting');
+  } catch (err) {
+    console.error(err);
+    setError('Failed to book appointment. Please try again.');
+    setBookingStep('form');
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const handleCloseSuccess = () => {
     sessionStorage.removeItem(ACTIVE_TOKEN_KEY);

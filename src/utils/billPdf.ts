@@ -8,11 +8,6 @@ export interface BillTenantInfo {
   gstPercent?: number;
 }
 
-/**
- * A consolidated bill line. Two source items collapse into one line
- * only if their name, customizations, and custom message match
- * exactly.
- */
 export interface ConsolidatedBillLine {
   name: string;
   quantity: number;
@@ -66,17 +61,11 @@ const slugify = (s: string): string =>
     .slice(0, 40) || 'bill';
 
 // ---------- Layout ----------
-// 80mm thermal roll. jspdf has no "auto" page height, so we make a
-// very tall page and let the receipt occupy only the top portion.
-// Printers that read this PDF will output a slip the length of the
-// content (or a full page for A4-style printers, but the visual style
-// matches the POS slip exactly).
 const PAGE_W_MM = 80;
-const PAGE_H_MM = 900;
+const MEASURE_H_MM = 900; // tall page used only for measuring
 const MARGIN_MM = 4;
-const CONTENT_W_MM = PAGE_W_MM - MARGIN_MM * 2; // 72mm
+const CONTENT_W_MM = PAGE_W_MM - MARGIN_MM * 2;
 
-// Column widths in mm, matching Receipt.module.scss.
 const COL_SN_MM = 5;
 const COL_QTY_MM = 8;
 const COL_PRICE_MM = 15;
@@ -90,7 +79,6 @@ const COL_NAME_MM =
   COL_TOTAL_MM -
   COL_GAP_MM * 4;
 
-// Right-edge X anchors (mm, origin top-left)
 const X_LEFT = MARGIN_MM;
 const X_RIGHT = PAGE_W_MM - MARGIN_MM;
 const X_TOTAL_RIGHT = X_RIGHT;
@@ -99,11 +87,10 @@ const X_QTY_RIGHT = X_PRICE_RIGHT - COL_PRICE_MM - COL_GAP_MM;
 const X_NAME_LEFT = X_LEFT + COL_SN_MM + COL_GAP_MM;
 const X_SN_LEFT = X_LEFT;
 
-// Font sizes in points, tuned for 80mm at print resolution.
-const FONT_BASE = 7;        // 9.5px @96dpi ≈ 7pt
-const FONT_HEADER = 9;      // 12px ≈ 9pt
-const FONT_TINY = 6;        // 8.5px ≈ 6pt
-const FONT_TOTAL = 8.5;     // 11px ≈ 8.5pt
+const FONT_BASE = 7;
+const FONT_HEADER = 9;
+const FONT_TINY = 6;
+const FONT_TOTAL = 8.5;
 
 const rupees = (n: number): string =>
   `Rs ${Number(n).toLocaleString('en-IN', {
@@ -135,24 +122,22 @@ const solidLine = (
   pdf.line(x1, y, x2, y);
 };
 
-export const downloadBillPdf = (
+/**
+ * Draw the bill onto `pdf` and return the final cursor Y (mm).
+ * Identical content to your existing bill; only the caller decides
+ * the page height.
+ */
+const renderBill = (
+  pdf: jsPDF,
   order: DineinOrder,
   tenant: BillTenantInfo,
-): void => {
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: [PAGE_W_MM, PAGE_H_MM],
-  });
-
+): number => {
   pdf.setFont('courier', 'normal');
   pdf.setTextColor(0, 0, 0);
 
   let y = MARGIN_MM + 2;
 
-  // =========================================================
-  // Header (centered)
-  // =========================================================
+  // ---------- Header ----------
   pdf.setFont('courier', 'bold');
   pdf.setFontSize(FONT_HEADER);
   const title = tenant.displayName.toUpperCase();
@@ -198,9 +183,7 @@ export const downloadBillPdf = (
   dashedLine(pdf, y);
   y += 3;
 
-  // =========================================================
-  // Column headers
-  // =========================================================
+  // ---------- Column headers ----------
   pdf.setFont('courier', 'bold');
   pdf.setFontSize(FONT_TINY);
   pdf.text('#', X_SN_LEFT, y);
@@ -212,9 +195,7 @@ export const downloadBillPdf = (
   solidLine(pdf, y);
   y += 3.5;
 
-  // =========================================================
-  // Item rows
-  // =========================================================
+  // ---------- Item rows ----------
   const lines = consolidateItems(order.items);
   const lineGap = 3.5;
   const subGap = 3;
@@ -223,23 +204,19 @@ export const downloadBillPdf = (
     pdf.setFont('courier', 'normal');
     pdf.setFontSize(FONT_BASE);
 
-    // Wrap the name to the name-column width.
     const nameLines = pdf.splitTextToSize(line.name, COL_NAME_MM);
 
-    // Row baseline
     pdf.text(String(idx + 1), X_SN_LEFT, y);
     pdf.text(String(line.quantity), X_QTY_RIGHT, y, { align: 'right' });
     pdf.text(rupees(line.unitPrice), X_PRICE_RIGHT, y, { align: 'right' });
     pdf.text(rupees(line.lineTotal), X_TOTAL_RIGHT, y, { align: 'right' });
 
-    // Name may span multiple lines; other columns stay on the first line.
     nameLines.forEach((ln: string, i: number) => {
       pdf.text(ln, X_NAME_LEFT, y + i * lineGap);
     });
 
     y += Math.max(nameLines.length, 1) * lineGap;
 
-    // Customizations
     if (line.customizations && Object.keys(line.customizations).length > 0) {
       pdf.setFont('courier', 'normal');
       pdf.setFontSize(FONT_TINY);
@@ -253,7 +230,6 @@ export const downloadBillPdf = (
       });
     }
 
-    // Note
     if (line.customMessage && line.customMessage.trim()) {
       pdf.setFont('courier', 'italic');
       pdf.setFontSize(FONT_TINY);
@@ -273,17 +249,11 @@ export const downloadBillPdf = (
   dashedLine(pdf, y);
   y += 4;
 
-  // =========================================================
-  // Totals
-  // =========================================================
+  // ---------- Totals ----------
   const totalsRightX = X_RIGHT;
   const totalsLabelX = X_LEFT + CONTENT_W_MM - 40;
 
-  const totalRow = (
-    label: string,
-    amount: string,
-    bold = false,
-  ) => {
+  const totalRow = (label: string, amount: string, bold = false) => {
     pdf.setFont('courier', bold ? 'bold' : 'normal');
     pdf.setFontSize(bold ? FONT_TOTAL : FONT_BASE);
     pdf.text(label, totalsLabelX, y);
@@ -305,11 +275,9 @@ export const downloadBillPdf = (
   solidLine(pdf, y - 1);
   y += 1.5;
   const billTotal = order.totalAmount - (order.staffTip ?? 0);
-totalRow('Total', rupees(billTotal), true);
+  totalRow('Total', rupees(billTotal), true);
 
-  // =========================================================
-  // Footer
-  // =========================================================
+  // ---------- Footer ----------
   y += 1;
   dashedLine(pdf, y);
   y += 4;
@@ -319,6 +287,30 @@ totalRow('Total', rupees(billTotal), true);
   pdf.text('Thank you! Visit again.', PAGE_W_MM / 2, y, {
     align: 'center',
   });
+  y += 3;
+
+  return y + MARGIN_MM + 1; // small bottom padding
+};
+
+export const downloadBillPdf = (
+  order: DineinOrder,
+  tenant: BillTenantInfo,
+): void => {
+  // 1. Measure pass.
+  const measurePdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [PAGE_W_MM, MEASURE_H_MM],
+  });
+  const naturalHeight = renderBill(measurePdf, order, tenant);
+
+  // 2. Real pass with exact height.
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [PAGE_W_MM, naturalHeight],
+  });
+  renderBill(pdf, order, tenant);
 
   pdf.save(`${slugify(tenant.displayName)}-bill-${order.orderNo}.pdf`);
 };

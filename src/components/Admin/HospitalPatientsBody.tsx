@@ -24,7 +24,12 @@ import {
   FilterIcon,
   CloseIcon,
 } from "../../assets/svgs";
-
+const patientsKey = (slug: string) => `pharmacy_patients_cache::${slug}`;
+const writeCache = (key: string, list: any[]) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {}
+};
 interface HospitalPatientsBodyProps {
   onCountChange?: (n: number) => void;
 }
@@ -34,7 +39,8 @@ const GENDERS = ["Male", "Female", "Other"];
 
 const emptyForm = {
   name: "",
-  age: "",
+  age_years: "",
+  age_months: "",
   gender: "Male",
   phone: "",
   email: "",
@@ -59,13 +65,14 @@ export default function HospitalPatientsBody({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  const load = async () => {
-    if (!tenant) return;
-    setIsLoading(true);
-    const data = await supabaseService.getHospitalPatients(tenant.slug);
-    setPatients(data);
-    setIsLoading(false);
-  };
+const load = async () => {
+  if (!tenant) return;
+  setIsLoading(true);
+  const data = await supabaseService.getHospitalPatients(tenant.slug);
+  setPatients(data);
+  writeCache(patientsKey(tenant.slug), data); // ← new
+  setIsLoading(false);
+};
 
   useEffect(() => {
     load();
@@ -83,32 +90,51 @@ export default function HospitalPatientsBody({
   const openEditModal = (patient: any) => {
     setEditingId(patient.id);
     setForm({
-      name: patient.name || "",
-      age: patient.age || "",
-      gender: patient.gender || "Male",
-      phone: patient.phone || "",
-      email: patient.email || "",
-      address: patient.address || "",
-    });
+  name: patient.name || "",
+  age_years:
+    patient.age_years !== undefined && patient.age_years !== null
+      ? String(patient.age_years)
+      : "",
+  age_months:
+    patient.age_months !== undefined && patient.age_months !== null
+      ? String(patient.age_months)
+      : "",
+  gender: patient.gender || "Male",
+  phone: patient.phone || "",
+  email: patient.email || "",
+  address: patient.address || "",
+});
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!tenant || !form.name) return;
-    setIsSaving(true);
+  if (!tenant || !form.name) return;
+  setIsSaving(true);
 
-    if (editingId) {
-      await supabaseService.updateHospitalPatient(editingId, form);
-    } else {
-      await supabaseService.addHospitalPatient(tenant.slug, form);
-    }
-
-    setIsSaving(false);
-    setIsModalOpen(false);
-    setForm({ ...emptyForm });
-    setEditingId(null);
-    load();
+  const payload = {
+    name: form.name.trim(),
+    age_years:
+      form.age_years !== "" ? Number(form.age_years) || 0 : null,
+    age_months:
+      form.age_months !== "" ? Number(form.age_months) || 0 : null,
+    gender: form.gender,
+    phone: form.phone.trim(),
+    email: form.email.trim(),
+    address: form.address.trim(),
   };
+
+  if (editingId) {
+    await supabaseService.updateHospitalPatient(editingId, payload);
+  } else {
+    await supabaseService.addHospitalPatient(tenant.slug, payload);
+  }
+
+  setIsSaving(false);
+  setIsModalOpen(false);
+  setForm({ ...emptyForm });
+  setEditingId(null);
+  load();
+};
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -147,6 +173,22 @@ export default function HospitalPatientsBody({
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
+
+  useEffect(() => {
+  if (!tenant) return;
+
+  const onChanged = (e: Event) => {
+    const detail = (e as CustomEvent).detail as { slug?: string } | undefined;
+    if (detail?.slug !== tenant.slug) return;
+    load();
+  };
+
+  window.addEventListener('hospital-patients:changed', onChanged);
+  return () => {
+    window.removeEventListener('hospital-patients:changed', onChanged);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [tenant?.slug]);
 
   return (
     <>
@@ -245,9 +287,17 @@ export default function HospitalPatientsBody({
                         {p.name}
                       </h3>
                       <Badge tone="neutral" size="sm">
-                        {p.gender}
-                        {p.age ? ` . ${p.age} yrs` : ""}
-                      </Badge>
+  {p.gender}
+  {(() => {
+    const y = Number(p.age_years) || 0;
+    const m = Number(p.age_months) || 0;
+    if (!y && !m) return "";
+    const parts: string[] = [];
+    if (y) parts.push(`${y}y`);
+    if (m) parts.push(`${m}m`);
+    return ` · ${parts.join(" ")}`;
+  })()}
+</Badge>
                       {p.phone && (
                         <p
                           style={{
@@ -343,20 +393,52 @@ export default function HospitalPatientsBody({
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
-            <FormField label="Age">
-              <Input
-                type="number"
-                value={form.age}
-                onChange={(e) => setForm({ ...form, age: e.target.value })}
-              />
-            </FormField>
-            <FormField label="Gender">
-              <Select
-                value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                options={GENDERS.map((g) => ({ value: g, label: g }))}
-              />
-            </FormField>
+            <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+  }}
+>
+  <FormField label="Age (years)">
+    <Input
+      type="number"
+      min="0"
+      max="150"
+      value={form.age_years}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+        setForm({ ...form, age_years: v });
+      }}
+      placeholder="e.g. 2"
+    />
+  </FormField>
+
+  <FormField label="Age (months)">
+    <Input
+      type="number"
+      min="0"
+      max="11"
+      value={form.age_months}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+        setForm({
+          ...form,
+          age_months: v === "" ? "" : String(Math.min(11, Number(v))),
+        });
+      }}
+      placeholder="e.g. 4"
+    />
+  </FormField>
+</div>
+
+<FormField label="Gender">
+  <Select
+    value={form.gender}
+    onChange={(e) => setForm({ ...form, gender: e.target.value })}
+    options={GENDERS.map((g) => ({ value: g, label: g }))}
+  />
+</FormField>
           </div>
 
           <FormField label="Phone">

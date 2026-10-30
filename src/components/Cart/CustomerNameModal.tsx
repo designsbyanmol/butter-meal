@@ -48,6 +48,7 @@ const CustomerNameModal: React.FC<CustomerNameModalProps> = ({
       isOpen={isOpen}
       onClose={onCancel}
       title="Your Name"
+      position="top"
       size="sm"
       disableBackdropClose={true}
       footer={

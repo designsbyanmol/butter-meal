@@ -26,6 +26,13 @@ import {
   CloseIcon,
 } from "../../assets/svgs";
 
+const doctorsKey = (slug: string) => `pharmacy_doctors_cache::${slug}`;
+const writeCache = (key: string, list: any[]) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {}
+};
+
 const DEFAULT_CATEGORIES = [
   "General Medicine",
   "Pediatrics",
@@ -121,13 +128,14 @@ export default function HospitalDoctorsBody({
     };
   }, []);
 
-  const load = async () => {
-    if (!tenant) return;
-    setIsLoading(true);
-    const data = await supabaseService.getHospitalDoctors(tenant.slug);
-    setDoctors(data);
-    setIsLoading(false);
-  };
+const load = async () => {
+  if (!tenant) return;
+  setIsLoading(true);
+  const data = await supabaseService.getHospitalDoctors(tenant.slug);
+  setDoctors(data);
+  writeCache(doctorsKey(tenant.slug), data); // ← new
+  setIsLoading(false);
+};
 
   useEffect(() => {
     load();

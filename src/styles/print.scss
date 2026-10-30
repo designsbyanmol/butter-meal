@@ -1,0 +1,47 @@
+/* Only active when body has class "printing-receipt". */
+@media print {
+  body.printing-receipt {
+    /* Hide everything by default. */
+    > * {
+      display: none !important;
+    }
+
+    /* Show only the print portal. */
+    #print-portal {
+      display: block !important;
+      position: static !important;
+      width: 100% !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: #fff !important;
+    }
+  }
+
+  /* Fixed A5 landscape page. Chrome will use this because it's the
+     top-level document's @page rule. */
+  body.printing-receipt.print-a5-landscape {
+    @page {
+      size: A5 landscape;
+      margin: 6mm 8mm;
+    }
+  }
+
+  body.printing-receipt.print-80mm {
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+  }
+
+  body.printing-receipt.print-a4-portrait {
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+  }
+}
+
+/* Off-screen at all times, only shown during print via the class. */
+#print-portal {
+  display: none;
+}

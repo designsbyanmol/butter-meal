@@ -110,6 +110,7 @@
   font-weight: 600;
   line-height: 1.25;
   color: $text;
+
 }
 
 .closeBtn {
@@ -257,7 +258,7 @@
   .mobileFullScreen .title {
     flex: 1;
     min-width: 0;
-    font-size: 15px;
+    font-size: 12px;
   }
 
   .mobileFullScreen .body {

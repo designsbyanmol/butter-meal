@@ -16,6 +16,8 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
   /** Override the modal overlay's z-index. */
   overlayZIndex?: number;
+  /** Prevents closing the dialog by clicking the backdrop. */
+  disableBackdropClose?: boolean;
 }
 
 const variantToButton: Record<
@@ -39,6 +41,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
   overlayZIndex,
+  disableBackdropClose = false,
 }) => {
   return (
     <Modal
@@ -47,6 +50,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       title={title}
       size="sm"
       overlayZIndex={overlayZIndex}
+      disableBackdropClose={disableBackdropClose}
       footer={
         <>
           <Button variant="ghost" onClick={onCancel} disabled={loading}>

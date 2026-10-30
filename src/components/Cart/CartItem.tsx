@@ -74,12 +74,12 @@ const CartItem: React.FC<CartItemProps> = ({
             <span className={local.qtyNum}>{item.quantity}</span>
             <IconButton
               variant="ghost"
-              size="sm"
+              size="xs"
               shape="square"
               aria-label="Increase quantity"
               onClick={() => onIncrement(item.id, item.customizations)}
             >
-              <PlusIcon width={14} height={14} fill="#3caa46" />
+              <PlusIcon width={12} height={12} fill="#3caa46" />
             </IconButton>
           </div>
           <div className={local.itemRight}>

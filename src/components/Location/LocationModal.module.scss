@@ -81,3 +81,93 @@
     display: block;
   }
 }
+
+/* ── Action row ── */
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+/* Ok Sharing! (existing primary) */
+.btnOk {
+  background: #3caa46;
+  border: none;
+  color: white;
+  font-weight: 400;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+  flex: 1;
+
+  &:hover:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Skip — neutral, no color emphasis, but visible */
+.btnSkip {
+  background: #f6f6f6;
+  border: 1px solid #e0e0e0;
+  color: #4d4d4d;
+  font-weight: 500;
+  padding: 14px 22px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.15s;
+  flex: 0 0 auto;
+
+  &:hover:not(:disabled) {
+    background: #ececec;
+    border-color: #cccccc;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Cancel — ghost, quiet */
+.btnCancel {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #888;
+  font-weight: 500;
+  padding: 14px 22px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: 0.15s;
+  flex: 0 0 auto;
+
+  &:hover:not(:disabled) {
+    color: #4d4d4d;
+    background: #fafafa;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

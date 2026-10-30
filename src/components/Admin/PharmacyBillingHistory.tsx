@@ -3,6 +3,12 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useTenant } from "../../contexts/TenantContext";
 import { supabaseService } from "../../services/supabase.service";
 import {
+  filterByRetention,
+  pruneLocalBills,
+} from "../../utils/historyRetention";
+import { HISTORY_RETENTION_MONTHS } from "../../config/retention";
+import { downloadPharmacyHistoryPdf } from "../../utils/pharmacyHistoryPdf";
+import {
   Modal,
   Button,
   Input,
@@ -14,8 +20,14 @@ import {
   FormField,
   Pagination,
   Card,
+  Banner,
 } from "../ui";
-import { SearchIcon, FilterIcon, CloseIcon } from "../../assets/svgs";
+import {
+  SearchIcon,
+  FilterIcon,
+  CloseIcon,
+  DownloadIcon,
+} from "../../assets/svgs";
 import { formatRupees } from "../../utils/subscription";
 import { printReceiptNode } from "../../utils/printReceipt";
 import local from "./Pharmacy.module.scss";
@@ -35,6 +47,84 @@ type DatePreset =
   | "custom";
 
 const PAGE_SIZE = 12;
+const billsKey = (slug: string) => `billing_history::${slug}`;
+
+const normalizeBill = (b: any): any => {
+  const num = (v: any): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const fallbackId = [
+    "bill",
+    String(b.bill_no || b.billNo || ""),
+    String(b.created_at || b.createdAt || ""),
+    String(b.patient_name || b.customerName || ""),
+  ].join("::");
+  return {
+    ...b,
+    id: b.id ? String(b.id) : fallbackId,
+    subtotal: num(b.subtotal),
+    discount: num(b.discount),
+    additional_discount_pct: num(b.additional_discount_pct),
+    additional_discount: num(b.additional_discount),
+    gst_percent: num(b.gst_percent),
+    gst_amount: num(b.gst_amount),
+    taxable_value: num(b.taxable_value),
+    final_amount: num(b.final_amount),
+    items: Array.isArray(b.items) ? b.items : [],
+  };
+};
+
+const readCache = (key: string): any[] => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const loadAllBills = async (slug: string): Promise<any[]> => {
+  pruneLocalBills(slug);
+
+  void supabaseService
+    .pruneOldHistoryOnServer(HISTORY_RETENTION_MONTHS)
+    .catch(() => {});
+
+  const localBills = readCache(billsKey(slug));
+
+  let remoteBills: any[] = [];
+  try {
+    remoteBills = (await supabaseService.getPharmacyBills(slug)) ?? [];
+  } catch (err) {
+    console.warn("[pharmacy-history] supabase fetch failed:", err);
+  }
+
+  // Compose a unique key: prefer the bill number, fall back to the
+  // row id, and append created_at so duplicates never collide.
+  const keyOf = (b: any): string => {
+    const billNo = String(b.bill_no || b.billNo || "").trim();
+    const id = String(b.id || "").trim();
+    const createdAt = String(b.created_at || b.createdAt || "");
+    const base = billNo || id || "bill";
+    return `${base}::${createdAt}`;
+  };
+
+  // Local wins on a true duplicate (same key), otherwise keep both.
+  const byKey = new Map<string, any>();
+
+  // Remote first so a same-key local row can override it.
+  for (const b of remoteBills) {
+    byKey.set(keyOf(b), b);
+  }
+  for (const b of localBills) {
+    byKey.set(keyOf(b), b);
+  }
+
+  return filterByRetention(Array.from(byKey.values()), "created_at");
+};
 
 const DATE_OPTIONS: { key: DatePreset; label: string }[] = [
   { key: "all", label: "All Time" },
@@ -113,7 +203,6 @@ const computeRange = (preset: DatePreset, from: string, to: string) => {
 interface FilterState {
   patient: string;
   phone: string;
-  doctor: string;
   datePreset: DatePreset;
   customFrom: string;
   customTo: string;
@@ -122,7 +211,6 @@ interface FilterState {
 const EMPTY_FILTERS: FilterState = {
   patient: "",
   phone: "",
-  doctor: "",
   datePreset: "all",
   customFrom: "",
   customTo: "",
@@ -132,14 +220,12 @@ const normUnit = (u: string) =>
   (u || "").toLowerCase().trim().replace(/s$/, "");
 const COUNTABLE_UNITS = new Set(["tablet", "capsule", "strip", "sachet"]);
 
-/** Render a stored item's Qty cell as "2 packs + 3 tablets" (or fallback). */
 function historyQtyLabel(it: any): string {
   const packOf = Math.max(1, Number(it.packOf) || Number(it.pack_of) || 1);
   const qty = Math.max(0, Number(it.qty) || 0);
   const extra = Math.max(0, Number(it.extraUnits) || 0);
   const u = normUnit(it.unit) || "unit";
   const countable = COUNTABLE_UNITS.has(u);
-
   if (countable && packOf > 1) {
     const parts: string[] = [];
     if (qty > 0) parts.push(`${qty} pack${qty !== 1 ? "s" : ""}`);
@@ -150,7 +236,6 @@ function historyQtyLabel(it: any): string {
   return "0";
 }
 
-/** Pack-of display for a stored item. */
 function historyPackLabel(it: any): string {
   const packOf = Math.max(1, Number(it.packOf) || Number(it.pack_of) || 1);
   const u = normUnit(it.unit);
@@ -170,37 +255,44 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
   const [page, setPage] = useState(1);
 
   const [selectedBill, setSelectedBill] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const loadBills = async () => {
-    if (!tenant) return;
-    setIsLoading(true);
-    const data = await supabaseService.getPharmacyBills(tenant.slug);
-    setBills(data || []);
-    setIsLoading(false);
-  };
-
   useEffect(() => {
-    if (isOpen) loadBills();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isOpen || !tenant) return;
+    let cancelled = false;
+    setIsLoading(true);
+
+    loadAllBills(tenant.slug)
+      .then((list) => {
+        if (cancelled) return;
+        setBills(list.map(normalizeBill));
+      })
+      .catch((err) => {
+        console.warn("[pharmacy-history] load failed:", err);
+        if (!cancelled) setBills([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, tenant?.slug]);
 
   const suggestions = useMemo(() => {
     const patients = new Set<string>();
     const phones = new Set<string>();
     const doctors = new Set<string>();
-
     bills.forEach((b) => {
       if (b.patient_name) patients.add(b.patient_name);
       if (b.phone) phones.add(b.phone);
       if (b.doctor_name) doctors.add(b.doctor_name);
     });
-
     return {
       patients: Array.from(patients).sort(),
       phones: Array.from(phones).sort(),
@@ -227,7 +319,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
     bills.forEach((b) => {
       const time = new Date(b.created_at).getTime();
       const amt = Number(b.final_amount) || 0;
-
       if (time >= todayStart && time <= todayEnd) todayTotal += amt;
       if (time >= yesterdayStart && time <= yesterdayEnd) yesterdayTotal += amt;
       if (time >= monthStart && time <= todayEnd) monthTotal += amt;
@@ -243,26 +334,31 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
       const q = search.toLowerCase();
       result = result.filter(
         (b) =>
-          b.bill_no.toLowerCase().includes(q) ||
-          b.patient_name.toLowerCase().includes(q) ||
-          b.phone.toLowerCase().includes(q) ||
-          (b.doctor_name || "").toLowerCase().includes(q),
+          String(b.bill_no || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(b.patient_name || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(b.phone || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(b.doctor_name || "")
+            .toLowerCase()
+            .includes(q),
       );
     }
 
     if (filters.patient.trim()) {
       result = result.filter((b) =>
-        b.patient_name.toLowerCase().includes(filters.patient.toLowerCase()),
+        String(b.patient_name || "")
+          .toLowerCase()
+          .includes(filters.patient.toLowerCase()),
       );
     }
     if (filters.phone.trim()) {
-      result = result.filter((b) => b.phone.includes(filters.phone));
-    }
-    if (filters.doctor.trim()) {
       result = result.filter((b) =>
-        (b.doctor_name || "")
-          .toLowerCase()
-          .includes(filters.doctor.toLowerCase()),
+        String(b.phone || "").includes(filters.phone),
       );
     }
 
@@ -300,7 +396,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
     let count = 0;
     if (filters.patient.trim()) count++;
     if (filters.phone.trim()) count++;
-    if (filters.doctor.trim()) count++;
     if (filters.datePreset !== "all") count++;
     return count;
   }, [filters]);
@@ -326,8 +421,45 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
 
   const handlePrintHistoryBill = () => {
     if (!printRef.current) return;
-    printReceiptNode(printRef.current);
+    printReceiptNode(printRef.current, {
+      title: `bill-${selectedBill?.bill_no ?? "history"}`,
+      pageSize: "A5 landscape",
+    });
   };
+
+const handleExportAll = () => {
+  if (!tenant || filteredBills.length === 0) return;
+  downloadPharmacyHistoryPdf({
+    rows: filteredBills.map((b) => ({
+      id: b.id,
+      bill_no: b.bill_no,
+      patient_name: b.patient_name,
+      phone: b.phone,
+      address: b.address,
+      ageYears: b.age_years ?? b.patient_age_years ?? null,
+      ageMonths: b.age_months ?? b.patient_age_months ?? null,
+      gender: b.gender ?? b.patient_gender ?? null,
+      doctor_name: b.doctor_name,
+      items: b.items || [],
+      subtotal: Number(b.subtotal) || 0,
+      discount: Number(b.discount) || 0,
+      additional_discount_pct: Number(b.additional_discount_pct) || 0,
+      additional_discount: Number(b.additional_discount) || 0,
+      gst_percent: Number(b.gst_percent) || 0,
+      gst_amount: Number(b.gst_amount) || 0,
+      taxable_value: Number(b.taxable_value) || 0,
+      final_amount: Number(b.final_amount) || 0,
+      created_at: b.created_at,
+    })),
+    storeName: tenant.displayName,
+    fromIso:
+      filteredBills.length > 0
+        ? filteredBills[filteredBills.length - 1].created_at
+        : null,
+    toIso:
+      filteredBills.length > 0 ? filteredBills[0].created_at : null,
+  });
+};
 
   return (
     <>
@@ -338,11 +470,29 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
         size="xl"
         mobileFullScreen
         footer={
-          <Button variant="ghost" onClick={onClose} block>
-            Close
-          </Button>
+          <>
+            <Button variant="ghost" onClick={onClose} block>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleExportAll}
+              disabled={filteredBills.length === 0}
+              leftIcon={
+                <DownloadIcon width={14} height={14} fill="currentColor" />
+              }
+            >
+              Export All
+            </Button>
+          </>
         }
       >
+        <Banner
+            variant="warning"
+            inline
+          >
+            Please export regularly for not loosing data.
+          </Banner>
         <div className={local.statsGrid}>
           <Card padding="sm" className={local.statCardToday}>
             <span className={local.statLabelToday}>Today's Sale</span>
@@ -440,8 +590,8 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedBills.map((bill) => (
-                    <tr key={bill.id}>
+                  {paginatedBills.map((bill, index) => (
+                    <tr key={`${bill.id || bill.bill_no || "bill"}::${index}`}>
                       <td>
                         {new Date(bill.created_at).toLocaleDateString("en-IN", {
                           day: "2-digit",
@@ -454,8 +604,14 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                       </td>
                       <td>
                         {bill.patient_name}
-                        <br />
-                        <small className={local.mutedSmall}>{bill.phone}</small>
+                        {bill.phone && (
+                          <>
+                            <br />
+                            <small className={local.mutedSmall}>
+                              {bill.phone}
+                            </small>
+                          </>
+                        )}
                       </td>
                       <td>{bill.doctor_name || "-"}</td>
                       <td>
@@ -511,7 +667,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
       >
         <section className={local.filterSection}>
           <h4 className={local.filterSectionHeading}>Patient Details</h4>
-
           <div className={local.filterFieldStack}>
             <FormField label="Patient Name">
               <Input
@@ -541,22 +696,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
               <datalist id="suggest-phones">
                 {suggestions.phones.map((p) => (
                   <option key={p} value={p} />
-                ))}
-              </datalist>
-            </FormField>
-
-            <FormField label="Doctor Name">
-              <Input
-                value={draftFilters.doctor}
-                onChange={(e) =>
-                  setDraftFilters({ ...draftFilters, doctor: e.target.value })
-                }
-                placeholder="Search doctor..."
-                list="suggest-doctors"
-              />
-              <datalist id="suggest-doctors">
-                {suggestions.doctors.map((d) => (
-                  <option key={d} value={d} />
                 ))}
               </datalist>
             </FormField>
@@ -641,14 +780,12 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                   {selectedBill.address || "—"}
                 </span>
               </div>
-
               <div className={local.billHeaderItem}>
                 <span className={local.billHeaderLabel}>Doctor</span>
                 <span className={local.billHeaderValue}>
                   {selectedBill.doctor_name || "N/A"}
                 </span>
               </div>
-
               <div className={local.billHeaderItem}>
                 <span className={local.billHeaderLabel}>Date</span>
                 <span className={local.billHeaderValue}>
@@ -660,10 +797,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                     minute: "2-digit",
                   })}
                 </span>
-                <div className={`${local.totalRow} ${local.grandTotal}`}>
-                <span>Final Amount:</span>{" "}
-                <span>{formatRupees(selectedBill.final_amount)}</span>
-              </div>
               </div>
             </div>
 
@@ -696,11 +829,11 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
 
             <div className={`${local.totals} ${local.detailsTotals}`}>
               <div className={local.totalRow}>
-                <span>Subtotal:</span>{" "}
+                <span>Subtotal:</span>
                 <span>{formatRupees(selectedBill.subtotal)}</span>
               </div>
               <div className={local.totalRow}>
-                <span>Total Discount:</span>{" "}
+                <span>Total Discount:</span>
                 <span>-{formatRupees(selectedBill.discount)}</span>
               </div>
               {Number(selectedBill.additional_discount) > 0 && (
@@ -711,15 +844,26 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                       ? ` (${Number(selectedBill.additional_discount_pct)}%)`
                       : ""}
                     :
-                  </span>{" "}
+                  </span>
                   <span>-{formatRupees(selectedBill.additional_discount)}</span>
                 </div>
               )}
+              {Number(selectedBill.gst_amount) > 0 && (
+                <div className={local.totalRow}>
+                  <span>GST ({Number(selectedBill.gst_percent)}%):</span>
+                  <span>{formatRupees(selectedBill.gst_amount)}</span>
+                </div>
+              )}
+              <div className={`${local.totalRow} ${local.grandTotal}`}>
+                <span>Final Amount:</span>
+                <span>{formatRupees(selectedBill.final_amount)}</span>
+              </div>
             </div>
           </div>
         )}
       </Modal>
 
+      {/* Hidden A5 print */}
       <div className={local.printHiddenContainer}>
         {selectedBill && (
           <div ref={printRef} className={local.printPage}>
@@ -728,7 +872,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                 <h2 className={local.printTitle}>
                   {tenant?.displayName || "Hospital Name"}
                 </h2>
-
                 {tenant?.storeTagline && (
                   <p className={local.printTagline}>{tenant.storeTagline}</p>
                 )}
@@ -839,7 +982,6 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                     `1. Goods once sold will not be taken back.\n2. Keep medicines out of reach of children.`}
                 </div>
               </div>
-
               <div className={local.printTotals}>
                 <p>Subtotal: {formatRupees(selectedBill.subtotal)}</p>
                 <p>Discount: -{formatRupees(selectedBill.discount)}</p>
@@ -852,9 +994,22 @@ const PharmacyBillingHistory: React.FC<BillHistoryProps> = ({
                     : -{formatRupees(selectedBill.additional_discount)}
                   </p>
                 )}
+                {Number(selectedBill.gst_amount) > 0 && (
+                  <>
+                    <p>
+                      Taxable value:{" "}
+                      {formatRupees(selectedBill.taxable_value || 0)}
+                    </p>
+                    <p>
+                      GST ({Number(selectedBill.gst_percent)}%):{" "}
+                      {formatRupees(selectedBill.gst_amount)}
+                    </p>
+                  </>
+                )}
                 <h3>Final Amount: {formatRupees(selectedBill.final_amount)}</h3>
               </div>
             </div>
+            <div className={local.printGetWell}>Get Well Soon by Dozzelo</div>
           </div>
         )}
       </div>

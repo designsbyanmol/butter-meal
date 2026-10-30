@@ -2,7 +2,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon, LeftArrowIcon } from '../../../assets/svgs';
-import { pushEsc, popEsc, isTopEsc } from '../_escStack';
+import { pushEsc, popEsc, isTopEsc, escDepth } from '../_escStack';
 import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 import styles from './Modal.module.scss';
@@ -28,6 +28,7 @@ export interface ModalProps {
 }
 
 const MOBILE_EXIT_MS = 220;
+const HISTORY_CLEANUP_DELAY_MS = MOBILE_EXIT_MS + 60;
 
 const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -54,6 +55,7 @@ const Modal: React.FC<ModalProps> = ({
   const [visible, setVisible] = useState(isOpen);
   const [exiting, setExiting] = useState(false);
   const exitTimerRef = useRef<number | null>(null);
+  const historyCleanupTimerRef = useRef<number | null>(null);
   const prevIsOpenRef = useRef(isOpen);
   const exitRanRef = useRef(false);
 
@@ -114,9 +116,14 @@ const Modal: React.FC<ModalProps> = ({
         window.clearTimeout(exitTimerRef.current);
         exitTimerRef.current = null;
       }
+      if (historyCleanupTimerRef.current !== null) {
+        window.clearTimeout(historyCleanupTimerRef.current);
+        historyCleanupTimerRef.current = null;
+      }
     };
   }, []);
 
+  // ---------- ESC key ----------
   useEffect(() => {
     if (!isOpen) return;
 
@@ -138,6 +145,7 @@ const Modal: React.FC<ModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, disableBackdropClose, instanceId]);
 
+  // ---------- Body scroll lock ----------
   useEffect(() => {
     if (!isOpen || !lockScroll) return;
     lockBodyScroll();
@@ -146,12 +154,21 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, lockScroll]);
 
+  // ---------- History guard ----------
+  // Only the *bottom-most* modal owns a history entry. If another
+  // modal is already on the ESC stack, we do not push or listen.
+  // This means the parent modal remains the sole owner of the back
+  // button, and cleanups from exiting children can't accidentally
+  // pop our state.
   useEffect(() => {
     if (!isOpen) return;
 
+    // Already at least one modal open? Then we're a stacked modal.
+    // Don't push, don't listen.
+    const isStacked = escDepth() > 1;
+    if (isStacked) return;
+
     const stateId = `modal-${instanceId}`;
-    let pushed = false;
-    let handlePopRef: ((this: Window, ev: PopStateEvent) => void) | null = null;
 
     const pushGuard = () => {
       try {
@@ -160,26 +177,24 @@ const Modal: React.FC<ModalProps> = ({
         )
           ? (window.history.state as any).__modalIds
           : [];
-        if (ids.includes(stateId)) return false;
+        if (ids.includes(stateId)) return;
         window.history.pushState(
           { ...(window.history.state ?? {}), __modalIds: [...ids, stateId] },
           '',
         );
-        return true;
       } catch {
-        return false;
+        /* ignore */
       }
     };
 
-    pushed = pushGuard();
+    pushGuard();
 
-    handlePopRef = () => {
+    const onPop = () => {
       const ids: string[] = Array.isArray(
         (window.history.state as any)?.__modalIds,
       )
         ? (window.history.state as any).__modalIds
         : [];
-
       if (ids.includes(stateId)) return;
 
       if (isTopEsc(instanceId)) {
@@ -189,29 +204,37 @@ const Modal: React.FC<ModalProps> = ({
       }
     };
 
-    window.addEventListener('popstate', handlePopRef);
+    window.addEventListener('popstate', onPop);
 
     return () => {
-      if (handlePopRef) {
-        window.removeEventListener('popstate', handlePopRef);
-      }
+      window.removeEventListener('popstate', onPop);
 
-      try {
-        const ids: string[] = Array.isArray(
-          (window.history.state as any)?.__modalIds,
-        )
-          ? (window.history.state as any).__modalIds
-          : [];
-        if (ids.includes(stateId)) {
-          const remaining = ids.filter((id) => id !== stateId);
-          window.history.replaceState(
-            { ...(window.history.state ?? {}), __modalIds: remaining },
-            '',
-          );
-        }
-      } catch {
-        /* ignore */
+      // Defer history cleanup until after the exit animation.
+      // Running it synchronously here would fire replaceState during
+      // the *incoming* modal's mount in mobile stacking scenarios,
+      // which is exactly the bug that was closing the top modal.
+      if (historyCleanupTimerRef.current !== null) {
+        window.clearTimeout(historyCleanupTimerRef.current);
       }
+      historyCleanupTimerRef.current = window.setTimeout(() => {
+        historyCleanupTimerRef.current = null;
+        try {
+          const ids: string[] = Array.isArray(
+            (window.history.state as any)?.__modalIds,
+          )
+            ? (window.history.state as any).__modalIds
+            : [];
+          if (ids.includes(stateId)) {
+            const remaining = ids.filter((id) => id !== stateId);
+            window.history.replaceState(
+              { ...(window.history.state ?? {}), __modalIds: remaining },
+              '',
+            );
+          }
+        } catch {
+          /* ignore */
+        }
+      }, HISTORY_CLEANUP_DELAY_MS);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, instanceId]);
@@ -252,7 +275,9 @@ const Modal: React.FC<ModalProps> = ({
     <div
       className={overlayClasses}
       onClick={handleBackdrop}
-      style={overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined}
+      style={
+        overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined
+      }
     >
       <div
         className={dialogClasses}

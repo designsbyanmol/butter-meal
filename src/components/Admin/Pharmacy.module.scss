@@ -2,8 +2,16 @@
 @use "../../styles/tokens" as *;
 @use "../../styles/mixins" as *;
 
+/* =========================================================
+   Pharmacy bill print — A5 LANDSCAPE only
+   ========================================================= */
+@page pharmacy-a5 {
+  size: A5 landscape;
+  margin: 4mm;
+}
+
 @page {
-  margin: 8mm;
+  margin: 4mm;
   size: auto;
 
   @top-left {
@@ -80,7 +88,7 @@
 
 .patientForm {
   display: grid;
-  grid-template-columns: 2fr 1fr 2fr 2fr;
+  grid-template-columns: 1fr 1fr 2fr 1fr;
   gap: 12px;
   margin-bottom: 20px;
 
@@ -242,14 +250,32 @@
   pointer-events: none;
 }
 
+/* inside the same file, replace `.printPage` with this exact block */
+
 .printPage {
-  width: 148mm;
-  min-height: 210mm;
-  padding: 10mm;
+  page: pharmacy-a5;
+  width: 210mm;
+  height: 148mm;          /* fixed A5-landscape height */
+  max-height: 148mm;      /* never grow past a single A5 sheet */
+  overflow: hidden;       /* clip any overflow instead of spilling to A4 */
+  padding: 6mm 8mm;
   background: #fff;
   color: #000;
   font-family: Arial, sans-serif;
   box-sizing: border-box;
+}
+
+@media print {
+  .printPage {
+    page: pharmacy-a5;
+    width: 210mm;
+    height: 148mm;
+    max-height: 148mm;
+    overflow: hidden;
+    padding: 6mm 8mm;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
 }
 
 /* ---------- Header ---------- */
@@ -427,6 +453,16 @@
     font-size: 14px;
     font-weight: 800;
   }
+}
+
+.printGetWell {
+  margin-top: 20px;
+  padding-top: 6px;
+  border-top: 1px dashed #dcdcdc;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
 }
 
 /* =========================================================
@@ -831,6 +867,10 @@
 
     &.xlCellAmount {
       padding: 0 10px;
+      strong {
+        font-weight: 600;
+        font-size: 10px;
+      }
     }
 
     &.xlCellDel {
@@ -941,7 +981,7 @@
   width: 50px;
 }
 .xlColAmount {
-  width: 50px;
+  width: 80px;
 }
 .xlColDel {
   width: 40px;
@@ -952,12 +992,6 @@
   /* the small "N tablets in stock" hint sits under the input */
   vertical-align: top;
 }
-.xlCellAmount strong {
-  display: block;
-  font-size: 13px;
-  color: #0f172a;
-}
-
 /* Qty cell - inline pk + loose on one row */
 .xlQtyRow {
   display: flex;
@@ -1163,4 +1197,369 @@
   font-size: 11px;
   color: #64748b;
   margin-top: 2px;
+}
+
+/* =========================================================
+   BillingBody — 80mm thermal receipt (all stores)
+   ========================================================= */
+@page billing-sheet {
+  size: 80mm auto;
+  margin: 4mm;
+}
+
+.billingReceipt {
+  page: billing-sheet;
+
+  width: 80mm;
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-family: 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace;
+  font-size: 10px;
+  line-height: 1.3;
+
+  /* was 4mm - reduce to compensate for the @page margin */
+  padding: 2mm 3mm;
+  margin: 0 auto;
+}
+
+.billingHeader {
+  text-align: center;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #000;
+  margin-bottom: 5px;
+
+  h2 {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+}
+
+.billingAddress,
+.billingTagline,
+.billingGstin,
+.billingContact {
+  margin: 2px 0 0;
+  font-size: 8.5px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.billingGstin {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.billingBillNo {
+  margin-top: 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.billingCustomerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 9.5px;
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #000;
+}
+
+.billingItemsHeader {
+  display: grid;
+  grid-template-columns: 14px 1fr 22px 40px 50px;
+  gap: 3px;
+  padding: 3px 0;
+  border-bottom: 1px solid #000;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.billingItems {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #000;
+}
+
+.billingItemLine {
+  display: grid;
+  grid-template-columns: 14px 1fr 22px 40px 50px;
+  gap: 3px;
+  align-items: baseline;
+  font-size: 9.5px;
+  line-height: 1.3;
+}
+
+.billingColSn {
+  font-size: 8.5px;
+}
+
+.billingColName {
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+.billingColQty,
+.billingColPrice,
+.billingColTotal {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.billingTotals {
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.billingTotalRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9.5px;
+
+  > :last-child {
+    white-space: nowrap;
+  }
+}
+
+.billingTotalBig {
+  padding-top: 3px;
+  margin-top: 2px;
+  border-top: 1px solid #000;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.billingTerms {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed #000;
+  font-size: 8.5px;
+  line-height: 1.35;
+}
+
+.billingTermsTitle {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.billingTermsBody {
+  white-space: pre-wrap;
+  color: #333;
+}
+
+.billingFooter {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed #000;
+  text-align: center;
+}
+
+.billingFooterText {
+  font-size: 9px;
+  margin-bottom: 4px;
+}
+
+.billingFooterStamp {
+  font-size: 8.5px;
+  color: #333;
+}
+
+@media print {
+  .billingReceipt {
+    padding: 3mm;
+  }
+}
+
+/* =========================================================
+   Customization strip (store billing)
+   ========================================================= */
+.xlCustomCell {
+  border-top: none !important;
+  padding: 8px 10px !important;
+  background: #f8fafc !important;
+}
+
+.customList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customGroupLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #475569;
+  min-width: 100px;
+}
+
+.customChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customChoicePrice {
+  font-style: normal;
+  font-weight: 600;
+  color: #1e7e34;
+  margin-left: 4px;
+  font-size: 10.5px;
+}
+
+.customNoteInput {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid #c7cdd4;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff;
+
+  &:focus {
+    outline: none;
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+  }
+}
+
+/* =========================================================
+   Pharmacy free-text customization strip
+   ========================================================= */
+.pharmCustomStrip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pharmAddonLabel,
+.pharmNoteLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.pharmAddonInput {
+  width: 90px;
+  padding: 5px 8px;
+  border: 1px solid #c7cdd4;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: right;
+  background: #fff;
+}
+
+.pharmNoteInput {
+  width: 260px;
+  padding: 5px 8px;
+  border: 1px solid #c7cdd4;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff;
+}
+
+/* =========================================================
+   Print/history extras
+   ========================================================= */
+.billingItemCustom {
+  font-size: 8px;
+  color: #555;
+  margin-top: 1px;
+}
+
+.billingItemNote {
+  font-size: 8px;
+  font-style: italic;
+  color: #666;
+  margin-top: 1px;
+}
+
+.historyCustomLine {
+  font-size: 11px;
+  color: #475569;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.historyNoteLine {
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 1px;
+}
+
+.printItemExtra {
+  font-size: 9px;
+  color: #333;
+  margin-top: 1px;
+  font-style: normal;
+}
+
+/* =========================================================
+   Pharmacy Stock — quick filters row
+   ========================================================= */
+.quickFiltersRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid $border-soft;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+/* =========================================================
+   Pharmacy Stock — severity highlighting (cell-level only)
+   ========================================================= */
+
+/* Expired date cell */
+.cellDangerExpiry {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  font-weight: 700;
+  border-left: 3px solid #dc2626 !important;
+}
+
+/* Out-of-stock qty cell */
+.cellDangerQty {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  font-weight: 700;
+  border-left: 3px solid #dc2626 !important;
+}
+
+/* ≤ 5 packs remaining qty cell */
+.cellWarningQty {
+  background: #fffbeb !important;
+  color: #92400e !important;
+  font-weight: 700;
+  border-left: 3px solid #f59e0b !important;
 }

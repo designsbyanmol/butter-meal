@@ -17,8 +17,8 @@ interface Props {
   onOpenOrder: (orderId: string) => void;
 }
 
-const ACTIVE_POLL_MS = 30_000;
-const IDLE_POLL_MS = 60_000;
+const ACTIVE_POLL_MS = 60_000;
+const IDLE_POLL_MS = 90_000;
 const IDLE_AFTER_POLLS = 4;
 const MAX_KEPT = 40;
 

@@ -2993,6 +2993,42 @@ async updateStoreSettings(
     return true;
   }
 
+  // Inside the SupabaseService class, alongside getMedicineStock / deductPharmacyStock
+
+/**
+ * Deduct stock for a list of { name, qty } entries against the tenant's
+ * pharmacy stock table, then return the freshly re-fetched stock.
+ *
+ * Returns the updated stock list, or null if the tenant / deduction
+ * failed. Callers can use the return value to mirror into the local
+ * cache so BillingBody and PharmacyStockBody stay in sync.
+ */
+async deductPharmacyStockAndReturn(
+  tenantSlug: string,
+  items: Array<{ name: string; qty: number }>,
+): Promise<any[] | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  if (items.length === 0) {
+    // Nothing to deduct - just return current stock.
+    return this.getMedicineStock(tenantSlug);
+  }
+
+  const { error } = await client.rpc("deduct_pharmacy_stock", {
+    tenant_slug_in: tenantSlug,
+    items_in: items,
+  });
+
+  if (error) {
+    console.error("deduct_pharmacy_stock error:", error);
+    return null;
+  }
+
+  // Re-fetch so the caller gets authoritative post-deduction values.
+  return this.getMedicineStock(tenantSlug);
+}
+
   // src/services/supabase.service.ts
 
 // ─────────────────────────────── HOSPITAL: SERVICES ───────────────────────────────
@@ -3360,7 +3396,8 @@ async upsertHospitalPatientByPhone(
     name: string;
     phone: string;
     address?: string;
-    age?: number | null;
+    age_years?: number | null;
+    age_months?: number | null;
     gender?: string | null;
   },
 ): Promise<boolean> {
@@ -3395,9 +3432,13 @@ async upsertHospitalPatientByPhone(
       name,
       phone,
       address: patient.address || '',
-      age:
-        patient.age !== undefined && patient.age !== null
-          ? Number(patient.age) || null
+      age_years:
+        patient.age_years !== undefined && patient.age_years !== null
+          ? Number(patient.age_years) || null
+          : null,
+      age_months:
+        patient.age_months !== undefined && patient.age_months !== null
+          ? Number(patient.age_months) || null
           : null,
       gender: patient.gender || null,
     });
@@ -3526,6 +3567,34 @@ async upsertHospitalPatientByPhone(
       createdAt: row.created_at ?? new Date().toISOString(),
     };
   }
+
+  // Add inside SupabaseService
+
+/**
+ * Delete rows older than the retention window from the pharmacy,
+ * store, and dine-in history tables. Returns counts or null on error.
+ * Safe to call on every history mount - the SQL is idempotent.
+ */
+async pruneOldHistoryOnServer(months: number): Promise<{
+  pharmacy: number;
+  store: number;
+  dinein: number;
+} | null> {
+  const client = this.getClient();
+  if (!client) return null;
+  const { data, error } = await client.rpc('prune_old_history', {
+    months_in: Math.max(1, Math.floor(months)),
+  });
+  if (error) {
+    console.warn('[history-retention] prune RPC failed:', error.message);
+    return null;
+  }
+  return {
+    pharmacy: Number((data as any)?.pharmacy) || 0,
+    store: Number((data as any)?.store) || 0,
+    dinein: Number((data as any)?.dinein) || 0,
+  };
+}
 
   private mapDineinTable(row: any): DineinTable {
     return {

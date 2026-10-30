@@ -394,27 +394,26 @@ export interface MessageTemplate {
 }
 
 export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
-  orderLabel: "New Order From {customerName}",
+  orderLabel: "New Order",
   namePrompt: "Please enter your name",
   namePromptPlaceholder: "e.g., Anmol",
 
-  itemListTitle: "Item List",
-  itemLineTemplate: "{name} x {qty}",
-  showItemDiscount: true,
-  showItemAddons: true,
-  showItemCustomizations: true,
-  showItemNotes: true,
+  itemListTitle: "Please do the following",
+  itemLineTemplate: "{name} x {qty}",      // kept for compatibility, unused in customer msg
+  showItemDiscount: false,
+  showItemAddons: false,
+  showItemCustomizations: false,
+  showItemNotes: false,
 
-  subtotalLabel: "Subtotal",
+  subtotalLabel: "Subtotal",               // kept for compatibility
   deliveryLabel: "Delivery",
   discountLabel: "Discount",
-  totalLabel: "Total Amount",
+  totalLabel: "Amount to pay",
   freeDeliveryLabel: "(+Rs {fee} Inc. for delivery)",
 
-  footerNote1:
-    "We take orders on trust. Once a faulty will be a lifetime faulty",
-  footerNote2: "Editing this order before payment = Order Cancelled",
-  footerSignature: "-Butter Meal",
+  footerNote1: "Attach the bill PDF you just downloaded.",
+  footerNote2: "Pay the amount via the UPI shown on the bill.",
+  footerSignature: "Share your current location for delivery.",
 };
 
 // =========================================================

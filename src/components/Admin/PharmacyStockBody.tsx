@@ -29,6 +29,15 @@ import {
   TrashIcon,
 } from "../../assets/svgs";
 import local from "./Pharmacy.module.scss";
+const stockKey = (slug: string) => `pharmacy_stock_cache::${slug}`;
+
+const writeCache = (key: string, list: any[]) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+};
 
 interface PharmacyStockBodyProps {
   embedded?: boolean;
@@ -64,8 +73,9 @@ const emptyMed = {
   expiryDate: "",
   mrp: 0,
   price: 0,
-  stockPacks: 0, // what the admin types - number of PACKS
-  stockQty: 0,   // derived = stockPacks × packOf (units), sent to DB
+  stockPacks: 0,
+  stockLoose: 0, // ← NEW
+  stockQty: 0,
 };
 
 const UNIT_OPTIONS = [
@@ -82,6 +92,7 @@ const UNIT_OPTIONS = [
   "drop",
   "inhaler",
   "patch",
+  "injection",
 ];
 
 /** Parse "Strip of 10 tablets" → { packOf: 10, unit: "tablet" } */
@@ -90,8 +101,8 @@ function parsePackString(pack: string): { packOf: number; unit: string } {
   const lower = pack.toLowerCase();
 
   const match = lower.match(
-    /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|ml|mg|gm|g|strips?|bottles?|tubes?|sachets?|drops?|inhalers?|patches?)/,
-  );
+  /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|ml|mg|gm|g|strips?|bottles?|tubes?|sachets?|drops?|inhalers?|patches?|injections?)/,
+);
   if (!match) return { packOf: 1, unit: "" };
 
   const packOf = Number(match[1]) || 1;
@@ -103,7 +114,8 @@ function parsePackString(pack: string): { packOf: number; unit: string } {
 }
 
 const COUNTABLE_UNITS = new Set(["tablet", "capsule", "strip", "sachet"]);
-const normUnit = (u: string) => (u || "").toLowerCase().trim().replace(/s$/, "");
+const normUnit = (u: string) =>
+  (u || "").toLowerCase().trim().replace(/s$/, "");
 const isCountable = (unit: string) => COUNTABLE_UNITS.has(normUnit(unit));
 
 /** Format stock_qty (in units) as "3 pack + 5 tablet" style */
@@ -139,29 +151,35 @@ function formatStockDisplay(
 const PAGE_SIZE = 12;
 
 type StockStatus = "all" | "inStock" | "lowStock" | "outOfStock";
-type ExpiryFilter = "all" | "expired" | "next30d" | "next90d";
+type ExpiryFilter = "all" | "expired" | "in3d" | "in7d" | "in30d";
 type DatePreset = "all" | "today" | "thisWeek" | "thisMonth" | "custom";
 
 interface StockFilters {
   status: StockStatus;
   expiry: ExpiryFilter;
+  type: string; // "all" | unit name
+  packOf: string; // "all" | numeric string
+  minPrice: string;
+  maxPrice: string;
+  minMrp: string;
+  maxMrp: string;
   datePreset: DatePreset;
   customFrom: string;
   customTo: string;
-  packSize: string;
-  minPrice: string;
-  maxPrice: string;
 }
 
 const EMPTY_FILTERS: StockFilters = {
   status: "all",
   expiry: "all",
+  type: "all",
+  packOf: "all",
+  minPrice: "",
+  maxPrice: "",
+  minMrp: "",
+  maxMrp: "",
   datePreset: "all",
   customFrom: "",
   customTo: "",
-  packSize: "",
-  minPrice: "",
-  maxPrice: "",
 };
 
 const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
@@ -205,6 +223,8 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
     setIsLoading(true);
     const data = await supabaseService.getMedicineStock(tenant.slug);
     setStock(data || []);
+    // Mirror into localStorage so BillingBody can read it offline.
+    writeCache(stockKey(tenant.slug), data || []);
     setIsLoading(false);
   };
 
@@ -256,53 +276,47 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
   };
 
   const handleEdit = (item: MedicineStock) => {
-  // Resolve packOf from DB, then fall back to parsing pack_size
-  const parsed = parsePackString(item.pack_size || "");
-  const packOf = Math.max(
-    1,
-    Number(item.pack_of) || parsed.packOf || 1,
-  );
-  const unit =
-    (item.unit || "").trim() ||
-    parsed.unit ||
-    "";
+    const parsed = parsePackString(item.pack_size || "");
+    const packOf = Math.max(1, Number(item.pack_of) || parsed.packOf || 1);
+    const unit = (item.unit || "").trim() || parsed.unit || "";
 
-  const stockQty = Math.max(0, Number(item.stock_qty) || 0);
-  // If the DB row was stored in PACKS (legacy), and packOf > 1, we want
-  // stockPacks = stockQty. If the row stores UNITS, we want stockQty/packOf.
-  // Heuristic: if stockQty is divisible by packOf and (packOf > 1), treat
-  // stockQty as units and divide. Otherwise keep as-is.
-  let stockPacks: number;
-  if (packOf > 1 && stockQty >= packOf && stockQty % packOf === 0) {
-    stockPacks = stockQty / packOf;
-  } else if (packOf > 1) {
-    // Not divisible → most likely this was stored as packs already, or
-    // a legacy row. Show raw value, do NOT inflate by packOf again.
-    stockPacks = stockQty;
-  } else {
-    stockPacks = stockQty;
-  }
+    const stockQty = Math.max(0, Number(item.stock_qty) || 0);
+    const countable = isCountable(unit);
 
-  setEditingId(item.id);
-  setForm({
-    name: item.name,
-    composition: item.composition || "",
-    manufacturer: item.manufacturer || "",
-    hsnCode: item.hsn_code || "",
-    packSize: item.pack_size || "",
-    packOf,
-    unit,
-    batchNo: item.batch_no || "",
-    expiryDate: item.expiry_date || "",
-    mrp: item.mrp || 0,
-    price: item.price || 0,
-    stockPacks,
-    stockQty,
-  });
-  setSearchQuery(item.name);
-  setSuggestions([]);
-  setIsModalOpen(true);
-};
+    // Split stock_qty into packs + loose units.
+    // - If packOf === 1, everything is "packs" (1 unit = 1 pack).
+    // - If countable, packs = floor(total / packOf), loose = total % packOf.
+    // - If non-countable (ml/mg/gm), we don't split - treat as one big
+    //   "pack" that equals the whole amount so the UI stays simple.
+    let stockPacks = stockQty;
+    let stockLoose = 0;
+
+    if (packOf > 1 && countable) {
+      stockPacks = Math.floor(stockQty / packOf);
+      stockLoose = stockQty % packOf;
+    }
+
+    setEditingId(item.id);
+    setForm({
+      name: item.name,
+      composition: item.composition || "",
+      manufacturer: item.manufacturer || "",
+      hsnCode: item.hsn_code || "",
+      packSize: item.pack_size || "",
+      packOf,
+      unit,
+      batchNo: item.batch_no || "",
+      expiryDate: item.expiry_date || "",
+      mrp: item.mrp || 0,
+      price: item.price || 0,
+      stockPacks,
+      stockLoose,
+      stockQty,
+    });
+    setSearchQuery(item.name);
+    setSuggestions([]);
+    setIsModalOpen(true);
+  };
 
   const handleSave = async () => {
     if (!tenant || !form.name) {
@@ -313,8 +327,16 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
     setIsSaving(true);
 
     const packOf = Math.max(1, Number(form.packOf) || 1);
-    const packs = Math.max(0, Number(form.stockPacks) || 0);
-    const stockUnits = Math.round(packs * packOf); // ← DB stores units
+    const packs = Math.max(0, Math.floor(Number(form.stockPacks) || 0));
+
+    const countable = isCountable(form.unit);
+    const looseRaw = Math.max(0, Math.floor(Number(form.stockLoose) || 0));
+    // Loose units can't exceed a full pack.
+    const loose = packOf > 1 && countable ? Math.min(looseRaw, packOf - 1) : 0;
+
+    // What gets stored on the server, in units.
+    const stockUnits =
+      packOf > 1 && countable ? packs * packOf + loose : packs * packOf; // non-countable: treat entered qty as single packs
 
     const payload = {
       name: form.name,
@@ -506,6 +528,25 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
     stock_qty: item.stock_qty || 0,
   });
 
+  // ---- helpers ----
+  const daysUntilExpiry = (dateStr?: string | null): number | null => {
+    if (!dateStr) return null;
+    const t = new Date(dateStr).getTime();
+    if (!Number.isFinite(t)) return null;
+    return Math.ceil((t - Date.now()) / (1000 * 60 * 60 * 24));
+  };
+
+  const filtersActive =
+    filters.status !== "all" ||
+    filters.expiry !== "all" ||
+    filters.type !== "all" ||
+    filters.packOf !== "all" ||
+    filters.minPrice !== "" ||
+    filters.maxPrice !== "" ||
+    filters.minMrp !== "" ||
+    filters.maxMrp !== "" ||
+    filters.datePreset !== "all";
+
   const filteredStock = useMemo(() => {
     let result = stock;
 
@@ -520,31 +561,62 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
       );
     }
 
+    // Stock status
     if (filters.status === "inStock")
-      result = result.filter((s) => s.stock_qty > 0);
+      result = result.filter((s) => Number(s.stock_qty) > 0);
     else if (filters.status === "lowStock")
-      result = result.filter((s) => s.stock_qty > 0 && s.stock_qty < 10);
+      result = result.filter(
+        (s) => Number(s.stock_qty) > 0 && Number(s.stock_qty) < 10,
+      );
     else if (filters.status === "outOfStock")
-      result = result.filter((s) => s.stock_qty === 0);
+      result = result.filter((s) => Number(s.stock_qty) === 0);
 
+    // Expiry
     if (filters.expiry !== "all") {
-      const now = new Date();
       result = result.filter((s) => {
-        if (!s.expiry_date) return false;
-        const exp = new Date(s.expiry_date);
-        const diffDays = Math.ceil(
-          (exp.getTime() - now.getTime()) / (1000 * 3600 * 24),
-        );
-
-        if (filters.expiry === "expired") return diffDays < 0;
-        if (filters.expiry === "next30d")
-          return diffDays >= 0 && diffDays <= 30;
-        if (filters.expiry === "next90d")
-          return diffDays >= 0 && diffDays <= 90;
+        const d = daysUntilExpiry(s.expiry_date);
+        if (d === null) return false;
+        if (filters.expiry === "expired") return d < 0;
+        if (filters.expiry === "in3d") return d >= 0 && d <= 3;
+        if (filters.expiry === "in7d") return d >= 0 && d <= 7;
+        if (filters.expiry === "in30d") return d >= 0 && d <= 30;
         return true;
       });
     }
 
+    // Unit type
+    if (filters.type !== "all") {
+      const t = normUnit(filters.type);
+      result = result.filter((s) => normUnit(s.unit) === t);
+    }
+
+    // Pack of
+    if (filters.packOf !== "all" && filters.packOf.trim() !== "") {
+      const target = Number(filters.packOf);
+      if (Number.isFinite(target)) {
+        result = result.filter(
+          (s) => Math.max(1, Number(s.pack_of) || 1) === target,
+        );
+      }
+    }
+
+    // Price range
+    if (filters.minPrice)
+      result = result.filter(
+        (s) => Number(s.price) >= Number(filters.minPrice),
+      );
+    if (filters.maxPrice)
+      result = result.filter(
+        (s) => Number(s.price) <= Number(filters.maxPrice),
+      );
+
+    // MRP range
+    if (filters.minMrp)
+      result = result.filter((s) => Number(s.mrp) >= Number(filters.minMrp));
+    if (filters.maxMrp)
+      result = result.filter((s) => Number(s.mrp) <= Number(filters.maxMrp));
+
+    // Added date
     if (filters.datePreset !== "all" && filters.datePreset !== "custom") {
       const now = new Date();
       let fromDate = new Date();
@@ -553,9 +625,9 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         const day = fromDate.getDay();
         fromDate.setDate(fromDate.getDate() - day + (day === 0 ? -6 : 1));
         fromDate.setHours(0, 0, 0, 0);
-      } else if (filters.datePreset === "thisMonth")
+      } else if (filters.datePreset === "thisMonth") {
         fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
-
+      }
       result = result.filter((s) => {
         if (!s.created_at) return false;
         return new Date(s.created_at).getTime() >= fromDate.getTime();
@@ -578,30 +650,72 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
       });
     }
 
-    if (filters.minPrice)
-      result = result.filter((s) => s.price >= Number(filters.minPrice));
-    if (filters.maxPrice)
-      result = result.filter((s) => s.price <= Number(filters.maxPrice));
-
     return result;
   }, [stock, searchQuery, filters]);
 
-  useEffect(() => {
-    if (onCountChange) onCountChange(filteredStock.length);
-  }, [filteredStock.length, onCountChange]);
+  // ---- severity ordering ----
+  // 2 = danger (expired OR out of stock)
+  // 1 = warning (0 < packs <= 5, where "packs" is total units / packOf)
+  // 0 = normal
+  const severityOf = (s: MedicineStock): 0 | 1 | 2 => {
+    const days = daysUntilExpiry(s.expiry_date);
+    const qty = Math.max(0, Number(s.stock_qty) || 0);
+    const packOf = Math.max(1, Number(s.pack_of) || 1);
+    const countable = isCountable(s.unit);
+    const packs = countable && packOf > 1 ? Math.floor(qty / packOf) : qty;
 
-  const totalPages = Math.max(1, Math.ceil(filteredStock.length / PAGE_SIZE));
-  const paginatedStock = filteredStock.slice(
+    if (qty === 0) return 2;
+    if (days !== null && days < 0) return 2;
+    if (packs > 0 && packs <= 5) return 1;
+    return 0;
+  };
+
+  // Classify a row so we know which specific cells to tint.
+  const expiryTone = (s: MedicineStock): "danger" | null => {
+    const d = daysUntilExpiry(s.expiry_date);
+    return d !== null && d < 0 ? "danger" : null;
+  };
+
+  const qtyTone = (s: MedicineStock): "danger" | "warning" | null => {
+    const qty = Math.max(0, Number(s.stock_qty) || 0);
+    if (qty === 0) return "danger";
+    const packOf = Math.max(1, Number(s.pack_of) || 1);
+    const countable = isCountable(s.unit);
+    const packs = countable && packOf > 1 ? Math.floor(qty / packOf) : qty;
+    return packs > 0 && packs <= 5 ? "warning" : null;
+  };
+
+  const orderedStock = useMemo(() => {
+    const list = [...filteredStock];
+    list.sort((a, b) => {
+      const sa = severityOf(a);
+      const sb = severityOf(b);
+      if (sa !== sb) return sb - sa; // danger first, warning next
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [filteredStock]);
+
+  // Paginate over the ordered list.
+  const totalPages = Math.max(1, Math.ceil(orderedStock.length / PAGE_SIZE));
+  const paginatedStock = orderedStock.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
+
+  useEffect(() => {
+    if (onCountChange) onCountChange(orderedStock.length);
+  }, [orderedStock.length, onCountChange]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.status !== "all") count++;
     if (filters.expiry !== "all") count++;
-    if (filters.datePreset !== "all") count++;
+    if (filters.type !== "all") count++;
+    if (filters.packOf !== "all") count++;
     if (filters.minPrice || filters.maxPrice) count++;
+    if (filters.minMrp || filters.maxMrp) count++;
+    if (filters.datePreset !== "all") count++;
     return count;
   }, [filters]);
 
@@ -708,6 +822,105 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
           </div>
         </div>
 
+        <div className={local.quickFiltersRow}>
+          <Chip
+            tone="primary"
+            active={filters.status === "inStock"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                status: f.status === "inStock" ? "all" : "inStock",
+              }))
+            }
+          >
+            In stock
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.status === "outOfStock"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                status: f.status === "outOfStock" ? "all" : "outOfStock",
+              }))
+            }
+          >
+            Out of stock
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.status === "lowStock"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                status: f.status === "lowStock" ? "all" : "lowStock",
+              }))
+            }
+          >
+            Low stock
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.expiry === "expired"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                expiry: f.expiry === "expired" ? "all" : "expired",
+              }))
+            }
+          >
+            Expired
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.expiry === "in3d"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                expiry: f.expiry === "in3d" ? "all" : "in3d",
+              }))
+            }
+          >
+            In 3 days
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.expiry === "in7d"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                expiry: f.expiry === "in7d" ? "all" : "in7d",
+              }))
+            }
+          >
+            In 7 days
+          </Chip>
+          <Chip
+            tone="primary"
+            active={filters.expiry === "in30d"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                expiry: f.expiry === "in30d" ? "all" : "in30d",
+              }))
+            }
+          >
+            In 1 month
+          </Chip>
+
+          <Button
+            size="sm"
+            variant={activeFilterCount > 0 ? "primary" : "ghost"}
+            onClick={openFilterSheet}
+            leftIcon={<FilterIcon width={14} height={14} fill="currentColor" />}
+          >
+            More
+            {activeFilterCount > 0 && (
+              <span className={local.filterCount}>{activeFilterCount}</span>
+            )}
+          </Button>
+        </div>
+
         {isLoading ? (
           <div className={local.loadingState}>Loading stock...</div>
         ) : filteredStock.length === 0 ? (
@@ -740,6 +953,10 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
                     );
                     const low = s.stock_qty > 0 && s.stock_qty < 10;
 
+                    const expiryDanger = expiryTone(s) === "danger";
+                    const qtyDanger = qtyTone(s) === "danger";
+                    const qtyWarning = qtyTone(s) === "warning";
+
                     return (
                       <tr key={s.id}>
                         <td>
@@ -765,8 +982,20 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
                             : s.pack_size || "-"}
                         </td>
                         <td>{s.batch_no || "-"}</td>
-                        <td>{s.expiry_date || "-"}</td>
-                        <td>
+                        <td
+                          className={
+                            expiryDanger ? local.cellDangerExpiry : undefined
+                          }
+                        >
+                          {s.expiry_date || "-"}
+                        </td>
+                        <td className={
+          qtyDanger
+            ? local.cellDangerQty
+            : qtyWarning
+              ? local.cellWarningQty
+              : undefined
+        }>
                           <span
                             className={low ? local.lowStock : ""}
                             style={{ fontWeight: 600 }}
@@ -1014,25 +1243,80 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
             <FormField
               label={
                 form.packOf > 1
-                  ? `Qty in Stock (packs)`
+                  ? `Qty in Stock (packs + loose ${normUnit(form.unit) || "units"})`
                   : `Qty in Stock${form.unit ? ` (${normUnit(form.unit)}s)` : ""}`
               }
             >
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.stockPacks || ""}
-                onChange={(e) =>
-                  setForm({ ...form, stockPacks: Number(e.target.value) })
-                }
-                placeholder="e.g., 3"
-              />
-              {form.packOf > 1 && form.unit && (
-                <small className={local.stockQtyHint}>
-                  = {Math.round((Number(form.stockPacks) || 0) * form.packOf)}{" "}
-                  {normUnit(form.unit)}s in stock
-                </small>
+              {form.packOf > 1 && isCountable(form.unit) ? (
+                <>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={form.stockPacks || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          stockPacks: Math.max(
+                            0,
+                            Math.floor(Number(e.target.value) || 0),
+                          ),
+                        })
+                      }
+                      placeholder="Packs"
+                    />
+                    <span style={{ fontWeight: 600, color: "#94a3b8" }}>+</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={form.packOf - 1}
+                      step="1"
+                      value={form.stockLoose || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          stockLoose: Math.max(
+                            0,
+                            Math.min(
+                              Number(e.target.value) || 0,
+                              form.packOf - 1,
+                            ),
+                          ),
+                        })
+                      }
+                      placeholder={`Loose ${normUnit(form.unit) || "units"}`}
+                    />
+                  </div>
+                  <small className={local.stockQtyHint}>
+                    ={" "}
+                    {(Number(form.stockPacks) || 0) * form.packOf +
+                      (Number(form.stockLoose) || 0)}{" "}
+                    {normUnit(form.unit)}s in stock
+                  </small>
+                </>
+              ) : (
+                <>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.stockPacks || ""}
+                    onChange={(e) =>
+                      setForm({ ...form, stockPacks: Number(e.target.value) })
+                    }
+                    placeholder="e.g., 3"
+                  />
+                  {form.packOf > 1 && form.unit && (
+                    <small className={local.stockQtyHint}>
+                      ={" "}
+                      {Math.round((Number(form.stockPacks) || 0) * form.packOf)}{" "}
+                      {normUnit(form.unit)}s in stock
+                    </small>
+                  )}
+                </>
               )}
             </FormField>
           </div>
@@ -1120,142 +1404,84 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         }
       >
         <section className={local.filterSection}>
-          <h4 className={local.filterSectionHeading}>Stock Status</h4>
-          <div className={local.chipRow}>
-            {[
-              { key: "all", label: "All" },
-              { key: "inStock", label: "In Stock" },
-              { key: "lowStock", label: "Low Stock (< 10)" },
-              { key: "outOfStock", label: "Out of Stock" },
-            ].map((o) => (
-              <Chip
-                key={o.key}
-                tone="primary"
-                active={draftFilters.status === o.key}
-                onClick={() =>
-                  setDraftFilters({
-                    ...draftFilters,
-                    status: o.key as StockStatus,
-                  })
-                }
-              >
-                {o.label}
-              </Chip>
-            ))}
-          </div>
-        </section>
-
-        <section className={local.filterSection}>
-          <h4 className={local.filterSectionHeading}>Expiry Status</h4>
-          <div className={local.chipRow}>
-            {[
-              { key: "all", label: "All" },
-              { key: "expired", label: "Expired" },
-              { key: "next30d", label: "Expiring in 30 Days" },
-              { key: "next90d", label: "Expiring in 90 Days" },
-            ].map((o) => (
-              <Chip
-                key={o.key}
-                tone="primary"
-                active={draftFilters.expiry === o.key}
-                onClick={() =>
-                  setDraftFilters({
-                    ...draftFilters,
-                    expiry: o.key as ExpiryFilter,
-                  })
-                }
-              >
-                {o.label}
-              </Chip>
-            ))}
-          </div>
-        </section>
-
-        <section className={local.filterSection}>
-          <h4 className={local.filterSectionHeading}>Added Date</h4>
-          <div className={local.chipRow}>
-            {[
-              { key: "all", label: "All Time" },
-              { key: "today", label: "Today" },
-              { key: "thisWeek", label: "This Week" },
-              { key: "thisMonth", label: "This Month" },
-              { key: "custom", label: "Custom Range" },
-            ].map((o) => (
-              <Chip
-                key={o.key}
-                tone="primary"
-                active={draftFilters.datePreset === o.key}
-                onClick={() =>
-                  setDraftFilters({
-                    ...draftFilters,
-                    datePreset: o.key as DatePreset,
-                  })
-                }
-              >
-                {o.label}
-              </Chip>
-            ))}
-          </div>
-          {draftFilters.datePreset === "custom" && (
-            <div className={local.dateRangeGrid}>
-              <FormField label="From">
-                <Input
-                  type="date"
-                  value={draftFilters.customFrom}
-                  onChange={(e) =>
-                    setDraftFilters({
-                      ...draftFilters,
-                      customFrom: e.target.value,
-                    })
-                  }
-                />
-              </FormField>
-              <FormField label="To">
-                <Input
-                  type="date"
-                  value={draftFilters.customTo}
-                  onChange={(e) =>
-                    setDraftFilters({
-                      ...draftFilters,
-                      customTo: e.target.value,
-                    })
-                  }
-                />
-              </FormField>
-            </div>
-          )}
-        </section>
-
-        <section className={local.filterSection}>
-          <h4 className={local.filterSectionHeading}>Price Range (Rs)</h4>
+          <h4 className={local.filterSectionHeading}>MRP Range (Rs)</h4>
           <div className={local.dateRangeGrid}>
-            <FormField label="Min Price">
+            <FormField label="Min MRP">
               <Input
                 type="number"
-                placeholder="0"
-                value={draftFilters.minPrice}
+                value={draftFilters.minMrp}
                 onChange={(e) =>
-                  setDraftFilters({
-                    ...draftFilters,
-                    minPrice: e.target.value,
-                  })
+                  setDraftFilters({ ...draftFilters, minMrp: e.target.value })
                 }
               />
             </FormField>
-            <FormField label="Max Price">
+            <FormField label="Max MRP">
               <Input
                 type="number"
-                placeholder="Any"
-                value={draftFilters.maxPrice}
+                value={draftFilters.maxMrp}
                 onChange={(e) =>
-                  setDraftFilters({
-                    ...draftFilters,
-                    maxPrice: e.target.value,
-                  })
+                  setDraftFilters({ ...draftFilters, maxMrp: e.target.value })
                 }
               />
             </FormField>
           </div>
+        </section>
+
+        <section className={local.filterSection}>
+  <h4 className={local.filterSectionHeading}>Medicine type</h4>
+  <div className={local.chipRow}>
+    <Chip
+      tone="primary"
+      active={draftFilters.type === "all"}
+      onClick={() =>
+        setDraftFilters({ ...draftFilters, type: "all" })
+      }
+    >
+      All
+    </Chip>
+
+    {Array.from(
+      new Set(
+        stock
+          .map((s) => normUnit(s.unit))
+          .filter((u) => u.length > 0),
+      ),
+    )
+      .sort()
+      .map((u) => (
+        <Chip
+          key={u}
+          tone="primary"
+          active={draftFilters.type === u}
+          onClick={() =>
+            setDraftFilters({
+              ...draftFilters,
+              type: draftFilters.type === u ? "all" : u,
+            })
+          }
+        >
+          {u.charAt(0).toUpperCase() + u.slice(1)}
+        </Chip>
+      ))}
+  </div>
+</section>
+
+        <section className={local.filterSection}>
+          <h4 className={local.filterSectionHeading}>Pack of</h4>
+          <FormField label="Units per pack">
+            <Input
+              type="number"
+              min="1"
+              placeholder="e.g. 10"
+              value={draftFilters.packOf === "all" ? "" : draftFilters.packOf}
+              onChange={(e) =>
+                setDraftFilters({
+                  ...draftFilters,
+                  packOf: e.target.value === "" ? "all" : e.target.value,
+                })
+              }
+            />
+          </FormField>
         </section>
       </Sheet>
     </>

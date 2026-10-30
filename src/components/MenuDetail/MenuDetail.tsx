@@ -819,7 +819,7 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
             <div className={local.ingredients}>
               {item.ingredients!.map((ingredient, index) => (
                 <span key={index} className={local.ingredient}>
-                  <CheckIcon width={12} height={12} fill="#3CAA46" />
+                  <CheckIcon width={12} height={12} fill="#3f4d67" />
                   {ingredient}
                 </span>
               ))}

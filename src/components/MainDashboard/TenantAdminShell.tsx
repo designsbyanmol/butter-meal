@@ -25,7 +25,7 @@ import {
   PowerIcon,
   InfoIcon as SupportIcon,
   RecieptIcon,
-  ClockIcon, // <-- ADDED
+  ClockIcon,
 } from '../../assets/svgs';
 import shell from '../Dashboard/DashboardShell.module.scss';
 
@@ -36,7 +36,7 @@ const LOGO_URL =
 const PAGE_FOR_SECTION: Record<string, string> = {
   menu: 'admin-menu.html',
   billing: 'admin-pharmacy-billing.html',
-  appointments: 'admin-appointments.html', // <-- ADDED
+  appointments: 'admin-appointments.html',
   store: 'admin-store.html',
   users: 'admin-users.html',
   orders: 'admin-orders.html',
@@ -48,7 +48,7 @@ const PAGE_FOR_SECTION: Record<string, string> = {
 const SECTION_FOR_PAGE: Record<string, string> = {
   'admin-menu.html': 'menu',
   'admin-pharmacy-billing.html': 'billing',
-  'admin-appointments.html': 'appointments', // <-- ADDED
+  'admin-appointments.html': 'appointments',
   'admin-store.html': 'store',
   'admin-users.html': 'users',
   'admin-orders.html': 'orders',
@@ -57,8 +57,27 @@ const SECTION_FOR_PAGE: Record<string, string> = {
   'admin.html': '',
 };
 
-const sectionUrl = (slug: string, sectionKey: string): string => {
+/**
+ * Build the URL for a section page. Billing uses a hospital-specific
+ * page for pharmacy tenants, and the shared `admin-menu.html?body=billing`
+ * for everyone else.
+ */
+const sectionUrl = (
+  slug: string,
+  sectionKey: string,
+  isHospital: boolean,
+): string => {
   const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+
+  if (sectionKey === 'billing') {
+    const page = isHospital
+      ? 'admin-pharmacy-billing.html'
+      : 'admin-menu.html';
+    const params = new URLSearchParams({ t: `${slug}_admin` });
+    if (!isHospital) params.set('body', 'billing');
+    return `${window.location.origin}${dir}${page}?${params.toString()}`;
+  }
+
   const page = PAGE_FOR_SECTION[sectionKey] ?? 'admin.html';
   return `${window.location.origin}${dir}${page}?t=${slug}_admin`;
 };
@@ -83,6 +102,15 @@ const currentSectionFromPath = (): string => {
   try {
     const path = window.location.pathname;
     const fileName = path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+
+    // `admin-menu.html?body=billing` counts as the billing section
+    // even though the filename is admin-menu.html.
+    if (fileName === 'admin-menu.html') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('body') === 'billing') return 'billing';
+      return 'menu';
+    }
+
     return SECTION_FOR_PAGE[fileName] ?? '';
   } catch {
     return '';
@@ -147,7 +175,8 @@ const TenantAdminShell: React.FC = () => {
   if (!slug) return null;
 
   const isDinein = tenant.dineinEnabled === true;
-  const isHospital = tenant.storeCategory === 'hospital-pharmacy'; // <-- ADDED
+  const isHospital =
+    (tenant.storeCategory ?? '').trim().toLowerCase() === 'hospital-pharmacy';
 
   const handleLogout = () => {
     if (!window.confirm('Log out?')) return;
@@ -158,24 +187,22 @@ const TenantAdminShell: React.FC = () => {
 
   const handleActiveKeyChange = (key: string) => {
     if (!key) return;
-    window.location.href = sectionUrl(slug, key);
+    window.location.href = sectionUrl(slug, key, isHospital);
   };
 
   const items: NavItem[] = [
-    // Pharmacy Billing
     {
       key: 'billing',
-      label: 'Billing',
+      label: isHospital ? 'Pharmacy Billing' : 'Billing',
       icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
-      visible: isHospital && isAdmin,
+      visible: isAdmin,
       render: () => null,
     },
-    // Appointments (Hospital only)
     {
       key: 'appointments',
       label: 'Appointments',
       icon: <ClockIcon width={20} height={20} fill="currentColor" />,
-      visible: isHospital,
+      visible: isHospital && isAdmin,
       render: () => null,
     },
     {
@@ -187,14 +214,14 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'store',
-      label: 'Store',
+      label: isHospital ? 'Manage Hospital' : 'Management Store',
       icon: <StoreIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageStore,
       render: () => null,
     },
     {
       key: 'users',
-      label: 'Users',
+      label: 'Manage Staff',
       icon: <UsersIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageUsers,
       render: () => null,
@@ -203,7 +230,7 @@ const TenantAdminShell: React.FC = () => {
       key: 'reviews',
       label: 'Reviews',
       icon: <StarIcon width={20} height={20} fill="currentColor" />,
-      visible: isAdmin && plan.canReview,
+      visible: false, // kebab-only, but in the lookup so the tab resolves
       render: () => null,
     },
     {
@@ -218,7 +245,7 @@ const TenantAdminShell: React.FC = () => {
   const cardDefs: CardDef[] = [
     {
       key: 'info',
-      label: 'Store Details',
+      label: isHospital ? 'Hospital Info' : 'Store Info',
       description: 'Name, banner, tagline & contact',
       icon: <EditIcon width={20} height={20} fill="#ffffff" />,
       accent: 'green',
@@ -227,21 +254,20 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'billing',
-      label: 'Pharmacy Billing',
+      label: isHospital ? 'Pharmacy Billing' : 'Billing',
       description: 'Create bills & print receipts',
       icon: <RecieptIcon width={20} height={20} fill="#ffffff" />,
       accent: 'amber',
-      visible: isHospital && isAdmin,
+      visible: isAdmin,
       target: 'billing',
     },
-    // 🔥 NEW APPOINTMENTS CARD 🔥
     {
       key: 'appointments',
       label: 'Appointments',
-      description: 'Manage today\'s patient queue & tokens',
+      description: "Manage today's patient queue & tokens",
       icon: <ClockIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
-      visible: isHospital,
+      visible: isHospital && isAdmin,
       target: 'appointments',
     },
     {
@@ -255,7 +281,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: 'store',
-      label: 'Manage Store',
+      label: isHospital ? 'Manage Hospital' : 'Management Store',
       description: 'Open / close & accepting orders',
       icon: <StoreIcon width={20} height={20} fill="#ffffff" />,
       accent: 'amber',
@@ -277,7 +303,7 @@ const TenantAdminShell: React.FC = () => {
       description: 'Customer feedback & ratings',
       icon: <StarIcon width={20} height={20} fill="#ffffff" />,
       accent: 'rose',
-      visible: isAdmin && plan.canReview,
+      visible: isAdmin && plan.canReview && !isHospital,
       target: 'reviews',
     },
     {
@@ -305,7 +331,9 @@ const TenantAdminShell: React.FC = () => {
   const greetingContent = (
     <div className={shell.welcome}>
       <div className={shell.welcomeHead}>
-        <h1>Welcome back, <span>{user.name}</span></h1>
+        <h1>
+          Welcome back, <span>{user.name}</span>
+        </h1>
         <p>
           You're signed in to <strong>{tenant.displayName}</strong>. Pick a
           section to get started.
@@ -333,17 +361,17 @@ const TenantAdminShell: React.FC = () => {
 
   const notificationsSlot = (
     <>
-      {isAdmin && plan.canReview && (
+      {!isHospital && isAdmin && plan.canReview && (
         <TenantNotificationsDrawer
           onOpenReview={() => {
-            window.location.href = sectionUrl(slug, 'reviews');
+            window.location.href = sectionUrl(slug, 'reviews', isHospital);
           }}
         />
       )}
       {isAdmin && isDinein && (
         <DineinNotificationsDrawer
           onOpenOrder={() => {
-            window.location.href = sectionUrl(slug, 'orders');
+            window.location.href = sectionUrl(slug, 'orders', isHospital);
           }}
         />
       )}
@@ -351,21 +379,7 @@ const TenantAdminShell: React.FC = () => {
   );
 
   const kebabItems: KebabItem[] = [
-    // Appointments for hospital
-    ...(isHospital
-      ? [
-          {
-            kind: 'action' as const,
-            key: 'appointments',
-            label: 'Appointments',
-            icon: <ClockIcon width={18} height={18} fill="#1e7e34" />,
-            onClick: () => {
-              window.location.href = sectionUrl(slug, 'appointments');
-            },
-          },
-        ]
-      : []),
-    ...(isAdmin && plan.canReview
+    ...(isAdmin && plan.canReview && !isHospital
       ? [
           {
             kind: 'action' as const,
@@ -373,7 +387,7 @@ const TenantAdminShell: React.FC = () => {
             label: 'Reviews',
             icon: <StarIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
-              window.location.href = sectionUrl(slug, 'reviews');
+              window.location.href = sectionUrl(slug, 'reviews', isHospital);
             },
           },
         ]
@@ -383,10 +397,10 @@ const TenantAdminShell: React.FC = () => {
           {
             kind: 'action' as const,
             key: 'info',
-            label: 'Store Information',
+            label: isHospital ? 'Hospital Info' : 'Store Info',
             icon: <EditIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
-              window.location.href = sectionUrl(slug, 'info');
+              window.location.href = sectionUrl(slug, 'info', isHospital);
             },
           },
         ]

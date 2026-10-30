@@ -1,11 +1,19 @@
 // src/components/Admin/PharmacyBillingBody.tsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useTenant } from "../../contexts/TenantContext";
-import { supabaseService } from "../../services/supabase.service";
-import { Button, Input, FormField, ConfirmDialog, Textarea } from "../ui";
+import {
+  Button,
+  Input,
+  FormField,
+  ConfirmDialog,
+  Textarea,
+  Select,
+} from "../ui";
 import { InlineSection } from "../Dashboard/inline";
 import { printReceiptNode } from "../../utils/printReceipt";
 import { formatRupees } from "../../utils/subscription";
+import { startPharmacyBillSync } from "../../services/billSync";
+import { supabaseService } from "../../services/supabase.service";
 import PharmacyBillingHistory from "./PharmacyBillingHistory";
 import local from "./Pharmacy.module.scss";
 
@@ -14,6 +22,108 @@ const TERMS_STORAGE_KEY = "hospital_bill_terms";
 const DEFAULT_TERMS = `1. Goods once sold will not be taken back.
 2. Keep medicines out of reach of children.`;
 
+// ---------- Cache keys ----------
+const stockKey = (slug: string) => `pharmacy_stock_cache::${slug}`;
+const doctorKey = (slug: string) => `pharmacy_doctors_cache::${slug}`;
+const patientKey = (slug: string) => `pharmacy_patients_cache::${slug}`;
+const billsKey = (slug: string) => `billing_history::${slug}`;
+const GENDERS = ["Male", "Female", "Other"];
+const readCache = <T,>(key: string): T[] => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCache = (key: string, list: any[]) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {
+    /* quota */
+  }
+};
+
+// ---------- Draft ----------
+const draftKey = (slug: string) => `pharmacy_billing_draft::${slug}`;
+
+interface PharmacyDraft {
+  items: BillItem[];
+  patient: {
+    name: string;
+    phone: string;
+    address: string;
+    doctor: string;
+    ageYears: string;
+    ageMonths: string;
+    gender: string;
+  };
+  billNo: string;
+  additionalDiscountPct: number;
+}
+
+const emptyDraft = (): PharmacyDraft => ({
+  items: [],
+  patient: {
+    name: "",
+    phone: "",
+    address: "",
+    doctor: "",
+    ageYears: "",
+    ageMonths: "",
+    gender: "",
+  },
+  billNo: `BILL-${Date.now().toString().slice(-6)}`,
+  additionalDiscountPct: 0,
+});
+
+const readDraft = (slug: string): PharmacyDraft => {
+  try {
+    const raw = localStorage.getItem(draftKey(slug));
+    if (!raw) return emptyDraft();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return emptyDraft();
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      patient: {
+        name: String(parsed.patient?.name || ""),
+        phone: String(parsed.patient?.phone || ""),
+        address: String(parsed.patient?.address || ""),
+        doctor: String(parsed.patient?.doctor || ""),
+        ageYears: String(parsed.patient?.ageYears || ""),
+        ageMonths: String(parsed.patient?.ageMonths || ""),
+        gender: String(parsed.patient?.gender || ""),
+      },
+      billNo: String(
+        parsed.billNo || `BILL-${Date.now().toString().slice(-6)}`,
+      ),
+      additionalDiscountPct: Number(parsed.additionalDiscountPct) || 0,
+    };
+  } catch {
+    return emptyDraft();
+  }
+};
+
+const writeDraft = (slug: string, draft: PharmacyDraft) => {
+  try {
+    localStorage.setItem(draftKey(slug), JSON.stringify(draft));
+  } catch {
+    /* ignore */
+  }
+};
+
+const clearDraft = (slug: string) => {
+  try {
+    localStorage.removeItem(draftKey(slug));
+  } catch {
+    /* ignore */
+  }
+};
+
+// ---------- Types ----------
 interface BillItem {
   id: string;
   name: string;
@@ -69,6 +179,17 @@ const unitPriceOf = (it: BillItem): number => {
   return packOf > 0 ? it.price / packOf : it.price;
 };
 
+// Sum of what each medicine already consumes across all rows.
+const buildUsedByMedicine = (rows: BillItem[]): Map<string, number> => {
+  const map = new Map<string, number>();
+  rows.forEach((it) => {
+    const name = (it.name || "").trim();
+    if (!name) return;
+    map.set(name, (map.get(name) ?? 0) + deductQty(it));
+  });
+  return map;
+};
+
 const lineBaseOf = (it: BillItem): number => {
   const up = unitPriceOf(it);
   return it.qty * it.price + (it.extraUnits || 0) * up;
@@ -84,6 +205,7 @@ const deductQty = (it: BillItem): number => {
 const totalUnitsOf = (it: BillItem): number =>
   it.qty * (it.packOf || 1) + (it.extraUnits || 0);
 
+// ---------- Input helper ----------
 const EmptyOnZeroInput: React.FC<{
   value: number;
   onValueChange: (n: number) => void;
@@ -93,7 +215,16 @@ const EmptyOnZeroInput: React.FC<{
   title?: string;
   step?: number;
   placeholder?: string;
-}> = ({ value, onValueChange, min = 0, max, className, title, step = 1, placeholder }) => {
+}> = ({
+  value,
+  onValueChange,
+  min = 0,
+  max,
+  className,
+  title,
+  step = 1,
+  placeholder,
+}) => {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState<string>("");
   const display = focused ? draft : value === 0 ? "" : String(value);
@@ -134,57 +265,82 @@ const EmptyOnZeroInput: React.FC<{
   );
 };
 
+// ---------- Main ----------
 const PharmacyBillingBody: React.FC = () => {
   const { tenant } = useTenant();
-  const [stock, setStock] = useState<any[]>([]);
-  const [items, setItems] = useState<BillItem[]>([]);
+  const slug = tenant?.slug ?? "";
 
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
-
-  const [patient, setPatient] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    doctor: "",
-  });
-
-  const [billNo, setBillNo] = useState(
-    `BILL-${Date.now().toString().slice(-6)}`,
+  const [stock, setStock] = useState<any[]>(() =>
+    readCache<any>(stockKey(slug)),
+  );
+  const [doctors, setDoctors] = useState<any[]>(() =>
+    readCache<any>(doctorKey(slug)),
+  );
+  const [patients, setPatients] = useState<any[]>(() =>
+    readCache<any>(patientKey(slug)),
   );
 
-  const [terms, setTerms] = useState<string>(() => readStoredTerms());
+  const initialDraft = readDraft(slug);
 
-  // - NEW: locked / editing state for Terms & Conditions
+  const [items, setItems] = useState<BillItem[]>(initialDraft.items);
+
+  // Recompute the effective remaining stock for every row whenever
+  // `items` changes. `usedByMedicine` sums what other rows consume,
+  // so adding the same item twice correctly shows the reduced count.
+  const usedByMedicine = useMemo(() => buildUsedByMedicine(items), [items]);
+
+  // Cached stock lookup by name, from `stock`.
+  const stockByName = useMemo(() => {
+    const map = new Map<string, number>();
+    stock.forEach((s) => {
+      const name = String(s.name || "").trim();
+      if (!name) return;
+      map.set(name, Math.max(0, Number(s.stock_qty) || 0));
+    });
+    return map;
+  }, [stock]);
+
+  // For a given row, how many units of *its own* selection are consumed.
+  const ownQtyForRow = (row: BillItem): number => deductQty(row);
+
+  // Effective available stock for a row = total cached stock - what
+  // OTHER rows consume. If the row's own selection exceeds the cache,
+  // the row itself is still allowed (but the hint shows 0).
+  const effectiveAvailableForRow = (row: BillItem): number => {
+    const name = (row.name || "").trim();
+    if (!name) return 0;
+    const total = stockByName.get(name) ?? 0;
+    const used = usedByMedicine.get(name) ?? 0;
+    const othersUsed = Math.max(0, used - ownQtyForRow(row));
+    return Math.max(0, total - othersUsed);
+  };
+  const [patient, setPatient] = useState(initialDraft.patient);
+  const [billNo, setBillNo] = useState(initialDraft.billNo);
+  const [terms, setTerms] = useState<string>(() => readStoredTerms());
   const [isTermsEditing, setIsTermsEditing] = useState(false);
   const [showUnlockTermsConfirm, setShowUnlockTermsConfirm] = useState(false);
   const [draftTerms, setDraftTerms] = useState<string>("");
-
-  // Additional discount is a PERCENT (0–100) on the post-item-discount amount.
-  const [additionalDiscountPct, setAdditionalDiscountPct] = useState<number>(0);
-
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [additionalDiscountPct, setAdditionalDiscountPct] = useState<number>(
+    initialDraft.additionalDiscountPct,
+  );
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
 
   useEffect(() => {
-    if (tenant) {
-      Promise.all([
-        supabaseService.getMedicineStock(tenant.slug),
-        supabaseService.getHospitalDoctors(tenant.slug),
-        supabaseService.getHospitalPatients(tenant.slug),
-      ]).then(([stockData, doctorsData, patientsData]) => {
-        setStock(stockData || []);
-        setDoctors(doctorsData || []);
-        setPatients(patientsData || []);
-      });
-    }
-  }, [tenant]);
+    setStock(readCache<any>(stockKey(slug)));
+    setDoctors(readCache<any>(doctorKey(slug)));
+    setPatients(readCache<any>(patientKey(slug)));
 
-  // Persist terms whenever they are successfully saved.
+    const d = readDraft(slug);
+    setItems(d.items);
+    setPatient(d.patient);
+    setBillNo(d.billNo);
+    setAdditionalDiscountPct(d.additionalDiscountPct);
+  }, [slug]);
+
+  // Persist terms.
   useEffect(() => {
     try {
       if (terms.trim().length > 0) {
@@ -195,6 +351,24 @@ const PharmacyBillingBody: React.FC = () => {
     }
   }, [terms]);
 
+  // Persist draft.
+  useEffect(() => {
+    if (!slug) return;
+    writeDraft(slug, {
+      items,
+      patient,
+      billNo,
+      additionalDiscountPct,
+    });
+  }, [slug, items, patient, billNo, additionalDiscountPct]);
+
+  // Sync local bills to Supabase on focus + hourly.
+  useEffect(() => {
+    if (!slug) return;
+    return startPharmacyBillSync(slug);
+  }, [slug]);
+
+  // ---------- Patient suggestions ----------
   const handlePatientNameChange = (value: string) => {
     setPatient((prev) => ({ ...prev, name: value }));
     setShowPatientSuggestions(value.trim().length > 0);
@@ -206,28 +380,73 @@ const PharmacyBillingBody: React.FC = () => {
       phone: p.phone || "",
       address: p.address || "",
       doctor: patient.doctor,
+      ageYears:
+        p.age_years !== undefined && p.age_years !== null
+          ? String(p.age_years)
+          : "",
+      ageMonths:
+        p.age_months !== undefined && p.age_months !== null
+          ? String(p.age_months)
+          : "",
+      gender: p.gender || "",
     });
     setShowPatientSuggestions(false);
-  };
-
-  const goToAddPatient = () => {
-    if (!tenant) return;
-    const url = new URL(window.location.href);
-    url.pathname = url.pathname.replace(/\/[^/]*$/, "/admin-menu.html");
-    url.searchParams.set("t", `${tenant.slug}_admin`);
-    url.searchParams.set("tab", "patients");
-    window.location.href = url.toString();
   };
 
   const filteredPatients =
     patient.name.trim().length > 0
       ? patients
           .filter((p) =>
-            p.name.toLowerCase().includes(patient.name.toLowerCase()),
+            String(p.name || "")
+              .toLowerCase()
+              .includes(patient.name.toLowerCase()),
           )
           .slice(0, 5)
       : [];
 
+  // Sum of quantities already committed across all bill rows, keyed by
+  // medicine name. Uses `deductQty` so packs + loose units are counted
+  // consistently.
+  const usedByOtherRows = (excludingRowId: string): Map<string, number> => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      if (it.id === excludingRowId) continue;
+      if (!it.name) continue;
+      const key = it.name.trim();
+      if (!key) continue;
+      map.set(key, (map.get(key) ?? 0) + deductQty(it));
+    }
+    return map;
+  };
+
+  // Medicines still available for the given row: stock - already-used.
+  // If `available <= 0`, the item is removed from that row's datalist.
+  const availableMedicinesForRow = (
+    rowId: string,
+  ): { name: string; remaining: number }[] => {
+    const out: { name: string; remaining: number }[] = [];
+
+    // What the OTHER rows consume for each medicine.
+    const usedByOthers = new Map<string, number>();
+    items.forEach((it) => {
+      if (it.id === rowId) return;
+      const name = (it.name || "").trim();
+      if (!name) return;
+      usedByOthers.set(name, (usedByOthers.get(name) ?? 0) + deductQty(it));
+    });
+
+    stock.forEach((s) => {
+      const name = String(s.name || "").trim();
+      if (!name) return;
+      const total = Math.max(0, Number(s.stock_qty) || 0);
+      const remaining = total - (usedByOthers.get(name) ?? 0);
+      if (remaining > 0) out.push({ name, remaining });
+    });
+
+    return out;
+  };
+
+  // ---------- Row editing ----------
   const addRow = () => {
     setItems([...items, { ...emptyItem, id: Math.random().toString() }]);
   };
@@ -254,22 +473,28 @@ const PharmacyBillingBody: React.FC = () => {
             updated.exp = med.expiry_date || "";
             updated.mrp = med.mrp || 0;
             updated.price = med.price || 0;
-            updated.availableStock = Math.max(0, Number(med.stock_qty) || 0);
 
-            const totalAvailable = updated.availableStock;
-            const onePackUnits = updated.packOf;
-            if (totalAvailable >= onePackUnits) {
+            // ── Effective stock = cached stock − what OTHER rows already use.
+            const effectiveTotal = Math.max(0, Number(med.stock_qty) || 0);
+            const othersUsed = items
+              .filter((r) => r.id !== id && r.name === value)
+              .reduce((s, r) => s + deductQty(r), 0);
+            const remaining = Math.max(0, effectiveTotal - othersUsed);
+
+            updated.availableStock = effectiveTotal;
+
+            if (remaining >= updated.packOf) {
               updated.qty = 1;
-            } else if (totalAvailable > 0) {
+            } else if (remaining > 0) {
               updated.qty = 0;
-              updated.extraUnits = totalAvailable;
+              updated.extraUnits = remaining;
             } else {
               updated.qty = 0;
               updated.extraUnits = 0;
             }
           } else {
             updated.availableStock = 0;
-            updated.qty = 0;
+            updated.qty = Math.max(1, updated.qty || 1);
             updated.extraUnits = 0;
           }
         }
@@ -283,11 +508,7 @@ const PharmacyBillingBody: React.FC = () => {
         }
 
         const available = Math.max(0, Number(updated.availableStock) || 0);
-
-        if (available === 0) {
-          updated.qty = 0;
-          updated.extraUnits = 0;
-        } else {
+        if (available > 0) {
           const packOf = updated.packOf;
 
           if (isCountable(updated.unit)) {
@@ -329,145 +550,264 @@ const PharmacyBillingBody: React.FC = () => {
   const removeRow = (id: string) =>
     setItems(items.filter((it) => it.id !== id));
 
+  // ---------- Totals ----------
+  const GST_PERCENT =
+    typeof tenant?.gstPercent === "number" && tenant.gstPercent > 0
+      ? tenant.gstPercent
+      : 0;
+
   const subtotal = items.reduce((s, it) => s + lineBaseOf(it), 0);
   const totalDiscount = items.reduce(
     (s, it) => s + lineBaseOf(it) * (it.discountPct / 100),
     0,
   );
-
   const afterItemDiscount = Math.max(0, subtotal - totalDiscount);
   const safePct = Math.min(
     100,
     Math.max(0, Number(additionalDiscountPct) || 0),
   );
   const additionalDiscountAmount = (afterItemDiscount * safePct) / 100;
-  const finalAmount = Math.max(0, afterItemDiscount - additionalDiscountAmount);
 
-  // - NEW: Terms & Conditions edit flow handlers
+  const taxableValue = Math.max(
+    0,
+    afterItemDiscount - additionalDiscountAmount,
+  );
+  const gstAmount =
+    GST_PERCENT > 0 ? Math.round(taxableValue * GST_PERCENT) / 100 : 0;
+  const finalAmount = Math.round((taxableValue + gstAmount) * 100) / 100;
+
+  // ---------- Terms flow ----------
   const requestEditTerms = () => {
     if (isTermsEditing) return;
     setShowUnlockTermsConfirm(true);
   };
 
   const confirmEditTerms = () => {
-    setDraftTerms(terms); // seed the editor with the current saved terms
+    setDraftTerms(terms);
     setShowUnlockTermsConfirm(false);
     setIsTermsEditing(true);
   };
 
   const cancelEditTerms = () => {
-    // discard draft, keep the saved terms as-is
     setDraftTerms("");
     setIsTermsEditing(false);
   };
 
   const saveTerms = () => {
-    const trimmed = draftTerms;
-    setTerms(trimmed); // triggers the persistence effect
+    setTerms(draftTerms);
     setIsTermsEditing(false);
     setDraftTerms("");
   };
 
+  // ---------- Print ----------
   const handlePrint = () => {
     if (items.length === 0 || !patient.name) {
       alert("Please add items and a patient name before printing.");
       return;
     }
 
-    // - NEW: warn if user is still editing terms and hasn't saved
     if (isTermsEditing) {
       const ok = window.confirm(
         "You have unsaved edits in Terms & Conditions. Continue without saving them?",
       );
       if (!ok) return;
-      // discard the draft, keep the previously saved terms
       setIsTermsEditing(false);
       setDraftTerms("");
     }
 
     for (const it of items) {
       const stockRow = stock.find((s) => s.name === it.name);
-      const available = Math.max(0, Number(stockRow?.stock_qty) || 0);
+      if (!stockRow) continue;
+      const available = Math.max(0, Number(stockRow.stock_qty) || 0);
       const needed = deductQty(it);
       if (needed === 0) {
         alert(`"${it.name}": quantity is zero.`);
         return;
       }
-      if (needed > available) {
+      if (needed > available && available > 0) {
         const u = normUnit(it.unit) || "units";
         alert(
-          `"${it.name}": only ${available} ${u}${available !== 1 ? "s" : ""} in stock, cannot sell ${needed}.`,
+          `"${it.name}": only ${available} ${u}${
+            available !== 1 ? "s" : ""
+          } in stock, but you are selling ${needed}. Stock will go negative.`,
         );
-        return;
       }
     }
 
-    setIsPrinting(true);
-
-    setTimeout(() => {
-      printReceiptNode(printRef.current);
-      setIsPrinting(false);
-      setShowPrintConfirm(true);
-    }, 300);
+    const ok = printReceiptNode(printRef.current, {
+      title: `${billNo}`,
+      pageSize: "A5 landscape",
+    });
+    if (!ok) {
+      alert("Allow pop-ups to print the bill.");
+      return;
+    }
+    setShowPrintConfirm(true);
   };
 
   const confirmPrintSuccess = async () => {
     setShowPrintConfirm(false);
     if (!tenant) return;
 
-    const payload = {
+    // 0. Auto-add the patient to the tenant's patient list if new.
+    //    `upsertHospitalPatientByPhone` is a no-op if the phone already
+    //    exists on the tenant, so it's safe to call every time.
+    const trimmedName = patient.name.trim();
+    const trimmedPhone = patient.phone.trim();
+    const ageYears =
+  patient.ageYears !== "" ? Number(patient.ageYears) || 0 : null;
+const ageMonths =
+  patient.ageMonths !== "" ? Number(patient.ageMonths) || 0 : null;
+const genderValue = patient.gender.trim() || null;
+
+if (trimmedName && trimmedPhone) {
+  try {
+    await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
+      name: trimmedName,
+      phone: trimmedPhone,
+      address: patient.address.trim() || undefined,
+      age_years: ageYears,
+      age_months: ageMonths,
+      gender: genderValue,
+    });
+  } catch (err) {
+    console.warn("[pharmacy-billing] patient upsert failed:", err);
+  }
+}
+
+    // 1. Save bill to local history (unchanged).
+    const existing = readCache<any>(billsKey(tenant.slug));
+    const billRecord = {
+      id: `bill_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       bill_no: billNo,
-      patient_name: patient.name,
-      phone: patient.phone,
-      address: patient.address,
-      doctor_name: patient.doctor,
+      patient_name: trimmedName,
+      phone: trimmedPhone,
+      address: patient.address.trim(),
+      doctor_name: patient.doctor.trim(),
       items,
       subtotal,
       discount: totalDiscount,
       additional_discount_pct: safePct,
       additional_discount: additionalDiscountAmount,
+      gst_percent: GST_PERCENT,
+      gst_amount: gstAmount,
+      taxable_value: taxableValue,
       final_amount: finalAmount,
       terms,
+      created_at: new Date().toISOString(),
     };
+    writeCache(billsKey(tenant.slug), [billRecord, ...existing]);
 
-    const saved = await supabaseService.createPharmacyBill(
-      tenant.slug,
-      payload,
-    );
-    if (!saved) {
-      alert("Failed to save bill. Please try again.");
-      return;
+    // 2. Deduct stock on the server and mirror the authoritative list
+    //    into the local cache. This is what keeps the Pharmacy Stock
+    //    tab and this billing form in sync.
+    const deductPayload = items
+      .filter((it) => it.name && deductQty(it) > 0)
+      .map((it) => ({ name: it.name, qty: deductQty(it) }));
+
+    let serverStock: any[] | null = null;
+    try {
+      serverStock = await supabaseService.deductPharmacyStockAndReturn(
+        tenant.slug,
+        deductPayload,
+      );
+    } catch (err) {
+      console.warn("[pharmacy-billing] server stock deduction failed:", err);
     }
 
-    const deducted = await supabaseService.deductPharmacyStock(
-      tenant.slug,
-      items.map((it) => ({ name: it.name, qty: deductQty(it) })),
-    );
-    if (!deducted) {
-      console.warn("Bill saved but stock deduction failed. Check console.");
+    if (serverStock) {
+      setStock(serverStock);
+      writeCache(stockKey(tenant.slug), serverStock);
+    } else {
+      // Fallback: keep the local-only deduction so the current session
+      // reflects the sale even if the network call failed.
+      const updatedLocal = stock.map((s) => {
+        const line = items.find((it) => it.name === s.name);
+        if (!line) return s;
+        const deducted = deductQty(line);
+        return {
+          ...s,
+          stock_qty: Math.max(0, Number(s.stock_qty || 0) - deducted),
+        };
+      });
+      setStock(updatedLocal);
+      writeCache(stockKey(tenant.slug), updatedLocal);
+      console.warn(
+        "[pharmacy-billing] stock deducted locally only - server not updated",
+      );
     }
 
-    const stockData = await supabaseService.getMedicineStock(tenant.slug);
-    setStock(stockData || []);
+    // 2b. Refresh the local patient cache so the suggestion dropdown on
+    //     the *next* bill already shows this patient. Best-effort; if
+    //     the fetch fails we just keep the stale cache.
+    try {
+      const freshPatients = await supabaseService.getHospitalPatients(
+        tenant.slug,
+      );
+      setPatients(freshPatients || []);
+      writeCache(patientKey(tenant.slug), freshPatients || []);
+    } catch (err) {
+      console.warn("[pharmacy-billing] patient cache refresh failed:", err);
+    }
 
+    try {
+      window.dispatchEvent(
+        new CustomEvent("hospital-patients:changed", {
+          detail: { slug: tenant.slug },
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+
+    // 3. Clear the draft.
+    clearDraft(tenant.slug);
+
+    // 4. Reset the form.
     alert("Bill saved to history successfully!");
     setItems([]);
-    setPatient({ name: "", phone: "", address: "", doctor: "" });
+    setPatient({
+  name: "",
+  phone: "",
+  address: "",
+  doctor: "",
+  ageYears: "",
+  ageMonths: "",
+  gender: "",
+});
     setAdditionalDiscountPct(0);
     setBillNo(`BILL-${Date.now().toString().slice(-6)}`);
   };
 
+  // =========================================================
+  // Render
+  // =========================================================
   return (
     <>
       <InlineSection
         title="Create Pharmacy Bill"
         actions={
-          <Button onClick={() => setIsHistoryOpen(true)} variant="secondary">
-            Bill History
-          </Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                if (!tenant) return;
+                const fresh = await supabaseService.getMedicineStock(
+                  tenant.slug,
+                );
+                setStock(fresh || []);
+                writeCache(stockKey(tenant.slug), fresh || []);
+              }}
+            >
+              Refresh stock
+            </Button>
+            <Button onClick={() => setIsHistoryOpen(true)} variant="secondary">
+              Bill History
+            </Button>
+          </div>
         }
       >
-        {/* Patient Details */}
+        {/* Patient details */}
         <div className={local.patientForm}>
           <div className={local.patientNameWrap}>
             <FormField label="Patient Name *">
@@ -487,34 +827,21 @@ const PharmacyBillingBody: React.FC = () => {
             {showPatientSuggestions && (
               <div className={local.suggestionDropdown}>
                 {filteredPatients.length > 0 ? (
-                  <>
-                    {filteredPatients.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => selectPatient(p)}
-                        className={local.suggestionItem}
-                      >
-                        <strong>{p.name}</strong>
-                        {p.phone && (
-                          <span className={local.suggestionPhone}>
-                            {p.phone}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                  filteredPatients.map((p) => (
                     <div
-                      onClick={goToAddPatient}
-                      className={local.suggestionAddNew}
+                      key={p.id || p.name}
+                      onClick={() => selectPatient(p)}
+                      className={local.suggestionItem}
                     >
-                      + Add new patient
+                      <strong>{p.name}</strong>
+                      {p.phone && (
+                        <span className={local.suggestionPhone}>{p.phone}</span>
+                      )}
                     </div>
-                  </>
+                  ))
                 ) : (
-                  <div
-                    onClick={goToAddPatient}
-                    className={local.suggestionEmpty}
-                  >
-                    No patient found. + Add "{patient.name}" as new patient
+                  <div className={local.suggestionEmpty}>
+                    No cached patient. Type any name to continue.
                   </div>
                 )}
               </div>
@@ -530,6 +857,60 @@ const PharmacyBillingBody: React.FC = () => {
             />
           </FormField>
 
+          <FormField label="Address">
+            <Input
+              value={patient.address}
+              onChange={(e) =>
+                setPatient({ ...patient, address: e.target.value })
+              }
+            />
+          </FormField>
+          <div className={local.grid2}>
+  <FormField label="Age (years)">
+    <Input
+      type="number"
+      min="0"
+      max="150"
+      value={patient.ageYears}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+        setPatient({ ...patient, ageYears: v });
+      }}
+      placeholder="e.g. 2"
+    />
+  </FormField>
+
+  <FormField label="Age (months)">
+    <Input
+      type="number"
+      min="0"
+      max="11"
+      value={patient.ageMonths}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+        setPatient({
+          ...patient,
+          ageMonths: v === "" ? "" : String(Math.min(11, Number(v))),
+        });
+      }}
+      placeholder="e.g. 4"
+    />
+  </FormField>
+</div>
+
+          <FormField label="Gender">
+            <Select
+              value={patient.gender}
+              onChange={(e) =>
+                setPatient({ ...patient, gender: e.target.value })
+              }
+              options={[
+                { value: "", label: "- Select -" },
+                ...GENDERS.map((g) => ({ value: g, label: g })),
+              ]}
+            />
+          </FormField>
+
           <FormField label="Doctor Name">
             <Input
               value={patient.doctor}
@@ -541,22 +922,13 @@ const PharmacyBillingBody: React.FC = () => {
             />
             <datalist id="doctor-suggestions">
               {doctors.map((d) => (
-                <option key={d.id} value={d.name} />
+                <option key={d.id || d.name} value={d.name} />
               ))}
             </datalist>
           </FormField>
-
-          <FormField label="Address">
-            <Input
-              value={patient.address}
-              onChange={(e) =>
-                setPatient({ ...patient, address: e.target.value })
-              }
-            />
-          </FormField>
         </div>
 
-        {/* BILL ITEMS - Excel-style grid */}
+        {/* Items grid */}
         <div className={local.xlWrap}>
           <table className={local.xlTable}>
             <colgroup>
@@ -589,7 +961,7 @@ const PharmacyBillingBody: React.FC = () => {
               {items.map((it) => {
                 const u = normUnit(it.unit) || "unit";
                 const up = unitPriceOf(it);
-                const available = it.availableStock;
+                const available = effectiveAvailableForRow(it);
                 const packOf = it.packOf || 1;
                 const countable = isCountable(it.unit);
                 const total = totalUnitsOf(it);
@@ -602,7 +974,8 @@ const PharmacyBillingBody: React.FC = () => {
                           available - (countable ? it.extraUnits || 0 : 0),
                         ) / packOf,
                       )
-                    : 0;
+                    : undefined;
+
                 const maxLoose = countable
                   ? Math.min(
                       packOf > 1 ? packOf - 1 : available,
@@ -610,12 +983,17 @@ const PharmacyBillingBody: React.FC = () => {
                     )
                   : 0;
 
+                // Meds remaining after other rows' quantities. Includes this row's
+                // own selection so the current medicine stays in the dropdown while
+                // the user is editing it.
+                const availableMeds = availableMedicinesForRow(it.id);
+
                 return (
-                  <>
-                    <tr key={it.id}>
+                  <React.Fragment key={it.id}>
+                    <tr>
                       <td className={local.xlCellName}>
                         <input
-                          list="med-list"
+                          list={`med-list-${it.id}`}
                           value={it.name}
                           onChange={(e) =>
                             updateRow(it.id, "name", e.target.value)
@@ -623,9 +1001,9 @@ const PharmacyBillingBody: React.FC = () => {
                           className={local.xlInput}
                           placeholder="Type medicine name..."
                         />
-                        <datalist id="med-list">
-                          {stock.map((s) => (
-                            <option key={s.id} value={s.name} />
+                        <datalist id={`med-list-${it.id}`}>
+                          {availableMeds.map((m) => (
+                            <option key={m.name} value={m.name} />
                           ))}
                         </datalist>
                       </td>
@@ -675,7 +1053,11 @@ const PharmacyBillingBody: React.FC = () => {
                               onValueChange={(n) => updateRow(it.id, "qty", n)}
                               className={local.xlInput}
                               max={maxPacks}
-                              title={`Packs (max ${maxPacks})`}
+                              title={`Packs${
+                                maxPacks !== undefined
+                                  ? ` (max ${maxPacks})`
+                                  : ""
+                              }`}
                               placeholder="Packs"
                             />
                           </div>
@@ -745,8 +1127,10 @@ const PharmacyBillingBody: React.FC = () => {
                             }
                           >
                             {available === 0
-                              ? "Out of stock"
-                              : `${available} ${u}${available !== 1 ? "s" : ""} in stock`}
+                              ? "Not in local stock (offline bill)"
+                              : `${available} ${u}${
+                                  available !== 1 ? "s" : ""
+                                } in local stock`}
                           </small>
                         )}
                       </td>
@@ -776,7 +1160,7 @@ const PharmacyBillingBody: React.FC = () => {
                       </td>
                       <td></td>
                     </tr>
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -790,7 +1174,6 @@ const PharmacyBillingBody: React.FC = () => {
         </div>
 
         <div className={local.footerTermTotal}>
-          {/* - NEW: Locked / editing Terms & Conditions */}
           <div className={local.termsEditor}>
             <div className={local.termsHeaderRow}>
               <FormField label="Terms & Conditions (printed on bill)">
@@ -845,10 +1228,11 @@ const PharmacyBillingBody: React.FC = () => {
 
           <div className={local.totals}>
             <div className={local.totalRow}>
-              <span>Subtotal:</span> <span>{formatRupees(subtotal)}</span>
+              <span>Subtotal:</span>
+              <span>{formatRupees(subtotal)}</span>
             </div>
             <div className={local.totalRow}>
-              <span>Total Discount:</span>{" "}
+              <span>Total Discount:</span>
               <span>-{formatRupees(totalDiscount)}</span>
             </div>
 
@@ -876,8 +1260,21 @@ const PharmacyBillingBody: React.FC = () => {
               </div>
             )}
 
+            {GST_PERCENT > 0 && (
+              <>
+                <div className={local.totalRow}>
+                  <span>Taxable value:</span>
+                  <span>{formatRupees(taxableValue)}</span>
+                </div>
+                <div className={local.totalRow}>
+                  <span>GST ({GST_PERCENT}%):</span>
+                  <span>{formatRupees(gstAmount)}</span>
+                </div>
+              </>
+            )}
+
             <div className={`${local.totalRow} ${local.grandTotal}`}>
-              <span>Final Amount:</span>{" "}
+              <span>Final Amount:</span>
               <span>{formatRupees(finalAmount)}</span>
             </div>
 
@@ -912,30 +1309,40 @@ const PharmacyBillingBody: React.FC = () => {
               )}
             </div>
             <div className={local.printRight}>
-  <h3>GST BILL</h3>
-  {tenant?.gstNo && (
-    <p className={local.printGstin}>GSTIN: {tenant.gstNo}</p>
-  )}
-  <p className={local.printMeta}>Bill No.: {billNo}</p>
-  <p className={local.printMeta}>
-    Date: {new Date().toLocaleDateString("en-IN")}
-  </p>
-  <p className={local.printMeta}>
-    Time:{" "}
-    {new Date().toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    })}
-  </p>
-</div>
+              <h3>GST BILL</h3>
+              {tenant?.gstNo && (
+                <p className={local.printGstin}>GSTIN: {tenant.gstNo}</p>
+              )}
+              <p className={local.printMeta}>Bill No.: {billNo}</p>
+              <p className={local.printMeta}>
+                Date: {new Date().toLocaleDateString("en-IN")}
+              </p>
+              <p className={local.printMeta}>
+                Time:{" "}
+                {new Date().toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}
+              </p>
+            </div>
           </div>
 
           <div className={local.printPatientBar}>
             <p>
-              <strong>Patient:</strong> {patient.name} ({patient.phone})
-            </p>
+  <strong>Patient:</strong> {patient.name}
+  {(() => {
+    const y = patient.ageYears;
+    const m = patient.ageMonths;
+    if (!y && !m) return "";
+    const parts: string[] = [];
+    if (y) parts.push(`${y}y`);
+    if (m) parts.push(`${m}m`);
+    return ` (${parts.join(" ")})`;
+  })()}
+</p>
+          
             <p>
               <strong>Address:</strong> {patient.address}
             </p>
@@ -1001,23 +1408,32 @@ const PharmacyBillingBody: React.FC = () => {
                   {formatRupees(additionalDiscountAmount)}
                 </p>
               )}
+              {GST_PERCENT > 0 && (
+                <>
+                  <p>Taxable value: {formatRupees(taxableValue)}</p>
+                  <p>
+                    GST ({GST_PERCENT}%): {formatRupees(gstAmount)}
+                  </p>
+                </>
+              )}
               <h3>Final Amount: {formatRupees(finalAmount)}</h3>
             </div>
           </div>
+          <div className={local.printGetWell}>Get Well Soon by Dozzelo</div>
         </div>
       </div>
 
       <ConfirmDialog
         isOpen={showPrintConfirm}
         title="Print Successful?"
-        message="Did the bill print correctly? Clicking Yes will save this bill to the patient history and clear the form."
+        message="Did the bill print correctly? Clicking Yes will save this bill to the local history and clear the form."
+        disableBackdropClose={true}
         confirmText="Yes, Save Bill"
         cancelText="No, let me check"
         onConfirm={confirmPrintSuccess}
         onCancel={() => setShowPrintConfirm(false)}
       />
 
-      {/* - NEW: Unlock Terms confirmation */}
       <ConfirmDialog
         isOpen={showUnlockTermsConfirm}
         title="Edit Terms & Conditions?"

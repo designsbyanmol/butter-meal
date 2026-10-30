@@ -10,3 +10,6 @@ export const popEsc = (id: string) => {
 
 export const isTopEsc = (id: string): boolean =>
   escStack[escStack.length - 1] === id;
+
+/** How many modals are currently registered. */
+export const escDepth = (): number => escStack.length;

@@ -252,10 +252,9 @@
   align-items: center;
   gap: 2px;
   background: #fff;
-  border: 1px solid $border;
-  padding: 2px;
+  border: 1px solid $gray-100;
+  padding: 3px;
   border-radius: $radius-xs;
-  box-shadow: $shadow-xs;
 }
 
 .qtyNum {

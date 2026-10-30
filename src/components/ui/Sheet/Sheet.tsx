@@ -2,7 +2,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon, LeftArrowIcon } from '../../../assets/svgs';
-import { pushEsc, popEsc, isTopEsc } from '../_escStack';
+import { pushEsc, popEsc, isTopEsc, escDepth } from '../_escStack';
 import { lockBodyScroll, unlockBodyScroll } from '../_scrollLock';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 import styles from './Sheet.module.scss';
@@ -21,13 +21,13 @@ export interface SheetProps {
   hideCloseButton?: boolean;
   overlayZIndex?: number;
   mobileFullScreen?: boolean;
-  /** Vertical anchor. Default `center`. */
   position?: SheetPosition;
   className?: string;
   children: React.ReactNode;
 }
 
 const MOBILE_EXIT_MS = 220;
+const HISTORY_CLEANUP_DELAY_MS = MOBILE_EXIT_MS + 60;
 
 const Sheet: React.FC<SheetProps> = ({
   isOpen,
@@ -48,14 +48,13 @@ const Sheet: React.FC<SheetProps> = ({
   const instanceId = useId();
   const isMobileViewport = useIsMobileViewport();
 
-  // Full-screen takeover on mobile only. Ignored when position is
-  // top/bottom - those anchor modes already work fine on mobile.
   const applyMobileFullScreen =
     mobileFullScreen && isMobileViewport && position === 'center';
 
   const [visible, setVisible] = useState(isOpen);
   const [exiting, setExiting] = useState(false);
   const exitTimerRef = useRef<number | null>(null);
+  const historyCleanupTimerRef = useRef<number | null>(null);
   const prevIsOpenRef = useRef(isOpen);
   const exitRanRef = useRef(false);
 
@@ -116,6 +115,10 @@ const Sheet: React.FC<SheetProps> = ({
         window.clearTimeout(exitTimerRef.current);
         exitTimerRef.current = null;
       }
+      if (historyCleanupTimerRef.current !== null) {
+        window.clearTimeout(historyCleanupTimerRef.current);
+        historyCleanupTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -147,26 +150,76 @@ const Sheet: React.FC<SheetProps> = ({
     };
   }, [isOpen, lockScroll]);
 
-  // Mobile-only: browser back button closes the sheet.
   useEffect(() => {
-    if (!isOpen || !applyMobileFullScreen) return;
+    if (!isOpen) return;
+    if (!applyMobileFullScreen) return;
+
+    // Stacked modal? Don't own the back button.
+    const isStacked = escDepth() > 1;
+    if (isStacked) return;
 
     const stateId = `sheet-${instanceId}`;
-    window.history.pushState({ modalId: stateId }, '');
 
-    const onPopState = () => {
-      if (isTopEsc(instanceId)) {
-        runExitThenClose();
+    const pushGuard = () => {
+      try {
+        const ids: string[] = Array.isArray(
+          (window.history.state as any)?.__modalIds,
+        )
+          ? (window.history.state as any).__modalIds
+          : [];
+        if (ids.includes(stateId)) return;
+        window.history.pushState(
+          { ...(window.history.state ?? {}), __modalIds: [...ids, stateId] },
+          '',
+        );
+      } catch {
+        /* ignore */
       }
     };
 
-    window.addEventListener('popstate', onPopState);
+    pushGuard();
+
+    const onPop = () => {
+      const ids: string[] = Array.isArray(
+        (window.history.state as any)?.__modalIds,
+      )
+        ? (window.history.state as any).__modalIds
+        : [];
+      if (ids.includes(stateId)) return;
+
+      if (isTopEsc(instanceId)) {
+        runExitThenClose();
+      } else {
+        pushGuard();
+      }
+    };
+
+    window.addEventListener('popstate', onPop);
 
     return () => {
-      window.removeEventListener('popstate', onPopState);
-      if (window.history.state?.modalId === stateId) {
-        window.history.back();
+      window.removeEventListener('popstate', onPop);
+      if (historyCleanupTimerRef.current !== null) {
+        window.clearTimeout(historyCleanupTimerRef.current);
       }
+      historyCleanupTimerRef.current = window.setTimeout(() => {
+        historyCleanupTimerRef.current = null;
+        try {
+          const ids: string[] = Array.isArray(
+            (window.history.state as any)?.__modalIds,
+          )
+            ? (window.history.state as any).__modalIds
+            : [];
+          if (ids.includes(stateId)) {
+            const remaining = ids.filter((id) => id !== stateId);
+            window.history.replaceState(
+              { ...(window.history.state ?? {}), __modalIds: remaining },
+              '',
+            );
+          }
+        } catch {
+          /* ignore */
+        }
+      }, HISTORY_CLEANUP_DELAY_MS);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, applyMobileFullScreen, instanceId]);
@@ -181,13 +234,13 @@ const Sheet: React.FC<SheetProps> = ({
     runExitThenClose();
   };
 
-  const positionClass = styles[
-    `position${position.charAt(0).toUpperCase()}${position.slice(1)}`
-  ];
+  const positionClass =
+    styles[`position${position.charAt(0).toUpperCase()}${position.slice(1)}`];
 
-  const overlayPositionClass = styles[
-    `overlay${position.charAt(0).toUpperCase()}${position.slice(1)}`
-  ];
+  const overlayPositionClass =
+    styles[
+      `overlay${position.charAt(0).toUpperCase()}${position.slice(1)}`
+    ];
 
   const sheetClasses = [
     styles.sheet,
@@ -214,7 +267,9 @@ const Sheet: React.FC<SheetProps> = ({
     <div
       className={overlayClasses}
       onClick={handleBackdrop}
-      style={overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined}
+      style={
+        overlayZIndex !== undefined ? { zIndex: overlayZIndex } : undefined
+      }
     >
       <div
         className={sheetClasses}

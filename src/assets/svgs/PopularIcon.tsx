@@ -30,8 +30,8 @@ const PopularIcon: React.FC<PopularIconProps> = ({ width, height }) => {
           y2="59.5836"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#F2D249" />
-          <stop offset="1" stop-color="#F05926" />
+          <stop stopColor="#F2D249" />
+          <stop offset="1" stopColor="#F05926" />
         </linearGradient>
         <radialGradient
           id="paint1_radial_14_24"
@@ -41,8 +41,8 @@ const PopularIcon: React.FC<PopularIconProps> = ({ width, height }) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(31 49.5) rotate(88.3634) scale(17.5071 15.887)"
         >
-          <stop stop-color="white" />
-          <stop offset="1" stop-color="#FFCD12" />
+          <stop stopColor="white" />
+          <stop offset="1" stopColor="#FFCD12" />
         </radialGradient>
       </defs>
     </svg>

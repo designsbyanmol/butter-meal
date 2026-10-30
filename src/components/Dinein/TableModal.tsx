@@ -89,7 +89,7 @@ const TableModal: React.FC<TableModalProps> = ({
           />
         </FormField>
       ) : (
-        <FormField label="Enter any common word of your friend circle">
+        <FormField label="Enter any name of your friend circle">
           <Input
             value={value}
             onChange={(e) => {
@@ -102,8 +102,7 @@ const TableModal: React.FC<TableModalProps> = ({
         </FormField>
       )}
 
-      <button
-        type="button"
+      <Button variant="secondary"
         className={local.switchLink}
         disabled={busy}
         onClick={() => {
@@ -115,7 +114,7 @@ const TableModal: React.FC<TableModalProps> = ({
         {mode === 'number'
           ? 'No table number?'
           : 'Have a table number instead?'}
-      </button>
+      </Button>
     </Modal>
   );
 };

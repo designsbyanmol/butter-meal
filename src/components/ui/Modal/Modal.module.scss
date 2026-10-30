@@ -127,6 +127,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  @include mobile {
+  font-size: 12px;
+  }
 }
 
 .headerActions {

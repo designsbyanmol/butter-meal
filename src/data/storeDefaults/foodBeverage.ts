@@ -7,9 +7,9 @@ const FOOD_BEVERAGE_ITEMS = [
   // ============================================================
   it(
     1,
-    'Anmol Vegetable Idli (4 mini idli) Combo With Peanut Chutney & Sambar',
+    'Vegetable Idli (4 mini idli) Combo With Peanut Chutney & Sambar',
     50,
-    u('cooking.webp'),
+    u('idliSambhar.webp'),
     'Freshly steamed soft vegetable idlis served with creamy roasted peanut chutney and flavorful South Indian sambar. A light, healthy, and satisfying meal packed with authentic taste, aromatic spices, and wholesome ingredients. Perfect for breakfast, lunch, or evening cravings with a delicious homemade touch.',
     {
       isVeg: true,
@@ -64,9 +64,9 @@ const FOOD_BEVERAGE_ITEMS = [
   ),
   it(
     2,
-    'Anmol Dahi Vada',
+    'Dahi Vada',
     50,
-    u('table-nonveg.webp'),
+    u('dahiVada.webp'),
     'Soft lentil dumplings soaked in creamy chilled yogurt, topped with fresh dhaniya chutney and sweet-tangy imli chutney. Garnished with roasted cumin, chili powder, and a hint of chaat masala for an authentic Indian street-style flavor. A refreshing, rich, and perfectly balanced snack loved across India.',
     {
       isVeg: true,
@@ -117,7 +117,7 @@ const FOOD_BEVERAGE_ITEMS = [
     3,
     'Fried Idli Bites With Green Dhaniya Chutney',
     65,
-    u('cooking.webp'),
+    u('friedIdli.webp'),
     'Soft idlis pan-fried until crispy and tossed in flavorful South Indian spices, served with fresh homemade dhaniya chutney. A perfect crunchy, spicy, and authentic snack for breakfast or evening cravings.',
     {
       isVeg: true,
@@ -165,7 +165,7 @@ const FOOD_BEVERAGE_ITEMS = [
     4,
     'Sambhar Vada',
     45,
-    u('cooking.webp'),
+    u('idliSambhar.webp'),
     'Crispy golden Medu Vada made with traditional South Indian spices, soft from inside and perfectly fried for authentic flavor. Served with freshly prepared creamy peanut chutney, blended with roasted peanuts, curry leaves, and mild spices. A delicious, comforting snack or breakfast option delivered fresh and full of homemade taste.',
     {
       isVeg: true,
@@ -206,7 +206,7 @@ const FOOD_BEVERAGE_ITEMS = [
     5,
     'Fresh Bhindi Pyaz Sabji With 2 Parathas',
     80,
-    u('cooking.webp'),
+    u('bhindiParatha.webp'),
     'Delicious homemade bhindi pyaz sabji cooked with fresh okra, onions, and aromatic Indian spices, served with 2 soft and flaky parathas. A comforting and flavourful meal perfect for lunch or dinner, prepared fresh for authentic taste and satisfying hunger.',
     {
       isVeg: true,
@@ -252,7 +252,7 @@ const FOOD_BEVERAGE_ITEMS = [
     6,
     'Aloo Sandwich With Fresh Chutney',
     55,
-    u('wrap.webp'),
+    u('sandwich.webp'),
     'Crispy grilled bread stuffed with a flavorful potato filling made with fresh herbs, onions, and Indian spices. Served hot with chutney and sauce, this delicious aloo sandwich is the perfect comfort snack for breakfast, evening cravings, or a quick meal. Freshly prepared, satisfying, and packed with homestyle taste in every bite.',
     {
       isVeg: true,
@@ -303,7 +303,7 @@ const FOOD_BEVERAGE_ITEMS = [
     7,
     'Desi Style Poha',
     60,
-    u('cooking.webp'),
+    u('poha.webp'),
     'Fresh and flavourful Indian poha made with flattened rice, onions, green chilies, curry leaves, and mild spices, garnished with fresh coriander and lemon. Light, wholesome, and perfectly balanced in taste, this comforting breakfast dish is served hot for a delicious and satisfying meal, ideal for any time of the day.',
     {
       isVeg: true,
@@ -365,7 +365,7 @@ const FOOD_BEVERAGE_ITEMS = [
     8,
     'Pyaz Pakodi With Dhaniya Chutney',
     35,
-    u('cooking.webp'),
+    u('pyazPakodi.webp'),
     'Crispy golden onion pakodis made with fresh onions, gram flour, and aromatic spices, deep-fried to perfection for an irresistible crunch. Served hot with refreshing dhaniya chutney prepared from fresh coriander, green chilies, and tangy flavors. A perfect tea-time snack packed with spicy, crunchy, and delicious street-style taste.',
     {
       isVeg: true,
@@ -418,7 +418,7 @@ const FOOD_BEVERAGE_ITEMS = [
     9,
     'Fresh Paneer Paratha | High Protein Meal',
     65,
-    u('cooking.webp'),
+    u('paneerbhurjiParatha.webp'),
     'Enjoy our traditional Indian Buttery Paneer Paratha, stuffed with fresh spiced paneer and roasted to golden perfection with rich butter. Served with flavorful dhaniya chutney for the perfect desi taste. Soft, crispy, and satisfying - a comforting meal packed with authentic Indian flavors in every bite.',
     {
       isVeg: true,
@@ -466,7 +466,7 @@ const FOOD_BEVERAGE_ITEMS = [
     10,
     'Stuffed Aloo Paratha | Desi Breakfast',
     50,
-    u('cooking.webp'),
+    u('alooParatha.webp'),
     'Traditional Indian buttery Aloo Paratha, stuffed with perfectly spiced mashed potatoes and cooked golden with rich butter for an authentic homemade taste. Served with fresh, flavorful dhaniya chutney that adds a refreshing zing to every bite. Soft inside, crispy outside - a comforting North Indian favorite, perfect for breakfast, lunch, or anytime cravings.',
     {
       isVeg: true,

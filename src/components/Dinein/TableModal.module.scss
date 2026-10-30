@@ -2,17 +2,9 @@
 
 .switchLink {
   margin-top: 12px;
-  background: transparent;
-  border: none;
-  color: $primary-dark;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: underline;
-  font-family: inherit;
-  font-size: 13px;
-  padding: 0;
+  font-size: 12px;
 
-  &:hover { color: $primary; }
+  &:hover { color: $gray-600; }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

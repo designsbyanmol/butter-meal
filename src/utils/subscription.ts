@@ -138,11 +138,13 @@ export const computePlanPrice = (
 ): PriceBreakdown =>
   computePrice(plan.monthlyPrice, months, taxPercent, isFirstMonth);
 
-export const formatRupees = (n: number): string =>
-  `Rs ${n.toLocaleString('en-IN', {
+export const formatRupees = (n: number | null | undefined): string => {
+  const num = typeof n === 'number' && Number.isFinite(n) ? n : 0;
+  return `Rs ${num.toLocaleString('en-IN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
+};
 
 export const daysBetween = (a: Date, b: Date): number => {
   const MS = 24 * 60 * 60 * 1000;

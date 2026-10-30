@@ -250,10 +250,10 @@
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: linear-gradient(45deg, $purple-50, $purple-50);
-  border: 1px solid $purple-200;
-  border-radius: $radius-pill;
-  font-size: 12.5px;
+  background: linear-gradient(45deg, $blue-50, $blue-50);
+  border: 1px solid $blue-200;
+  border-radius: $radius-sm;
+  font-size: 11px;
   color: $text;
 
   svg { flex-shrink: 0; }
@@ -290,11 +290,11 @@
   gap: 5px;
   padding: 6px 12px;
   background: #fff;
-  border-radius: $radius-pill;
-  background: linear-gradient(45deg, $primary-50, $primary-50);
-  border: 1px solid $primary-200;
+  border-radius: $radius-sm;
+  background: $white;
+  border: 1px solid $gray-300;
   font-size: 13px;
-  color: $text;
+  color: $gray-500;
 
   svg { flex-shrink: 0; }
 }
@@ -315,9 +315,9 @@
   gap: 4px;
   align-items: center;
   padding: 8px 12px;
-  background: rgba(255, 164, 0, 0.08);
-  border: 1px solid #ffa400;
-  border-radius: $radius-xs;
+  background: $primary-50;
+  border: 1px solid $primary-300;
+  border-radius: $radius-md;
 
   span:first-child {
     font-size: 10px;

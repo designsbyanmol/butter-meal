@@ -91,7 +91,7 @@ const CartModal: React.FC<CartModalProps> = ({
 
   const bodyContent = !hasItems ? (
     <EmptyState
-      icon={<CartIcon width={32} height={32} fill="#7d6b60" />}
+      icon={<CartIcon width={32} height={32} fill="#dcdcdc" />}
       title="Your cart is empty"
       description="Add some items to get started."
     />

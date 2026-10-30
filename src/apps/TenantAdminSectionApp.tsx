@@ -37,7 +37,7 @@ const MOBILE_KEBAB_KEYS = new Set(["reviews", "info"]);
 
 const PAGE_FOR_SECTION: Record<string, string> = {
   menu: "admin-menu.html",
-  billing: "admin-pharmacy-billing.html",
+  billing: "admin-menu.html",
   appointments: 'admin-appointments.html',
   store: "admin-store.html",
   users: "admin-users.html",
@@ -58,9 +58,23 @@ const readSlugFromUrl = (): string | null => {
 };
 
 /** Build the URL for a specific section page. */
-const sectionUrl = (slug: string, sectionKey: string): string => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
-  const page = PAGE_FOR_SECTION[sectionKey] ?? "admin.html";
+const sectionUrl = (
+  slug: string,
+  sectionKey: string,
+  isHospital: boolean,
+): string => {
+  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+
+  if (sectionKey === 'billing') {
+    const page = isHospital
+      ? 'admin-pharmacy-billing.html'
+      : 'admin-menu.html';
+    const params = new URLSearchParams({ t: `${slug}_admin` });
+    if (!isHospital) params.set('body', 'billing');
+    return `${window.location.origin}${dir}${page}?${params.toString()}`;
+  }
+
+  const page = PAGE_FOR_SECTION[sectionKey] ?? 'admin.html';
   return `${window.location.origin}${dir}${page}?t=${slug}_admin`;
 };
 
@@ -179,12 +193,19 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
 
   const navItems: NavItem[] = [
     {
-      key: 'billing',
-      label: 'Pharmacy Billing',
-      icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
-      visible: isHospital && isAdmin,
-      render: sectionKey === 'billing' ? () => children : () => null,
-    },
+    key: "billing",
+    label: isHospital ? "Pharmacy Billing" : "Billing",
+    icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
+    visible: isAdmin,
+    render: sectionKey === "billing" ? () => children : () => null,
+  },
+  {
+  key: 'reviews',
+  label: 'Reviews',
+  icon: <StarIcon width={20} height={20} fill="currentColor" />,
+  visible: false, // hidden from sidebar but still in the items lookup
+  render: sectionKey === 'reviews' ? () => children : () => null,
+},
     {
       key: 'menu',
       label: isHospital ? 'Stock' : 'Menu',
@@ -208,17 +229,10 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
     },
     {
       key: "users",
-      label: "Users",
+      label: isHospital ? 'Staff' : 'Users',
       icon: <UsersIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageUsers,
       render: sectionKey === "users" ? () => children : () => null,
-    },
-    {
-      key: "reviews",
-      label: "Reviews",
-      icon: <StarIcon width={20} height={20} fill="currentColor" />,
-      visible: isAdmin && plan.canReview,
-      render: sectionKey === "reviews" ? () => children : () => null,
     },
     {
       key: "orders",
@@ -229,24 +243,20 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
     },
     {
       key: "info",
-      label: "Store Info",
+      label: isHospital ? 'Hospital Info' : 'Store Info',
       icon: <EditIcon width={20} height={20} fill="currentColor" />,
       visible: false,
       render: sectionKey === "info" ? () => children : () => null,
     },
   ];
 
-  const handleActiveKeyChange = (key: string) => {
-    if (!key) {
-      window.location.href = homeUrl(slug);
-      return;
-    }
-    if (key === sectionKey) return;
-    window.location.href = sectionUrl(slug, key);
-  };
+const handleActiveKeyChange = (key: string) => {
+  if (!key) return;
+  window.location.href = sectionUrl(slug, key, isHospital);
+};
 
-  const kebabItems: KebabItem[] = [
-    ...(isAdmin && plan.canReview
+   const kebabItems: KebabItem[] = [
+    ...(isAdmin && plan.canReview && !isHospital
       ? [
           {
             kind: "action" as const,
@@ -254,7 +264,7 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
             label: "Reviews",
             icon: <StarIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
-              window.location.href = sectionUrl(slug, "reviews");
+              window.location.href = sectionUrl(slug, "reviews", isHospital);
             },
           },
         ]
@@ -264,10 +274,10 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
           {
             kind: "action" as const,
             key: "info",
-            label: "Store Information",
+            label: isHospital ? 'Hospital Info' : 'Store Info',
             icon: <EditIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
-              window.location.href = sectionUrl(slug, "info");
+              window.location.href = sectionUrl(slug, "info", isHospital);
             },
           },
         ]
@@ -284,17 +294,17 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
 
   const notificationsSlot = (
     <>
-      {isAdmin && plan.canReview && (
+      {!isHospital && isAdmin && plan.canReview && (
         <TenantNotificationsDrawer
           onOpenReview={() => {
-            window.location.href = sectionUrl(slug, "reviews");
+            window.location.href = sectionUrl(slug, "reviews", isHospital);
           }}
         />
       )}
       {isAdmin && isDinein && (
         <DineinNotificationsDrawer
           onOpenOrder={() => {
-            window.location.href = sectionUrl(slug, "orders");
+            window.location.href = sectionUrl(slug, "orders", isHospital);
           }}
         />
       )}

@@ -170,9 +170,9 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ item }) => {
             aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
           >
             <StarIcon
-              width={28}
-              height={28}
-              fill={n <= draftRating ? '#f5a623' : '#d5cdc5'}
+              width={24}
+              height={24}
+              fill={n <= draftRating ? '#f5a623' : '#dcdcdc'}
             />
           </button>
         ))}
