@@ -36,7 +36,7 @@ const CATALOG_CACHE_PREFIX = 'hosp_customer_catalog_v1:';
 const TOKEN_FALLBACK_POLL_MS = 90_000;
 
 const GENDER_OPTIONS = [
-  { value: '', label: 'Select…' },
+  { value: '', label: 'Select...' },
   { value: 'Male', label: 'Male' },
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },

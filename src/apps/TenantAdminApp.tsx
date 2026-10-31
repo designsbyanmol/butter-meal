@@ -9,6 +9,7 @@ import LoginModal from '../components/Auth/LoginModal';
 import TenantNotFound from '../components/TenantNotFound/TenantNotFound';
 import DashboardSkeleton from '../components/DashboardSkeleton/DashboardSkeleton';
 import { seedNewStoreCatalog } from '../utils/seedCatalog';
+import { useBackendOnline } from '../hooks/useBackendOnline';
 import { supabase } from '../services/supabase.client';
 
 // Bind auth scope before any hook reads state.
@@ -36,14 +37,12 @@ const readSlugFromUrl = (): string | null => {
   }
 };
 
-/**
- * Inner component - this is where useTenant() actually reads from
- * the TenantProvider mounted above it in the outer wrapper.
- */
+
 const TenantAdminAppInner: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { tenant, isLoading: tenantLoading, tenantNotFound } = useTenant();
-
+  
+  const online = useBackendOnline();
   const slug = React.useMemo(() => readSlugFromUrl(), []);
 
   useEffect(() => {
@@ -123,13 +122,15 @@ const TenantAdminAppInner: React.FC = () => {
 
   // ── 4. Signed in, tenant loading ──
   if (tenantLoading) {
-    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  }           
+    return online
+      ? <DashboardSkeleton count={6} hideHeader hideBrand hidePill />
+      : <TenantNotFound reason="connection" />;
+  }        
 
   // ── 5. Signed in, tenant didn't resolve ──
-  if (tenantNotFound || !tenant) {
-    return <TenantNotFound />;
-  }
+if (tenantNotFound || !tenant) {
+  return <TenantNotFound reason={online ? 'not-found' : 'connection'} />;
+}
 
   // ── 6. Wrong store ──
   if (

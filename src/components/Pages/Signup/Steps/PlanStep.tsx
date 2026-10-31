@@ -33,6 +33,10 @@ interface PlanStepProps {
   onSelectionChange?: (s: { planId: string | null; months: number }) => void;
   onBack: () => void;
   onPaid: (info: { months: number; expiresAt: string; planId: string }) => void;
+  /** Called the moment the user taps Continue (invoice creation). */
+  onBeforePayment?: () => void;
+  /** Called if invoice creation fails. */
+  onPaymentCancelled?: () => void;
 }
 
 const DEFAULT_MONTHS: DurationMonths = 1;
@@ -49,6 +53,8 @@ const PlanStep: React.FC<PlanStepProps> = ({
   onSelectionChange,
   onBack,
   onPaid,
+  onBeforePayment,
+  onPaymentCancelled,
 }) => {
   const { taxPercent } = usePlatformTax();
 
@@ -116,17 +122,22 @@ const PlanStep: React.FC<PlanStepProps> = ({
       });
       if (!inv) throw new Error("Could not create invoice");
       setInvoiceId(inv.id);
+      onPaymentCancelled?.();
     } catch (err) {
       console.error("[PlanStep] createInvoice failed:", err);
       setError(
         err instanceof Error ? err.message : "Failed to prepare payment",
       );
+      onPaymentCancelled?.();
     } finally {
       setCreatingInvoice(false);
     }
   };
 
   const handleRazorpayFailure = (reason: string) => {
+    // Any failure (including user cancel) means the preloader must
+    // go away — we're staying on the plan step.
+    onPaymentCancelled?.();
     if (!reason || reason === "Payment cancelled") return;
     setInvoiceId(null);
     setError(reason);
@@ -223,8 +234,8 @@ const PlanStep: React.FC<PlanStepProps> = ({
             plan={plan}
             months={months}
             selected={plan.id === selectedPlanId}
-            featured={plan.id === 'professional'}
-            blue={plan.id === 'dynamic'}
+            featured={plan.id === "professional"}
+            blue={plan.id === "dynamic"}
             firstMonthMode
             onSelect={() => {
               setSelectedPlanId(plan.id);
@@ -239,7 +250,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
           <div className={local.summaryRow}>
             <span>
               {selectedPlan.name} x {breakdown.months} month
-              {breakdown.months > 1 ? 's' : ''}
+              {breakdown.months > 1 ? "s" : ""}
             </span>
             <span>{formatRupees(breakdown.baseAmount)}</span>
           </div>
@@ -298,7 +309,13 @@ const PlanStep: React.FC<PlanStepProps> = ({
       )}
 
       <div className={local.stepActions}>
-        <Button variant="ghost" onClick={onBack}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            onPaymentCancelled?.();
+            onBack();
+          }}
+        >
           <LeftArrowIcon width={18} height={18} fill="#4d4d4d" /> Back
         </Button>
 
@@ -330,6 +347,11 @@ const PlanStep: React.FC<PlanStepProps> = ({
             onCheckoutFailure={handleRazorpayFailure}
           >
             {({ start, processing }) => (
+              // NOTE: no onBeforePayment here. The preloader is
+              // reserved for the "Continue" step (invoice creation)
+              // and for the post-success "Setting up your store..."
+              // state. Showing it before Razorpay leaves it stuck
+              // behind the widget if payment fails.
               <Button onClick={start} loading={processing}>
                 {processing
                   ? "Processing..."
@@ -339,7 +361,10 @@ const PlanStep: React.FC<PlanStepProps> = ({
           </RazorpayCheckout>
         ) : (
           <Button
-            onClick={createInvoice}
+            onClick={() => {
+              onBeforePayment?.();
+              createInvoice();
+            }}
             loading={creatingInvoice}
             disabled={!selectedPlan}
           >

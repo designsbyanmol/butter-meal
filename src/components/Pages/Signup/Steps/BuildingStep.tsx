@@ -36,7 +36,7 @@ const BuildingStep: React.FC<BuildingStepProps> = ({
         </div>
         <h2>Congratulations!</h2>
         <p className={local.buildingLead}>
-          Your store <strong>{storeName}</strong> is being created.
+          Your App <strong>{storeName}</strong> is being created.
         </p>
         <p className={local.buildingSub}>
           We're setting up your menu, settings, and dashboard. This will only

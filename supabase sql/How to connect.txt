@@ -325,3 +325,10 @@ ls -lh dist/index.html   # should be a single file, no sibling folders
 supabase functions logs razorpay-create-order
 supabase functions logs razorpay-verify
 End of setup. If any SQL file fails, do not continue — read the error, fix the offending constraint/function, then re-run from the file that failed. Most files are idempotent, so re-running a stage is safe.
+
+# how to update plan pricing
+1. Update Plan Prices.sql
+2. src/data/plans.ts
+3. src/components/Admin/PlanBadge.tsx
+4. for offer update of Rs1 - src/utils/subscription.ts
+5. For discount update - src/types/index.ts

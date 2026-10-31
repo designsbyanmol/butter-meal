@@ -207,11 +207,11 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!form.storeName.trim()) e.storeName = 'Store name is required';
+    if (!form.storeName.trim()) e.storeName = 'Company name is required';
     if (!form.slug.trim()) e.slug = 'URL slug is required';
     if (!/^[a-z0-9-]+$/.test(form.slug))
       e.slug = 'Only lowercase letters, numbers and hyphens';
-    if (!form.storeCategory) e.storeCategory = 'Store type is required';
+    if (!form.storeCategory) e.storeCategory = 'Business type is required';
     if (!form.ownerName.trim()) e.ownerName = 'Owner name is required';
     if (!/^\d{10}$/.test(form.ownerPhone))
       e.ownerPhone = 'Enter a 10-digit phone number';
@@ -268,12 +268,12 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
   return (
     <div className={local.stepWrap}>
       <div className={local.stepHeader}>
-        <h2>Create your store</h2>
+        <h2>Create your Online Business</h2>
         <p>Let's start with the basics.</p>
       </div>
 
       <div className={local.grid2}>
-        <FormField label="Store Name" required error={errors.storeName}>
+        <FormField label="Company Name" required error={errors.storeName}>
           <Input
             value={form.storeName}
             onChange={(e) => update('storeName', e.target.value)}
@@ -291,7 +291,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
               ? 'Checking availability...'
               : slugStatus === 'available'
               ? 'Yes! This slug is available'
-              : 'Your store URL will end with this'
+              : 'Your Company URL will end with this'
           }
         >
           <Input
@@ -317,7 +317,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
 
       <div className={local.grid2}>
         <FormField
-          label="Store Type"
+          label="Business Type"
           required
           error={errors.storeCategory}
           hint="This decides the default catalog layout."
@@ -327,7 +327,7 @@ const DetailsStep: React.FC<DetailsStepProps> = ({
             onChange={(e) =>
               update('storeCategory', e.target.value as StoreCategory)
             }
-            placeholder="- Select your store type -"
+            placeholder="- Select your business type -"
             options={categoryOptions}
             invalid={!!errors.storeCategory}
           />

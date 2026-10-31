@@ -21,6 +21,12 @@
     transform 0.05s ease;
   user-select: none;
 
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+
   &:active:not(:disabled) {
     transform: translateY(1px);
   }
@@ -129,11 +135,6 @@
   background: $white;
   color: $text-muted;
   border-color: $border;
-  .label {
-    display: inline-flex;
-    align-items: center;
-    gap: $space-2;
-  }
 
   &:hover:not(:disabled) {
     background: $bg-subtle;

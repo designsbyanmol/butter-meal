@@ -186,16 +186,12 @@
     content: '';
     position: absolute;
     left: 15px;
-    top: 40px;
-    bottom: -8px;
+    top: 45px;
+    bottom: -12px;
     width: 2px;
     background: $border;
     border-radius: $border-width-thin;
     transition: background $t-fast;
-  }
-
-  &.stepCompleted::before {
-    background: $primary;
   }
 
   @include tablet($bp-lg) {
@@ -221,6 +217,10 @@
     &:last-child::before {
       display: none;
     }
+  }
+
+  &.stepCompleted::before {
+    background: $primary;
   }
 }
 

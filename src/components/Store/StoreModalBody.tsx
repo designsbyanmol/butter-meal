@@ -1,6 +1,7 @@
 // src/components/Store/StoreModalBody.tsx
 import React, { useEffect, useState } from "react";
 import { useStore } from "../../contexts/StoreContext";
+import { useTenant } from "../../contexts/TenantContext";
 import { StoreSettings } from "../../types";
 import {
   Toggle,
@@ -36,7 +37,8 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
     useState<StoreSettings>(storeSettings);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSaving, setIsSaving] = useState(false);
-
+const { tenant } = useTenant();
+const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
   // Re-sync local state when the context's values change.
   useEffect(() => {
     setLocalSettings(storeSettings);
@@ -123,7 +125,7 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
 
   if (isLoading) {
     return (
-      <InlineSection title="Store Management">
+      <InlineSection title={isHospital ? "Hospital Management": "Store Management"}>
         <div style={{ padding: 24, textAlign: "center", color: "#888" }}>
           Loading store settings...
         </div>
@@ -132,7 +134,7 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
   }
 
   return (
-    <InlineSection title="Store Management">
+    <InlineSection title={isHospital ? "Hospital Management": "Store Management"}>
       {/* ---- Open / closed ---- */}
       <section className={local.settingGroup}>
         <Toggle
@@ -150,13 +152,17 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
                 : {}),
             }))
           }
-          label={localSettings.isOpen ? "Store is Open" : "Store is Closed"}
+          label={localSettings.isOpen ? (isHospital ? "Hospital is Open":"Store is Open") : (isHospital ? "Hospital is Closed":"Store is Closed")}
         />
         <p className={local.settingDescription}>
-          {localSettings.isOpen
-            ? "Customers can place orders as Store is open"
-            : "Customers will see your custom closed message"}
-        </p>
+  {localSettings.isOpen
+    ? (isHospital
+        ? "Patients can book appointments as the clinic is open."
+        : "Customers can place orders as Store is open")
+    : (isHospital
+        ? "Patients will see your custom closed message and cannot book appointments."
+        : "Customers will see your custom closed message")}
+</p>
       </section>
 
       {/* ---- Accepting orders ---- */}
@@ -171,15 +177,19 @@ const StoreModalBody: React.FC<StoreModalBodyProps> = ({
           }
           label={
             localSettings.acceptingOrders !== false
-              ? "Ordering Enabled"
-              : "Ordering Disabled"
+              ? (isHospital ? "Appointment Enabled":"Ordering Enabled")
+              : (isHospital ? "Appointment Disabled":"Ordering Disabled")
           }
         />
         <p className={local.settingDescription}>
-          {localSettings.acceptingOrders !== false
-            ? "Customers can add items to the cart and place orders."
-            : "Customers can view the menu but cannot place orders. The Add button and cart are hidden."}
-        </p>
+  {localSettings.acceptingOrders !== false
+    ? (isHospital
+        ? "Patients can view available slots and book appointments."
+        : "Customers can add items to the cart and place orders.")
+    : (isHospital
+        ? "Patients can view doctors and services but cannot book appointments. The Book button and appointment cart are hidden."
+        : "Customers can view the menu but cannot place orders. The Add button and cart are hidden.")}
+</p>
       </section>
 
       {/* ---- Closed-store message ---- */}

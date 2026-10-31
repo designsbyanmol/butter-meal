@@ -63,21 +63,21 @@ export const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
   const [processing, setProcessing] = React.useState(false);
 
   const start = useCallback(async () => {
-    if (!ready) {
-      onCheckoutFailure?.(scriptError ?? 'Razorpay not ready');
-      return;
-    }
-    if (!supabase) {
-      onCheckoutFailure?.('Supabase not configured');
-      return;
-    }
+  if (!ready) {
+    onCheckoutFailure?.(scriptError ?? 'Razorpay not ready');
+    return;
+  }
 
-    setProcessing(true);
+  setProcessing(true);
 
-    try {
-      // 1. Create the Razorpay order server-side
-      const createOrder = await supabase.functions.invoke(
-        'razorpay-create-order',
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const client = supabase;                 // ← ADD THIS
+
+    // 1. Create the Razorpay order server-side
+    const createOrder = await client.functions.invoke(
+      'razorpay-create-order',
         {
           body: {
             amount,
@@ -104,7 +104,7 @@ export const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
         key: keyId,
         amount: data.amount,
         currency: data.currency,
-        name: 'Orcamus',
+        name: 'Dozzelo',
         description: description ?? 'Subscription payment',
         order_id: data.order_id,
         prefill: {
@@ -112,12 +112,12 @@ export const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
           contact: prefillContact ?? '',
           email: prefillEmail ?? '',
         },
-        theme: { color: '#1e7e34' },
+        theme: { color: '#0F172A' },
         handler: async (response: any) => {
           try {
             // 3. Verify server-side
-            const verify = await supabase.functions.invoke(
-              'razorpay-verify',
+            const verify = await client.functions.invoke(   // ← use `client`
+          'razorpay-verify',
               {
                 body: {
                   invoice_id: invoiceId,

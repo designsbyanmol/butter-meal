@@ -28,6 +28,7 @@ import {
   ClockIcon,
 } from '../../assets/svgs';
 import shell from '../Dashboard/DashboardShell.module.scss';
+import { useNavigationPreloader } from '../../hooks/useNavigationPreloader';
 
 const ADMIN_EMAIL = 'ContactDozzelo@gmail.com';
 const LOGO_URL =
@@ -178,17 +179,38 @@ const TenantAdminShell: React.FC = () => {
   const isHospital =
     (tenant.storeCategory ?? '').trim().toLowerCase() === 'hospital-pharmacy';
 
-  const handleLogout = () => {
-    if (!window.confirm('Log out?')) return;
-    authService.logout();
-    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-    window.location.href = `${window.location.origin}${dir}home.html`;
-  };
+  const nav = useNavigationPreloader({ title: "Loading..." });
 
-  const handleActiveKeyChange = (key: string) => {
-    if (!key) return;
-    window.location.href = sectionUrl(slug, key, isHospital);
-  };
+    const sectionTitleFor = (key: string) =>
+      (
+        ({
+          menu: "Loading Menu...",
+          billing: "Loading Billing...",
+          store: "Loading Store...",
+          users: "Loading Users...",
+          orders: "Loading Orders...",
+          reviews: "Loading Reviews...",
+          info: "Loading Store Info...",
+          appointments: "Loading Appointments...",
+        }) as Record<string, string>
+      )[key] ?? "Loading...";
+
+    const handleActiveKeyChange = (key: string) => {
+      if (!key) return;
+      const url = sectionUrl(slug, key, isHospital);
+      nav.show(() => {
+        window.location.href = url;
+      }, sectionTitleFor(key));
+    };
+
+    const handleLogout = () => {
+      if (!window.confirm("Log out?")) return;
+      authService.logout();
+      const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
+      nav.show(() => {
+        window.location.href = `${window.location.origin}${dir}home.html`;
+      });
+    };
 
   const items: NavItem[] = [
     {
@@ -425,6 +447,8 @@ const TenantAdminShell: React.FC = () => {
         render: () => null,
         visible: i.visible,
       }));
+
+      
 
     return (
       <>

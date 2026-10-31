@@ -10,6 +10,7 @@ import { useSignupPersistence, clearSignupState } from "./useSignupPersistence";
 import { seedNewStoreCatalog } from "../../../utils/seedCatalog";
 import local from "./Signup.module.scss";
 import { CheckIcon, LeftArrowIcon } from "../../../assets/svgs";
+import { useNavigationPreloader } from "../../../hooks/useNavigationPreloader";
 
 interface VisibleStep {
   index: number;
@@ -21,7 +22,7 @@ interface VisibleStep {
 const VISIBLE_STEPS: VisibleStep[] = [
   {
     index: 1,
-    label: "Store Details",
+    label: "Business Details",
     sub: "Name, slug & owner",
     stages: ["details"],
   },
@@ -33,7 +34,7 @@ const VISIBLE_STEPS: VisibleStep[] = [
   },
   {
     index: 3,
-    label: "Store Setup",
+    label: "Business Setup",
     sub: "Review & confirm",
     stages: ["building", "credentials"],
   },
@@ -50,7 +51,8 @@ const SignupPage: React.FC = () => {
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string>("");
 
-  // ---- Load plans ----
+  const nav = useNavigationPreloader({ title: "Loading..." });
+
   useEffect(() => {
     let cancelled = false;
     setPlansLoading(true);
@@ -85,7 +87,6 @@ const SignupPage: React.FC = () => {
     };
   }, []);
 
-  // ---- Auto-skip credentials step if plan/months got clobbered ----
   useEffect(() => {
     if (stage === "credentials" && !confirmed) {
       patch({ stage: "plan" });
@@ -95,7 +96,16 @@ const SignupPage: React.FC = () => {
     }
   }, [stage, confirmed, patch]);
 
-  // ---- Back to home ----
+  // Safety net: if the stage leaves "plan", make sure the preloader
+  // is gone. This is redundant with the hide in onPaid but protects
+  // against a stuck overlay in any edge case.
+  useEffect(() => {
+    if (stage !== "plan") {
+      nav.hide();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
   const handleBackToHome = () => {
     try {
       clearSignupState();
@@ -103,9 +113,9 @@ const SignupPage: React.FC = () => {
     } catch {
       /* ignore */
     }
-
-    const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
-    window.location.href = `${window.location.origin}`;
+    nav.show(() => {
+      window.location.href = `${window.location.origin}`;
+    }, "Loading...");
   };
 
   const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
@@ -122,9 +132,6 @@ const SignupPage: React.FC = () => {
 
   return (
     <div className={local.page}>
-      {/* =========================================================
-          Page header - back to home on the left, brand logo on the right
-         ========================================================= */}
       <div className={local.pageHeader}>
         <button
           type="button"
@@ -207,10 +214,44 @@ const SignupPage: React.FC = () => {
               onSelectionChange={({ planId, months }) =>
                 patch({ selectedPlanId: planId, months })
               }
-              onBack={() => patch({ stage: "details" })}
+              onBack={() => {
+                nav.hide();
+                patch({ stage: "details" });
+              }}
+              // Only fired from the "Continue" button (invoice
+              // creation), NOT from "Pay". This is what keeps the
+              // preloader out of Razorpay's way.
+              onBeforePayment={() => {
+                nav.showNow("Preparing payment...");
+              }}
+              onPaymentCancelled={() => {
+                nav.hide();
+              }}
               onPaid={async (info) => {
-                await seedNewStoreCatalog(details.slug, details.storeCategory);
-                patch({ confirmed: info, stage: "building" });
+                // Payment has succeeded — swap the title and keep
+                // the preloader up while the store is being seeded.
+                nav.showNow("Setting up your business...");
+                try {
+                  await seedNewStoreCatalog(
+                    details.slug,
+                    details.storeCategory,
+                  );
+                  patch({ confirmed: info, stage: "building" });
+                  // The stage useEffect above will hide the loader
+                  // once BuildingStep mounts.
+                } catch (err) {
+                  console.error("[Signup] seed failed:", err);
+                  // Fall through anyway — BuildingStep must render
+                  // so the user isn't stranded. Even if the seed
+                  // failed, the store row + owner exist; the admin
+                  // page has its own seed safety net.
+                  patch({ confirmed: info, stage: "building" });
+                } finally {
+                  // Belt-and-braces: if the stage change didn't
+                  // trigger (e.g. `confirmed` was already set), kill
+                  // the loader explicitly.
+                  nav.hide();
+                }
               }}
             />
           )}

@@ -10,6 +10,7 @@ import MobileDashboardShell, {
 import AdminNotificationsDrawer from '../Header/AdminNotificationsDrawer';
 import ContactAdminModal from '../Auth/ContactAdminModal';
 import LoginModal from '../Auth/LoginModal';
+import { useNavigationPreloader } from '../../hooks/useNavigationPreloader';
 import DashboardSkeleton from '../DashboardSkeleton/DashboardSkeleton';
 import { authService } from '../../services/auth.service';
 import {
@@ -46,11 +47,6 @@ const SECTION_FOR_PAGE: Record<string, string> = {
 
 const MOBILE_KEBAB_KEYS = new Set(['reviews', 'revenue']);
 
-const navigateTo = (page: string) => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-  window.location.href = `${window.location.origin}${dir}${page}`;
-};
-
 const currentSectionFromPath = (): string => {
   try {
     const path = window.location.pathname;
@@ -59,12 +55,6 @@ const currentSectionFromPath = (): string => {
   } catch {
     return '';
   }
-};
-
-const handleLogout = () => {
-  if (!window.confirm('Log out?')) return;
-  authService.logout();
-  navigateTo('home.html');
 };
 
 type Accent = 'green' | 'blue' | 'amber' | 'purple' | 'rose' | 'teal';
@@ -85,11 +75,29 @@ const SuperAdminShell: React.FC = () => {
   const isMobile = useIsMobile(900);
   const [supportOpen, setSupportOpen] = React.useState(false);
 
-  const currentSection = React.useMemo(() => currentSectionFromPath(), []);
+  // ✅ hooks first, before ANY conditional return
+  const nav = useNavigationPreloader({ title: 'Loading...' });
 
-  // if (isLoading) {
-  //   return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  // }
+  const navigateTo = React.useCallback(
+    (page: string, title?: string) => {
+      const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+      nav.show(() => {
+        window.location.href = `${window.location.origin}${dir}${page}`;
+      }, title);
+    },
+    [nav],
+  );
+
+  const handleLogout = React.useCallback(() => {
+    if (!window.confirm('Log out?')) return;
+    authService.logout();
+    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+    nav.show(() => {
+      window.location.href = `${window.location.origin}${dir}home.html`;
+    }, 'Signing out...');
+  }, [nav]);
+
+  const currentSection = React.useMemo(() => currentSectionFromPath(), []);
   if (!isAuthenticated) {
     return (
       <>
@@ -144,11 +152,22 @@ const SuperAdminShell: React.FC = () => {
     },
   ];
 
-  const handleActiveKeyChange = (key: string) => {
-    if (!key) return;
-    const page = SECTION_PAGE[key];
-    if (page) navigateTo(page);
-  };
+  const titleForSection = (key: string): string => {
+  switch (key) {
+    case 'stores':   return 'Loading stores...';
+    case 'reviews':  return 'Loading reviews...';
+    case 'plans':    return 'Loading plans...';
+    case 'revenue':  return 'Loading revenue...';
+    case 'settings': return 'Loading settings...';
+    default:         return 'Loading...';
+  }
+};
+
+const handleActiveKeyChange = (key: string) => {
+  if (!key) return;
+  const page = SECTION_PAGE[key];
+  if (page) navigateTo(page, titleForSection(key));
+};
 
   const cardDefs: CardDef[] = [
     {
@@ -293,8 +312,11 @@ const SuperAdminShell: React.FC = () => {
           activeKey={currentSection}
           onActiveKeyChange={handleActiveKeyChange}
           onLogoClick={() => {
-            navigateTo('superadmin.html');
-          }}
+  nav.show(() => {
+    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+    window.location.href = `${window.location.origin}${dir}superadmin.html`;
+  }, 'Loading dashboard...');
+}}
           greeting={greetingContent}
           kebabItems={kebabItems}
           notifications={notificationsSlot}
@@ -319,8 +341,11 @@ const SuperAdminShell: React.FC = () => {
         onActiveKeyChange={handleActiveKeyChange}
         greeting={greetingContent}
         onLogoClick={() => {
-          navigateTo('superadmin.html');
-        }}
+  nav.show(() => {
+    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+    window.location.href = `${window.location.origin}${dir}superadmin.html`;
+  }, 'Loading dashboard...');
+}}
         onAdd={null}
         footer={{
           notifications: notificationsSlot,

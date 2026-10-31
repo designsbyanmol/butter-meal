@@ -8,6 +8,7 @@ import {
 import { Card, Button, Modal, IconButton } from '../../../ui';
 import { DownloadIcon, CheckIcon } from '../../../../assets/svgs';
 import local from '../Signup.module.scss';
+import { useNavigationPreloader } from '../../../../hooks/useNavigationPreloader';
 
 interface CredentialsStepProps {
   storeName: string;
@@ -83,69 +84,56 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
     window.open(url, '_blank');
   };
 
+  const { show } = useNavigationPreloader({ title: 'Opening your admin...' });
+
   // "Yes, close" → redirect to the tenant admin login page.
-  const handleConfirmClose = () => {
-    setConfirmOpen(false);
-    try {
-      onDone?.();
-    } catch {
-      /* ignore */
-    }
-    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
-    window.location.href = `${window.location.origin}${dir}admin.html?t=${slug}_admin`;
-  };
+const handleConfirmClose = () => {
+  setConfirmOpen(false);
+  try { onDone?.(); } catch {}
+  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  const url = `${window.location.origin}${dir}admin.html?t=${slug}_admin`;
+  show(() => { window.location.href = url; }, 'Opening your admin...');
+};
 
   return (
     <div className={local.stepWrap}>
       <div className={local.stepHeader}>
-        <h2>Hurrey! Your store is ready</h2>
+        <h2>Hurrey! Your Online App is ready</h2>
         <p>Save these credentials. You won't see the password again.</p>
       </div>
 
       <div className={local.credCardWrap}>
         {/* Top-right action cluster: credentials + QRs */}
         <div className={local.credTopActions}>
-          <IconButton
+          <Button
             variant="ghost"
-            size="lg"
-            shape="square"
+            size="md"
             aria-label="Download credentials PDF"
-            tooltip="Download credentials"
             disabled={busy === 'credentials'}
             onClick={handleDownloadCredentials}
           >
-            <DownloadIcon width={16} height={16} fill="#1e1e1e" />
-          </IconButton>
-
-          <Button
-            size="md"
-            variant="ghost"
-            aria-label="Download customer QR PDF"
-            disabled={busy === 'publicQr'}
-            onClick={handleDownloadPublicQr}
-          >
-            <DownloadIcon width={14} height={14} fill="#1e1e1e" /> Customer-QR
+            <DownloadIcon width={16} height={16} fill="#1e1e1e" /> Credentials
           </Button>
 
           <Button
             size="md"
-            variant="ghost"
-            aria-label="Download admin QR PDF"
-            disabled={busy === 'adminQr'}
-            onClick={handleDownloadAdminQr}
+            variant="dark"
+            aria-label="Download customer QR PDF"
+            disabled={busy === 'publicQr'}
+            onClick={handleDownloadPublicQr}
           >
-            <DownloadIcon width={14} height={14} fill="#1e1e1e" /> Login-QR
+            <DownloadIcon width={14} height={14} fill="#fff" /> Customer-QR
           </Button>
         </div>
 
         <Card padding="lg" className={local.credCard}>
           <div className={local.credRow}>
-            <div className={local.credLabel}>Store Name</div>
+            <div className={local.credLabel}>Company Name</div>
             <div className={local.credValue}>{storeName}</div>
           </div>
 
           <div className={local.credRow}>
-            <div className={local.credLabel}>Plan</div>
+            <div className={local.credLabel}>Plan Active</div>
             <div className={local.credValue}>
               {planName} - {months} month{months > 1 ? 's' : ''}
             </div>
@@ -158,7 +146,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
 
           {/* Public URL row — link + open button inline */}
           <div className={local.credRow}>
-            <div className={local.credLabel}>Customer Store URL</div>
+            <div className={local.credLabel}>Customer Show URL</div>
             <div className={local.credUrlRow}>
               <code className={local.credUrlCode}>{publicUrl}</code>
               <Button
@@ -174,7 +162,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
 
           {/* Admin URL row — link + open button inline */}
           <div className={local.credRow}>
-            <div className={local.credLabel}>Admin Store URL</div>
+            <div className={local.credLabel}>Admin Login URL</div>
             <div className={local.credUrlRow}>
               <code className={local.credUrlCode}>{adminUrl}</code>
               <Button
@@ -248,7 +236,7 @@ const CredentialsStep: React.FC<CredentialsStepProps> = ({
           closing this page. The password will not be shown again.
         </p>
         <p style={{ margin: 0, fontSize: 12, color: '#888' }}>
-          Clicking <strong>Yes, Close</strong> will open the store admin
+          Clicking <strong>Yes, Close</strong> will open the app admin
           login page.
         </p>
       </Modal>

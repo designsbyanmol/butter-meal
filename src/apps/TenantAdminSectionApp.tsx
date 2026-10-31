@@ -29,6 +29,8 @@ import {
   PowerIcon,
   ClockIcon,
 } from "../assets/svgs";
+import { useNavigationPreloader } from "../hooks/useNavigationPreloader";
+import { useBackendOnline } from '../hooks/useBackendOnline';
 
 const LOGO_URL =
   "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png";
@@ -38,7 +40,7 @@ const MOBILE_KEBAB_KEYS = new Set(["reviews", "info"]);
 const PAGE_FOR_SECTION: Record<string, string> = {
   menu: "admin-menu.html",
   billing: "admin-menu.html",
-  appointments: 'admin-appointments.html',
+  appointments: "admin-appointments.html",
   store: "admin-store.html",
   users: "admin-users.html",
   orders: "admin-orders.html",
@@ -63,18 +65,16 @@ const sectionUrl = (
   sectionKey: string,
   isHospital: boolean,
 ): string => {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+  const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
 
-  if (sectionKey === 'billing') {
-    const page = isHospital
-      ? 'admin-pharmacy-billing.html'
-      : 'admin-menu.html';
+  if (sectionKey === "billing") {
+    const page = isHospital ? "admin-pharmacy-billing.html" : "admin-menu.html";
     const params = new URLSearchParams({ t: `${slug}_admin` });
-    if (!isHospital) params.set('body', 'billing');
+    if (!isHospital) params.set("body", "billing");
     return `${window.location.origin}${dir}${page}?${params.toString()}`;
   }
 
-  const page = PAGE_FOR_SECTION[sectionKey] ?? 'admin.html';
+  const page = PAGE_FOR_SECTION[sectionKey] ?? "admin.html";
   return `${window.location.origin}${dir}${page}?t=${slug}_admin`;
 };
 
@@ -89,13 +89,6 @@ interface Props {
   children: React.ReactNode;
 }
 
-const handleLogout = () => {
-  if (!window.confirm("Log out?")) return;
-  authService.logout();
-  const dir = window.location.pathname.replace(/\/[^/]*$/, "/");
-  window.location.href = `${window.location.origin}${dir}home.html`;
-};
-
 (function bindFromUrlOnce() {
   try {
     const url = new URL(window.location.href);
@@ -109,16 +102,49 @@ const handleLogout = () => {
   }
 })();
 
-const TenantAdminSectionAppInner: React.FC<Props> = ({
-  sectionKey,
-  children,
-}) => {
+const TenantAdminSectionAppInner: React.FC<Props> = ({ sectionKey, children }) => {
   const isMobile = useIsMobile(900);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { tenant, isLoading: tenantLoading, tenantNotFound } = useTenant();
   const plan = usePlan();
-
   const slug = React.useMemo(() => readSlugFromUrl(), []);
+
+ const sectionTitleFor = (key: string) =>
+      (
+        ({
+          menu: "Loading Menu...",
+          billing: "Loading Billing...",
+          store: "Loading Store...",
+          users: "Loading Users...",
+          orders: "Loading Orders...",
+          reviews: "Loading Reviews...",
+          info: "Loading Store Info...",
+          appointments: "Loading Appointments...",
+        }) as Record<string, string>
+      )[key] ?? "Loading...";
+
+      const online = useBackendOnline();
+
+  const nav = useNavigationPreloader({ title: 'Loading...' });
+
+  const handleActiveKeyChange = React.useCallback(
+    (key: string) => {
+      if (!key || !slug) return;
+      const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
+      const url = sectionUrl(slug, key, isHospital);
+      nav.show(() => { window.location.href = url; }, sectionTitleFor(key));
+    },
+    [slug, tenant?.storeCategory, nav],
+  );
+
+  const handleLogout = React.useCallback(() => {
+    if (!window.confirm('Log out?')) return;
+    authService.logout();
+    const dir = window.location.pathname.replace(/\/[^/]*$/, '/');
+    nav.show(() => {
+      window.location.href = `${window.location.origin}${dir}home.html`;
+    });
+  }, [nav]);
 
   if (!slug) {
     return (
@@ -159,13 +185,15 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
     );
   }
 
-  if (tenantLoading) {
-    return <DashboardSkeleton count={6} hideHeader hideBrand hidePill />;
-  }
+if (tenantLoading) {
+  return online
+    ? <DashboardSkeleton count={6} hideHeader hideBrand hidePill />
+    : <TenantNotFound reason="connection" />;
+}
 
-  if (tenantNotFound || !tenant) {
-    return <TenantNotFound />;
-  }
+if (tenantNotFound || !tenant) {
+  return <TenantNotFound reason={online ? 'not-found' : 'connection'} />;
+}
 
   if (!user?.isPlatformAdmin && user?.tenantSlug && user.tenantSlug !== slug) {
     return (
@@ -189,37 +217,37 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
 
   const isAdmin = user?.role === "admin";
   const isDinein = tenant.dineinEnabled === true;
-  const isHospital = tenant.storeCategory === 'hospital-pharmacy';
+  const isHospital = tenant.storeCategory === "hospital-pharmacy";
 
   const navItems: NavItem[] = [
     {
-    key: "billing",
-    label: isHospital ? "Pharmacy Billing" : "Billing",
-    icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
-    visible: isAdmin,
-    render: sectionKey === "billing" ? () => children : () => null,
-  },
-  {
-  key: 'reviews',
-  label: 'Reviews',
-  icon: <StarIcon width={20} height={20} fill="currentColor" />,
-  visible: false, // hidden from sidebar but still in the items lookup
-  render: sectionKey === 'reviews' ? () => children : () => null,
-},
-    {
-      key: 'menu',
-      label: isHospital ? 'Stock' : 'Menu',
-      icon: <MenuIcon width={20} height={20} fill="currentColor" />,
-      visible: plan.canEditFields || plan.canManageStore,
-      render: sectionKey === 'menu' ? () => children : () => null,
+      key: "billing",
+      label: isHospital ? "Pharmacy Billing" : "Billing",
+      icon: <RecieptIcon width={20} height={20} fill="currentColor" />,
+      visible: isAdmin,
+      render: sectionKey === "billing" ? () => children : () => null,
     },
     {
-  key: 'appointments',
-  label: 'Appointments',
-  icon: <ClockIcon width={20} height={20} fill="currentColor" />, // Use an appropriate icon
-  visible: isHospital && isAdmin,
-  render: sectionKey === 'appointments' ? () => children : () => null,
-},
+      key: "reviews",
+      label: "Reviews",
+      icon: <StarIcon width={20} height={20} fill="currentColor" />,
+      visible: false, // hidden from sidebar but still in the items lookup
+      render: sectionKey === "reviews" ? () => children : () => null,
+    },
+    {
+      key: "menu",
+      label: isHospital ? "Stock" : "Menu",
+      icon: <MenuIcon width={20} height={20} fill="currentColor" />,
+      visible: plan.canEditFields || plan.canManageStore,
+      render: sectionKey === "menu" ? () => children : () => null,
+    },
+    {
+      key: "appointments",
+      label: "Appointments",
+      icon: <ClockIcon width={20} height={20} fill="currentColor" />, // Use an appropriate icon
+      visible: isHospital && isAdmin,
+      render: sectionKey === "appointments" ? () => children : () => null,
+    },
     {
       key: "store",
       label: "Store",
@@ -229,7 +257,7 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
     },
     {
       key: "users",
-      label: isHospital ? 'Staff' : 'Users',
+      label: isHospital ? "Staff" : "Users",
       icon: <UsersIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageUsers,
       render: sectionKey === "users" ? () => children : () => null,
@@ -243,19 +271,14 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({
     },
     {
       key: "info",
-      label: isHospital ? 'Hospital Info' : 'Store Info',
+      label: isHospital ? "Hospital Info" : "Store Info",
       icon: <EditIcon width={20} height={20} fill="currentColor" />,
       visible: false,
       render: sectionKey === "info" ? () => children : () => null,
     },
   ];
 
-const handleActiveKeyChange = (key: string) => {
-  if (!key) return;
-  window.location.href = sectionUrl(slug, key, isHospital);
-};
-
-   const kebabItems: KebabItem[] = [
+  const kebabItems: KebabItem[] = [
     ...(isAdmin && plan.canReview && !isHospital
       ? [
           {
@@ -274,7 +297,7 @@ const handleActiveKeyChange = (key: string) => {
           {
             kind: "action" as const,
             key: "info",
-            label: isHospital ? 'Hospital Info' : 'Store Info',
+            label: isHospital ? "Hospital Info" : "Store Info",
             icon: <EditIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
               window.location.href = sectionUrl(slug, "info", isHospital);
@@ -310,6 +333,7 @@ const handleActiveKeyChange = (key: string) => {
       )}
     </>
   );
+  
 
   if (isMobile) {
     const mobileNavItems: MobileNavItem[] = navItems.map((i) => ({
@@ -337,7 +361,6 @@ const handleActiveKeyChange = (key: string) => {
       />
     );
   }
-
 
   return (
     <DashboardShell

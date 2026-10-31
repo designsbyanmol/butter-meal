@@ -123,11 +123,11 @@ const processRaster = (file: File, maxDimension: number): Promise<File> =>
             return new Blob([ab], { type: mimeString });
           };
 
-          let blob = blobFromDataUrl(canvas.toDataURL('image/webp', 0.8));
+                    let blob = blobFromDataUrl(canvas.toDataURL('image/webp', 0.8));
 
-          if (blob.size > 2 * 1024 * 1024) {
+          if (blob.size > 10 * 1024 * 1024) {
             blob = blobFromDataUrl(canvas.toDataURL('image/webp', 0.5));
-            if (blob.size > 2 * 1024 * 1024) {
+            if (blob.size > 10 * 1024 * 1024) {
               reject(
                 new Error(
                   'Image is too large even after compression. Please use a smaller image.',
@@ -219,7 +219,7 @@ const ImageUpload = forwardRef<ImageUploadHandle, ImageUploadProps>(
       maxImages = 6,
       folder = 'menu-items',
       maxDimension = 1024,
-      maxFileSizeMB = 2,
+      maxFileSizeMB = 10,
       replacePrimaryOnAdd = false,
       deferred = false,
       onPendingChange,

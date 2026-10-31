@@ -15,24 +15,25 @@ export interface PreloaderProps {
   minDurationMs?: number;
   /** Called once the preloader is ready to unmount. */
   onReady?: () => void;
+  persistent?: boolean;
 }
 
 const Preloader: React.FC<PreloaderProps> = ({
   title,
   minDurationMs = MIN_DISPLAY_MS,
   onReady,
+  persistent = false,
 }) => {
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
+    if (persistent) return;               // ← NEW
     const timer = window.setTimeout(() => {
       setIsExiting(true);
       window.setTimeout(() => onReady?.(), EXIT_MS);
     }, minDurationMs);
-
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minDurationMs]);
+  }, [minDurationMs, persistent]);
 
   return (
     <div className={`${local.overlay} ${isExiting ? local.exit : ''}`}>

@@ -7,6 +7,7 @@ import AppContent from '../AppContent';
 import HospitalCustomerApp from './HospitalCustomerApp'; 
 import TenantNotFound from '../components/TenantNotFound/TenantNotFound';
 import Preloader from '../components/Preloader/Preloader';
+import { useBackendOnline } from '../hooks/useBackendOnline';
 
 const CustomerInner: React.FC = () => {
   const { tenant, isLoading: tenantLoading, tenantNotFound } = useTenant();
@@ -14,7 +15,7 @@ const CustomerInner: React.FC = () => {
   const { loading: menuLoading } = useMenu();
 
   const [minElapsed, setMinElapsed] = useState(false);
-
+const online = useBackendOnline();
   // If it's a hospital, we don't need to wait for the menu to load
   const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
   
@@ -32,11 +33,10 @@ const CustomerInner: React.FC = () => {
     );
   }
 
-  // If tenant not found, show 404
-  if (tenantNotFound) {
-    return <TenantNotFound />;
+if (tenantNotFound) {
+    return <TenantNotFound reason={online ? 'not-found' : 'connection'} />;
   }
-
+  
   // Render Hospital App if category matches
   if (isHospital) {
     return <HospitalCustomerApp />;

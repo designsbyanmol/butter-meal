@@ -428,11 +428,11 @@ const [pendingOpenCheckout, setPendingOpenCheckout] = useState(false);
 
 const handlePlaceOrder = () => {
   if (!isStoreOpen) {
-    alert("Store is currently closed. Please try again later.");
+    alert("Business is currently closed. Please try again later.");
     return;
   }
   if (!isAcceptingOrders) {
-    alert("This store is not accepting orders right now.");
+    alert("Currently not accepting orders.");
     return;
   }
   if (deliveryType === "schedule" && !scheduleData) {
