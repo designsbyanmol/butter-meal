@@ -12,7 +12,7 @@ import { useNavigationPreloader } from '../../../../hooks/useNavigationPreloader
 
 interface CredentialsStepProps {
   storeName: string;
-  slug: string;
+  slug?: string;
   publicUrl: string;
   adminUrl: string;
   phone: string;
@@ -144,7 +144,7 @@ const handleConfirmClose = () => {
             <div className={local.credValue}>{expiresDisplay}</div>
           </div>
 
-          {/* Public URL row — link + open button inline */}
+          {/* Public URL row - link + open button inline */}
           <div className={local.credRow}>
             <div className={local.credLabel}>Customer Show URL</div>
             <div className={local.credUrlRow}>
@@ -160,7 +160,7 @@ const handleConfirmClose = () => {
             </div>
           </div>
 
-          {/* Admin URL row — link + open button inline */}
+          {/* Admin URL row - link + open button inline */}
           <div className={local.credRow}>
             <div className={local.credLabel}>Admin Login URL</div>
             <div className={local.credUrlRow}>

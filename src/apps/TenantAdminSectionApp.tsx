@@ -28,6 +28,7 @@ import {
   RecieptIcon,
   PowerIcon,
   ClockIcon,
+  PlusIcon,
 } from "../assets/svgs";
 import { useNavigationPreloader } from "../hooks/useNavigationPreloader";
 import { useBackendOnline } from '../hooks/useBackendOnline';
@@ -41,6 +42,7 @@ const PAGE_FOR_SECTION: Record<string, string> = {
   menu: "admin-menu.html",
   billing: "admin-menu.html",
   appointments: "admin-appointments.html",
+  hospital_billing: "admin-hospital-billing.html",
   store: "admin-store.html",
   users: "admin-users.html",
   orders: "admin-orders.html",
@@ -72,6 +74,11 @@ const sectionUrl = (
     const params = new URLSearchParams({ t: `${slug}_admin` });
     if (!isHospital) params.set("body", "billing");
     return `${window.location.origin}${dir}${page}?${params.toString()}`;
+  }
+
+  if (sectionKey === "hospital_billing") {
+    const params = new URLSearchParams({ t: `${slug}_admin` });
+    return `${window.location.origin}${dir}admin-hospital-billing.html?${params.toString()}`;
   }
 
   const page = PAGE_FOR_SECTION[sectionKey] ?? "admin.html";
@@ -114,6 +121,7 @@ const TenantAdminSectionAppInner: React.FC<Props> = ({ sectionKey, children }) =
         ({
           menu: "Loading Menu...",
           billing: "Loading Billing...",
+          hospital_billing: "Loading Hospital Billing...",
           store: "Loading Store...",
           users: "Loading Users...",
           orders: "Loading Orders...",
@@ -238,16 +246,23 @@ if (tenantNotFound || !tenant) {
       key: "menu",
       label: isHospital ? "Stock" : "Menu",
       icon: <MenuIcon width={20} height={20} fill="currentColor" />,
-      visible: plan.canEditFields || plan.canManageStore,
+      visible: (isAdmin && plan.canEditFields === true) || (isAdmin && plan.canManageStore === true),
       render: sectionKey === "menu" ? () => children : () => null,
     },
     {
       key: "appointments",
       label: "Appointments",
       icon: <ClockIcon width={20} height={20} fill="currentColor" />, // Use an appropriate icon
-      visible: isHospital && isAdmin,
+      visible: isHospital,
       render: sectionKey === "appointments" ? () => children : () => null,
     },
+    {
+  key: "hospital_billing",
+  label: "Hospital Billing",
+  icon: <PlusIcon width={20} height={20} fill="currentColor" />,
+  visible: isAdmin && isHospital,
+  render: sectionKey === "hospital_billing" ? () => children : () => null,
+},
     {
       key: "store",
       label: "Store",
@@ -301,6 +316,19 @@ if (tenantNotFound || !tenant) {
             icon: <EditIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
               window.location.href = sectionUrl(slug, "info", isHospital);
+            },
+          },
+        ]
+      : []),
+      ...(isAdmin && isHospital
+      ? [
+          {
+            kind: 'action' as const,
+            key: 'hospital_billing',
+            label: 'Hospital Billing',
+            icon: <RecieptIcon width={18} height={18} fill="#1e7e34" />,
+            onClick: () => {
+              nav.show(() => { window.location.href = sectionUrl(slug, 'hospital_billing', isHospital); }, 'Loading Hospital Billing...');
             },
           },
         ]

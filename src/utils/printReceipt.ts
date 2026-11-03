@@ -21,7 +21,7 @@ export interface PrintOptions {
  * Open a new window, splice in the parent's CSS *as text* so the CSS
  * module classes resolve, then append a final `<style>` that pins the
  * `@page` size. This ordering is what forces Chrome/Safari to honour
- * the size — a later `@page` rule always wins, and `width`/`height`
+ * the size - a later `@page` rule always wins, and `width`/`height`
  * on `<html>` stop the browser from auto-expanding to A4.
  */
 export const printReceiptNode = (

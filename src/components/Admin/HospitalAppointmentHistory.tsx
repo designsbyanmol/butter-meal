@@ -231,7 +231,7 @@ export default function HospitalAppointmentHistory({ isOpen, onClose }: Props) {
     );
   }, [appointments, search, filters]);
 
-  // --- Calendar-scoped stats (Today / Month / Year) — NOT affected by filters ---
+  // --- Calendar-scoped stats (Today / Month / Year) - NOT affected by filters ---
 const calendarStats = useMemo(() => {
   const now = new Date();
   const todayStart = startOfDay(now).getTime();
@@ -275,7 +275,7 @@ const calendarStats = useMemo(() => {
   };
 }, [appointments]);
 
-// --- "Total" stat — follows the current filters & search ---
+// --- "Total" stat - follows the current filters & search ---
 const filteredStats = useMemo(() => {
   let total = 0;
   let count = 0;
@@ -286,7 +286,7 @@ const filteredStats = useMemo(() => {
   return { total, count };
 }, [filtered]);
 
-// --- "Total" stat — follows the current filters & search ---
+// --- "Total" stat - follows the current filters & search ---
 const totalRevenue = useMemo(() => {
   let total = 0;
   filtered.forEach(a => {

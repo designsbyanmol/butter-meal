@@ -415,13 +415,13 @@ const AppContent: React.FC = () => {
   };
 
 // ---------------------------------------------------------
-// Order placement — new 2-step flow
+// Order placement - new 2-step flow
 // ---------------------------------------------------------
 const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 const [pendingOrderNo, setPendingOrderNo] = useState<string>("");
 
 // Flag set by handleNameConfirmed. A useEffect watches it and only
-// then opens the checkout modal — guaranteeing the name modal has
+// then opens the checkout modal - guaranteeing the name modal has
 // finished its exit animation and released the history entry before
 // the checkout modal mounts. This is the fix for the mobile race.
 const [pendingOpenCheckout, setPendingOpenCheckout] = useState(false);

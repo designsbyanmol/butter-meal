@@ -60,6 +60,7 @@ export interface Tenant {
   staffTippingEnabled?: boolean;
   gstNo?: string;         // <-- ADDED
   storeAddress?: string;  // <-- ADDED
+  registrationNo?: string;
   infoDefaults?: Partial<
     Record<
       | "displayName"
@@ -435,6 +436,7 @@ const buildTenant = (
     avatarUrl: isBlank(row.avatar_url) ? undefined : String(row.avatar_url),
     gstNo: isBlank(row.gst_no) ? undefined : String(row.gst_no),
   storeAddress: isBlank(row.store_address) ? undefined : String(row.store_address),
+  registrationNo: isBlank(row.registration_no) ? undefined : String(row.registration_no),
     storeTagline: pickString(
       row.store_tagline,
       row.store_category
@@ -488,7 +490,7 @@ const fetchTenantBySlug = async (
   reviews_enabled, plan_id, subscription_status, subscription_started_at, 
   subscription_expires_at, pause_requested, pause_requested_at, store_category, 
   gst_percent, packing_charge, upi_id, dinein_enabled, staff_tipping_enabled, 
-  avatar_url, gst_no, store_address
+  avatar_url, gst_no, store_address, registration_no
 `)
           .eq("slug", slug)
           .maybeSingle(),

@@ -41,7 +41,7 @@ export default function HospitalAppointmentsBody() {
     // 1. Categories defined in the DB (visible ones only)
     // 2. Categories currently present on today's appointments
     //    (so nothing ever disappears from the chips just because
-    //     admin hid the category — appointments keep it alive)
+    //     admin hid the category - appointments keep it alive)
     const dbVisible = rows.filter((r) => !r.hidden).map((r) => r.name);
 
     setDbCategories(dbVisible);

@@ -7,6 +7,8 @@ import {
   ReviewFilter,
   StoreSettings,
   User,
+  OpdVitals,
+  OpdDefaults
 } from "../types";
 import { TABLES } from "../config/tables";
 import type { Tenant } from "../contexts/TenantContext";
@@ -16,6 +18,9 @@ import {
   DineinOrder,
   DineinOrderItem,
   DineinEvent,
+  HospitalParticular,
+  IpdBill,
+  OpdBill,
 } from "../types";
 import type { MedicineStock } from '../components/Admin/PharmacyStockBody';
 import { menuService } from "./menu.service";
@@ -3423,7 +3428,7 @@ async upsertHospitalPatientByPhone(
     .eq('phone', phone)
     .maybeSingle();
 
-  if (existing) return true; // already there — nothing to do
+  if (existing) return true; // already there - nothing to do
 
   const { error } = await client
     .from('star_veg_hospital_patients')
@@ -3494,6 +3499,199 @@ async upsertHospitalPatientByPhone(
     }
     return true;
   }
+
+    // ─────────────────────────────── HOSPITAL: PARTICULARS ───────────────────────────────
+  async getHospitalParticulars(tenantSlug: string): Promise<HospitalParticular[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!t) return [];
+    const { data } = await client.from("star_veg_hospital_particulars").select("*").eq("tenant_id", t.id).order("name");
+    return data || [];
+  }
+
+  async addHospitalParticular(tenantSlug: string, p: Omit<HospitalParticular, 'id'>): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!t) return false;
+    const { error } = await client.from("star_veg_hospital_particulars").insert({ ...p, tenant_id: t.id });
+    return !error;
+  }
+
+  async updateHospitalParticular(id: string, p: Partial<HospitalParticular>): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.from("star_veg_hospital_particulars").update(p).eq("id", id);
+    return !error;
+  }
+
+  async deleteHospitalParticular(id: string): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client.from("star_veg_hospital_particulars").delete().eq("id", id);
+    return !error;
+  }
+
+  // ─────────────────────────────── HOSPITAL: IPD BILLS ───────────────────────────────
+  async saveIpdBill(tenantSlug: string, bill: Omit<IpdBill, 'id'|'created_at'>): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!t) return false;
+    const { error } = await client.from("star_veg_hospital_ipd_bills").insert({ ...bill, tenant_id: t.id });
+    return !error;
+  }
+
+  async updateIpdBillDischargeType(
+  billId: string,
+  dischargeType: string | null,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { error } = await client
+    .from('star_veg_hospital_ipd_bills')
+    .update({ discharge_type: dischargeType })
+    .eq('id', billId);
+  return !error;
+}
+
+  async getIpdBills(tenantSlug: string): Promise<IpdBill[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!t) return [];
+    const { data } = await client.from("star_veg_hospital_ipd_bills").select("*").eq("tenant_id", t.id).order("created_at", { ascending: false });
+    return data || [];
+  }
+
+  // ─────────────────────────────── HOSPITAL: OPD BILLS ───────────────────────────────
+async saveOpdBill(
+  tenantSlug: string,
+  bill: {
+    bill_no: string;
+    patient_name: string;
+    age?: string;
+    gender?: string;
+    address?: string;
+    doctor_name?: string;
+    bp?: string;
+    spo2?: string;
+    pulse?: string;
+    temp?: string;
+    weight?: string;
+  },
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data: t } = await client
+    .from('star_veg_tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+  if (!t) return false;
+  const { error } = await client
+    .from('star_veg_hospital_opd_bills')
+    .insert({ ...bill, tenant_id: t.id });
+  return !error;
+}
+
+  async getOpdBills(tenantSlug: string): Promise<OpdBill[]> {
+    const client = this.getClient();
+    if (!client) return [];
+    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    if (!t) return [];
+    const { data } = await client.from("star_veg_hospital_opd_bills").select("*").eq("tenant_id", t.id).order("created_at", { ascending: false });
+    return data || [];
+  }
+
+  async updateIpdBillPaid(
+  id: string,
+  patch: { advance: number; remaining: number; is_paid: boolean },
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const { error } = await client
+    .from('star_veg_hospital_ipd_bills')
+    .update({
+      advance: Number(patch.advance) || 0,
+      remaining: Number(patch.remaining) || 0,
+      is_paid: !!patch.is_paid,
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('updateIpdBillPaid error:', error);
+    return false;
+  }
+  return true;
+}
+
+async getHospitalOpdSettings(tenantSlug: string): Promise<OpdDefaults> {
+  const client = this.getClient();
+  const defaults: OpdDefaults = {
+    facilities: [],
+    footerHeading: 'Best Wishes',
+    footerInfo: 'Take healthy diet and be sure to maintain hygine.',
+    disclaimer: 'Prepared under the observation.',
+    vitals: { bp: '', spo2: '', pulse: '', temp: '', weight: '' },
+  };
+  if (!client) return defaults;
+
+  const { data: t } = await client
+    .from('star_veg_tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+  if (!t) return defaults;
+
+  const { data } = await client
+    .from('star_veg_hospital_opd_settings')
+    .select('facilities, footer_heading, footer_info, disclaimer, vitals')
+    .eq('tenant_id', t.id)
+    .maybeSingle();
+
+  if (!data) return defaults;
+
+  const rawVitals = (data.vitals ?? {}) as Partial<OpdVitals>;
+  return {
+    facilities: Array.isArray(data.facilities) ? data.facilities : [],
+    footerHeading: data.footer_heading || defaults.footerHeading,
+    footerInfo: data.footer_info ?? defaults.footerInfo,
+    disclaimer: data.disclaimer ?? defaults.disclaimer,
+    vitals: {
+      bp: String(rawVitals.bp ?? ''),
+      spo2: String(rawVitals.spo2 ?? ''),
+      pulse: String(rawVitals.pulse ?? ''),
+      temp: String(rawVitals.temp ?? ''),
+      weight: String(rawVitals.weight ?? ''),
+    },
+  };
+}
+
+async saveHospitalOpdSettings(
+  tenantSlug: string,
+  settings: OpdDefaults,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const { error } = await client.rpc('upsert_hospital_opd_settings', {
+    tenant_slug_in: tenantSlug,
+    facilities_in: settings.facilities,
+    footer_heading_in: settings.footerHeading,
+    footer_info_in: settings.footerInfo,
+    disclaimer_in: settings.disclaimer,
+    vitals_in: settings.vitals,
+  });
+  if (error) {
+    console.error('upsert_hospital_opd_settings error:', error);
+    return false;
+  }
+  return true;
+}
+
   // ─────────────────────────────── MAPPERS ───────────────────────────────
 
   private mapUser(row: any): User {
@@ -3595,6 +3793,8 @@ async pruneOldHistoryOnServer(months: number): Promise<{
     dinein: Number((data as any)?.dinein) || 0,
   };
 }
+
+
 
   private mapDineinTable(row: any): DineinTable {
     return {

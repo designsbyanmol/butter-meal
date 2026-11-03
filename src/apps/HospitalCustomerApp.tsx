@@ -29,7 +29,7 @@ const ACTIVE_TOKEN_KEY = 'hospital_active_token';
 
 // ── Cache config ─────────────────────────────────────────
 // sessionStorage cache is per-tab, per-origin. Closing the tab
-// clears it — that's fine, the next visit refetches once.
+// clears it - that's fine, the next visit refetches once.
 const CATALOG_CACHE_TTL_MS = 15 * 60_000; // 15 min
 const CATALOG_CACHE_PREFIX = 'hosp_customer_catalog_v1:';
 // Fallback poll only fires if Realtime is unavailable.
@@ -179,7 +179,7 @@ export default function HospitalCustomerApp() {
     [tenant?.slug],
   );
 
-  // Initial catalog fetch — once per tenant change.
+  // Initial catalog fetch - once per tenant change.
   useEffect(() => {
     if (!tenant) return;
     fetchCatalog();
@@ -372,7 +372,7 @@ export default function HospitalCustomerApp() {
     setBookingStep('payment');
   };
 
-  // src/apps/HospitalCustomerApp.tsx — handlePay()
+  // src/apps/HospitalCustomerApp.tsx - handlePay()
 
 const handlePay = async () => {
   if (!tenant || !selectedService || !supabase) return;
@@ -531,9 +531,9 @@ const expectedTime = new Date(
 
 // One-line status replaces the two separate banners.
 const statusText = isMyTurn
-  ? "It's your turn — please proceed to the doctor."
+  ? "It's your turn - please proceed to the doctor."
   : isClose
-    ? `Almost there — ${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead.`
+    ? `Almost there - ${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead.`
     : peopleAhead > 0
       ? `~${peopleAhead} min wait - ${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead`
       : 'Waiting for staff to call your token.';
@@ -551,7 +551,7 @@ return (
     <div className={pageLocal.nowServingCard}>
       <p className={pageLocal.nowServingLabel}>Now Serving</p>
       <div className={pageLocal.nowServingNumber}>
-        {currentToken ? currentToken : '—'}
+        {currentToken ? currentToken : '-'}
       </div>
       <p
         className={[

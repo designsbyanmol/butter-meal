@@ -1,6 +1,6 @@
 // src/config/retention.ts
 /**
- * How long bills and dine-in order history are kept — both in the
+ * How long bills and dine-in order history are kept - both in the
  * local cache (`localStorage`) and on Supabase.
  *
  * Change this value to adjust the retention for every history surface

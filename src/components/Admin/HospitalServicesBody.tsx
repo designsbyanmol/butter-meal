@@ -999,8 +999,8 @@ const [isDeletingService, setIsDeletingService] = useState(false);
             onImageUploaded={(url) => setForm({ ...form, image: url })}
             label="Service Image"
             folder="hospital-services"
-            maxDimension={800}
-            maxFileSizeMB={2}
+            maxDimension={1024}
+            maxFileSizeMB={10}
           />
 
           <h4 style={{ margin: "10px 0 0", fontSize: 14 }}>Daily Limits</h4>
@@ -1049,7 +1049,7 @@ const [isDeletingService, setIsDeletingService] = useState(false);
       </Modal>
 
       {/* =============================================
-          Manage Categories — draggable list
+          Manage Categories - draggable list
           ============================================= */}
       <Modal
         isOpen={isLabelModalOpen}

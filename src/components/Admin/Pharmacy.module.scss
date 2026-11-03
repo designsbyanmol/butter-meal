@@ -3,7 +3,7 @@
 @use "../../styles/mixins" as *;
 
 /* =========================================================
-   Pharmacy bill print — A5 LANDSCAPE only
+   Pharmacy bill print - A5 LANDSCAPE only
    ========================================================= */
 @page pharmacy-a5 {
   size: A5 landscape;
@@ -1146,7 +1146,7 @@
 }
 
 /* =========================================================
-   Bill Details modal — clean read-only header
+   Bill Details modal - clean read-only header
    ========================================================= */
 
 .billHeader {
@@ -1200,7 +1200,7 @@
 }
 
 /* =========================================================
-   BillingBody — 80mm thermal receipt (all stores)
+   BillingBody - 80mm thermal receipt (all stores)
    ========================================================= */
 @page billing-sheet {
   size: 80mm auto;
@@ -1520,7 +1520,7 @@
 }
 
 /* =========================================================
-   Pharmacy Stock — quick filters row
+   Pharmacy Stock - quick filters row
    ========================================================= */
 .quickFiltersRow {
   display: flex;
@@ -1537,7 +1537,7 @@
 }
 
 /* =========================================================
-   Pharmacy Stock — severity highlighting (cell-level only)
+   Pharmacy Stock - severity highlighting (cell-level only)
    ========================================================= */
 
 /* Expired date cell */

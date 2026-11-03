@@ -718,13 +718,13 @@ const handleExportAll = () => {
               <div className={local.billHeaderItem}>
                 <span className={local.billHeaderLabel}>Customer</span>
                 <span className={local.billHeaderValue}>
-                  {selectedBill.customerName || '—'}
+                  {selectedBill.customerName || '-'}
                   {selectedBill.phone && (
                     <span className={local.billHeaderSub}>
                       {selectedBill.phone}
                     </span>
                   )}
-                  {selectedBill.address || '—'}
+                  {selectedBill.address || '-'}
                 </span>
               </div>
               <div className={local.billHeaderItem}>

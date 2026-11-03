@@ -40,10 +40,11 @@ type EditableField =
   | "gst_percent"
   | "packing_charge"
   | "upi_id"
-  | "gst_no" // <-- ADDED
+  | "gst_no"
+  | "registration_no"
   | "store_address";
 
-// src/components/Store/InfoPopupBody.tsx — replace the FieldDef interface
+// src/components/Store/InfoPopupBody.tsx - replace the FieldDef interface
 
 interface FieldDef {
   key: EditableField;
@@ -58,6 +59,7 @@ interface FieldDef {
   hospitalHidden?: boolean;
   /** Relabel this field for hospital-pharmacy stores. */
   hospitalLabel?: string;
+  hospitalOnly?: boolean;
 }
 
 type PendingToggle =
@@ -83,7 +85,7 @@ const restoreZeroIfBlank = (
   }
 };
 
-// src/components/Store/InfoPopupBody.tsx — replace the FIELDS array
+// src/components/Store/InfoPopupBody.tsx - replace the FIELDS array
 
 const FIELDS: FieldDef[] = [
   {
@@ -122,6 +124,14 @@ const FIELDS: FieldDef[] = [
     type: "text",
     getValue: (t) => t?.gstNo || "",
     hint: "Will appear on all printed bills. e.g. 22AAAAA0000A1Z5",
+  },
+  {
+    key: "registration_no",
+    label: "Hospital Registration No.",
+    type: "text",
+    getValue: (t) => t?.registrationNo || "",
+    hint: "Will appear on all printed OPD & IPD bills.",
+    hospitalOnly: true,
   },
   {
     key: "owner_phone",
@@ -264,6 +274,8 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
         return !tenant.upiId;
       case "gst_no":
         return !tenant.gstNo;
+        case "registration_no":
+  return !tenant.registrationNo;
       case "store_address":
         return !tenant.storeAddress;
       default:
@@ -671,11 +683,15 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
             )}
 
           {FIELDS.map((field) => {
-            const canEdit = plan.canEditProfileField(field.key);
+            const canEdit =
+  field.hospitalOnly && isHospital
+    ? true
+    : plan.canEditProfileField(field.key);
             if (!canEdit) return null;
 
             // Hospital-pharmacy specific visibility / labels.
             if (isHospital && field.hospitalHidden) return null;
+            if (field.hospitalOnly && !isHospital) return null;
 
             if (field.dineinHidden && isDinein) return null;
             if (field.dineinOnly && !dineinToggleVisible) return null;
@@ -1082,8 +1098,8 @@ title={
           deferred
           currentImage={tenant.avatarUrl ?? ""}
           folder="avatars"
-          maxDimension={128}
-          maxFileSizeMB={2}
+          maxDimension={250}
+          maxFileSizeMB={10}
           onPendingChange={setAvatarPending}
         />
       </Modal>

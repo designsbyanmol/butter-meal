@@ -487,7 +487,7 @@ class MenuService {
   }
 
   // =========================================================
-// Background poll — every 2 min while tab is focused
+// Background poll - every 2 min while tab is focused
 // =========================================================
 
 private pollTimer: ReturnType<typeof setInterval> | null = null;

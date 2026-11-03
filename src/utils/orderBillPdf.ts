@@ -359,7 +359,7 @@ export const buildOrderBillPdf = (payload: OrderBillPayload): jsPDF => {
   });
   const naturalHeight = renderBill(measurePdf, payload);
 
-  // 2. Real pass — exact height.
+  // 2. Real pass - exact height.
   const finalPdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

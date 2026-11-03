@@ -119,7 +119,7 @@ const rupees = (n: number): string =>
     maximumFractionDigits: 2,
   })}`;
 
-const fmtDate = (iso: string | null | undefined, fallback = '—'): string => {
+const fmtDate = (iso: string | null | undefined, fallback = '-'): string => {
   if (!iso) return fallback;
   try {
     return new Date(iso).toLocaleDateString('en-IN', {
@@ -133,7 +133,7 @@ const fmtDate = (iso: string | null | undefined, fallback = '—'): string => {
 };
 
 const fmtDateTime = (iso: string | null | undefined): string => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     return new Date(iso).toLocaleString('en-IN', {
       day: '2-digit',
@@ -144,7 +144,7 @@ const fmtDateTime = (iso: string | null | undefined): string => {
       hour12: true,
     });
   } catch {
-    return iso ?? '—';
+    return iso ?? '-';
   }
 };
 
@@ -326,7 +326,7 @@ export const downloadPharmacyHistoryPdf = async (
   for (const r of rows) {
     rowIndex += 1;
 
-    const nameStr = r.patient_name?.trim() || '—';
+    const nameStr = r.patient_name?.trim() || '-';
     const phoneStr = r.phone?.trim() || '';
     const addrStr = r.address?.trim() || '';
 
@@ -352,7 +352,7 @@ export const downloadPharmacyHistoryPdf = async (
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(12);
       pdf.setTextColor(...TEXT);
-      pdf.text(`${storeName.toUpperCase()} — continued`, MARGIN, MARGIN + 8);
+      pdf.text(`${storeName.toUpperCase()} - continued`, MARGIN, MARGIN + 8);
       pdf.setDrawColor(...BORDER);
       pdf.setLineWidth(0.6);
       pdf.line(MARGIN, MARGIN + 16, PAGE_W - MARGIN, MARGIN + 16);
@@ -382,7 +382,7 @@ export const downloadPharmacyHistoryPdf = async (
     pdf.setFontSize(9);
     pdf.setTextColor(...TEXT);
     pdf.text(
-      pdf.splitTextToSize(r.bill_no || '—', colBill - 2)[0] || '—',
+      pdf.splitTextToSize(r.bill_no || '-', colBill - 2)[0] || '-',
       xBill,
       baseY,
     );
@@ -412,9 +412,9 @@ export const downloadPharmacyHistoryPdf = async (
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
     pdf.setTextColor(...TEXT_MUTED);
-    const docStr = r.doctor_name?.trim() || '—';
+    const docStr = r.doctor_name?.trim() || '-';
     const docCut =
-      pdf.splitTextToSize(docStr, colDoctor - 2)[0] || '—';
+      pdf.splitTextToSize(docStr, colDoctor - 2)[0] || '-';
     pdf.text(docCut, xDoctor, baseY);
 
     pdf.setFont('helvetica', 'bold');

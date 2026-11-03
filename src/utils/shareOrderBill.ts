@@ -36,7 +36,7 @@ export const shareOrderBill = async (
   }
 
   // Check for file-sharing support first (Chrome Android, Safari iOS
-  // 15+, Edge Android). Note: canShare is not enough — we must try.
+  // 15+, Edge Android). Note: canShare is not enough - we must try.
   const nav = navigator as Navigator & {
     canShare?: (data?: ShareData) => boolean;
     share?: (data?: ShareData) => Promise<void>;

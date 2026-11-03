@@ -228,7 +228,7 @@ const SignupPage: React.FC = () => {
                 nav.hide();
               }}
               onPaid={async (info) => {
-                // Payment has succeeded — swap the title and keep
+                // Payment has succeeded - swap the title and keep
                 // the preloader up while the store is being seeded.
                 nav.showNow("Setting up your business...");
                 try {
@@ -241,7 +241,7 @@ const SignupPage: React.FC = () => {
                   // once BuildingStep mounts.
                 } catch (err) {
                   console.error("[Signup] seed failed:", err);
-                  // Fall through anyway — BuildingStep must render
+                  // Fall through anyway - BuildingStep must render
                   // so the user isn't stranded. Even if the seed
                   // failed, the store row + owner exist; the admin
                   // page has its own seed safety net.

@@ -1,0 +1,386 @@
+// src/components/Admin/HospitalBilling.module.scss
+@use "../../styles/tokens" as *;
+
+@media print {
+  :global(*) {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important; // legacy
+  }
+}
+
+@media print {
+  .a4Page,
+  .a4Page * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* =========================================================
+   Shared A4 Print Layout
+   ========================================================= */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.a4Page {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  position: relative;
+  font-family: Arial, sans-serif;
+  color: #000;
+  padding: 0 15mm;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  @media print {
+    width: 210mm;
+    height: 297mm;
+    padding: 15mm;
+    box-shadow: none;
+    page-break-after: avoid;
+  }
+}
+
+.watermark {
+  position: absolute;
+  bottom: 30mm;
+  right: 20mm;
+  width: 50mm;
+  height: 50mm;
+  border-radius: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure content stays above watermark */
+.ipdHeaderRow,
+.ipdMainHeader,
+.ipdPatientBar,
+.ipdTable,
+.ipdTotalsRow,
+.ipdFooter,
+.opdHeaderRow,
+.opdMainHeader,
+.opdPatientBar,
+.opdTable,
+.opdFooter {
+  position: relative;
+  z-index: 1;
+}
+
+/* =========================================================
+   IPD Specific
+   ========================================================= */
+.ipdHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5mm;
+}
+
+.headerLabel {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.ipdMainHeader {
+  display: flex;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 5mm;
+}
+
+.avatarBox {
+  width: 35mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  img {
+    width: 100%;
+    max-height: 25mm;
+    object-fit: contain;
+    display: block;
+    border-radius: 0;        
+    background: transparent;
+  }
+}
+
+.hospitalInfoBox {
+  flex: 1;
+  padding: 5mm 5mm;
+
+  h1 {
+    margin: 0 0 1mm;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 700;
+  }
+  p {
+    margin: 0 0 1mm;
+    font-size: 11px;
+  }
+}
+
+.titleBox {
+  width: 45mm;
+  padding: 5mm;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+  }
+  p {
+    margin: 0;
+    font-size: 12px;
+  }
+}
+
+.ipdPatientBar {
+  background: #e2e8f0;
+  padding: 3mm 5mm;
+  margin-bottom: 5mm;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+}
+
+.patientRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 3mm;
+
+  .addressCell {
+    grid-column-start: 1;
+    grid-column-end: 3;
+  }
+}
+
+.ipdTableWrap {
+  min-height: 170mm;
+}
+.ipdTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10mm;
+
+  th,
+  td {
+    border: 1px solid #cbd5e1;
+    padding: 2mm 4mm;
+    text-align: left;
+    font-size: 12px;
+  }
+
+  th {
+    background: #e2e8f0;
+    font-weight: 700;
+  }
+
+  .emptyTable {
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+  }
+}
+
+.ipdTotalsRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10mm;
+  font-size: 13px;
+}
+
+.wordsBox {
+  flex: 1;
+  .italic {
+    font-style: italic;
+    margin-top: 2mm;
+    color: #333;
+  }
+}
+
+.mathBox {
+  width: 60mm;
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+}
+
+.mathRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ipdFooter {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.footerBox {
+  strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 1mm;
+  }
+  p {
+    margin: 0;
+    font-size: 12px;
+  }
+}
+
+.disclaimerBox {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   OPD Specific (Left Sidebar Layout)
+   ========================================================= */
+
+.dateBox,
+.regNoBox {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  span {
+    font-size: 10px;
+  }
+}
+
+.billNoBox {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid $gray-200;
+  margin: 0;
+  padding: 1mm;
+  line-height: 1;
+}
+.opdHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 2mm;
+  padding-bottom: 2mm;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.opdMainHeader {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2mm;
+  margin-bottom: 3mm;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.opdBodyContainer {
+  display: flex;
+  gap: 3mm;
+  min-height: 234mm; // space for Rx
+}
+
+.opdSidebar {
+  width: 50mm;
+  background-color: $primary-200;
+  padding: 4mm;
+  border-radius: $radius-sm;
+  position: relative;
+  z-index: 1;
+
+  h3 {
+    margin: 0 0 2mm;
+    padding: 0 0 1mm;
+    font-size: 16px;
+    font-weight: 800;
+    border-bottom: 1px solid $primary-600;
+  }
+  ul {
+    padding-left: 4mm;
+    margin: 0;
+    list-style: disc;
+    li {
+      font-size: 12px;
+      margin-bottom: 2mm;
+      font-weight: 500;
+    }
+  }
+}
+
+.opdMainContent {
+  flex: 1;
+}
+
+.opdPatientBar {
+  border: 1px solid $gray-200;
+  padding: 3mm;
+  border-radius: $radius-sm;
+  margin-bottom: 3mm;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+}
+
+.opdVitalsRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 2mm;
+  padding: 2mm 15mm 4mm 0;
+    border-bottom: 1px solid $gray-300;
+}
+
+.opdRxTitle {
+  font-size: 28px;
+  margin: 5mm 0 0;
+}
+
+.opdFooter {
+  margin-top: 5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+/* =========================================================
+   In-app line-item editor table (not printed)
+   ========================================================= */
+.formTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 12px;
+
+  th,
+  td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    text-align: left;
+  }
+
+  th {
+    background: #f1f5f9;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+}

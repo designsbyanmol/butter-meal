@@ -106,10 +106,10 @@
 }
 
 /* =========================================================
-   Live token screen — refined
+   Live token screen - refined
    ========================================================= */
 
-/* Neutral page wrapper — colour state now lives in one card,
+/* Neutral page wrapper - colour state now lives in one card,
    not on the whole viewport, so the page never flashes. */
 .waitingScreen {
   min-height: 100vh;
@@ -122,7 +122,7 @@
 }
 
 /* Colour variants kept for backwards compat, but I recommend
-   removing them from this screen — the card below drives the
+   removing them from this screen - the card below drives the
    colour state instead. */
 .successBg { background: #f0fdf4; }
 .failedBg  { background: #fef2f2; }
@@ -170,7 +170,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* One-liner status below the number — replaces the old banners */
+/* One-liner status below the number - replaces the old banners */
 .statusLine {
   margin: 4px 0 0;
   font-size: 13px;
@@ -257,7 +257,7 @@
 }
 
 /* =========================================================
-   Terminal (resolved / failed) screens — reused across both
+   Terminal (resolved / failed) screens - reused across both
    states so they look like siblings
    ========================================================= */
 

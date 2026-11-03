@@ -172,6 +172,7 @@
 
   .navLabel {
     position: absolute;
+    display: none;
     top: 9px;
     left: 40px;
     opacity: 0;
@@ -196,6 +197,7 @@
     .navLabel {
       opacity: 1;
       width: auto;
+      display: block;
       height: auto;
     }
   }

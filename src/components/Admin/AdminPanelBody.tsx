@@ -1254,7 +1254,7 @@ const HospitalAdminView: React.FC = () => {
 
   // ◀── NEW: keep all tabs mounted, hide inactive ones with `display:none`.
   // Each child component loads its own data ONCE on mount and caches it
-  // in local state. Switching tabs becomes a pure CSS toggle — no fetches.
+  // in local state. Switching tabs becomes a pure CSS toggle - no fetches.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Tabs block items={tabItems} value={tab} onChange={handleTabChange} />

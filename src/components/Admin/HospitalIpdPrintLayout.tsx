@@ -1,0 +1,281 @@
+// src/components/Admin/HospitalIpdPrintLayout.tsx
+import React, { forwardRef } from "react";
+import { formatRupees } from "../../utils/subscription";
+import { Tenant } from "../../contexts/TenantContext";
+import {
+  IpdBillItem,
+  IpdDischargeType,
+  IPD_DISCHARGE_LABELS,
+} from "../../types";
+import local from "./HospitalBilling.module.scss"; // We'll create this scss next
+
+interface IpdPrintLayoutProps {
+  tenant: Tenant | null;
+  billNo: string;
+  patient: { name: string; age: string; gender: string; address: string };
+  dates: { from: string; to: string };
+  items: IpdBillItem[];
+  total: number;
+  advance: number;
+  remaining: number;
+  isPaid: boolean;
+  footerHeading: string;
+  footerInfo: string;
+  disclaimer: string;
+  dischargeType?: IpdDischargeType | null;
+}
+
+// Helper to convert number to words
+const numberToWords = (num: number): string => {
+  const a = [
+    "",
+    "one ",
+    "two ",
+    "three ",
+    "four ",
+    "five ",
+    "six ",
+    "seven ",
+    "eight ",
+    "nine ",
+    "ten ",
+    "eleven ",
+    "twelve ",
+    "thirteen ",
+    "fourteen ",
+    "fifteen ",
+    "sixteen ",
+    "seventeen ",
+    "eighteen ",
+    "nineteen ",
+  ];
+  const b = [
+    "",
+    "",
+    "twenty",
+    "thirty",
+    "forty",
+    "fifty",
+    "sixty",
+    "seventy",
+    "eighty",
+    "ninety",
+  ];
+
+  const numStr = Math.floor(num).toString();
+  if (numStr.length > 9) return "overflow";
+  const n = ("000000000" + numStr)
+    .slice(-9)
+    .match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return "";
+
+  const grp = (digits: string): string => {
+    const d = Number(digits);
+    if (d === 0) return "";
+    if (d < 20) return a[d];
+    const tens = b[Number(digits[0])];
+    const ones = a[Number(digits[1])];
+    return (tens + " " + ones).trim() + " ";
+  };
+
+  let str = "";
+  str += n[1] !== "00" ? grp(n[1]) + "crore " : "";
+  str += n[2] !== "00" ? grp(n[2]) + "lakh " : "";
+  str += n[3] !== "00" ? grp(n[3]) + "thousand " : "";
+  str += n[4] !== "0" ? a[Number(n[4])] + "hundred " : "";
+  str +=
+    n[5] !== "00"
+      ? (str !== "" ? "and " : "") + grp(n[5]) + "only"
+      : str !== ""
+        ? "only"
+        : "";
+
+  return str.trim();
+};
+
+const HospitalIpdPrintLayout = forwardRef<HTMLDivElement, IpdPrintLayoutProps>(
+  (
+    {
+      tenant,
+      billNo,
+      patient,
+      dates,
+      items,
+      total,
+      advance,
+      remaining,
+      isPaid,
+      footerHeading,
+      footerInfo,
+      disclaimer,
+      dischargeType,
+    },
+    ref,
+  ) => {
+    const avatar =
+      tenant?.avatarUrl ||
+      "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/avatar/avatar.png";
+
+    return (
+      <div ref={ref} className={local.a4Page}>
+        {/* Watermark */}
+        <div
+          className={local.watermark}
+          style={{ backgroundImage: `url(${avatar})` }}
+        />
+
+        {/* Top Header Row */}
+        <div className={local.ipdHeaderRow}>
+          <div className={local.dateBox}>
+            <span className={local.headerLabel}>Date of IPD</span>
+            <div>{new Date().toLocaleDateString("en-IN")}</div>
+          </div>
+          <div className={local.regNoBox}>
+            <span className={local.headerLabel}>
+              Reg No. {tenant?.registrationNo || "-"}
+            </span>
+          </div>
+        </div>
+
+        {/* Main Hospital Info & Title */}
+        <div className={local.ipdMainHeader}>
+          <div className={local.avatarBox}>
+            <img src={avatar} alt="Hospital Avatar" />
+          </div>
+          <div className={local.hospitalInfoBox}>
+            <h1>{tenant?.displayName || "Hospital Name"}</h1>
+            <p>{tenant?.storeAddress || "Hospital Address"}</p>
+            <p>Contact no. {tenant?.whatsappPhone || "-"}</p>
+          </div>
+          <div className={local.titleBox}>
+            {dischargeType && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "22mm",
+                  right: "15mm",
+                  background: "#dcfce7",
+                  border: "1px solid #16a34a",
+                  color: "#166534",
+                  padding: "2mm 4mm",
+                  borderRadius: "999px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  zIndex: 2,
+                }}
+              >
+                {IPD_DISCHARGE_LABELS[dischargeType]}
+              </div>
+            )}
+            <p>Bill No. {billNo}</p>
+          </div>
+        </div>
+
+        {/* Patient Bar */}
+        <div className={local.ipdPatientBar}>
+          <div className={local.patientRow}>
+            <span>
+              <strong>Patient name:</strong> {patient.name}
+            </span>
+            <span>
+              <strong>Age(years & months):</strong> {patient.age}
+            </span>
+            <span>
+              <strong>Gender:</strong> {patient.gender}
+            </span>
+          </div>
+          <div className={local.patientRow}>
+            <span>
+              <strong>Address:</strong> {patient.address}
+            </span>
+            <span>
+              <strong>From:</strong>{" "}
+              {dates.from
+                ? new Date(dates.from).toLocaleDateString("en-IN")
+                : "-"}
+            </span>
+            <span>
+              <strong>to:</strong>{" "}
+              {dates.to ? new Date(dates.to).toLocaleDateString("en-IN") : "-"}
+            </span>
+          </div>
+        </div>
+
+        {/* Items Table */}
+        <div className={local.ipdTableWrap}>
+        <table className={local.ipdTable}>
+          <thead>
+            <tr>
+              <th style={{ width: "45%" }}>Particulars</th>
+              <th style={{ width: "20%" }}>Charge/day</th>
+              <th style={{ width: "15%" }}>Days</th>
+              <th style={{ width: "20%" }}>Total Charge</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={i}>
+                <td>{it.name}</td>
+                <td>{formatRupees(it.chargePerDay)}</td>
+                <td>{it.type === "per-day" ? it.days : "-"}</td>
+                <td>{formatRupees(it.total)}</td>
+              </tr>
+            ))}
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={4} className={local.emptyTable}>
+                  No items added
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        </div>
+
+        {/* Totals & Words */}
+        <div className={local.ipdTotalsRow}>
+          <div className={local.wordsBox}>
+            <strong>Total Amount in words</strong>
+            <p className={local.italic}>{numberToWords(total)}</p>
+          </div>
+          <div className={local.mathBox}>
+            <div className={local.mathRow}>
+              <span>Total Amount</span>
+              <span>{formatRupees(total)}</span>
+            </div>
+
+            <div className={local.mathRow}>
+              <span>{isPaid ? "Amount Paid (Advance)" : "Advance Paid"}</span>
+              <span>{formatRupees(advance)}</span>
+            </div>
+
+            {!isPaid && (
+              <div className={local.mathRow}>
+                <span>Remaining</span>
+                <span>{formatRupees(remaining)}</span>
+              </div>
+            )}
+
+            <div className={local.mathRow}>
+              <span>Paid</span>
+              <span>{isPaid ? "Yes" : "No"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className={local.ipdFooter}>
+          <div className={local.footerBox}>
+            <strong>{footerHeading}</strong>
+            <p>{footerInfo}</p>
+          </div>
+          <div className={local.disclaimerBox}>{disclaimer}</div>
+        </div>
+      </div>
+    );
+  },
+);
+
+export default HospitalIpdPrintLayout;

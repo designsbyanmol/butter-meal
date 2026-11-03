@@ -11,6 +11,7 @@ export const PAGES = [
   { html: 'customer.html', title: 'Order — Dozzelo' },
   { html: 'admin.html', title: 'Store Admin — Dozzelo' },
   { html: 'admin-pharmacy-billing.html', title: 'Pharmacy Billing — Dozzelo' },
+    { html: 'admin-hospital-billing.html', title: 'Hospital Billing — Dozzelo' },
   { html: 'admin-menu.html', title: 'Menu — Dozzelo' },
   { html: 'admin-appointments.html', title: 'Appointments — Dozzelo' },
   { html: 'admin-store.html', title: 'Store — Dozzelo' },

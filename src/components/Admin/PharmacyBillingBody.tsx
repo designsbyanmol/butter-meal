@@ -340,6 +340,43 @@ const PharmacyBillingBody: React.FC = () => {
     setAdditionalDiscountPct(d.additionalDiscountPct);
   }, [slug]);
 
+  // Fetch fresh stock + doctors + patients from Supabase on mount.
+// This is what makes the datalist and patient suggestion dropdown
+// work on a fresh device (or after the user clears site data).
+useEffect(() => {
+  if (!tenant) return;
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const [freshStock, freshDoctors, freshPatients] = await Promise.all([
+        supabaseService.getMedicineStock(tenant.slug),
+        supabaseService.getHospitalDoctors(tenant.slug),
+        supabaseService.getHospitalPatients(tenant.slug),
+      ]);
+
+      if (cancelled) return;
+
+      setStock(freshStock || []);
+      writeCache(stockKey(tenant.slug), freshStock || []);
+
+      setDoctors(freshDoctors || []);
+      writeCache(doctorKey(tenant.slug), freshDoctors || []);
+
+      setPatients(freshPatients || []);
+      writeCache(patientKey(tenant.slug), freshPatients || []);
+    } catch (err) {
+      console.warn("[pharmacy-billing] initial hydrate failed:", err);
+      // Leave whatever was in the local cache in place - better
+      // than an empty form when the network is flaky.
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [tenant?.slug]);
+
   // Persist terms.
   useEffect(() => {
     try {

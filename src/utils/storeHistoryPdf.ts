@@ -130,7 +130,7 @@ const fmtDateTime = (iso: string): string => {
   }
 };
 
-const fmtRangeDate = (iso: string | null, fallback = '—'): string => {
+const fmtRangeDate = (iso: string | null, fallback = '-'): string => {
   if (!iso) return fallback;
   try {
     return new Date(iso).toLocaleDateString('en-IN', {
@@ -294,7 +294,7 @@ export const downloadStoreHistoryPdf = async (
   for (const r of rows) {
     idx += 1;
 
-    const nameStr = r.customerName?.trim() || '—';
+    const nameStr = r.customerName?.trim() || '-';
     const phoneStr = r.phone?.trim() || '';
     const addrStr = r.address?.trim() || '';
 
@@ -332,7 +332,7 @@ export const downloadStoreHistoryPdf = async (
 
     pdf.text(String(idx), xSn + 6, baseY);
     pdf.text(fmtRangeDate(r.createdAt), xDate, baseY);
-    pdf.text(r.billNo || '—', xBill, baseY);
+    pdf.text(r.billNo || '-', xBill, baseY);
 
     let cy = baseY;
     pdf.setFont('helvetica', 'bold');

@@ -686,3 +686,88 @@ export interface PharmacyBill {
   finalAmount: number;
   createdAt?: string;
 }
+
+export interface HospitalParticular {
+  id: string;
+  name: string;
+  type: 'one-time' | 'per-day';
+  charge: number;
+}
+
+export interface IpdBillItem {
+  particularId: string;
+  name: string;
+  type: 'one-time' | 'per-day';
+  chargePerDay: number;
+  days: number;
+  total: number;
+}
+
+export type IpdDischargeType =
+  | 'recovered'
+  | 'lama'
+  | 'referred'
+  | 'absconded'
+  | 'expired'
+  | 'transferred'
+  | 'dama';
+
+export const IPD_DISCHARGE_LABELS: Record<IpdDischargeType, string> = {
+  recovered: 'Recovered',
+  lama: 'LAMA (Left Against Medical Advice)',
+  referred: 'Referred',
+  absconded: 'Absconded',
+  expired: 'Expired',
+  transferred: 'Transferred',
+  dama: 'DAMA (Discharged Against Medical Advice)',
+};
+
+export interface IpdBill {
+  id: string;
+  bill_no: string;
+  patient_name: string;
+  age: string;
+  gender: string;
+  address: string;
+  date_from: string;
+  date_to: string;
+  items: IpdBillItem[];
+  total_amount: number;
+  advance: number;
+  remaining: number;
+  is_paid: boolean;
+  footer_heading: string;
+  footer_info: string;
+  disclaimer: string;
+  /** NEW */
+  discharge_type?: IpdDischargeType | null;
+  created_at: string;
+}
+
+export interface OpdVitals {
+  bp: string;
+  spo2: string;
+  pulse: string;
+  temp: string;
+  weight: string;
+}
+
+export interface OpdDefaults {
+  facilities: string[];
+  footerHeading: string;
+  footerInfo: string;
+  disclaimer: string;
+  vitals: OpdVitals;   // ← NEW
+}
+
+export interface OpdBill {
+  id: string;
+  bill_no: string;
+  patient_name: string;
+  age: string;
+  gender: string;
+  address: string;
+  doctor_name?: string;
+  // vitals are no longer on the bill — they come from OpdDefaults
+  created_at: string;
+}

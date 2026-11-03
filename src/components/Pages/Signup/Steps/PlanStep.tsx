@@ -136,7 +136,7 @@ const PlanStep: React.FC<PlanStepProps> = ({
 
   const handleRazorpayFailure = (reason: string) => {
     // Any failure (including user cancel) means the preloader must
-    // go away — we're staying on the plan step.
+    // go away - we're staying on the plan step.
     onPaymentCancelled?.();
     if (!reason || reason === "Payment cancelled") return;
     setInvoiceId(null);
