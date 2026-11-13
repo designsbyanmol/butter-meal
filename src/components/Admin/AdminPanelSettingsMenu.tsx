@@ -49,13 +49,13 @@ const AdminPanelSettingsMenu: React.FC<AdminPanelSettingsMenuProps> = ({
           disabled={exportDisabled}
           onClick={() => { close(); onExport(); }}
         >
-          Export Menu List
+          Export List
         </DropdownItem>
         <DropdownItem
           disabled={importDisabled}
           onClick={() => { close(); onImport(); }}
         >
-          Import Menu List
+          Import List
         </DropdownItem>
         <DropdownItem
           disabled={sampleDisabled}

@@ -341,41 +341,41 @@ const PharmacyBillingBody: React.FC = () => {
   }, [slug]);
 
   // Fetch fresh stock + doctors + patients from Supabase on mount.
-// This is what makes the datalist and patient suggestion dropdown
-// work on a fresh device (or after the user clears site data).
-useEffect(() => {
-  if (!tenant) return;
-  let cancelled = false;
+  // This is what makes the datalist and patient suggestion dropdown
+  // work on a fresh device (or after the user clears site data).
+  useEffect(() => {
+    if (!tenant) return;
+    let cancelled = false;
 
-  (async () => {
-    try {
-      const [freshStock, freshDoctors, freshPatients] = await Promise.all([
-        supabaseService.getMedicineStock(tenant.slug),
-        supabaseService.getHospitalDoctors(tenant.slug),
-        supabaseService.getHospitalPatients(tenant.slug),
-      ]);
+    (async () => {
+      try {
+        const [freshStock, freshDoctors, freshPatients] = await Promise.all([
+          supabaseService.getMedicineStock(tenant.slug),
+          supabaseService.getHospitalDoctors(tenant.slug),
+          supabaseService.getHospitalPatients(tenant.slug),
+        ]);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      setStock(freshStock || []);
-      writeCache(stockKey(tenant.slug), freshStock || []);
+        setStock(freshStock || []);
+        writeCache(stockKey(tenant.slug), freshStock || []);
 
-      setDoctors(freshDoctors || []);
-      writeCache(doctorKey(tenant.slug), freshDoctors || []);
+        setDoctors(freshDoctors || []);
+        writeCache(doctorKey(tenant.slug), freshDoctors || []);
 
-      setPatients(freshPatients || []);
-      writeCache(patientKey(tenant.slug), freshPatients || []);
-    } catch (err) {
-      console.warn("[pharmacy-billing] initial hydrate failed:", err);
-      // Leave whatever was in the local cache in place - better
-      // than an empty form when the network is flaky.
-    }
-  })();
+        setPatients(freshPatients || []);
+        writeCache(patientKey(tenant.slug), freshPatients || []);
+      } catch (err) {
+        console.warn("[pharmacy-billing] initial hydrate failed:", err);
+        // Leave whatever was in the local cache in place - better
+        // than an empty form when the network is flaky.
+      }
+    })();
 
-  return () => {
-    cancelled = true;
-  };
-}, [tenant?.slug]);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant?.slug]);
 
   // Persist terms.
   useEffect(() => {
@@ -692,25 +692,25 @@ useEffect(() => {
     const trimmedName = patient.name.trim();
     const trimmedPhone = patient.phone.trim();
     const ageYears =
-  patient.ageYears !== "" ? Number(patient.ageYears) || 0 : null;
-const ageMonths =
-  patient.ageMonths !== "" ? Number(patient.ageMonths) || 0 : null;
-const genderValue = patient.gender.trim() || null;
+      patient.ageYears !== "" ? Number(patient.ageYears) || 0 : null;
+    const ageMonths =
+      patient.ageMonths !== "" ? Number(patient.ageMonths) || 0 : null;
+    const genderValue = patient.gender.trim() || null;
 
-if (trimmedName && trimmedPhone) {
-  try {
-    await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
-      name: trimmedName,
-      phone: trimmedPhone,
-      address: patient.address.trim() || undefined,
-      age_years: ageYears,
-      age_months: ageMonths,
-      gender: genderValue,
-    });
-  } catch (err) {
-    console.warn("[pharmacy-billing] patient upsert failed:", err);
-  }
-}
+    if (trimmedName && trimmedPhone) {
+      try {
+        await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
+          name: trimmedName,
+          phone: trimmedPhone,
+          address: patient.address.trim() || undefined,
+          age_years: ageYears,
+          age_months: ageMonths,
+          gender: genderValue,
+        });
+      } catch (err) {
+        console.warn("[pharmacy-billing] patient upsert failed:", err);
+      }
+    }
 
     // 1. Save bill to local history (unchanged).
     const existing = readCache<any>(billsKey(tenant.slug));
@@ -804,14 +804,14 @@ if (trimmedName && trimmedPhone) {
     alert("Bill saved to history successfully!");
     setItems([]);
     setPatient({
-  name: "",
-  phone: "",
-  address: "",
-  doctor: "",
-  ageYears: "",
-  ageMonths: "",
-  gender: "",
-});
+      name: "",
+      phone: "",
+      address: "",
+      doctor: "",
+      ageYears: "",
+      ageMonths: "",
+      gender: "",
+    });
     setAdditionalDiscountPct(0);
     setBillNo(`BILL-${Date.now().toString().slice(-6)}`);
   };
@@ -903,37 +903,37 @@ if (trimmedName && trimmedPhone) {
             />
           </FormField>
           <div className={local.grid2}>
-  <FormField label="Age (years)">
-    <Input
-      type="number"
-      min="0"
-      max="150"
-      value={patient.ageYears}
-      onChange={(e) => {
-        const v = e.target.value.replace(/\D/g, "").slice(0, 3);
-        setPatient({ ...patient, ageYears: v });
-      }}
-      placeholder="e.g. 2"
-    />
-  </FormField>
+            <FormField label="Age (years)">
+              <Input
+                type="number"
+                min="0"
+                max="150"
+                value={patient.ageYears}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                  setPatient({ ...patient, ageYears: v });
+                }}
+                placeholder="e.g. 2"
+              />
+            </FormField>
 
-  <FormField label="Age (months)">
-    <Input
-      type="number"
-      min="0"
-      max="11"
-      value={patient.ageMonths}
-      onChange={(e) => {
-        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-        setPatient({
-          ...patient,
-          ageMonths: v === "" ? "" : String(Math.min(11, Number(v))),
-        });
-      }}
-      placeholder="e.g. 4"
-    />
-  </FormField>
-</div>
+            <FormField label="Age (months)">
+              <Input
+                type="number"
+                min="0"
+                max="11"
+                value={patient.ageMonths}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                  setPatient({
+                    ...patient,
+                    ageMonths: v === "" ? "" : String(Math.min(11, Number(v))),
+                  });
+                }}
+                placeholder="e.g. 4"
+              />
+            </FormField>
+          </div>
 
           <FormField label="Gender">
             <Select
@@ -1368,18 +1368,18 @@ if (trimmedName && trimmedPhone) {
 
           <div className={local.printPatientBar}>
             <p>
-  <strong>Patient:</strong> {patient.name}
-  {(() => {
-    const y = patient.ageYears;
-    const m = patient.ageMonths;
-    if (!y && !m) return "";
-    const parts: string[] = [];
-    if (y) parts.push(`${y}y`);
-    if (m) parts.push(`${m}m`);
-    return ` (${parts.join(" ")})`;
-  })()}
-</p>
-          
+              <strong>Patient:</strong> {patient.name}
+              {(() => {
+                const y = patient.ageYears;
+                const m = patient.ageMonths;
+                if (!y && !m) return "";
+                const parts: string[] = [];
+                if (y) parts.push(`${y}y`);
+                if (m) parts.push(`${m}m`);
+                return ` (${parts.join(" ")})`;
+              })()}
+            </p>
+
             <p>
               <strong>Address:</strong> {patient.address}
             </p>

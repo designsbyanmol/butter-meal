@@ -486,7 +486,7 @@ const InfoPopupBody: React.FC<InfoPopupBodyProps> = ({ onClose: _onClose }) => {
   return (
     <>
       <InlineSection
-        title={isHospital ? "Hospital Information" : "Store Information"}
+        title={isHospital ? "Hospital Information" : "Business Information"}
         actions={
           isAdmin ? (
             <button

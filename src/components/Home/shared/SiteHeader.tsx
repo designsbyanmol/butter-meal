@@ -177,7 +177,7 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
           <Button
             size="sm"
             variant="ghost"
-            shape="pill"
+            shape="rounded"
             onClick={onStoreLogin}
             rightIcon={<RightArrow width={14} height={14} fill="#0F172A" />}
           >

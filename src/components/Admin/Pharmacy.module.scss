@@ -88,7 +88,7 @@
 
 .patientForm {
   display: grid;
-  grid-template-columns: 1fr 1fr 2fr 1fr;
+  grid-template-columns: 1fr 1fr 2fr;
   gap: 12px;
   margin-bottom: 20px;
 
@@ -204,9 +204,9 @@
 .totalRow {
   display: flex;
   justify-content: space-between;
-    gap: 10px;
+  gap: 10px;
   span {
-  font-size: 12px;
+    font-size: 12px;
   }
 }
 
@@ -215,10 +215,10 @@
   font-size: 16px;
   border-top: 1px dashed $border;
   padding-top: 8px;
-    gap: 10px;
+  gap: 10px;
   margin: 5px 0 0;
   span {
-  font-size: 12px;
+    font-size: 12px;
   }
 }
 
@@ -255,9 +255,9 @@
 .printPage {
   page: pharmacy-a5;
   width: 210mm;
-  height: 148mm;          /* fixed A5-landscape height */
-  max-height: 148mm;      /* never grow past a single A5 sheet */
-  overflow: hidden;       /* clip any overflow instead of spilling to A4 */
+  height: 148mm; /* fixed A5-landscape height */
+  max-height: 148mm; /* never grow past a single A5 sheet */
+  overflow: hidden; /* clip any overflow instead of spilling to A4 */
   padding: 6mm 8mm;
   background: #fff;
   color: #000;
@@ -873,6 +873,12 @@
       }
     }
 
+    &.cellDisabled {
+      pointer-events: none;
+      opacity: 0.5;
+      background: $gray-200;
+    }
+
     &.xlCellDel {
       text-align: center;
     }
@@ -902,7 +908,7 @@
     font-size: 11px;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    padding: 6px 6px;
+    padding: $space-2 $space-3;
     white-space: nowrap;
   }
 
@@ -926,7 +932,7 @@
     min-width: 0;
     border: none;
     background: transparent;
-    padding: 4px;
+    padding: $space-2 $space-3;
     min-height: 32px;
     font-size: 11px;
     color: #111827;
@@ -957,13 +963,13 @@
 
 /* Column widths - driven by <colgroup>, one class per column */
 .xlColName {
-  width: 200px;
+  width: 300px;
 }
 .xlColHsn {
   width: 60px;
 }
 .xlColPack {
-  width: 90px;
+  width: 60px;
 }
 .xlColBatch {
   width: 60px;
@@ -972,7 +978,7 @@
   width: 70px;
 }
 .xlColQty {
-  width: 120px;
+  width: 60px;
 }
 .xlColMrp {
   width: 50px;
@@ -984,7 +990,7 @@
   width: 80px;
 }
 .xlColDel {
-  width: 40px;
+  width: 30px;
 }
 
 /* Per-cell modifiers */
@@ -1214,7 +1220,7 @@
   box-sizing: border-box;
   background: #fff;
   color: #000;
-  font-family: 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace;
+  font-family: "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
   font-size: 10px;
   line-height: 1.3;
 
@@ -1271,6 +1277,51 @@
   border-bottom: 1px dashed #000;
 }
 
+/* Customer + document ID bar on the printed receipt */
+.billingCustomerBar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 4px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #cbd5e1;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.billingCustomerCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  /* Long addresses must wrap, not push the right column off the page */
+  word-break: break-word;
+}
+
+.billingDocCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.billDate {
+  font-size: 9px;
+}
+.billNo {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.billingItemPack {
+  font-size: 9.5px;
+  color: #666;
+  margin-top: 1px;
+}
+
 .billingItemsHeader {
   display: grid;
   grid-template-columns: 14px 1fr 22px 40px 50px;
@@ -1309,7 +1360,10 @@
   line-height: 1.25;
 }
 
-.billingColQty,
+.billingColQty {
+  text-align: center;
+}
+
 .billingColPrice,
 .billingColTotal {
   text-align: right;
@@ -1562,4 +1616,144 @@
   color: #92400e !important;
   font-weight: 700;
   border-left: 3px solid #f59e0b !important;
+}
+
+/* =========================================================
+   Bill settle modal
+   ========================================================= */
+.settleWrap {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.settleHeader,
+.settleRow {
+  display: grid;
+  grid-template-columns: 2fr 60px 90px 110px 110px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.settleHeader {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.settleRow {
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.settleName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settleMoney {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.settleTotals {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+.settleGrand {
+  font-size: 16px;
+  font-weight: 800;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 8px;
+}
+
+.settlementsBlock {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.settlementsTitle {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+.settlementRow {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+}
+
+.settlementHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.settlementLines {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.settlementReason {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Refund block on the printed receipt */
+.billingSettlements {
+  margin: 6px 0 8px;
+  padding: 6px 0;
+  border-top: 1px dashed #cbd5e1;
+  border-bottom: 1px dashed #cbd5e1;
+  font-size: 10px;
+  color: #111;
+}
+
+.refundAmount {
+  font-size: 10px;
+  font-weight: 600;
+}
+.billingSettlementRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.billingSettlementMeta {
+  font-size: 10px;
+  color: #555;
 }

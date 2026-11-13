@@ -1,11 +1,13 @@
 // src/components/Admin/PatientPicker.tsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { FormField, Input, Select } from '../ui';
-import { useTenant } from '../../contexts/TenantContext';
-import { supabaseService } from '../../services/supabase.service';
+import React, { useEffect, useMemo, useState } from "react";
+import { FormField, Input, Select } from "../ui";
+import { useTenant } from "../../contexts/TenantContext";
+import { supabaseService } from "../../services/supabase.service";
+import local from "./PatientPicker.module.scss";
 
 export interface PatientValue {
   name: string;
+  phone: string;
   ageYears: string;
   ageMonths: string;
   gender: string;
@@ -13,14 +15,15 @@ export interface PatientValue {
 }
 
 export const emptyPatient = (): PatientValue => ({
-  name: '',
-  ageYears: '',
-  ageMonths: '',
-  gender: '',
-  address: '',
+  name: "",
+  phone: "",
+  ageYears: "",
+  ageMonths: "",
+  gender: "",
+  address: "",
 });
 
-const GENDERS = ['Male', 'Female', 'Other'];
+const GENDERS = ["Male", "Female", "Other"];
 
 interface PatientPickerProps {
   value: PatientValue;
@@ -47,30 +50,35 @@ export const PatientPicker: React.FC<PatientPickerProps> = ({
     const q = value.name.trim().toLowerCase();
     if (!q) return [];
     return patients
-      .filter((p) => String(p.name || '').toLowerCase().includes(q))
+      .filter((p) =>
+        String(p.name || "")
+          .toLowerCase()
+          .includes(q),
+      )
       .slice(0, 6);
   }, [patients, value.name]);
 
   const selectPatient = (p: any) => {
     onChange({
-      name: p.name || '',
+      name: p.name || "",
+      phone: p.phone || "", // ← new: auto-fill
       ageYears:
         p.age_years !== undefined && p.age_years !== null
           ? String(p.age_years)
-          : '',
+          : "",
       ageMonths:
         p.age_months !== undefined && p.age_months !== null
           ? String(p.age_months)
-          : '',
-      gender: p.gender || '',
-      address: p.address || '',
+          : "",
+      gender: p.gender || "",
+      address: p.address || "",
     });
     setSuggestionsOpen(false);
   };
 
   return (
-    <>
-      <div style={{ position: 'relative' }}>
+    <div className={local.grid}>
+      <div className={local.nameWrap}>
         <FormField label="Patient Name *">
           <Input
             value={value.name}
@@ -79,54 +87,45 @@ export const PatientPicker: React.FC<PatientPickerProps> = ({
               setSuggestionsOpen(true);
             }}
             onFocus={() => value.name && setSuggestionsOpen(true)}
-            onBlur={() =>
-              setTimeout(() => setSuggestionsOpen(false), 180)
-            }
+            onBlur={() => setTimeout(() => setSuggestionsOpen(false), 180)}
             placeholder="Search or type patient name..."
           />
         </FormField>
 
+        {/* Suggestions dropdown — unchanged */}
         {suggestionsOpen && filtered.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              background: '#fff',
-              border: '1px solid #e2e8f0',
-              borderRadius: 6,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              zIndex: 100,
-              marginTop: 4,
-              maxHeight: 200,
-              overflowY: 'auto',
-            }}
-          >
+          <div className={local.suggestions}>
             {filtered.map((p) => (
               <div
                 key={p.id}
                 onMouseDown={() => selectPatient(p)}
-                style={{
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 13,
-                }}
+                className={local.suggestionRow}
               >
                 <strong>{p.name}</strong>
                 {p.phone && (
-                  <span style={{ color: '#64748b', marginLeft: 8 }}>
-                    {p.phone}
-                  </span>
+                  <span className={local.suggestionPhone}>{p.phone}</span>
                 )}
               </div>
             ))}
           </div>
         )}
       </div>
+      {/* NEW: phone, right under the name inside the same cell */}
+      <FormField label="Phone">
+        <Input
+          type="tel"
+          value={value.phone}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+            })
+          }
+          placeholder="10-digit mobile"
+        />
+      </FormField>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className={local.ageGroup}>
         <FormField label="Age (years)">
           <Input
             type="number"
@@ -136,7 +135,7 @@ export const PatientPicker: React.FC<PatientPickerProps> = ({
             onChange={(e) =>
               onChange({
                 ...value,
-                ageYears: e.target.value.replace(/\D/g, '').slice(0, 3),
+                ageYears: e.target.value.replace(/\D/g, "").slice(0, 3),
               })
             }
             placeholder="e.g. 2"
@@ -149,11 +148,10 @@ export const PatientPicker: React.FC<PatientPickerProps> = ({
             max="11"
             value={value.ageMonths}
             onChange={(e) => {
-              const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+              const v = e.target.value.replace(/\D/g, "").slice(0, 2);
               onChange({
                 ...value,
-                ageMonths:
-                  v === '' ? '' : String(Math.min(11, Number(v))),
+                ageMonths: v === "" ? "" : String(Math.min(11, Number(v))),
               });
             }}
             placeholder="e.g. 4"
@@ -166,18 +164,18 @@ export const PatientPicker: React.FC<PatientPickerProps> = ({
           value={value.gender}
           onChange={(e) => onChange({ ...value, gender: e.target.value })}
           options={[
-            { value: '', label: '- Select -' },
+            { value: "", label: "- Select -" },
             ...GENDERS.map((g) => ({ value: g, label: g })),
           ]}
         />
       </FormField>
 
-      <FormField label="Address">
+      <FormField label="Address" className={local.address}>
         <Input
           value={value.address}
           onChange={(e) => onChange({ ...value, address: e.target.value })}
         />
       </FormField>
-    </>
+    </div>
   );
 };

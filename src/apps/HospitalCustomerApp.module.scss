@@ -104,7 +104,26 @@
   margin: 0;
   font-size: 14px;
 }
+.itemFooterHospital {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 0;
 
+  .hospitalBookBtn {
+    flex: 1;
+  }
+}
+
+.content {
+  position: relative;
+}
+.tags {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+}
 /* =========================================================
    Live token screen - refined
    ========================================================= */

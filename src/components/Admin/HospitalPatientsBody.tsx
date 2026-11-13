@@ -65,14 +65,14 @@ export default function HospitalPatientsBody({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-const load = async () => {
-  if (!tenant) return;
-  setIsLoading(true);
-  const data = await supabaseService.getHospitalPatients(tenant.slug);
-  setPatients(data);
-  writeCache(patientsKey(tenant.slug), data); // ← new
-  setIsLoading(false);
-};
+  const load = async () => {
+    if (!tenant) return;
+    setIsLoading(true);
+    const data = await supabaseService.getHospitalPatients(tenant.slug);
+    setPatients(data);
+    writeCache(patientsKey(tenant.slug), data); // ← new
+    setIsLoading(false);
+  };
 
   useEffect(() => {
     load();
@@ -90,51 +90,49 @@ const load = async () => {
   const openEditModal = (patient: any) => {
     setEditingId(patient.id);
     setForm({
-  name: patient.name || "",
-  age_years:
-    patient.age_years !== undefined && patient.age_years !== null
-      ? String(patient.age_years)
-      : "",
-  age_months:
-    patient.age_months !== undefined && patient.age_months !== null
-      ? String(patient.age_months)
-      : "",
-  gender: patient.gender || "Male",
-  phone: patient.phone || "",
-  email: patient.email || "",
-  address: patient.address || "",
-});
+      name: patient.name || "",
+      age_years:
+        patient.age_years !== undefined && patient.age_years !== null
+          ? String(patient.age_years)
+          : "",
+      age_months:
+        patient.age_months !== undefined && patient.age_months !== null
+          ? String(patient.age_months)
+          : "",
+      gender: patient.gender || "Male",
+      phone: patient.phone || "",
+      email: patient.email || "",
+      address: patient.address || "",
+    });
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-  if (!tenant || !form.name) return;
-  setIsSaving(true);
+    if (!tenant || !form.name) return;
+    setIsSaving(true);
 
-  const payload = {
-    name: form.name.trim(),
-    age_years:
-      form.age_years !== "" ? Number(form.age_years) || 0 : null,
-    age_months:
-      form.age_months !== "" ? Number(form.age_months) || 0 : null,
-    gender: form.gender,
-    phone: form.phone.trim(),
-    email: form.email.trim(),
-    address: form.address.trim(),
+    const payload = {
+      name: form.name.trim(),
+      age_years: form.age_years !== "" ? Number(form.age_years) || 0 : null,
+      age_months: form.age_months !== "" ? Number(form.age_months) || 0 : null,
+      gender: form.gender,
+      phone: form.phone.trim(),
+      email: form.email.trim(),
+      address: form.address.trim(),
+    };
+
+    if (editingId) {
+      await supabaseService.updateHospitalPatient(editingId, payload);
+    } else {
+      await supabaseService.addHospitalPatient(tenant.slug, payload);
+    }
+
+    setIsSaving(false);
+    setIsModalOpen(false);
+    setForm({ ...emptyForm });
+    setEditingId(null);
+    load();
   };
-
-  if (editingId) {
-    await supabaseService.updateHospitalPatient(editingId, payload);
-  } else {
-    await supabaseService.addHospitalPatient(tenant.slug, payload);
-  }
-
-  setIsSaving(false);
-  setIsModalOpen(false);
-  setForm({ ...emptyForm });
-  setEditingId(null);
-  load();
-};
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -175,20 +173,20 @@ const load = async () => {
   );
 
   useEffect(() => {
-  if (!tenant) return;
+    if (!tenant) return;
 
-  const onChanged = (e: Event) => {
-    const detail = (e as CustomEvent).detail as { slug?: string } | undefined;
-    if (detail?.slug !== tenant.slug) return;
-    load();
-  };
+    const onChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { slug?: string } | undefined;
+      if (detail?.slug !== tenant.slug) return;
+      load();
+    };
 
-  window.addEventListener('hospital-patients:changed', onChanged);
-  return () => {
-    window.removeEventListener('hospital-patients:changed', onChanged);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [tenant?.slug]);
+    window.addEventListener("hospital-patients:changed", onChanged);
+    return () => {
+      window.removeEventListener("hospital-patients:changed", onChanged);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug]);
 
   return (
     <>
@@ -287,17 +285,17 @@ const load = async () => {
                         {p.name}
                       </h3>
                       <Badge tone="neutral" size="sm">
-  {p.gender}
-  {(() => {
-    const y = Number(p.age_years) || 0;
-    const m = Number(p.age_months) || 0;
-    if (!y && !m) return "";
-    const parts: string[] = [];
-    if (y) parts.push(`${y}y`);
-    if (m) parts.push(`${m}m`);
-    return ` · ${parts.join(" ")}`;
-  })()}
-</Badge>
+                        {p.gender}
+                        {(() => {
+                          const y = Number(p.age_years) || 0;
+                          const m = Number(p.age_months) || 0;
+                          if (!y && !m) return "";
+                          const parts: string[] = [];
+                          if (y) parts.push(`${y}y`);
+                          if (m) parts.push(`${m}m`);
+                          return ` · ${parts.join(" ")}`;
+                        })()}
+                      </Badge>
                       {p.phone && (
                         <p
                           style={{
@@ -394,51 +392,52 @@ const load = async () => {
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
             <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  }}
->
-  <FormField label="Age (years)">
-    <Input
-      type="number"
-      min="0"
-      max="150"
-      value={form.age_years}
-      onChange={(e) => {
-        const v = e.target.value.replace(/\D/g, "").slice(0, 3);
-        setForm({ ...form, age_years: v });
-      }}
-      placeholder="e.g. 2"
-    />
-  </FormField>
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
+              <FormField label="Age (years)">
+                <Input
+                  type="number"
+                  min="0"
+                  max="150"
+                  value={form.age_years}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                    setForm({ ...form, age_years: v });
+                  }}
+                  placeholder="e.g. 2"
+                />
+              </FormField>
 
-  <FormField label="Age (months)">
-    <Input
-      type="number"
-      min="0"
-      max="11"
-      value={form.age_months}
-      onChange={(e) => {
-        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-        setForm({
-          ...form,
-          age_months: v === "" ? "" : String(Math.min(11, Number(v))),
-        });
-      }}
-      placeholder="e.g. 4"
-    />
-  </FormField>
-</div>
+              <FormField label="Age (months)">
+                <Input
+                  type="number"
+                  min="0"
+                  max="11"
+                  value={form.age_months}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    setForm({
+                      ...form,
+                      age_months:
+                        v === "" ? "" : String(Math.min(11, Number(v))),
+                    });
+                  }}
+                  placeholder="e.g. 4"
+                />
+              </FormField>
+            </div>
 
-<FormField label="Gender">
-  <Select
-    value={form.gender}
-    onChange={(e) => setForm({ ...form, gender: e.target.value })}
-    options={GENDERS.map((g) => ({ value: g, label: g }))}
-  />
-</FormField>
+            <FormField label="Gender">
+              <Select
+                value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                options={GENDERS.map((g) => ({ value: g, label: g }))}
+              />
+            </FormField>
           </div>
 
           <FormField label="Phone">

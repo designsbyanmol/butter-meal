@@ -23,7 +23,7 @@ const STORAGE_KEY = 'dinein:pending-items:v1';
 const EVENT_NAME = 'dinein-pending-items:changed';
 
 /** How long the customer has to remove the item. */
-export const PENDING_WINDOW_MS = 60_000;
+export const PENDING_WINDOW_MS = 30_000;
 
 // ---------------------------------------------------------
 // Storage

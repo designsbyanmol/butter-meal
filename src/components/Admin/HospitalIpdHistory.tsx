@@ -117,12 +117,18 @@ const computeRange = (preset: DatePreset, from: string, to: string) => {
   }
 };
 
+type DischargeFilter =
+  | "all" // no filter
+  | "none" // discharge_type IS NULL (not discharged)
+  | IpdDischargeType;
+
 interface FilterState {
   patient: string;
   billNo: string;
   datePreset: DatePreset;
   customFrom: string;
   customTo: string;
+  discharge: DischargeFilter;
 }
 
 const EMPTY_FILTERS: FilterState = {
@@ -131,6 +137,7 @@ const EMPTY_FILTERS: FilterState = {
   datePreset: "all",
   customFrom: "",
   customTo: "",
+  discharge: "all",
 };
 
 const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
@@ -162,13 +169,13 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     useState<IpdDischargeType | null>(null);
 
   useEffect(() => {
-  if (printFlow.step !== "confirmed") return;
-  const t = window.setTimeout(() => {
-    triggerPrint();
-    setPrintFlow({ step: "closed" });
-  }, 120);
-  return () => window.clearTimeout(t);
-}, [printFlow.step]);
+    if (printFlow.step !== "confirmed") return;
+    const t = window.setTimeout(() => {
+      triggerPrint();
+      setPrintFlow({ step: "closed" });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [printFlow.step]);
 
   const triggerPrint = () => {
     if (!printRef.current) return;
@@ -225,14 +232,34 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     let todayTotal = 0;
     let yesterdayTotal = 0;
     let monthTotal = 0;
+    let invalid = 0;
 
     bills.forEach((b) => {
-      const time = new Date(b.created_at).getTime();
+      const raw = b.created_at;
+      const t = raw ? new Date(raw).getTime() : NaN;
+
+      if (!Number.isFinite(t)) {
+        invalid += 1;
+        return;
+      }
+
+      // Normalize to local midnight so a `date`-only value like
+      // "2026-11-04" lands on the same calendar day the user sees,
+      // not 05:30 IST on that day.
+      const dayStart = startOfDay(new Date(t)).getTime();
       const amt = Number(b.total_amount) || 0;
-      if (time >= todayStart && time <= todayEnd) todayTotal += amt;
-      if (time >= yesterdayStart && time <= yesterdayEnd) yesterdayTotal += amt;
-      if (time >= monthStart && time <= todayEnd) monthTotal += amt;
+
+      if (dayStart === todayStart) todayTotal += amt;
+      if (dayStart === yesterdayStart) yesterdayTotal += amt;
+      if (t >= monthStart && t <= todayEnd) monthTotal += amt;
     });
+
+    if (invalid > 0) {
+      console.warn(
+        `[ipd-history] ${invalid} bill(s) had missing/invalid created_at - ` +
+          `they will not contribute to today/yesterday totals.`,
+      );
+    }
 
     return { todayTotal, yesterdayTotal, monthTotal };
   }, [bills]);
@@ -264,6 +291,15 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
       result = result.filter((b) =>
         String(b.bill_no || "").includes(filters.billNo),
       );
+    }
+
+    if (filters.discharge !== "all") {
+      result = result.filter((b) => {
+        if (filters.discharge === "none") {
+          return !b.discharge_type;
+        }
+        return b.discharge_type === filters.discharge;
+      });
     }
 
     const { from, to } = computeRange(
@@ -301,6 +337,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     if (filters.patient.trim()) c++;
     if (filters.billNo.trim()) c++;
     if (filters.datePreset !== "all") c++;
+    if (filters.discharge !== "all") c++; // ← new
     return c;
   }, [filters]);
 
@@ -339,85 +376,83 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   const confirmDischargeAndPrint = async () => {
-  if (printFlow.step !== 'pickDischarge') return;
-  if (!pendingDischarge) return;
+    if (printFlow.step !== "pickDischarge") return;
+    if (!pendingDischarge) return;
 
-  const bill = printFlow.bill;
-  setIsSavingDischarge(true);
+    const bill = printFlow.bill;
+    setIsSavingDischarge(true);
 
-  await supabaseService.updateIpdBillDischargeType(bill.id, pendingDischarge);
+    await supabaseService.updateIpdBillDischargeType(bill.id, pendingDischarge);
 
-  setBills((prev) =>
-    prev.map((b) =>
-      b.id === bill.id ? { ...b, discharge_type: pendingDischarge } : b,
-    ),
-  );
-  setSelectedBill((prev) =>
-    prev && prev.id === bill.id
-      ? { ...prev, discharge_type: pendingDischarge }
-      : prev,
-  );
+    setBills((prev) =>
+      prev.map((b) =>
+        b.id === bill.id ? { ...b, discharge_type: pendingDischarge } : b,
+      ),
+    );
+    setSelectedBill((prev) =>
+      prev && prev.id === bill.id
+        ? { ...prev, discharge_type: pendingDischarge }
+        : prev,
+    );
 
-  setIsSavingDischarge(false);
+    setIsSavingDischarge(false);
 
-  if (!bill.is_paid) {
-    // Chain into the paid prompt.
+    if (!bill.is_paid) {
+      // Chain into the paid prompt.
+      setPrintFlow({
+        step: "askPaid",
+        bill,
+        discharge: pendingDischarge,
+      });
+      return;
+    }
+
+    setDischargeForPrint(pendingDischarge);
     setPrintFlow({
-      step: 'askPaid',
+      step: "confirmed",
       bill,
       discharge: pendingDischarge,
     });
-    return;
-  }
-
-  setDischargeForPrint(pendingDischarge);
-  setPrintFlow({
-    step: 'confirmed',
-    bill,
-    discharge: pendingDischarge,
-  });
-};
-
-const handleMarkPaidAndPrint = async () => {
-  if (printFlow.step !== 'askPaid') return;
-
-  const bill = printFlow.bill;
-  const discharge = printFlow.discharge;
-
-  const ok = await supabaseService.updateIpdBillPaid(bill.id, {
-    advance: bill.total_amount,
-    remaining: 0,
-    is_paid: true,
-  });
-  if (!ok) {
-    alert('Could not mark the bill as paid. Please retry.');
-    return;
-  }
-
-  const patched: IpdBill = {
-    ...bill,
-    advance: bill.total_amount,
-    remaining: 0,
-    is_paid: true,
-    discharge_type: discharge ?? bill.discharge_type,
   };
 
-  // Sync all three UI surfaces with the new values
-  setBills((prev) => prev.map((b) => (b.id === bill.id ? patched : b)));
-  setSelectedBill((prev) =>
-    prev && prev.id === bill.id ? patched : prev,
-  );
+  const handleMarkPaidAndPrint = async () => {
+    if (printFlow.step !== "askPaid") return;
 
-  setDischargeForPrint(discharge ?? bill.discharge_type ?? null);
-  setPrintFlow({ step: 'confirmed', bill: patched, discharge });
-};
+    const bill = printFlow.bill;
+    const discharge = printFlow.discharge;
 
-const handlePrintWithoutPaying = () => {
-  if (printFlow.step !== 'askPaid') return;
-  const { bill, discharge } = printFlow;
-  setDischargeForPrint(discharge ?? bill.discharge_type ?? null);
-  setPrintFlow({ step: 'confirmed', bill, discharge });
-};
+    const ok = await supabaseService.updateIpdBillPaid(bill.id, {
+      advance: bill.total_amount,
+      remaining: 0,
+      is_paid: true,
+    });
+    if (!ok) {
+      alert("Could not mark the bill as paid. Please retry.");
+      return;
+    }
+
+    const patched: IpdBill = {
+      ...bill,
+      advance: bill.total_amount,
+      remaining: 0,
+      is_paid: true,
+      discharge_type: discharge ?? bill.discharge_type,
+    };
+
+    // Sync all three UI surfaces with the new values
+    setBills((prev) => prev.map((b) => (b.id === bill.id ? patched : b)));
+    setSelectedBill((prev) => (prev && prev.id === bill.id ? patched : prev));
+
+    setDischargeForPrint(discharge ?? bill.discharge_type ?? null);
+    setPrintFlow({ step: "confirmed", bill: patched, discharge });
+  };
+
+  const handlePrintWithoutPaying = () => {
+    if (printFlow.step !== "askPaid") return;
+    const { bill, discharge } = printFlow;
+    setDischargeForPrint(discharge ?? bill.discharge_type ?? null);
+    setPrintFlow({ step: "confirmed", bill, discharge });
+  };
 
   const handleExportAll = () => {
     if (filteredBills.length === 0) return;
@@ -604,7 +639,20 @@ const handlePrintWithoutPaying = () => {
                       <td>
                         <strong>{bill.bill_no}</strong>
                       </td>
-                      <td>{bill.patient_name}</td>
+                      <td>
+                        {bill.patient_name}
+                        <div>
+                          {bill.discharge_type ? (
+                            <Badge tone="success" size="sm">
+                              {IPD_DISCHARGE_LABELS[bill.discharge_type]}
+                            </Badge>
+                          ) : (
+                            <Badge tone="neutral" size="sm">
+                              Not discharged
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         {bill.date_from || "-"} → {bill.date_to || "-"}
                       </td>
@@ -663,6 +711,46 @@ const handlePrintWithoutPaying = () => {
           </>
         }
       >
+        <section className={local.filterSection}>
+          <h4 className={local.filterSectionHeading}>Discharge Type</h4>
+          <div className={local.chipRow}>
+            <Chip
+              tone="primary"
+              active={draftFilters.discharge === "all"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, discharge: "all" })
+              }
+            >
+              All
+            </Chip>
+
+            <Chip
+              tone="primary"
+              active={draftFilters.discharge === "none"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, discharge: "none" })
+              }
+            >
+              Not Discharged
+            </Chip>
+
+            {(Object.keys(IPD_DISCHARGE_LABELS) as IpdDischargeType[]).map(
+              (key) => (
+                <Chip
+                  key={key}
+                  tone="primary"
+                  active={draftFilters.discharge === key}
+                  onClick={() =>
+                    setDraftFilters({ ...draftFilters, discharge: key })
+                  }
+                >
+                  {IPD_DISCHARGE_LABELS[key]}
+                </Chip>
+              ),
+            )}
+          </div>
+        </section>
+
         <section className={local.filterSection}>
           <h4 className={local.filterSectionHeading}>Patient Details</h4>
           <div className={local.filterFieldStack}>
@@ -898,41 +986,38 @@ const handlePrintWithoutPaying = () => {
       </Modal>
 
       <Modal
-  isOpen={printFlow.step === "askPaid"}
-  onClose={() => setPrintFlow({ step: "closed" })}
-  title={`Is this bill paid? - ${
-    printFlow.step === "askPaid" ? printFlow.bill.bill_no : ""
-  }`}
-  size="sm"
-  disableBackdropClose={true}
-  footer={
-    <>
-      <Button
-        variant="ghost"
-        onClick={handlePrintWithoutPaying}
+        isOpen={printFlow.step === "askPaid"}
+        onClose={() => setPrintFlow({ step: "closed" })}
+        title={`Is this bill paid? - ${
+          printFlow.step === "askPaid" ? printFlow.bill.bill_no : ""
+        }`}
+        size="sm"
+        disableBackdropClose={true}
+        footer={
+          <>
+            <Button variant="ghost" onClick={handlePrintWithoutPaying}>
+              No, print unpaid
+            </Button>
+            <Button variant="success" onClick={handleMarkPaidAndPrint}>
+              Yes, mark paid &amp; print
+            </Button>
+          </>
+        }
       >
-        No, print unpaid
-      </Button>
-      <Button variant="success" onClick={handleMarkPaidAndPrint}>
-        Yes, mark paid &amp; print
-      </Button>
-    </>
-  }
->
-  {printFlow.step === "askPaid" && (
-    <>
-      <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#475569" }}>
-        This bill is currently marked as <strong>unpaid</strong>.
-        Total is <strong>{formatRupees(printFlow.bill.total_amount)}</strong>.
-      </p>
-      <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-        If you mark it paid, the full total will be recorded as the
-        advance, and the remaining balance will be set to ₹0. The bill
-        in history will be updated.
-      </p>
-    </>
-  )}
-</Modal>
+        {printFlow.step === "askPaid" && (
+          <>
+            <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#475569" }}>
+              This bill is currently marked as <strong>unpaid</strong>. Total is{" "}
+              <strong>{formatRupees(printFlow.bill.total_amount)}</strong>.
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+              If you mark it paid, the full total will be recorded as the
+              advance, and the remaining balance will be set to ₹0. The bill in
+              history will be updated.
+            </p>
+          </>
+        )}
+      </Modal>
 
       {/* Hidden A4 print for reprint */}
       <div className={local.printHiddenContainer}>

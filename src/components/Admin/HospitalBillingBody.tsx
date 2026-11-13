@@ -16,25 +16,50 @@ import { HospitalParticular } from '../../types';
 import { DEFAULT_HOSPITAL_PARTICULARS } from '../../data/hospitalParticulars';
 import HospitalIpdBilling from './HospitalIpdBilling';
 import HospitalOpdBilling from './HospitalOpdBilling';
-import { TrashIcon, EditIcon, LeftArrowIcon } from '../../assets/svgs';
+import {
+  TrashIcon,
+  EditIcon,
+  LeftArrowIcon,
+  RecieptIcon,
+  ClockIcon,
+} from '../../assets/svgs';
+import local from './HospitalBillingBody.module.scss';
 
-export default function HospitalBillingBody() {
-  const { tenant } = useTenant();
-  const [mode, setMode] = useState<'ipd' | 'opd' | null>(() => {
-  if (typeof window === 'undefined' || !tenant?.slug) return null;
+type BillingMode = 'ipd' | 'opd';
+
+const MODE_QUERY_KEY = 'tab';
+
+/** Read ?tab=ipd / ?tab=opd. Anything else → null (picker). */
+const readModeFromUrl = (): BillingMode | null => {
   try {
-    if (localStorage.getItem(`hospital:ipd:hasContent::${tenant.slug}`) === '1') {
-      return 'ipd';
-    }
-    if (localStorage.getItem(`hospital:opd:hasContent::${tenant.slug}`) === '1') {
-      return 'opd';
-    }
+    const url = new URL(window.location.href);
+    const v = (url.searchParams.get(MODE_QUERY_KEY) || '').toLowerCase();
+    return v === 'ipd' || v === 'opd' ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeModeToUrl = (mode: BillingMode | null) => {
+  try {
+    const url = new URL(window.location.href);
+    if (mode) url.searchParams.set(MODE_QUERY_KEY, mode);
+    else url.searchParams.delete(MODE_QUERY_KEY);
+    window.history.replaceState({}, '', url.toString());
   } catch {
     /* ignore */
   }
-  return null;
-});
+};
+
+export default function HospitalBillingBody() {
+  const { tenant } = useTenant();
+
+  const [mode, setMode] = useState<BillingMode | null>(() =>
+    readModeFromUrl(),
+  );
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
 
   const [particulars, setParticulars] = useState<HospitalParticular[]>([]);
   const [isParticularsOpen, setIsParticularsOpen] = useState(false);
@@ -45,12 +70,35 @@ export default function HospitalBillingBody() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const hasIpdDraftOnDisk = (): boolean => {
+    if (!tenant?.slug) return false;
+    try {
+      return (
+        localStorage.getItem(`hospital:ipd:hasContent::${tenant.slug}`) === '1'
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  // ---- Browser back / forward ----
+  useEffect(() => {
+    const onPop = () => setMode(readModeFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // ---- Sync ?tab= with mode ----
+  useEffect(() => {
+    writeModeToUrl(mode);
+  }, [mode]);
+
+  // ---- Particulars (unchanged data flow) ----
   const loadParticulars = async () => {
     if (!tenant) return;
     const list = await supabaseService.getHospitalParticulars(tenant.slug);
 
     if (list.length === 0) {
-      // First-time seed so IPD billing has something to pick from.
       for (const p of DEFAULT_HOSPITAL_PARTICULARS) {
         await supabaseService.addHospitalParticular(
           tenant.slug,
@@ -77,7 +125,6 @@ export default function HospitalBillingBody() {
     const name = draft.name.trim();
     if (!name) return;
 
-    // Prevent duplicates (case-insensitive) within the same tenant.
     const duplicate = particulars.some(
       (p) =>
         p.id !== editingId &&
@@ -110,82 +157,123 @@ export default function HospitalBillingBody() {
     void loadParticulars();
   };
 
-  const requestBackToTypes = () => {
-    // Always confirm - the draft may or may not be dirty, but it is
-    // cheap to confirm and expensive to lose a bill in progress.
-    setConfirmLeave(true);
-  };
+  const requestBackToTypes = () => setConfirmLeave(true);
 
+  // =========================================================
+  // RENDER: picker
+  // =========================================================
   if (!mode) {
     return (
       <InlineSection title="Hospital Billing">
-        <div
-          style={{
-            display: 'flex',
-            gap: 20,
-            justifyContent: 'center',
-            marginTop: 40,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className={local.pickerWrap}>
           <Card
             interactive
             padding="lg"
             onClick={() => setMode('ipd')}
-            style={{ flex: 1, maxWidth: 300, textAlign: 'center' }}
+            className={local.pickerCard}
           >
-            <h2 style={{ color: '#1e7e34', marginBottom: 10 }}>
-              IPD Billing
-            </h2>
-            <p style={{ color: '#64748b' }}>
+            <span className={local.pickerIcon}>
+              <RecieptIcon width={24} height={24} fill="currentColor" />
+            </span>
+            <h2 className={local.pickerTitle}>IPD Billing</h2>
+            <p className={local.pickerDesc}>
               Create In-Patient Department bills with room rent, nursing,
-              etc.
+              procedures and daily charges.
             </p>
+            <span className={local.pickerCta}>Start IPD bill →</span>
           </Card>
+
           <Card
             interactive
             padding="lg"
             onClick={() => setMode('opd')}
-            style={{ flex: 1, maxWidth: 300, textAlign: 'center' }}
+            className={local.pickerCard}
           >
-            <h2 style={{ color: '#1e7e34', marginBottom: 10 }}>
-              OPD Billing
-            </h2>
-            <p style={{ color: '#64748b' }}>
-              Create Out-Patient Department prescriptions and bills.
+            <span className={`${local.pickerIcon} ${local.pickerIconAlt}`}>
+              <ClockIcon width={24} height={24} fill="currentColor" />
+            </span>
+            <h2 className={local.pickerTitle}>OPD Billing</h2>
+            <p className={local.pickerDesc}>
+              Create Out-Patient Department prescriptions and bills with
+              vitals, facilities and doctor details.
             </p>
+            <span className={local.pickerCta}>Start OPD bill →</span>
           </Card>
         </div>
       </InlineSection>
     );
   }
 
+  // =========================================================
+  // RENDER: active form
+  // =========================================================
   return (
     <InlineSection
       title={mode === 'ipd' ? 'IPD Billing' : 'OPD Billing'}
       actions={
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="ghost" onClick={requestBackToTypes}>
+        <div className={local.toolbar}>
+          <Button
+            variant="ghost"
+            onClick={requestBackToTypes}
+            className={local.toolbarBack}
+          >
             <LeftArrowIcon width={18} height={18} fill="#1e1e1e" /> Back
           </Button>
+
           {mode === 'ipd' && (
-            <Button
-              variant="secondary"
-              onClick={() => setIsParticularsOpen(true)}
-            >
-              Manage Particulars
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => setConfirmReset(true)}
+                disabled={!hasIpdDraftOnDisk()}
+                className={local.toolbarReset}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsParticularsOpen(true)}
+              >
+                Manage Particulars
+              </Button>
+            </>
           )}
         </div>
       }
     >
       {mode === 'ipd' ? (
-        <HospitalIpdBilling particulars={particulars} />
+        <HospitalIpdBilling
+          particulars={particulars}
+          resetSignal={resetSignal}
+        />
       ) : (
         <HospitalOpdBilling />
       )}
 
-      {/* Leave confirmation */}
+      {/* Reset confirm */}
+      <ConfirmDialog
+        isOpen={confirmReset}
+        title="Reset this bill?"
+        message="This will clear all patient details, dates, items and footer fields on the IPD form. Saved bills in history are not affected."
+        confirmText="Yes, reset"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmReset(false);
+          setResetSignal((n) => n + 1);
+          if (tenant?.slug) {
+            try {
+              localStorage.removeItem(
+                `hospital:ipd:hasContent::${tenant.slug}`,
+              );
+            } catch {
+              /* ignore */
+            }
+          }
+        }}
+        onCancel={() => setConfirmReset(false)}
+      />
+
+      {/* Leave confirm */}
       <ConfirmDialog
         isOpen={confirmLeave}
         title="Leave billing?"
@@ -207,26 +295,15 @@ export default function HospitalBillingBody() {
         size="md"
         mobileFullScreen
       >
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            alignItems: 'flex-end',
-            marginBottom: 20,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 180 }}>
-            <FormField label="Name">
-              <Input
-                value={draft.name ?? ''}
-                onChange={(e) =>
-                  setDraft({ ...draft, name: e.target.value })
-                }
-                placeholder="e.g., Registration, Room Rent"
-              />
-            </FormField>
-          </div>
+        <div className={local.particularsForm}>
+          <FormField label="Name">
+            <Input
+              value={draft.name ?? ''}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              placeholder="e.g., Registration, Room Rent"
+            />
+          </FormField>
+
           <FormField label="Type">
             <Select
               value={draft.type ?? 'per-day'}
@@ -242,6 +319,7 @@ export default function HospitalBillingBody() {
               ]}
             />
           </FormField>
+
           <FormField label="Charge (₹)">
             <Input
               type="number"
@@ -251,63 +329,65 @@ export default function HospitalBillingBody() {
               }
             />
           </FormField>
+
           <Button onClick={handleSaveParticular}>
             {editingId ? 'Update' : 'Add'}
           </Button>
-          {editingId && (
+        </div>
+
+        {editingId && (
+          <div style={{ marginBottom: 12 }}>
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => {
                 setEditingId(null);
                 setDraft({ name: '', type: 'per-day', charge: 0 });
               }}
             >
-              Cancel
+              Cancel edit
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
-        >
-          {particulars.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: 10,
-                background: '#f8fafc',
-                borderRadius: 6,
-              }}
-            >
-              <div>
-                <strong>{p.name}</strong> - ₹{p.charge} (
-                {p.type === 'per-day' ? 'Per Day' : 'One Time'})
+        {particulars.length === 0 ? (
+          <div className={local.particularsEmpty}>
+            No particulars yet. Add one above to get started.
+          </div>
+        ) : (
+          <div className={local.particularsList}>
+            {particulars.map((p) => (
+              <div key={p.id} className={local.particularsRow}>
+                <div className={local.particularsInfo}>
+                  <span className={local.particularsName}>{p.name}</span>
+                  <span className={local.particularsMeta}>
+                    ₹{p.charge} ·{' '}
+                    {p.type === 'per-day' ? 'Per Day' : 'One Time'}
+                  </span>
+                </div>
+                <div className={local.particularsActions}>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraft(p);
+                      setEditingId(p.id);
+                    }}
+                  >
+                    <EditIcon width={14} height={14} />
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="danger"
+                    onClick={() => handleDelete(p.id)}
+                  >
+                    <TrashIcon width={14} height={14} />
+                  </Button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 5 }}>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => {
-                    setDraft(p);
-                    setEditingId(p.id);
-                  }}
-                >
-                  <EditIcon width={14} height={14} />
-                </Button>
-                <Button
-                  size="xs"
-                  variant="danger"
-                  onClick={() => handleDelete(p.id)}
-                >
-                  <TrashIcon width={14} height={14} />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Modal>
     </InlineSection>
   );

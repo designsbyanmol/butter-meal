@@ -73,6 +73,7 @@ const toStoreRow = (bill: any, tenantId: string) => ({
   final_amount: Number(bill.finalAmount) || 0,
   terms: bill.terms || "",
   created_at: bill.createdAt || new Date().toISOString(),
+  settlements: Array.isArray(bill.settlements) ? bill.settlements : [],
 });
 
 const syncPendingBills = async (

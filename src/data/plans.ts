@@ -32,7 +32,7 @@ export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
     included: [
       'Digital menu & catalogue',
       'Editable items, prices, photos',
-      'Store info & contact details',
+      'Business info & contact details',
       'Public store link + QR code',
       'Basic analytics on store visits',
     ],
@@ -152,7 +152,7 @@ export const PLAN_FEATURE_MATRIX: {
 ];
 
 export const PLAN_DISPLAY_PRICES: Record<string, number> = {
-  basic: 49,
-  dynamic: 99,
-  professional: 199,
+  basic: 99,
+  dynamic: 199,
+  professional: 299,
 };

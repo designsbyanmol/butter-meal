@@ -44,7 +44,7 @@ const TenantDashboardCards: React.FC = () => {
   const allCards: CardDef[] = [
     {
       key: 'info',
-      label: 'Store Information',
+      label: 'Business Information',
       description: 'Name, banner, tagline & contact',
       icon: <EditIcon width={20} height={20} fill="#ffffff" />,
       accent: 'green',
@@ -53,7 +53,7 @@ const TenantDashboardCards: React.FC = () => {
     },
     {
       key: 'menu',
-      label: 'Menu Listing',
+      label: 'Product Listing',
       description: 'Items, prices & availability',
       icon: <MenuIcon width={20} height={20} fill="#ffffff" />,
       accent: 'blue',
@@ -62,7 +62,7 @@ const TenantDashboardCards: React.FC = () => {
     },
     {
       key: 'store',
-      label: 'Store Management',
+      label: 'Business Management',
       description: 'Open / close & accepting orders',
       icon: <StoreIcon width={20} height={20} fill="#ffffff" />,
       accent: 'amber',

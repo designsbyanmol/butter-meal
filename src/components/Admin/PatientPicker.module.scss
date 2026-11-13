@@ -1,0 +1,67 @@
+// src/components/Admin/PatientPicker.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+/* Outer layout: name | phone | age pair | gender | address */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr;
+  gap: 10px;
+
+  @include mobile {
+  grid-template-columns: 1fr;
+  }
+}
+
+/* Name column needs `position: relative` so the dropdown can
+   anchor to it without an extra wrapper div. */
+.nameWrap {
+  position: relative;
+}
+
+/* ---- Suggestions dropdown ---- */
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid $border-soft;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestionRow {
+  padding: 10px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid $bg-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: $bg-subtle;
+  }
+}
+
+.suggestionPhone {
+  margin-left: 8px;
+  color: $text-muted;
+}
+
+/* Age (years) + Age (months) sit side-by-side in one grid cell. */
+.ageGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.address {
+  grid-column-start: 1;
+  grid-column-end: 5;
+}

@@ -13,7 +13,7 @@ export const getDurationOption = (months: DurationMonths): DurationOption => {
 };
 
 /** The promotional first-month price in rupees. */
-export const FIRST_MONTH_PRICE = 1;
+export const FIRST_MONTH_PRICE = 49;
 
 export interface PriceBreakdown {
   months: number;

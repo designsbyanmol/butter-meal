@@ -21,7 +21,7 @@ import {
   EmptyState,
   Tabs,
   Chip,
-  Select
+  Select,
 } from "../ui";
 import { getStoreLabels } from "../../utils/storeLabels";
 import { getCategoryDefaults } from "../../data/storeDefaults";
@@ -34,9 +34,9 @@ import { InlineSection } from "../Dashboard/inline";
 import AdminPanelSettingsMenu from "./AdminPanelSettingsMenu";
 import ImportMenuListModal from "./ImportMenuListModal";
 import PharmacyStockBody from "./PharmacyStockBody";
-import HospitalServicesBody from './HospitalServicesBody';
-import HospitalDoctorsBody from './HospitalDoctorsBody';
-import HospitalPatientsBody from './HospitalPatientsBody';
+import HospitalServicesBody from "./HospitalServicesBody";
+import HospitalDoctorsBody from "./HospitalDoctorsBody";
+import HospitalPatientsBody from "./HospitalPatientsBody";
 import local from "./AdminPanel.module.scss";
 
 type MenuItemFormValue = Omit<Partial<MenuItem>, "img"> & {
@@ -55,6 +55,7 @@ const emptyNewItem: MenuItemFormValue = {
   name: "",
   desc: "",
   price: 0,
+  packSize: "",
   costPrice: 0,
   discount: 0,
   img: [],
@@ -71,6 +72,8 @@ const emptyNewItem: MenuItemFormValue = {
   attributes: {},
   customizationOptions: [],
   inStock: true,
+  manageStock: false,
+  stockQty: 0,
 };
 
 const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
@@ -420,6 +423,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
       name: item.name,
       desc: item.desc,
       price: item.price,
+      packSize: item.packSize ?? "",
       costPrice: item.costPrice,
       discount: item.discount ?? 0,
       img:
@@ -438,6 +442,8 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
       nutritionalInfo: item.nutritionalInfo,
       attributes: item.attributes || {},
       customizationOptions: item.customizationOptions || [],
+      manageStock: item.manageStock === true,
+      stockQty: typeof item.stockQty === "number" ? item.stockQty : 0,
     };
 
     schema.fields
@@ -513,11 +519,25 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 
     const primaryImg = imgArray[0] ?? "";
     const gallery = imgArray.length > 1 ? imgArray : undefined;
+    const manageStock = form.manageStock === true;
+    const rawQty = Number(form.stockQty);
+    const stockQty =
+      manageStock && Number.isFinite(rawQty) && rawQty >= 0
+        ? Math.floor(rawQty)
+        : 0;
+    const inStock = manageStock
+      ? stockQty > 0 && form.inStock !== false
+      : form.inStock !== false;
+    const packSize =
+  manageStock && cleanString(form.packSize)
+    ? cleanString(form.packSize)
+    : undefined;
 
     return {
       name: form.name!.trim(),
       desc: form.desc ?? "",
       price: form.price,
+      packSize,
       discount,
       costPrice,
       img: primaryImg,
@@ -543,6 +563,9 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
         Object.keys(customAttributes).length > 0 ? customAttributes : undefined,
       customizationOptions:
         customOptions.length > 0 ? customOptions : undefined,
+      inStock,
+      manageStock,
+      stockQty,
     };
   };
 
@@ -718,6 +741,21 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
     (f) => f.enabled && !f.platformOnly,
   );
 
+  const enabledFieldsNew = enabledFields.filter(
+    (f) =>
+      !(
+        (f.key === "stockQty" || f.key === "packSize") &&
+        newItemForm.manageStock !== true
+      ),
+  );
+
+  const enabledFieldsEdit = enabledFields.filter(
+    (f) =>
+      !(
+        (f.key === "stockQty" || f.key === "packSize") &&
+        editForm.manageStock !== true
+      ),
+  );
   const schemaVersion = useMemo(
     () =>
       enabledFields
@@ -756,7 +794,7 @@ const AdminPanelBody: React.FC<AdminPanelBodyProps> = ({
 
   const [showBanner, setShowBanner] = useState(true);
 
-if (tenant?.storeCategory === 'hospital-pharmacy') {
+  if (tenant?.storeCategory === "hospital-pharmacy") {
     return <HospitalAdminView />;
   }
 
@@ -805,17 +843,17 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
             inputSize="sm"
           />
           <Select
-    value={filter}
-    onChange={(e) =>
-      setFilter(e.target.value as "all" | "inStock" | "outOfStock")
-    }
-    options={[
-      { value: "all", label: `All ${labels.items}` },
-      { value: "inStock", label: "In Stock" },
-      { value: "outOfStock", label: "Out of Stock" },
-    ]}
-    className={local.filterSelect}
-  />
+            value={filter}
+            onChange={(e) =>
+              setFilter(e.target.value as "all" | "inStock" | "outOfStock")
+            }
+            options={[
+              { value: "all", label: `All ${labels.items}` },
+              { value: "inStock", label: "In Stock" },
+              { value: "outOfStock", label: "Out of Stock" },
+            ]}
+            className={local.filterSelect}
+          />
         </div>
 
         {/* ============ Category capsule filter ============ */}
@@ -934,6 +972,18 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
                                 -{item.discount}%
                               </Badge>
                             )}
+                            {item.manageStock === true && (
+                              <Badge
+                                tone={
+                                  (item.stockQty ?? 0) <= 0 ? "danger" : "info"
+                                }
+                                size="sm"
+                              >
+                                {(item.stockQty ?? 0) <= 0
+                                  ? "Out of stock"
+                                  : `Stock: ${item.stockQty}`}
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
@@ -941,6 +991,10 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
                           <Button
                             size="sm"
                             variant={item.inStock ? "ghost" : "danger"}
+                            disabled={
+                              item.manageStock === true &&
+                              (item.stockQty ?? 0) <= 0
+                            }
                             onClick={() => handleToggle(item.id)}
                           >
                             {item.inStock ? "Mark Out of Stock" : "Restock"}
@@ -1009,7 +1063,7 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
             )}
             {formSuccess && <Banner variant="success">{formSuccess}</Banner>}
 
-            {enabledFields.map((field) => (
+            {enabledFieldsNew.map((field) => (
               <DynamicField
                 key={`${field.key}-${field.label}-${field.type}`}
                 field={field}
@@ -1111,7 +1165,7 @@ if (tenant?.storeCategory === 'hospital-pharmacy') {
             )}
             {formSuccess && <Banner variant="success">{formSuccess}</Banner>}
 
-            {enabledFields.map((field) => (
+            {enabledFieldsEdit.map((field) => (
               <DynamicField
                 key={`${field.key}-${field.label}-${field.type}`}
                 field={field}
@@ -1216,19 +1270,19 @@ export default AdminPanelBody;
 
 const HospitalAdminView: React.FC = () => {
   const getInitialTab = ():
-    | 'services'
-    | 'pharmacy'
-    | 'doctors'
-    | 'patients' => {
+    | "services"
+    | "pharmacy"
+    | "doctors"
+    | "patients" => {
     const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab === 'patients' || tab === 'doctors' || tab === 'pharmacy')
+    const tab = params.get("tab");
+    if (tab === "patients" || tab === "doctors" || tab === "pharmacy")
       return tab;
-    return 'pharmacy';
+    return "pharmacy";
   };
 
   const [tab, setTab] = useState<
-    'services' | 'pharmacy' | 'doctors' | 'patients'
+    "services" | "pharmacy" | "doctors" | "patients"
   >(getInitialTab);
 
   const [counts, setCounts] = useState<{
@@ -1241,54 +1295,46 @@ const HospitalAdminView: React.FC = () => {
   const handleTabChange = (newTab: string) => {
     setTab(newTab as any);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', newTab);
-    window.history.replaceState({}, '', url.toString());
+    url.searchParams.set("tab", newTab);
+    window.history.replaceState({}, "", url.toString());
   };
 
   const tabItems = [
-    { key: 'services', label: `Services (${counts.services})` },
-    { key: 'pharmacy', label: `Pharmacy (${counts.pharmacy})` },
-    { key: 'doctors', label: `Doctors (${counts.doctors})` },
-    { key: 'patients', label: `Patients (${counts.patients})` },
+    { key: "services", label: `Services (${counts.services})` },
+    { key: "pharmacy", label: `Pharmacy (${counts.pharmacy})` },
+    { key: "doctors", label: `Doctors (${counts.doctors})` },
+    { key: "patients", label: `Patients (${counts.patients})` },
   ];
 
   // ◀── NEW: keep all tabs mounted, hide inactive ones with `display:none`.
   // Each child component loads its own data ONCE on mount and caches it
   // in local state. Switching tabs becomes a pure CSS toggle - no fetches.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Tabs block items={tabItems} value={tab} onChange={handleTabChange} />
 
-      <div style={{ display: tab === 'services' ? 'block' : 'none' }}>
+      <div style={{ display: tab === "services" ? "block" : "none" }}>
         <HospitalServicesBody
-          onCountChange={(n) =>
-            setCounts((prev) => ({ ...prev, services: n }))
-          }
+          onCountChange={(n) => setCounts((prev) => ({ ...prev, services: n }))}
         />
       </div>
 
-      <div style={{ display: tab === 'pharmacy' ? 'block' : 'none' }}>
+      <div style={{ display: tab === "pharmacy" ? "block" : "none" }}>
         <PharmacyStockBody
           embedded={true}
-          onCountChange={(n) =>
-            setCounts((prev) => ({ ...prev, pharmacy: n }))
-          }
+          onCountChange={(n) => setCounts((prev) => ({ ...prev, pharmacy: n }))}
         />
       </div>
 
-      <div style={{ display: tab === 'doctors' ? 'block' : 'none' }}>
+      <div style={{ display: tab === "doctors" ? "block" : "none" }}>
         <HospitalDoctorsBody
-          onCountChange={(n) =>
-            setCounts((prev) => ({ ...prev, doctors: n }))
-          }
+          onCountChange={(n) => setCounts((prev) => ({ ...prev, doctors: n }))}
         />
       </div>
 
-      <div style={{ display: tab === 'patients' ? 'block' : 'none' }}>
+      <div style={{ display: tab === "patients" ? "block" : "none" }}>
         <HospitalPatientsBody
-          onCountChange={(n) =>
-            setCounts((prev) => ({ ...prev, patients: n }))
-          }
+          onCountChange={(n) => setCounts((prev) => ({ ...prev, patients: n }))}
         />
       </div>
     </div>

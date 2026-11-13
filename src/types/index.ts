@@ -104,9 +104,7 @@ export interface FormSchema {
 export const normalizeOptions = (
   options: Array<string | FormFieldOption> | undefined,
 ): FormFieldOption[] =>
-  (options ?? []).map((o) =>
-    typeof o === "string" ? { name: o } : o,
-  );
+  (options ?? []).map((o) => (typeof o === "string" ? { name: o } : o));
 
 export const DEFAULT_FORM_SCHEMA: FormSchema = {
   fields: [
@@ -192,6 +190,31 @@ export const DEFAULT_FORM_SCHEMA: FormSchema = {
       builtin: true,
       removable: false,
       locked: true,
+    },
+    {
+      key: "manageStock",
+      label: "Manage Stock",
+      type: "checkbox",
+      enabled: true,
+      builtin: true,
+      removable: false,
+      locked: true,
+    },
+    {
+      key: "stockQty",
+      label: "Stock Quantity",
+      type: "number",
+      enabled: true,
+      builtin: true,
+      removable: false,
+    },
+    {
+      key: "packSize",
+      label: "Items in Pack",
+      type: "text",
+      enabled: true,
+      builtin: true,
+      removable: false,
     },
     {
       key: "category",
@@ -330,6 +353,9 @@ export interface MenuItem {
   };
   attributes?: MenuItemAttributes;
   customizationOptions?: CustomizationOption[];
+  manageStock?: boolean;
+  stockQty?: number;
+  packSize?: string;
 }
 
 // =========================================================
@@ -393,19 +419,33 @@ export interface MessageTemplate {
   footerSignature: string;
 }
 
+export interface BillSettlementLine {
+  name: string;
+  returnedQty: number;
+  refund: number;
+}
+
+export interface BillSettlement {
+  id: string;
+  createdAt: string;
+  refundTotal: number;
+  lines: BillSettlementLine[];
+  reason?: string;
+}
+
 export const DEFAULT_MESSAGE_TEMPLATE: MessageTemplate = {
   orderLabel: "New Order",
   namePrompt: "Please enter your name",
   namePromptPlaceholder: "e.g., Anmol",
 
   itemListTitle: "Please do the following",
-  itemLineTemplate: "{name} x {qty}",      // kept for compatibility, unused in customer msg
+  itemLineTemplate: "{name} x {qty}", // kept for compatibility, unused in customer msg
   showItemDiscount: false,
   showItemAddons: false,
   showItemCustomizations: false,
   showItemNotes: false,
 
-  subtotalLabel: "Subtotal",               // kept for compatibility
+  subtotalLabel: "Subtotal", // kept for compatibility
   deliveryLabel: "Delivery",
   discountLabel: "Discount",
   totalLabel: "Amount to pay",
@@ -480,12 +520,7 @@ export interface Review {
   createdAt: string;
 }
 
-export type ReviewFilter =
-  | "all"
-  | "lte4"
-  | "lte3"
-  | "lte2"
-  | "commented";
+export type ReviewFilter = "all" | "lte4" | "lte3" | "lte2" | "commented";
 
 // =========================================================
 // PLANS / SUBSCRIPTION
@@ -690,36 +725,36 @@ export interface PharmacyBill {
 export interface HospitalParticular {
   id: string;
   name: string;
-  type: 'one-time' | 'per-day';
+  type: "one-time" | "per-day";
   charge: number;
 }
 
 export interface IpdBillItem {
   particularId: string;
   name: string;
-  type: 'one-time' | 'per-day';
+  type: "one-time" | "per-day";
   chargePerDay: number;
   days: number;
   total: number;
 }
 
 export type IpdDischargeType =
-  | 'recovered'
-  | 'lama'
-  | 'referred'
-  | 'absconded'
-  | 'expired'
-  | 'transferred'
-  | 'dama';
+  | "recovered"
+  | "lama"
+  | "referred"
+  | "absconded"
+  | "expired"
+  | "transferred"
+  | "dama";
 
 export const IPD_DISCHARGE_LABELS: Record<IpdDischargeType, string> = {
-  recovered: 'Recovered',
-  lama: 'LAMA (Left Against Medical Advice)',
-  referred: 'Referred',
-  absconded: 'Absconded',
-  expired: 'Expired',
-  transferred: 'Transferred',
-  dama: 'DAMA (Discharged Against Medical Advice)',
+  recovered: "Recovered",
+  lama: "LAMA (Left Against Medical Advice)",
+  referred: "Referred",
+  absconded: "Absconded",
+  expired: "Expired",
+  transferred: "Transferred",
+  dama: "DAMA (Discharged Against Medical Advice)",
 };
 
 export interface IpdBill {
@@ -745,11 +780,7 @@ export interface IpdBill {
 }
 
 export interface OpdVitals {
-  bp: string;
-  spo2: string;
-  pulse: string;
-  temp: string;
-  weight: string;
+  [label: string]: string; // key = printed label, value = per-bill value
 }
 
 export interface OpdDefaults {
@@ -757,17 +788,20 @@ export interface OpdDefaults {
   footerHeading: string;
   footerInfo: string;
   disclaimer: string;
-  vitals: OpdVitals;   // ← NEW
+  vitals: OpdVitals;
 }
 
 export interface OpdBill {
   id: string;
   bill_no: string;
   patient_name: string;
+  phone?: string;
   age: string;
   gender: string;
   address: string;
   doctor_name?: string;
-  // vitals are no longer on the bill — they come from OpdDefaults
+  department?: string; // ← new
+  service_name?: string; // ← new
+  price?: number; // ← new
   created_at: string;
 }

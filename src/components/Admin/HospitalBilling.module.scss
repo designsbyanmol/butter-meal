@@ -252,6 +252,149 @@
 }
 
 /* =========================================================
+   IPD billing form
+   ========================================================= */
+
+/* Toolbar: date range on the left, icon actions on the right */
+.ipdToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ipdDateRow {
+  display: flex;
+  gap: 10px;
+}
+
+.ipdToolbarActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+/* Single-column wrapper for the patient picker */
+.ipdFormGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+/* "Add Particulars" block */
+.ipdParticulars {
+  margin-bottom: 20px;
+}
+
+.ipdParticularsTitle {
+  margin-bottom: 10px;
+}
+
+.ipdParticularsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Inline inputs inside the particulars table */
+.ipdDaysInput {
+  width: 60px;
+  padding: 4px;
+}
+
+/* Advance input in the totals block */
+.ipdAdvanceInput {
+  width: 100px;
+  padding: 4px;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+/* Totals table under the particulars table.
+   Reuses .formTable for structure - these rules only adjust
+   the label/value split and right column alignment. */
+.ipdTotalsTable {
+    max-width: 280px;
+  width: 100%;
+  margin: 0 0 0 auto;
+  margin-top: 12px;
+  
+
+  td {
+    /* match the vertical rhythm of the particulars cells */
+    padding: 10px 12px;
+  }
+}
+
+/* Left column: label */
+.ipdTotalsLabel {
+  text-align: right;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  width: 60%;
+}
+
+/* Right column: value / input / checkbox */
+.ipdTotalsValue {
+  text-align: right;
+  font-size: 14px;
+  color: #0f172a;
+  width: 40%;
+
+  strong {
+    font-weight: 800;
+  }
+}
+
+/* Keep the input tidy inside the table cell */
+.ipdTotalsTable .ipdAdvanceInput {
+  width: 100px;
+  padding: 4px;
+  margin: 0;
+  text-align: right;
+  display: inline-block;
+}
+
+/* Center the checkbox in its cell so it lines up with the numbers */
+.ipdTotalsValue input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Footer heading / info / disclaimer fields */
+.ipdFooterFields {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Reset / Save button row */
+.ipdActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Preview modal scaling wrapper */
+.ipdPreviewWrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  height: 100vh;
+}
+
+.ipdPreviewScaled {
+  transform: scale(0.72);
+  transform-origin: top center;
+}
+
+/* =========================================================
    OPD Specific (Left Sidebar Layout)
    ========================================================= */
 

@@ -6,11 +6,7 @@ import { getEffectiveDeviceId } from "../../utils/deviceId";
 import CustomerRequestBillButton from "../Header/CustomerRequestBillButton";
 import { MinusIcon, DownloadIcon, CopyIcon } from "../../assets/svgs";
 import { DineinOrder } from "../../types";
-import {
-  UPI_APPS,
-  UpiAppId,
-  buildUpiScanUriForApp,
-} from "../../utils/upiQr";
+import { UPI_APPS, UpiAppId, buildUpiScanUriForApp } from "../../utils/upiQr";
 import { downloadBillPdf } from "../../utils/billPdf";
 import { Button, Banner, Sheet, ConfirmDialog } from "../ui";
 import {
@@ -23,9 +19,9 @@ import {
 import local from "./CustomerOrderStatus.module.scss";
 import { formatRupees } from "../../utils/subscription";
 
-const POLL_MS_ACTIVE = 60_000;
-const POLL_MS_BILL = 90_000;
-const POLL_MS_TERMINAL = 120_000;
+const POLL_MS_ACTIVE = 30_000;
+const POLL_MS_BILL = 30_000;
+const POLL_MS_TERMINAL = 30_000;
 
 const ACTIVE_ORDER_KEY_PREFIX = "dinein-active-order::";
 
@@ -364,30 +360,30 @@ const CustomerOrderStatus: React.FC = () => {
     }
   })();
 
-// DELETE the entire handleScannedQr function
-// ADD this in its place:
+  // DELETE the entire handleScannedQr function
+  // ADD this in its place:
 
-const launchUpiScan = (appId: UpiAppId) => {
-  const uri = buildUpiScanUriForApp(appId);
+  const launchUpiScan = (appId: UpiAppId) => {
+    const uri = buildUpiScanUriForApp(appId);
 
-  try {
-    const a = document.createElement("a");
-    a.href = uri;
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch {
     try {
-      window.location.href = uri;
+      const a = document.createElement("a");
+      a.href = uri;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch {
-      /* ignore */
+      try {
+        window.location.href = uri;
+      } catch {
+        /* ignore */
+      }
     }
-  }
 
-  setIsUpiSheetOpen(false);
-  setPayFlow("awaiting");
-};
+    setIsUpiSheetOpen(false);
+    setPayFlow("awaiting");
+  };
 
   const copyUpiId = async () => {
     if (!tenant?.upiId) return;
@@ -588,8 +584,8 @@ const launchUpiScan = (appId: UpiAppId) => {
           <div className={local.bannerConfirmBlock}>
             <div className={local.bannerBtnRow}>
               <Button size="sm" onClick={() => setIsUpiSheetOpen(true)}>
-  Pay {rupees(order.totalAmount)}
-</Button>
+                Pay {rupees(order.totalAmount)}
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -771,100 +767,232 @@ const launchUpiScan = (appId: UpiAppId) => {
       </div>
 
       <Sheet
-  isOpen={isUpiSheetOpen}
-  mobileFullScreen
-  onClose={() => setIsUpiSheetOpen(false)}
-  title="Pay via UPI"
-  maxHeightVh={80}
-  overlayZIndex={3000}
-  footer={
-    <Button
-      variant="ghost"
-      onClick={() => setIsUpiSheetOpen(false)}
-      block
-    >
-      Cancel
-    </Button>
-  }
->
-  <div className={local.upiSheet}>
-    <p className={local.upiSheetLead}>
-      Pay <strong>{rupees(order.totalAmount)}</strong> to{" "}
-      <strong>{tenant?.displayName}</strong>. Choose your UPI app — it will
-      open with its QR scanner.
-    </p>
-
-    <div className={local.upiDetailCard}>
-      <div className={local.upiDetailRow}>
-        <span className={local.upiDetailLabel}>UPI ID</span>
-        <div className={local.upiDetailValueRow}>
-          <span className={local.upiDetailValue}>{tenant?.upiId}</span>
+        isOpen={isUpiSheetOpen}
+        mobileFullScreen
+        onClose={() => setIsUpiSheetOpen(false)}
+        title="Pay via UPI"
+        maxHeightVh={80}
+        overlayZIndex={3000}
+        footer={
           <Button
-            size="xs"
             variant="ghost"
-            onClick={copyUpiId}
-            leftIcon={<CopyIcon width={14} height={14} fill="currentColor" />}
+            onClick={() => setIsUpiSheetOpen(false)}
+            block
           >
-            {copied ? "Copied" : "Copy"}
+            Cancel
           </Button>
-        </div>
-      </div>
-
-      <div className={local.upiDetailRow}>
-        <span className={local.upiDetailLabel}>Amount</span>
-        <div className={local.upiDetailValueRow}>
-          <span className={local.upiDetailValue}>
-            {rupees(order.totalAmount)}
-          </span>
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={copyAmount}
-            leftIcon={<CopyIcon width={14} height={14} fill="currentColor" />}
-          >
-            Copy
-          </Button>
-        </div>
-      </div>
-
-      <div className={local.upiDetailRow}>
-        <span className={local.upiDetailLabel}>Note</span>
-        <span className={local.upiDetailValue}>Order #{order.orderNo}</span>
-      </div>
-    </div>
-
-    {UPI_APPS.map((app) => (
-      <button
-        key={app.id}
-        type="button"
-        onClick={() => launchUpiScan(app.id)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 16px",
-          border: "1px solid #e2e8f0",
-          borderRadius: 10,
-          background: "#fff",
-          fontFamily: "inherit",
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: "pointer",
-          textAlign: "left",
-        }}
+        }
       >
-        <span>{app.label}</span>
-        <span style={{ color: "#3caa46", fontSize: 12 }}>Open scanner</span>
-      </button>
-    ))}
+        <div className={local.upiSheet}>
+          <p className={local.upiSheetLead}>
+            Pay <strong>{rupees(order.totalAmount)}</strong> to{" "}
+            <strong>{tenant?.displayName}</strong>. Choose your UPI app — it
+            will open with its QR scanner.
+          </p>
 
-    <p className={local.upiSheetNote}>
-      The app will open its QR scanner. Scan the store QR, enter{" "}
-      <strong>{rupees(order.totalAmount)}</strong>, and pay. Then come back
-      and tap <strong>I've paid</strong>.
-    </p>
-  </div>
-</Sheet>
+          <div className={local.upiDetailCard}>
+            <div className={local.upiDetailRow}>
+              <span className={local.upiDetailLabel}>UPI ID</span>
+              <div className={local.upiDetailValueRow}>
+                <span className={local.upiDetailValue}>{tenant?.upiId}</span>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={copyUpiId}
+                  leftIcon={
+                    <CopyIcon width={14} height={14} fill="currentColor" />
+                  }
+                >
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+
+            <div className={local.upiDetailRow}>
+              <span className={local.upiDetailLabel}>Amount</span>
+              <div className={local.upiDetailValueRow}>
+                <span className={local.upiDetailValue}>
+                  {rupees(order.totalAmount)}
+                </span>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={copyAmount}
+                  leftIcon={
+                    <CopyIcon width={14} height={14} fill="currentColor" />
+                  }
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+
+            <div className={local.upiDetailRow}>
+              <span className={local.upiDetailLabel}>Note</span>
+              <span className={local.upiDetailValue}>
+                Order #{order.orderNo}
+              </span>
+            </div>
+          </div>
+
+          {UPI_APPS.map((app) => (
+            <button
+              key={app.id}
+              type="button"
+              onClick={() => launchUpiScan(app.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 16px",
+                border: "1px solid #e2e8f0",
+                borderRadius: 10,
+                background: "#fff",
+                fontFamily: "inherit",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>{app.label}</span>
+              <span style={{ color: "#3caa46", fontSize: 12 }}>
+                Open scanner
+              </span>
+            </button>
+          ))}
+
+          <p className={local.upiSheetNote}>
+            The app will open its QR scanner. Scan the store QR, enter{" "}
+            <strong>{rupees(order.totalAmount)}</strong>, and pay. Then come
+            back and tap <strong>I've paid</strong>.
+          </p>
+        </div>
+      </Sheet>
+      <Sheet
+        isOpen={isItemsOpen}
+        mobileFullScreen
+        onClose={() => setIsItemsOpen(false)}
+        title={
+          <>
+            Your Order
+            <span className={local.sheetCount}>{itemsCount}</span>
+          </>
+        }
+        maxHeightVh={80}
+        overlayZIndex={3000}
+        footer={
+          <Button variant="ghost" onClick={() => setIsItemsOpen(false)} block>
+            Close
+          </Button>
+        }
+      >
+        <div>
+          {/* Committed items */}
+          <ul className={local.sheetList}>
+            {order.items.map((it, idx) => (
+              <li key={`${it.itemId}-${idx}`} className={local.sheetRow}>
+                <div className={local.sheetRowTop}>
+                  <span className={local.sheetRowName}>{it.name}</span>
+                  <span className={local.sheetRowQty}>x{it.quantity}</span>
+                  <span className={local.sheetRowPrice}>
+                    {rupees(it.lineTotal)}
+                  </span>
+                </div>
+                {it.customizations &&
+                  Object.keys(it.customizations).length > 0 && (
+                    <div className={local.sheetRowCustom}>
+                      {Object.entries(it.customizations)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(", ")}
+                    </div>
+                  )}
+                {it.customMessage?.trim() && (
+                  <div className={local.sheetRowNote}>
+                    Note: {it.customMessage.trim()}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Pending items (not yet sent to kitchen) */}
+          {pendingItems.length > 0 && (
+            <>
+              <div className={local.sheetSection}>
+                <span className={local.sheetSectionLabel}>Waiting to send</span>
+                <span className={local.sheetSectionHint}>
+                  Remove before timer ends
+                </span>
+              </div>
+              <ul className={local.sheetList}>
+                {pendingItems.map((p) => {
+                  const ms = remainingMs(p);
+                  const secs = Math.ceil(ms / 1000);
+                  return (
+                    <li key={p.pendingId} className={local.sheetRowPending}>
+                      <div className={local.sheetRowTop}>
+                        <span className={local.sheetRowName}>
+                          {p.item.name}
+                        </span>
+                        <span className={local.sheetRowQty}>
+                          x{p.item.quantity}
+                        </span>
+                        <span className={local.sheetRowPrice}>
+                          {rupees(p.item.lineTotal)}
+                        </span>
+                      </div>
+                      <div className={local.pendingFooter}>
+                        <span className={local.pendingCountdown}>
+                          {secs > 0 ? `Sending in ${secs}s` : "Sending…"}
+                        </span>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          disabled={secs === 0}
+                          onClick={() => setPendingToRemove(p)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+
+          {/* Totals */}
+          <div className={local.sheetTotals}>
+            <div className={local.sheetTotalRow}>
+              <span>Subtotal</span>
+              <span>{rupees(order.subtotal)}</span>
+            </div>
+            {order.gstAmount > 0 && (
+              <div className={local.sheetTotalRow}>
+                <span>GST ({order.gstPercent}%)</span>
+                <span>{rupees(order.gstAmount)}</span>
+              </div>
+            )}
+            {order.storewideDiscount > 0 && (
+              <div className={local.sheetTotalRow}>
+                <span>Discount</span>
+                <span>-{rupees(order.storewideDiscount)}</span>
+              </div>
+            )}
+            {(order.staffTip ?? 0) > 0 && (
+              <div className={local.sheetTotalRow}>
+                <span>Tip</span>
+                <span>{rupees(order.staffTip ?? 0)}</span>
+              </div>
+            )}
+            <div className={`${local.sheetTotalRow} ${local.sheetTotalBig}`}>
+              <span>Total</span>
+              <span>{rupees(order.totalAmount)}</span>
+            </div>
+          </div>
+        </div>
+      </Sheet>
 
       <ConfirmDialog
         isOpen={!!pendingToRemove}

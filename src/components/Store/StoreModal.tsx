@@ -20,7 +20,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
       disableBackdropClose={true}
       title={
         <>
-          Store Management
+          Business Management
           <span
             className={`${local.statusPill} ${
               storeSettings.isOpen ? local.open : local.closed

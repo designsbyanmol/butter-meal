@@ -10,7 +10,7 @@ interface StaticAppProps {
 
 const StaticApp: React.FC<StaticAppProps> = ({ title, description }) => (
   <div className={styles.page}>
-    <header className={styles.header}>
+    <div className={styles.header}>
       <a href="/" className={styles.brand}>
         <img
           src="https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png"
@@ -23,7 +23,7 @@ const StaticApp: React.FC<StaticAppProps> = ({ title, description }) => (
       <a href="/" className={styles.backLink}>
         ← Back to home
       </a>
-    </header>
+    </div>
 
     <main className={styles.main}>
       <h1 className={styles.title}>{title}</h1>
@@ -32,9 +32,9 @@ const StaticApp: React.FC<StaticAppProps> = ({ title, description }) => (
       </p>
     </main>
 
-    <footer className={styles.footer}>
+    <div className={styles.footer}>
       <Copyright width={14} height={14}/> 2026 Dozzelo. All rights reserved.
-    </footer>
+    </div>
   </div>
 );
 

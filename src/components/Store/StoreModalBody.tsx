@@ -125,7 +125,7 @@ const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
 
   if (isLoading) {
     return (
-      <InlineSection title={isHospital ? "Hospital Management": "Store Management"}>
+      <InlineSection title={isHospital ? "Hospital Management": "Business Management"}>
         <div style={{ padding: 24, textAlign: "center", color: "#888" }}>
           Loading store settings...
         </div>
@@ -134,7 +134,7 @@ const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
   }
 
   return (
-    <InlineSection title={isHospital ? "Hospital Management": "Store Management"}>
+    <InlineSection title={isHospital ? "Hospital Management": "Business Management"}>
       {/* ---- Open / closed ---- */}
       <section className={local.settingGroup}>
         <Toggle
@@ -152,13 +152,13 @@ const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
                 : {}),
             }))
           }
-          label={localSettings.isOpen ? (isHospital ? "Hospital is Open":"Store is Open") : (isHospital ? "Hospital is Closed":"Store is Closed")}
+          label={localSettings.isOpen ? (isHospital ? "Hospital is Open":"You are Open") : (isHospital ? "Hospital is Closed":"You are Closed")}
         />
         <p className={local.settingDescription}>
   {localSettings.isOpen
     ? (isHospital
         ? "Patients can book appointments as the clinic is open."
-        : "Customers can place orders as Store is open")
+        : "Customers can place orders as you are Open")
     : (isHospital
         ? "Patients will see your custom closed message and cannot book appointments."
         : "Customers will see your custom closed message")}

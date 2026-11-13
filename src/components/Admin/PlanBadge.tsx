@@ -18,9 +18,9 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const PLAN_MONTHLY: Record<string, number> = {
-  basic: 49,
-  dynamic: 99,
-  professional: 199,
+  basic: 99,
+  dynamic: 199,
+  professional: 299,
 };
 
 type PlanTone = 'info' | 'warning' | 'success';

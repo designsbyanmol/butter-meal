@@ -112,6 +112,8 @@
 
     &::after {
       opacity: 1;
+      background: $black;
+    color: $white;
     }
   }
 
@@ -178,15 +180,15 @@
     opacity: 0;
     height: 0;
     width: 0;
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 500;
     letter-spacing: 0.2px;
     text-align: center;
     line-height: 1.15;
-    background: $white;
+    background: $black;
     padding: 6px 10px;
     border-radius: 4px;
-    box-shadow: $shadow-md;
+    box-shadow: $shadow-lg;
     transition: opacity 0.2s linear;
     white-space: nowrap;
   }
@@ -198,6 +200,7 @@
       opacity: 1;
       width: auto;
       display: block;
+    color: $white;
       height: auto;
     }
   }

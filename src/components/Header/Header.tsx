@@ -56,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ companyName, year }) => {
                 <button
                   className={styles.adminBtn}
                   onClick={() => setIsMenuPanelOpen(true)}
-                  title="Manage Menu"
+                  title="Manage Products"
                 >
                   <MenuIcon width={20} height={20} fill="#1e1e1e" />
                 </button>

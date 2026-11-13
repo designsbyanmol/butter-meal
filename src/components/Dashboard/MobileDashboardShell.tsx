@@ -96,7 +96,7 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
 
   return (
     <div className={local.page}>
-      <header className={local.header}>
+      <div className={local.header}>
         <button
           type="button"
           className={local.brandBtn}
@@ -161,7 +161,7 @@ const MobileDashboardShell: React.FC<MobileDashboardShellProps> = ({
             }
           </DropdownMenu>
         </div>
-      </header>
+      </div>
 
       <main className={local.main}>
         {activeItem ? (

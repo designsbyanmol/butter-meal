@@ -6,7 +6,7 @@ import PageLoader from '../components/Preloader/PageLoader';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PageLoader title="User Management">
+    <PageLoader title="Staff Management">
       <TenantAdminUsersApp />
     </PageLoader>
   </React.StrictMode>,

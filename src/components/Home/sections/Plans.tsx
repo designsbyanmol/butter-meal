@@ -7,6 +7,7 @@ import {
   getPlanDefinition,
 } from '../../../data/plans';
 import PlanDetailModal from '../../Payments/PlanDetailModal';
+import { FIRST_MONTH_PRICE, formatRupees } from '../../../utils/subscription';
 import local from './Plans.module.scss';
 import shell from '../HomePage.module.scss';
 
@@ -25,6 +26,9 @@ const PLAN_NAMES: Record<string, string> = {
 const Plans: React.FC<PlansProps> = ({ onSignup }) => {
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  // Single source of truth for the promo copy.
+  const promoLabel = formatRupees(FIRST_MONTH_PRICE); // "Rs 49"
+
   return (
     <section className={`${shell.section} ${local.section}`} id="plans">
       <div className={shell.sectionInner}>
@@ -32,8 +36,8 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
           <span className={shell.eyebrow}>Simple pricing</span>
           <h2 className={shell.title}>Plans that grow with your shop</h2>
           <p className={shell.lead}>
-            Start your first month for just Rs1. Pay full price only when
-            you renew. Cancel anytime.
+            Start your first month for just {promoLabel}. Pay full price only
+            when you renew. Cancel anytime.
           </p>
         </div>
 
@@ -78,11 +82,13 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
                     />
                     {price}
                   </span>
-                  <span className={local.promoBig}>1</span>
+                  <span className={local.promoBig}>
+                    {FIRST_MONTH_PRICE}
+                  </span>
                   <span className={local.promoUnit}>first month</span>
                 </div>
                 <p className={local.promoNote}>
-                  Then Rs{price}/month from month 2
+                  Then {formatRupees(price)}/month from month 2
                 </p>
 
                 <ul className={local.features}>
@@ -120,8 +126,8 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
         </div>
 
         <p className={local.footnote}>
-          Rs1 for your first month on any plan. Renew at the regular price.
-          No lock-in.
+          {promoLabel} for your first month on any plan. Renew at the regular
+          price. No lock-in.
         </p>
       </div>
 
@@ -135,7 +141,7 @@ const Plans: React.FC<PlansProps> = ({ onSignup }) => {
         onPrimaryAction={
           detailId
             ? {
-                label: `Start with Rs1`,
+                label: `Start with ${promoLabel}`,
                 onClick: () => {
                   setDetailId(null);
                   onSignup();

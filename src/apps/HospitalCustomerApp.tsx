@@ -23,6 +23,10 @@ import { DownloadIcon, CloseIcon } from '../assets/svgs';
 import menuLocal from '../components/Menu/Menu.module.scss';
 import detailLocal from '../components/MenuDetail/MenuDetail.module.scss';
 import pageLocal from './HospitalCustomerApp.module.scss';
+import BrandInfo from '../components/BrandInfo/BrandInfo';
+import StoreBanner from '../components/Store/StoreBanner';
+import { useStore } from '../contexts/StoreContext';
+import { ShopInfo } from '../config/credentials';
 
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const ACTIVE_TOKEN_KEY = 'hospital_active_token';
@@ -83,6 +87,7 @@ export default function HospitalCustomerApp() {
   const { tenant } = useTenant();
   const isMobile = useIsMobile();
 
+  const { isStoreOpen } = useStore();
   // ── Data ────────────────────────────────────────────────
   const [services, setServices] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -350,10 +355,11 @@ export default function HospitalCustomerApp() {
   }, [activeServices, removedCategories]);
 
   // ── Handlers ────────────────────────────────────────────
-  const openDetails = (service: any) => {
-    setViewingService(service);
-    setIsDetailOpen(true);
-  };
+const openDetails = (service: any) => {
+  if (!isStoreOpen) return;
+  setViewingService(service);
+  setIsDetailOpen(true);
+};
 
   const handleStartBooking = () => {
     setSelectedService(viewingService);
@@ -629,7 +635,7 @@ return (
   // Shared detail body / footer
   // ================================================================
   const detailBody = viewingService && (
-    <div className={detailLocal.content}>
+    <div className={`${detailLocal.content} ${pageLocal.content}`}>
       <div className={detailLocal.imageWrapper}>
         <img
           className={pageLocal.detailImage}
@@ -643,18 +649,18 @@ return (
 
       <div className={pageLocal.detailBody}>
         <h2 className={pageLocal.detailTitle}>{viewingService.name}</h2>
-        <div className={pageLocal.detailPrice}>
-          {formatRupees(viewingService.price)}
-        </div>
-
         {viewingService.description && (
           <p className={detailLocal.description}>
             {viewingService.description}
           </p>
         )}
+        <div className={pageLocal.detailPrice}>
+          {formatRupees(viewingService.price)}
+        </div>
 
-        <div className={detailLocal.tags}>
-          <Chip as="span" tone="primary" shape="rounded">
+
+        <div className={`${detailLocal.tags} ${pageLocal.tags}`}>
+          <Chip as="span" tone="primary" shape="soft">
             {viewingService.category}
           </Chip>
         </div>
@@ -680,99 +686,114 @@ return (
   // ================================================================
   return (
     <div className={pageLocal.pageWrap}>
-      <header className={pageLocal.header}>
-        <h1 className={pageLocal.pageTitle}>Book Appointment</h1>
-        <p className={pageLocal.pageSubtitle}>
-          Select a problem to consult a doctor at {tenant?.displayName}.
-        </p>
-      </header>
+      {/* Brand block - same as AppContent for other stores */}
+<BrandInfo
+  brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+  brandDesc={tenant?.storeTagline ?? "Book appointments online"}
+  hideBanner={!isStoreOpen}
+/>
+
+{/* Closed-store banner - same component AppContent uses */}
+{!isStoreOpen && <StoreBanner />}
+
+{/* Existing hospital-specific heading stays below the brand block */}
+{isStoreOpen && (
+  <div className={pageLocal.header}>
+    <h1 className={pageLocal.pageTitle}>Book Appointment</h1>
+    <p className={pageLocal.pageSubtitle}>
+      Select a problem to consult a doctor at {tenant?.displayName}.
+    </p>
+  </div>
+)}
 
       {isLoading ? (
-        <div className={pageLocal.loaderWrap}>
-          <Spinner size="md" />
-        </div>
-      ) : activeServices.length === 0 ? (
-        <EmptyState
-          title="No services available today"
-          description="No services are available for booking today. Please check back tomorrow."
-        />
-      ) : (
-        uniqueCategories.map((cat) => {
-          const catServices = activeServices.filter((s) => s.category === cat);
-          if (catServices.length === 0) return null;
+  <div className={pageLocal.loaderWrap}>
+    <Spinner size="md" />
+  </div>
+) : activeServices.length === 0 ? (
+  <EmptyState
+    title="No services available today"
+    description="No services are available for booking today. Please check back tomorrow."
+  />
+) : isStoreOpen ? (
+  uniqueCategories.map((cat) => {
+    const catServices = activeServices.filter((s) => s.category === cat);
+    if (catServices.length === 0) return null;
 
-          return (
-            <section key={cat} className={pageLocal.categorySection}>
-              <h3 className={pageLocal.categoryHeading}>{cat}</h3>
+    return (
+      <section key={cat} className={pageLocal.categorySection}>
+        <h3 className={pageLocal.categoryHeading}>{cat}</h3>
 
-              <div className={menuLocal.menuGrid}>
-                {catServices.map((s) => (
-                  <div key={s.id} className={menuLocal.itemCard}>
-                    <div
-                      className={menuLocal.imageWrapper}
-                      onClick={() => openDetails(s)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          openDetails(s);
-                        }
-                      }}
-                    >
-                      <div className={menuLocal.itemImg}>
-                        <img
-                          src={
-                            s.image ||
-                            'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80'
-                          }
-                          alt={s.name}
-                          loading="lazy"
-                        />
-                      </div>
-                    </div>
-
-                    <div
-                      className={menuLocal.itemInfo}
-                      onClick={() => openDetails(s)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          openDetails(s);
-                        }
-                      }}
-                    >
-                      <div className={menuLocal.itemNameWrap}>
-                        <div className={menuLocal.itemName}>{s.name}</div>
-                      </div>
-                      <p className={menuLocal.itemDesc}>
-                        {s.description || 'Consultation with a doctor.'}
-                      </p>
-                    </div>
-
-                    <div className={menuLocal.itemFooter}>
-                      <span className={menuLocal.price}>
-                        <span>{formatRupees(s.price)}</span>
-                      </span>
-                      <div className={menuLocal.actions}>
-                        <button
-                          type="button"
-                          className={menuLocal.btnCustomize}
-                          onClick={() => openDetails(s)}
-                        >
-                          Book Now
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        <div className={menuLocal.menuGrid}>
+          {catServices.map((s) => (
+            <div key={s.id} className={menuLocal.itemCard}>
+              <div
+                className={menuLocal.imageWrapper}
+                onClick={() => openDetails(s)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openDetails(s);
+                  }
+                }}
+              >
+                <div className={menuLocal.itemImg}>
+                  <img
+                    src={
+                      s.image ||
+                      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80'
+                    }
+                    alt={s.name}
+                    loading="lazy"
+                  />
+                </div>
               </div>
-            </section>
-          );
-        })
-      )}
+
+              <div
+                className={menuLocal.itemInfo}
+                onClick={() => openDetails(s)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openDetails(s);
+                  }
+                }}
+              >
+                <div className={menuLocal.itemNameWrap}>
+                  <div className={menuLocal.itemName}>{s.name}</div>
+                </div>
+                <p className={menuLocal.itemDesc}>
+                  {s.description || 'Consultation with a doctor.'}
+                </p>
+              </div>
+
+              <div
+                className={`${menuLocal.itemFooter} ${pageLocal.itemFooterHospital}`}
+              >
+                <span className={menuLocal.price}>
+                  <span>{formatRupees(s.price)}</span>
+                </span>
+                <div className={menuLocal.actions}>
+                  <button
+                    type="button"
+                    className={`${menuLocal.btnCustomize} ${pageLocal.hospitalBookBtn}`}
+                    onClick={() => openDetails(s)}
+                  >
+                    Book
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  })
+) : null}
 
       {/* ───── Detail modal ───── */}
       {isMobile ? (

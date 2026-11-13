@@ -9,6 +9,7 @@ import {
   ConfirmDialog,
   Modal,
   IconButton,
+  Toggle,
 } from "../ui";
 import { formatRupees } from "../../utils/subscription";
 import { EyeIcon, ClockIcon } from "../../assets/svgs";
@@ -80,8 +81,10 @@ export const isIpdDraftNonEmpty = (d: IpdDraft): boolean => {
 
 export default function HospitalIpdBilling({
   particulars,
+  resetSignal,
 }: {
   particulars: HospitalParticular[];
+  resetSignal?: number;
 }) {
   const { tenant } = useTenant();
 
@@ -92,10 +95,43 @@ export default function HospitalIpdBilling({
     buildInitialDraft(),
   );
 
+  useEffect(() => {
+  setDraft((prev) => ({
+    ...prev,
+    dates: { ...prev.dates, to: today() },
+  }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [advanceInput, setAdvanceInput] = useState<string>(
+    draft.advance === 0 ? "" : String(draft.advance),
+  );
+  const [dateFromManual, setDateFromManual] = useState(false);
+
+  useEffect(() => {
+    setAdvanceInput(draft.advance === 0 ? "" : String(draft.advance));
+  }, [draft.advance]);
+
+  const addDays = (iso: string, delta: number): string => {
+  if (!iso) return iso;
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  d.setDate(d.getDate() + delta);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const diffDaysInclusive = (from: string, to: string): number => {
+  if (!from || !to) return 0;
+  const a = new Date(`${from}T00:00:00`).getTime();
+  const b = new Date(`${to}T00:00:00`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(1, Math.round((b - a) / 86_400_000) + 1);
+};
 
   /* ---------------- Persist "has content" marker ---------------- */
   useEffect(() => {
@@ -116,36 +152,94 @@ export default function HospitalIpdBilling({
   const updatePatient = (p: PatientValue) =>
     setDraft((prev) => ({ ...prev, patient: p }));
 
-  const updateDates = (patch: Partial<IpdDraft["dates"]>) =>
-    setDraft((prev) => ({ ...prev, dates: { ...prev.dates, ...patch } }));
+const updateDates = (patch: Partial<IpdDraft["dates"]>) => {
+  // Any explicit Date From change flips the manual flag so the anchor
+  // sync below stops overwriting the user's choice.
+  if ("from" in patch && patch.from !== draft.dates.from) {
+    setDateFromManual(true);
+  }
+  setDraft((prev) => ({ ...prev, dates: { ...prev.dates, ...patch } }));
+};
 
-  const addRow = (p: HospitalParticular) => {
-    setDraft((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          particularId: p.id,
-          name: p.name,
-          type: p.type,
-          chargePerDay: p.charge,
-          days: p.type === "per-day" ? 1 : 0,
-          total: p.charge,
-        },
-      ],
-    }));
-  };
+// External reset: HospitalBillingBody bumps `resetSignal` after the
+// user confirms the Reset button. Clear the local draft and any
+// in-flight form state so the user sees a fresh bill.
+const lastResetSignalRef = React.useRef<number | undefined>(resetSignal);
+React.useEffect(() => {
+  if (resetSignal === undefined) return;
+  if (resetSignal === lastResetSignalRef.current) return;
+  lastResetSignalRef.current = resetSignal;
+
+  clearDraft();
+  setAdvanceInput('');          // reset the advance input string
+  setDateFromManual(false);     // if you added the room-rent date logic
+  // Any other transient UI state that should reset:
+  setShowPreview(false);
+  setShowSaveConfirm(false);
+  setShowResetConfirm(false);
+}, [resetSignal, clearDraft]);
+
+const addRow = (p: HospitalParticular) => {
+  setDraft((prev) => {
+    const nextItems = [
+      ...prev.items,
+      {
+        particularId: p.id,
+        name: p.name,
+        type: p.type,
+        chargePerDay: p.charge,
+        days: p.type === "per-day" ? 1 : 0,
+        total: p.charge,
+      },
+    ];
+
+    // If this is the FIRST per-day row and Date From wasn't manually
+    // set, collapse the range to a single day to match `days = 1`.
+    const isFirstPerDay =
+      p.type === "per-day" &&
+      !prev.items.some((it) => it.type === "per-day");
+
+    if (isFirstPerDay && !dateFromManual) {
+      return {
+        ...prev,
+        items: nextItems,
+        dates: { ...prev.dates, from: prev.dates.to },
+      };
+    }
+
+    return { ...prev, items: nextItems };
+  });
+};
 
   const updateRow = (index: number, patch: Partial<IpdBillItem>) => {
-    setDraft((prev) => {
-      const copy = [...prev.items];
-      const row = { ...copy[index], ...patch };
-      row.total =
-        row.type === "per-day" ? row.chargePerDay * row.days : row.chargePerDay;
-      copy[index] = row;
-      return { ...prev, items: copy };
-    });
-  };
+  setDraft((prev) => {
+    const copy = [...prev.items];
+    const row = { ...copy[index], ...patch };
+
+    // Recompute this row's total.
+    row.total =
+      row.type === "per-day" ? row.chargePerDay * row.days : row.chargePerDay;
+    copy[index] = row;
+
+    // If this is the anchor row (first per-day row) and the user
+    // changed `days`, realign Date From so the stay matches — unless
+    // the user has already manually set Date From.
+    const anchorIdx = copy.findIndex((it) => it.type === "per-day");
+    const isAnchor = anchorIdx === index;
+
+    if (isAnchor && "days" in patch && !dateFromManual) {
+      const days = Math.max(1, Number(row.days) || 1);
+      const newFrom = addDays(prev.dates.to, -(days - 1));
+      return {
+        ...prev,
+        items: copy,
+        dates: { ...prev.dates, from: newFrom },
+      };
+    }
+
+    return { ...prev, items: copy };
+  });
+};
 
   const removeRow = (index: number) =>
     setDraft((prev) => ({
@@ -153,43 +247,75 @@ export default function HospitalIpdBilling({
       items: prev.items.filter((_, i) => i !== index),
     }));
 
+    useEffect(() => {
+  const hasPerDay = draft.items.some((it) => it.type === "per-day");
+  if (!hasPerDay) {
+    setDateFromManual(false);
+  }
+}, [draft.items]);
+
   const totalAmount = draft.items.reduce((s, it) => s + it.total, 0);
   const remaining = totalAmount - draft.advance;
   const hasContent = isIpdDraftNonEmpty(draft);
 
   /* ---------------- Save ---------------- */
   const saveBill = async () => {
-  if (!tenant) return;
-  setShowSaveConfirm(false);
+    if (!tenant) return;
+    setShowSaveConfirm(false);
 
-  const finalAdvance = draft.isPaid ? totalAmount : draft.advance;
-  const finalRemaining = draft.isPaid ? 0 : totalAmount - draft.advance;
+    const finalAdvance = draft.isPaid ? totalAmount : draft.advance;
+    const finalRemaining = draft.isPaid ? 0 : totalAmount - draft.advance;
 
-  const ok = await supabaseService.saveIpdBill(tenant.slug, {
-    bill_no: draft.billNo,
-    patient_name: draft.patient.name,
-    age: combineAge(draft.patient.ageYears, draft.patient.ageMonths),
-    gender: draft.patient.gender,
-    address: draft.patient.address,
-    date_from: draft.dates.from,
-    date_to: draft.dates.to,
-    items: draft.items,
-    total_amount: totalAmount,
-    advance: finalAdvance,
-    remaining: finalRemaining,
-    is_paid: draft.isPaid,
-    footer_heading: draft.footerHeading,
-    footer_info: draft.footerInfo,
-    disclaimer: draft.disclaimer,
-  });
+    const ok = await supabaseService.saveIpdBill(tenant.slug, {
+      bill_no: draft.billNo,
+      patient_name: draft.patient.name,
+      age: combineAge(draft.patient.ageYears, draft.patient.ageMonths),
+      gender: draft.patient.gender,
+      address: draft.patient.address,
+      date_from: draft.dates.from,
+      date_to: draft.dates.to,
+      items: draft.items,
+      total_amount: totalAmount,
+      advance: finalAdvance,
+      remaining: finalRemaining,
+      is_paid: draft.isPaid,
+      footer_heading: draft.footerHeading,
+      footer_info: draft.footerInfo,
+      disclaimer: draft.disclaimer,
+    });
 
-  if (ok) {
-    alert('IPD Bill saved!');
-    clearDraft();
-  } else {
-    alert('Failed to save');
-  }
-};
+    if (ok) {
+      alert("IPD Bill saved!");
+      clearDraft();
+    } else {
+      alert("Failed to save");
+    }
+  };
+
+  const handleAdvanceFocus = () => {
+    // When the field is focused and currently shows "0", clear it so the
+    // user starts typing into an empty box rather than appending to "0".
+    if (advanceInput === "0") setAdvanceInput("");
+  };
+
+  const handleAdvanceBlur = () => {
+    // On blur, if the user left it empty, normalise back to 0.
+    if (advanceInput.trim() === "") {
+      setAdvanceInput("");
+      setDraft((prev) => ({ ...prev, advance: 0 }));
+    }
+  };
+
+  const handleAdvanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setAdvanceInput(raw);
+    // Keep draft.advance in sync as a number, or 0 if the field is empty.
+    const n = raw === "" ? 0 : Number(raw);
+    setDraft((prev) => ({
+      ...prev,
+      advance: Number.isFinite(n) ? n : 0,
+    }));
+  };
 
   /* ---------------- Render ---------------- */
   const printLayoutProps = {
@@ -215,48 +341,8 @@ export default function HospitalIpdBilling({
   return (
     <>
       {/* ---------------- Toolbar ---------------- */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 16,
-        }}
-      >
-        <IconButton
-          variant="ghost"
-          size="md"
-          aria-label={showPreview ? "Hide preview" : "Show preview"}
-          tooltip={showPreview ? "Hide preview" : "Show preview"}
-          onClick={() => setShowPreview((v) => !v)}
-        >
-          <EyeIcon width={18} height={18} fill="#1e1e1e" />
-        </IconButton>
-
-        <IconButton
-          variant="ghost"
-          size="md"
-          aria-label="Bill history"
-          tooltip="Bill history"
-          onClick={() => setIsHistoryOpen(true)}
-        >
-          <ClockIcon width={18} height={18} fill="#1e1e1e" />
-        </IconButton>
-      </div>
-
-      {/* ---------------- Form ---------------- */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 15,
-          marginBottom: 20,
-        }}
-      >
-        <PatientPicker value={draft.patient} onChange={updatePatient} />
-
-        <div style={{ display: "flex", gap: 10 }}>
+      <div className={local.ipdToolbar}>
+        <div className={local.ipdDateRow}>
           <FormField label="Date From">
             <Input
               type="date"
@@ -272,11 +358,37 @@ export default function HospitalIpdBilling({
             />
           </FormField>
         </div>
+        <div className={local.ipdToolbarActions}>
+          <IconButton
+            variant="ghost"
+            size="md"
+            aria-label={showPreview ? "Hide preview" : "Show preview"}
+            tooltip={showPreview ? "Hide preview" : "Show preview"}
+            onClick={() => setShowPreview((v) => !v)}
+          >
+            <EyeIcon width={18} height={18} fill="#1e1e1e" />
+          </IconButton>
+
+          <IconButton
+            variant="ghost"
+            size="md"
+            aria-label="Bill history"
+            tooltip="Bill history"
+            onClick={() => setIsHistoryOpen(true)}
+          >
+            <ClockIcon width={18} height={18} fill="#1e1e1e" />
+          </IconButton>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <h4 style={{ marginBottom: 10 }}>Add Particulars</h4>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {/* ---------------- Form ---------------- */}
+      <div className={local.ipdFormGrid}>
+        <PatientPicker value={draft.patient} onChange={updatePatient} />
+      </div>
+
+      <div className={local.ipdParticulars}>
+        <h4 className={local.ipdParticularsTitle}>Add Particulars</h4>
+        <div className={local.ipdParticularsList}>
           {particulars.map((p) => (
             <Button
               key={p.id}
@@ -313,7 +425,7 @@ export default function HospitalIpdBilling({
                     onChange={(e) =>
                       updateRow(i, { days: Number(e.target.value) })
                     }
-                    style={{ width: 60, padding: 4 }}
+                    className={local.ipdDaysInput}
                   />
                 ) : (
                   "-"
@@ -330,76 +442,76 @@ export default function HospitalIpdBilling({
         </tbody>
       </table>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          marginTop: 20,
-          gap: 10,
-        }}
-      >
-        <div>
-          Total: <strong>{formatRupees(totalAmount)}</strong>
-        </div>
-        <div>
+      <table className={`${local.formTable} ${local.ipdTotalsTable}`}>
+        <tbody>
+          <tr>
+            <td className={local.ipdTotalsLabel}>Total</td>
+            <td className={local.ipdTotalsValue}>
+              <strong>{formatRupees(totalAmount)}</strong>
+            </td>
+          </tr>
+
           {draft.isPaid ? (
             <>
-              <div className={local.totalRow}>
-                <span>Amount Paid (Advance):</span>
-                <strong>{formatRupees(totalAmount)}</strong>
-              </div>
-              <div className={local.totalRow}>
-                <span>Remaining:</span>
-                <strong>{formatRupees(0)}</strong>
-              </div>
+              <tr>
+                <td className={local.ipdTotalsLabel}>Advance Paid</td>
+                <td className={local.ipdTotalsValue}>
+                  <strong>{formatRupees(totalAmount)}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td className={local.ipdTotalsLabel}>Remaining</td>
+                <td className={local.ipdTotalsValue}>
+                  <strong>{formatRupees(0)}</strong>
+                </td>
+              </tr>
             </>
           ) : (
             <>
-              <div>
-                Advance:{" "}
-                <Input
-                  type="number"
-                  value={draft.advance}
-                  onChange={(e) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      advance: Number(e.target.value),
-                    }))
-                  }
-                  style={{
-                    width: 100,
-                    padding: 4,
-                    display: "inline-block",
-                    marginLeft: 10,
-                  }}
-                />
-              </div>
-              <div>
-                Remaining: <strong>{formatRupees(remaining)}</strong>
-              </div>
+              <tr>
+                <td className={local.ipdTotalsLabel}>Advance</td>
+                <td className={local.ipdTotalsValue}>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={advanceInput}
+                    onFocus={handleAdvanceFocus}
+                    onBlur={handleAdvanceBlur}
+                    onChange={handleAdvanceChange}
+                    className={local.ipdAdvanceInput}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td className={local.ipdTotalsLabel}>Remaining</td>
+                <td className={local.ipdTotalsValue}>
+                  <strong>{formatRupees(remaining)}</strong>
+                </td>
+              </tr>
             </>
           )}
-        </div>
-        <label>
-          <input
-            type="checkbox"
-            checked={draft.isPaid}
-            onChange={(e) =>
-              setDraft((prev) => ({
-                ...prev,
-                isPaid: e.target.checked,
-                // When marking paid, snap the stored advance to the full total.
-                advance: e.target.checked ? totalAmount : prev.advance,
-              }))
-            }
-          />{" "}
-          Mark as Paid
-        </label>
-      </div>
 
-      <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
+          <tr>
+            <td className={local.ipdTotalsLabel}>Mark as Paid</td>
+            <td
+              className={`${local.ipdTotalsValue} ${local.ipdTotalsToggleCell}`}
+            >
+              <Toggle
+                checked={draft.isPaid}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    isPaid: e.target.checked,
+                    advance: e.target.checked ? totalAmount : prev.advance,
+                  }))
+                }
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className={local.ipdFooterFields}>
         <FormField label="Footer Heading">
           <Input
             value={draft.footerHeading}
@@ -435,14 +547,7 @@ export default function HospitalIpdBilling({
         </FormField>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 10,
-          marginTop: 20,
-        }}
-      >
+      <div className={local.ipdActions}>
         <Button
           variant="ghost"
           onClick={() => setShowResetConfirm(true)}
@@ -472,20 +577,8 @@ export default function HospitalIpdBilling({
           </Button>
         }
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            padding: 8,
-            height: '100vh'
-          }}
-        >
-          <div
-            style={{
-              transform: "scale(0.72)",
-              transformOrigin: "top center",
-            }}
-          >
+        <div className={local.ipdPreviewWrap}>
+          <div className={local.ipdPreviewScaled}>
             <HospitalIpdPrintLayout {...printLayoutProps} />
           </div>
         </div>

@@ -127,7 +127,7 @@ const ImportMenuListModal: React.FC<ImportMenuListModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Import Menu List"
+      title="Import List"
       size="md"
       mobileFullScreen
       footer={footer}

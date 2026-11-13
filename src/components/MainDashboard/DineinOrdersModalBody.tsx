@@ -280,7 +280,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     let cancelled = false;
     let timer: number | null = null;
 
-    const REFRESH_MS = 240_000;
+    const REFRESH_MS = 30_000;
 
     const schedule = () => {
       if (cancelled) return;
@@ -416,7 +416,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   const handleSendPayLink = async (order: DineinOrder) => {
     if (!tenant?.upiId) {
       setError(
-        'Set your UPI ID in Store Information before sending a pay link.',
+        'Set your UPI ID in Business Information before sending a pay link.',
       );
       return;
     }
@@ -931,7 +931,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                                     disabled={!tenant?.upiId}
                                     title={
                                       !tenant?.upiId
-                                        ? 'Set your UPI ID in Store Information first'
+                                        ? 'Set your UPI ID in Business Information first'
                                         : undefined
                                     }
                                     onClick={() => handleSendPayLink(o)}

@@ -8,7 +8,7 @@ import {
   StoreSettings,
   User,
   OpdVitals,
-  OpdDefaults
+  OpdDefaults,
 } from "../types";
 import { TABLES } from "../config/tables";
 import type { Tenant } from "../contexts/TenantContext";
@@ -22,7 +22,7 @@ import {
   IpdBill,
   OpdBill,
 } from "../types";
-import type { MedicineStock } from '../components/Admin/PharmacyStockBody';
+import type { MedicineStock } from "../components/Admin/PharmacyStockBody";
 import { menuService } from "./menu.service";
 
 // =========================================================
@@ -175,9 +175,7 @@ function safeArray<T = any>(v: any): T[] | undefined {
 }
 
 function safeObject<T = any>(v: any): T | undefined {
-  return v && typeof v === "object" && !Array.isArray(v)
-    ? (v as T)
-    : undefined;
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as T) : undefined;
 }
 
 // =========================================================
@@ -456,7 +454,7 @@ class SupabaseService {
 
     if (error) {
       console.error("update_tenant_info error:", error);
-      throw new Error(error.message || "Failed to update store info");
+      throw new Error(error.message || "Failed to update Business info");
     }
 
     invalidateTenantsCache();
@@ -566,10 +564,7 @@ class SupabaseService {
 
   // ─────────────────────────────── CREATE TENANT ───────────────────────────────
 
-  async createTenant(
-    displayName: string,
-    ownerPhone: string,
-  ): Promise<Tenant> {
+  async createTenant(displayName: string, ownerPhone: string): Promise<Tenant> {
     const client = this.getClient();
     if (!client) throw new Error("Supabase not configured");
 
@@ -752,10 +747,7 @@ class SupabaseService {
     return row ? this.mapUser(row) : null;
   }
 
-  async updateUser(
-    id: string,
-    updates: Partial<User>,
-  ): Promise<User | null> {
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     const client = this.getClient();
     if (!client) return null;
 
@@ -872,6 +864,7 @@ class SupabaseService {
 
     if (typeof item.costPrice === "number" && item.costPrice > 0)
       payload.cost_price = item.costPrice;
+    if (item.packSize?.trim()) payload.pack_size = item.packSize;
     if (typeof item.discount === "number" && item.discount > 0)
       payload.discount = item.discount;
     if (typeof item.calories === "number" && item.calories > 0)
@@ -893,7 +886,11 @@ class SupabaseService {
       Array.isArray(item.customizationOptions) &&
       item.customizationOptions.length > 0
     )
-      payload.customization_options = item.customizationOptions;
+      if (typeof item.manageStock === "boolean")
+        payload.manage_stock = item.manageStock;
+    if (typeof item.stockQty === "number" && item.stockQty >= 0)
+      payload.stock_qty = Math.floor(item.stockQty);
+    payload.customization_options = item.customizationOptions;
 
     const { data, error } = await client.rpc("add_menu_item", {
       tenant_slug_in: tenantSlug,
@@ -935,6 +932,7 @@ class SupabaseService {
     if ("costPrice" in updates) payload.cost_price = updates.costPrice ?? null;
     if ("discount" in updates) payload.discount = updates.discount ?? 0;
     if ("price" in updates) payload.price = updates.price;
+    if ("packSize" in updates) payload.pack_size = updates.packSize ?? null;
     if ("img" in updates) payload.image_url = updates.img ?? null;
     if ("gallery" in updates) payload.gallery = updates.gallery ?? null;
     if ("category" in updates) payload.category = updates.category ?? null;
@@ -956,6 +954,13 @@ class SupabaseService {
       payload.attributes = updates.attributes ?? null;
     if ("customizationOptions" in updates)
       payload.customization_options = updates.customizationOptions ?? null;
+    if ("manageStock" in updates)
+      payload.manage_stock = updates.manageStock ?? false;
+    if ("stockQty" in updates)
+      payload.stock_qty = Math.max(
+        0,
+        Math.floor(Number(updates.stockQty) || 0),
+      );
 
     const { data, error } = await client.rpc("update_menu_item", {
       tenant_slug_in: tenantSlug,
@@ -1072,65 +1077,60 @@ class SupabaseService {
 
   // ─────────────────────────────── STORE SETTINGS ───────────────────────────────
 
-async getStoreSettings(
-  tenantSlug: string,
-): Promise<StoreSettings | null> {
-  const client = this.getClient();
-  if (!client) return null;
+  async getStoreSettings(tenantSlug: string): Promise<StoreSettings | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  // One RPC, one round-trip: joins tenant → store_settings by slug
-  // and returns the row. Handles the "no settings row yet" case by
-  // returning an object with column defaults.
-  const { data, error } = await client.rpc(
-    "get_store_settings_by_slug",
-    { tenant_slug_in: tenantSlug },
-  );
+    // One RPC, one round-trip: joins tenant → store_settings by slug
+    // and returns the row. Handles the "no settings row yet" case by
+    // returning an object with column defaults.
+    const { data, error } = await client.rpc("get_store_settings_by_slug", {
+      tenant_slug_in: tenantSlug,
+    });
 
-  if (error) {
-    console.error("get_store_settings_by_slug error:", error);
-    return null;
+    if (error) {
+      console.error("get_store_settings_by_slug error:", error);
+      return null;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+
+    return {
+      isOpen: row.is_open ?? true,
+      closedMessage: row.closed_message || "",
+      expectedOpenDate: row.expected_open_date || "",
+      expectedOpenTime: row.expected_open_time || "",
+      acceptingOrders: row.accepting_orders !== false,
+      lastUpdated: row.last_updated || new Date().toISOString(),
+    };
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
+  async updateStoreSettings(
+    tenantSlug: string,
+    settings: StoreSettings,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
 
-  return {
-    isOpen: row.is_open ?? true,
-    closedMessage: row.closed_message || "",
-    expectedOpenDate: row.expected_open_date || "",
-    expectedOpenTime: row.expected_open_time || "",
-    acceptingOrders: row.accepting_orders !== false,
-    lastUpdated: row.last_updated || new Date().toISOString(),
-  };
-}
+    // Single upsert through the purpose-built RPC. No loops, no
+    // multiple round-trips, and it works against the correct table.
+    const { error } = await client.rpc("upsert_store_settings", {
+      tenant_slug_in: tenantSlug,
+      is_open_in: settings.isOpen,
+      closed_message_in: settings.closedMessage || "",
+      expected_open_date_in: settings.expectedOpenDate || null,
+      expected_open_time_in: settings.expectedOpenTime || null,
+      accepting_orders_in: settings.acceptingOrders ?? true,
+    });
 
-async updateStoreSettings(
-  tenantSlug: string,
-  settings: StoreSettings,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
+    if (error) {
+      console.error("upsert_store_settings error:", error);
+      throw new Error(error.message || "Failed to update store settings");
+    }
 
-  // Single upsert through the purpose-built RPC. No loops, no
-  // multiple round-trips, and it works against the correct table.
-  const { error } = await client.rpc("upsert_store_settings", {
-    tenant_slug_in: tenantSlug,
-    is_open_in: settings.isOpen,
-    closed_message_in: settings.closedMessage || "",
-    expected_open_date_in: settings.expectedOpenDate || null,
-    expected_open_time_in: settings.expectedOpenTime || null,
-    accepting_orders_in: settings.acceptingOrders ?? true,
-  });
-
-  if (error) {
-    console.error("upsert_store_settings error:", error);
-    throw new Error(
-      error.message || "Failed to update store settings",
-    );
+    return true;
   }
-
-  return true;
-}
 
   // ─────────────────────────────── REVIEWS ───────────────────────────────
 
@@ -1617,9 +1617,7 @@ async updateStoreSettings(
       new Set(
         (reviews || [])
           .map((r: any) => r.item_id)
-          .filter(
-            (id: unknown): id is number => typeof id === "number",
-          ),
+          .filter((id: unknown): id is number => typeof id === "number"),
       ),
     );
     const itemMap: Record<number, string> = {};
@@ -1855,9 +1853,7 @@ async updateStoreSettings(
     if (opts.toDate) query = query.lte("created_at", opts.toDate);
     if (opts.search && opts.search.trim()) {
       const q = opts.search.trim();
-      query = query.or(
-        `tenant_slug.ilike.%${q}%,tenant_slug.ilike.%${q}%`,
-      );
+      query = query.or(`tenant_slug.ilike.%${q}%,tenant_slug.ilike.%${q}%`);
     }
 
     const { data, error, count } = await query;
@@ -1984,19 +1980,14 @@ async updateStoreSettings(
       };
     }
 
-    let query = client
-      .from("star_veg_invoices")
-      .select("final_amount, status");
+    let query = client.from("star_veg_invoices").select("final_amount, status");
 
     if (fromDate) query = query.gte("created_at", fromDate);
     if (toDate) query = query.lte("created_at", toDate);
 
     const { data, error } = await query;
     if (error) {
-      console.error(
-        "getPlatformRevenueStatsForDateRange error:",
-        error,
-      );
+      console.error("getPlatformRevenueStatsForDateRange error:", error);
       return {
         totalRevenue: 0,
         totalInvoices: 0,
@@ -2120,10 +2111,7 @@ async updateStoreSettings(
 
     const PACKING = 0;
     const recomputedTotal =
-      params.subtotal +
-      params.gstAmount +
-      PACKING -
-      params.storewideDiscount;
+      params.subtotal + params.gstAmount + PACKING - params.storewideDiscount;
 
     const { data, error } = await client
       .from("star_veg_dinein_orders")
@@ -2183,16 +2171,11 @@ async updateStoreSettings(
     if (getErr || !order) return null;
     if (order.status === "paid" || order.status === "cancelled") return null;
 
-    const merged = [
-      ...(order.items as DineinOrderItem[]),
-      ...newItems,
-    ];
+    const merged = [...(order.items as DineinOrderItem[]), ...newItems];
 
     const PACKING = 0;
     const subtotal = merged.reduce((s, i) => s + i.lineTotal, 0);
-    const gstAmount = Math.round(
-      subtotal * (Number(order.gst_percent) / 100),
-    );
+    const gstAmount = Math.round(subtotal * (Number(order.gst_percent) / 100));
     const existingTip = Number(order.staff_tip) || 0;
     const totalAmount =
       subtotal +
@@ -2313,9 +2296,7 @@ async updateStoreSettings(
 
     let q = client
       .from("star_veg_dinein_events")
-      .select(
-        "id, order_id, table_label, kind, payload, created_at, read_at",
-      )
+      .select("id, order_id, table_label, kind, payload, created_at, read_at")
       .eq("tenant_slug", tenantSlug)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -2423,14 +2404,11 @@ async updateStoreSettings(
       return this.getDineinOrderById(orderId);
     }
 
-    const { data, error } = await client.rpc(
-      "set_dinein_order_items_served",
-      {
-        order_id_in: orderId,
-        item_indexes_in: itemIndexes,
-        served_in: served,
-      },
-    );
+    const { data, error } = await client.rpc("set_dinein_order_items_served", {
+      order_id_in: orderId,
+      item_indexes_in: itemIndexes,
+      served_in: served,
+    });
 
     if (error) {
       console.error("set_dinein_order_items_served error:", error);
@@ -2613,9 +2591,7 @@ async updateStoreSettings(
     return !error;
   }
 
-  async claimDineinPayment(
-    orderId: string,
-  ): Promise<DineinOrder | null> {
+  async claimDineinPayment(orderId: string): Promise<DineinOrder | null> {
     const client = this.getClient();
     if (!client) return null;
     const { data, error } = await client.rpc("claim_dinein_payment", {
@@ -2678,9 +2654,7 @@ async updateStoreSettings(
     return row ? this.mapDineinOrder(row) : null;
   }
 
-  async setDineinSettleOffline(
-    orderId: string,
-  ): Promise<DineinOrder | null> {
+  async setDineinSettleOffline(orderId: string): Promise<DineinOrder | null> {
     const client = this.getClient();
     if (!client) return null;
     const { data, error } = await client.rpc("set_dinein_settle_offline", {
@@ -2722,9 +2696,7 @@ async updateStoreSettings(
 
     let q = client
       .from("star_veg_dinein_events")
-      .select(
-        "id, order_id, table_label, kind, payload, created_at, read_at",
-      )
+      .select("id, order_id, table_label, kind, payload, created_at, read_at")
       .eq("tenant_slug", tenantSlug)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -2786,77 +2758,77 @@ async updateStoreSettings(
 
   // src/services/supabase.service.ts
 
-// Inside the SupabaseService class, add these methods:
+  // Inside the SupabaseService class, add these methods:
 
   // ─────────────────────────────── PHARMACY: STOCK ───────────────────────────────
 
   async getMedicineStock(tenantSlug: string): Promise<any[]> {
-  const client = this.getClient();
-  if (!client) return [];
+    const client = this.getClient();
+    if (!client) return [];
 
-  const { data: tenantRow } = await client
-    .from("star_veg_tenants")
-    .select("id")
-    .eq("slug", tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return [];
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
 
-  const { data, error } = await client
-    .from("star_veg_medicine_stock")
-    .select("*")
-    .eq("tenant_id", tenantRow.id)
-    .order("name", { ascending: true });
+    const { data, error } = await client
+      .from("star_veg_medicine_stock")
+      .select("*")
+      .eq("tenant_id", tenantRow.id)
+      .order("name", { ascending: true });
 
-  if (error) {
-    console.error("getMedicineStock error:", error);
-    return [];
+    if (error) {
+      console.error("getMedicineStock error:", error);
+      return [];
+    }
+    return data || [];
   }
-  return data || [];
-}
 
   async addMedicineStock(
-  tenantSlug: string,
-  item: any,
-): Promise<MedicineStock | null> {
-  const client = this.getClient();
-  if (!client) return null;
+    tenantSlug: string,
+    item: any,
+  ): Promise<MedicineStock | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  const { data: tenantRow } = await client
-    .from("star_veg_tenants")
-    .select("id")
-    .eq("slug", tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return null;
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return null;
 
-  // pack_of: treat null/undefined/0 as 1
-  const packOf = Math.max(1, Number(item.pack_of) || 1);
+    // pack_of: treat null/undefined/0 as 1
+    const packOf = Math.max(1, Number(item.pack_of) || 1);
 
-  const { data, error } = await client
-    .from("star_veg_medicine_stock")
-    .insert({
-      tenant_id: tenantRow.id,
-      name: item.name,
-      composition: item.composition || "",
-      manufacturer: item.manufacturer || "",
-      hsn_code: item.hsn_code || "",
-      pack_size: item.pack_size || "",
-      pack_of: packOf,
-      unit: item.unit || null,
-      batch_no: item.batch_no || "",
-      expiry_date: item.expiry_date || null,
-      mrp: item.mrp || 0,
-      price: item.price || 0,
-      stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
-    })
-    .select()
-    .single();
+    const { data, error } = await client
+      .from("star_veg_medicine_stock")
+      .insert({
+        tenant_id: tenantRow.id,
+        name: item.name,
+        composition: item.composition || "",
+        manufacturer: item.manufacturer || "",
+        hsn_code: item.hsn_code || "",
+        pack_size: item.pack_size || "",
+        pack_of: packOf,
+        unit: item.unit || null,
+        batch_no: item.batch_no || "",
+        expiry_date: item.expiry_date || null,
+        mrp: item.mrp || 0,
+        price: item.price || 0,
+        stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
+      })
+      .select()
+      .single();
 
-  if (error) {
-    console.error("addMedicineStock error:", error);
-    return null;
+    if (error) {
+      console.error("addMedicineStock error:", error);
+      return null;
+    }
+    return data as MedicineStock;
   }
-  return data as MedicineStock;
-}
 
   // ─────────────────────────────── PHARMACY: BILLS ───────────────────────────────
 
@@ -2887,7 +2859,7 @@ async updateStoreSettings(
   async getPharmacyBills(tenantSlug: string): Promise<any[]> {
     const client = this.getClient();
     if (!client) return [];
-    
+
     const { data: tenantRow } = await client
       .from("star_veg_tenants")
       .select("id")
@@ -2911,40 +2883,40 @@ async updateStoreSettings(
   // src/services/supabase.service.ts
 
   async editMedicineStock(
-  tenantSlug: string,
-  id: string,
-  item: any,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
+    tenantSlug: string,
+    id: string,
+    item: any,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
 
-  const packOf = Math.max(1, Number(item.pack_of) || 1);
+    const packOf = Math.max(1, Number(item.pack_of) || 1);
 
-  const { error } = await client
-    .from("star_veg_medicine_stock")
-    .update({
-      name: item.name,
-      composition: item.composition || "",
-      manufacturer: item.manufacturer || "",
-      hsn_code: item.hsn_code || "",
-      pack_size: item.pack_size || "",
-      pack_of: packOf,
-      unit: item.unit || null,
-      batch_no: item.batch_no || "",
-      expiry_date: item.expiry_date || null,
-      mrp: item.mrp || 0,
-      price: item.price || 0,
-      stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+    const { error } = await client
+      .from("star_veg_medicine_stock")
+      .update({
+        name: item.name,
+        composition: item.composition || "",
+        manufacturer: item.manufacturer || "",
+        hsn_code: item.hsn_code || "",
+        pack_size: item.pack_size || "",
+        pack_of: packOf,
+        unit: item.unit || null,
+        batch_no: item.batch_no || "",
+        expiry_date: item.expiry_date || null,
+        mrp: item.mrp || 0,
+        price: item.price || 0,
+        stock_qty: Math.max(0, Math.round(Number(item.stock_qty) || 0)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
 
-  if (error) {
-    console.error("editMedicineStock error:", error);
-    return false;
+    if (error) {
+      console.error("editMedicineStock error:", error);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
   // src/services/supabase.service.ts
 
@@ -2958,7 +2930,7 @@ async updateStoreSettings(
       .select("id")
       .eq("slug", tenantSlug)
       .maybeSingle();
-      
+
     if (!tenantRow) return false;
 
     const { error } = await client
@@ -2976,14 +2948,17 @@ async updateStoreSettings(
 
   // src/services/supabase.service.ts
 
-  async deductPharmacyStock(tenantSlug: string, items: any[]): Promise<boolean> {
+  async deductPharmacyStock(
+    tenantSlug: string,
+    items: any[],
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
 
     // We only need the name and qty to deduct stock
-    const payload = items.map(it => ({
+    const payload = items.map((it) => ({
       name: it.name,
-      qty: it.qty
+      qty: it.qty,
     }));
 
     const { error } = await client.rpc("deduct_pharmacy_stock", {
@@ -3000,74 +2975,79 @@ async updateStoreSettings(
 
   // Inside the SupabaseService class, alongside getMedicineStock / deductPharmacyStock
 
-/**
- * Deduct stock for a list of { name, qty } entries against the tenant's
- * pharmacy stock table, then return the freshly re-fetched stock.
- *
- * Returns the updated stock list, or null if the tenant / deduction
- * failed. Callers can use the return value to mirror into the local
- * cache so BillingBody and PharmacyStockBody stay in sync.
- */
-async deductPharmacyStockAndReturn(
-  tenantSlug: string,
-  items: Array<{ name: string; qty: number }>,
-): Promise<any[] | null> {
-  const client = this.getClient();
-  if (!client) return null;
+  /**
+   * Deduct stock for a list of { name, qty } entries against the tenant's
+   * pharmacy stock table, then return the freshly re-fetched stock.
+   *
+   * Returns the updated stock list, or null if the tenant / deduction
+   * failed. Callers can use the return value to mirror into the local
+   * cache so BillingBody and PharmacyStockBody stay in sync.
+   */
+  async deductPharmacyStockAndReturn(
+    tenantSlug: string,
+    items: Array<{ name: string; qty: number }>,
+  ): Promise<any[] | null> {
+    const client = this.getClient();
+    if (!client) return null;
 
-  if (items.length === 0) {
-    // Nothing to deduct - just return current stock.
+    if (items.length === 0) {
+      // Nothing to deduct - just return current stock.
+      return this.getMedicineStock(tenantSlug);
+    }
+
+    const { error } = await client.rpc("deduct_pharmacy_stock", {
+      tenant_slug_in: tenantSlug,
+      items_in: items,
+    });
+
+    if (error) {
+      console.error("deduct_pharmacy_stock error:", error);
+      return null;
+    }
+
+    // Re-fetch so the caller gets authoritative post-deduction values.
     return this.getMedicineStock(tenantSlug);
   }
 
-  const { error } = await client.rpc("deduct_pharmacy_stock", {
-    tenant_slug_in: tenantSlug,
-    items_in: items,
-  });
-
-  if (error) {
-    console.error("deduct_pharmacy_stock error:", error);
-    return null;
-  }
-
-  // Re-fetch so the caller gets authoritative post-deduction values.
-  return this.getMedicineStock(tenantSlug);
-}
-
   // src/services/supabase.service.ts
 
-// ─────────────────────────────── HOSPITAL: SERVICES ───────────────────────────────
+  // ─────────────────────────────── HOSPITAL: SERVICES ───────────────────────────────
 
   // src/services/supabase.service.ts
 
   async getHospitalServices(tenantSlug: string): Promise<any[]> {
-  const client = this.getClient();
-  if (!client) return [];
+    const client = this.getClient();
+    if (!client) return [];
 
-  const { data: tenantRow } = await client
-    .from("star_veg_tenants")
-    .select("id")
-    .eq("slug", tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return [];
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
 
-  const { data, error } = await client
-    .from("star_veg_hospital_services")
-    .select("id, name, category, price, image, description, daily_limits, tenant_id, created_at")
-    .eq("tenant_id", tenantRow.id)
-    .order("category", { ascending: true })
-    .order("name", { ascending: true });
+    const { data, error } = await client
+      .from("star_veg_hospital_services")
+      .select(
+        "id, name, category, price, image, description, daily_limits, tenant_id, created_at",
+      )
+      .eq("tenant_id", tenantRow.id)
+      .order("category", { ascending: true })
+      .order("name", { ascending: true });
 
-  if (error) {
-    console.error("getHospitalServices error:", error);
-    return [];
+    if (error) {
+      console.error("getHospitalServices error:", error);
+      return [];
+    }
+    return data || [];
   }
-  return data || [];
-}
 
   // src/services/supabase.service.ts
 
-  async addHospitalService(tenantSlug: string, service: any): Promise<any | null> {
+  async addHospitalService(
+    tenantSlug: string,
+    service: any,
+  ): Promise<any | null> {
     const client = this.getClient();
     if (!client) return null;
 
@@ -3091,9 +3071,13 @@ async deductPharmacyStockAndReturn(
     return data;
   }
 
-// src/services/supabase.service.ts
+  // src/services/supabase.service.ts
 
-  async updateHospitalService(tenantSlug: string, id: string, updates: any): Promise<boolean> {
+  async updateHospitalService(
+    tenantSlug: string,
+    id: string,
+    updates: any,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
 
@@ -3104,8 +3088,9 @@ async deductPharmacyStockAndReturn(
       daily_limits: updates.daily_limits,
     };
 
-    if ('image' in updates) payload.image = updates.image || null;
-    if ('description' in updates) payload.description = updates.description || null;
+    if ("image" in updates) payload.image = updates.image || null;
+    if ("description" in updates)
+      payload.description = updates.description || null;
     // Only include updated_at if the column exists (safe now that we added it)
     payload.updated_at = new Date().toISOString();
 
@@ -3121,7 +3106,10 @@ async deductPharmacyStockAndReturn(
     return true;
   }
 
-  async deleteHospitalService(tenantSlug: string, id: string): Promise<boolean> {
+  async deleteHospitalService(
+    tenantSlug: string,
+    id: string,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
 
@@ -3138,102 +3126,101 @@ async deductPharmacyStockAndReturn(
   }
 
   async getHospitalServiceCategories(
-  tenantSlug: string,
-): Promise<{ name: string; sort_order: number; hidden: boolean }[]> {
-  const client = this.getClient();
-  if (!client) return [];
+    tenantSlug: string,
+  ): Promise<{ name: string; sort_order: number; hidden: boolean }[]> {
+    const client = this.getClient();
+    if (!client) return [];
 
-  const { data: tenantRow } = await client
-    .from("star_veg_tenants")
-    .select("id")
-    .eq("slug", tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return [];
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return [];
 
-  const { data, error } = await client
-    .from("star_veg_hospital_service_categories")
-    .select("name, sort_order, hidden")
-    .eq("tenant_id", tenantRow.id)
-    .order("sort_order", { ascending: true });
-
-  if (error) {
-    console.error("getHospitalServiceCategories error:", error);
-    return [];
-  }
-  return data || [];
-}
-
-/**
- * Replace the full category list for the tenant in one atomic write:
- *   - upsert current names with their new sort_order & hidden flag
- *   - delete any names that are no longer in the list
- *
- * Callers pass the full ordered array from the "Manage Categories" draft.
- */
-async saveHospitalServiceCategories(
-  tenantSlug: string,
-  categories: { name: string; sort_order: number; hidden: boolean }[],
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-
-  const { data: tenantRow } = await client
-    .from("star_veg_tenants")
-    .select("id")
-    .eq("slug", tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return false;
-
-  const tenantId = tenantRow.id;
-
-  const cleaned = categories
-    .map((c, i) => ({
-      tenant_id: tenantId,
-      name: c.name.trim(),
-      sort_order:
-        typeof c.sort_order === "number" ? c.sort_order : i,
-      hidden: !!c.hidden,
-    }))
-    .filter((c) => c.name.length > 0);
-
-  // Fetch existing rows so we can delete the ones that disappeared
-  const { data: existing, error: exErr } = await client
-    .from("star_veg_hospital_service_categories")
-    .select("id, name")
-    .eq("tenant_id", tenantId);
-  if (exErr) {
-    console.error("saveHospitalServiceCategories existing error:", exErr);
-    return false;
-  }
-
-  const incomingNames = new Set(cleaned.map((c) => c.name));
-  const toDelete = (existing || [])
-    .filter((r: any) => !incomingNames.has(r.name))
-    .map((r: any) => r.id);
-
-  if (cleaned.length > 0) {
-    const { error: upsertErr } = await client
+    const { data, error } = await client
       .from("star_veg_hospital_service_categories")
-      .upsert(cleaned, { onConflict: "tenant_id,name" });
-    if (upsertErr) {
-      console.error("saveHospitalServiceCategories upsert error:", upsertErr);
+      .select("name, sort_order, hidden")
+      .eq("tenant_id", tenantRow.id)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error("getHospitalServiceCategories error:", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  /**
+   * Replace the full category list for the tenant in one atomic write:
+   *   - upsert current names with their new sort_order & hidden flag
+   *   - delete any names that are no longer in the list
+   *
+   * Callers pass the full ordered array from the "Manage Categories" draft.
+   */
+  async saveHospitalServiceCategories(
+    tenantSlug: string,
+    categories: { name: string; sort_order: number; hidden: boolean }[],
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return false;
+
+    const tenantId = tenantRow.id;
+
+    const cleaned = categories
+      .map((c, i) => ({
+        tenant_id: tenantId,
+        name: c.name.trim(),
+        sort_order: typeof c.sort_order === "number" ? c.sort_order : i,
+        hidden: !!c.hidden,
+      }))
+      .filter((c) => c.name.length > 0);
+
+    // Fetch existing rows so we can delete the ones that disappeared
+    const { data: existing, error: exErr } = await client
+      .from("star_veg_hospital_service_categories")
+      .select("id, name")
+      .eq("tenant_id", tenantId);
+    if (exErr) {
+      console.error("saveHospitalServiceCategories existing error:", exErr);
       return false;
     }
-  }
 
-  if (toDelete.length > 0) {
-    const { error: delErr } = await client
-      .from("star_veg_hospital_service_categories")
-      .delete()
-      .in("id", toDelete);
-    if (delErr) {
-      console.error("saveHospitalServiceCategories delete error:", delErr);
-      return false;
+    const incomingNames = new Set(cleaned.map((c) => c.name));
+    const toDelete = (existing || [])
+      .filter((r: any) => !incomingNames.has(r.name))
+      .map((r: any) => r.id);
+
+    if (cleaned.length > 0) {
+      const { error: upsertErr } = await client
+        .from("star_veg_hospital_service_categories")
+        .upsert(cleaned, { onConflict: "tenant_id,name" });
+      if (upsertErr) {
+        console.error("saveHospitalServiceCategories upsert error:", upsertErr);
+        return false;
+      }
     }
-  }
 
-  return true;
-}
+    if (toDelete.length > 0) {
+      const { error: delErr } = await client
+        .from("star_veg_hospital_service_categories")
+        .delete()
+        .in("id", toDelete);
+      if (delErr) {
+        console.error("saveHospitalServiceCategories delete error:", delErr);
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   // ─────────────────────────────── HOSPITAL: APPOINTMENTS ───────────────────────────────
 
@@ -3249,7 +3236,7 @@ async saveHospitalServiceCategories(
     if (!tenantRow) return [];
 
     // Get today's date in YYYY-MM-DD
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
     const { data, error } = await client
       .from("star_veg_hospital_appointments")
@@ -3290,7 +3277,11 @@ async saveHospitalServiceCategories(
     return data || [];
   }
 
-  async updateAppointmentStatus(appointmentId: string, status: string, payment_status?: string): Promise<boolean> {
+  async updateAppointmentStatus(
+    appointmentId: string,
+    status: string,
+    payment_status?: string,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
 
@@ -3327,7 +3318,11 @@ async saveHospitalServiceCategories(
   async getHospitalDoctors(tenantSlug: string): Promise<any[]> {
     const client = this.getClient();
     if (!client) return [];
-    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!tenantRow) return [];
 
     const { data } = await client
@@ -3338,23 +3333,34 @@ async saveHospitalServiceCategories(
     return data || [];
   }
 
-  async addHospitalDoctor(tenantSlug: string, doctor: any): Promise<any | null> {
+  async addHospitalDoctor(
+    tenantSlug: string,
+    doctor: any,
+  ): Promise<any | null> {
     const client = this.getClient();
     if (!client) return null;
-    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!tenantRow) return null;
 
     const { data, error } = await client
       .from("star_veg_hospital_doctors")
       .insert({ ...doctor, tenant_id: tenantRow.id })
-      .select().single();
+      .select()
+      .single();
     return error ? null : data;
   }
 
   async deleteHospitalDoctor(id: string): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.from("star_veg_hospital_doctors").delete().eq("id", id);
+    const { error } = await client
+      .from("star_veg_hospital_doctors")
+      .delete()
+      .eq("id", id);
     return !error;
   }
 
@@ -3363,7 +3369,11 @@ async saveHospitalServiceCategories(
   async getHospitalPatients(tenantSlug: string): Promise<any[]> {
     const client = this.getClient();
     if (!client) return [];
-    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!tenantRow) return [];
 
     const { data } = await client
@@ -3374,69 +3384,75 @@ async saveHospitalServiceCategories(
     return data || [];
   }
 
-  async addHospitalPatient(tenantSlug: string, patient: any): Promise<any | null> {
+  async addHospitalPatient(
+    tenantSlug: string,
+    patient: any,
+  ): Promise<any | null> {
     const client = this.getClient();
     if (!client) return null;
-    const { data: tenantRow } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!tenantRow) return null;
 
     const { data, error } = await client
       .from("star_veg_hospital_patients")
       .insert({ ...patient, tenant_id: tenantRow.id })
-      .select().single();
+      .select()
+      .single();
     return error ? null : data;
   }
 
   /**
- * Ensures a patient record exists for the given phone number.
- * If a patient with the same phone already exists for this tenant,
- * we do nothing. Otherwise we create one using the supplied details.
- *
- * Used by the customer booking flow so that every appointment
- * automatically appears under Admin → Patients.
- */
-async upsertHospitalPatientByPhone(
-  tenantSlug: string,
-  patient: {
-    name: string;
-    phone: string;
-    address?: string;
-    age_years?: number | null;
-    age_months?: number | null;
-    gender?: string | null;
-  },
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
+   * Ensures a patient record exists for the given phone number.
+   * If a patient with the same phone already exists for this tenant,
+   * we do nothing. Otherwise we create one using the supplied details.
+   *
+   * Used by the customer booking flow so that every appointment
+   * automatically appears under Admin → Patients.
+   */
+  async upsertHospitalPatientByPhone(
+    tenantSlug: string,
+    patient: {
+      name: string;
+      phone: string;
+      address?: string;
+      age_years?: number | null;
+      age_months?: number | null;
+      gender?: string | null;
+    },
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
 
-  const phone = (patient.phone || '').trim();
-  const name = (patient.name || '').trim();
-  if (!phone || !name) return false;
+    const phone = (patient.phone || "").trim();
+    const name = (patient.name || "").trim();
+    if (!phone || !name) return false;
 
-  const { data: tenantRow } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (!tenantRow) return false;
+    const { data: tenantRow } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!tenantRow) return false;
 
-  // Look for an existing record with the same phone for this tenant.
-  const { data: existing } = await client
-    .from('star_veg_hospital_patients')
-    .select('id')
-    .eq('tenant_id', tenantRow.id)
-    .eq('phone', phone)
-    .maybeSingle();
+    // Look for an existing record with the same phone for this tenant.
+    const { data: existing } = await client
+      .from("star_veg_hospital_patients")
+      .select("id")
+      .eq("tenant_id", tenantRow.id)
+      .eq("phone", phone)
+      .maybeSingle();
 
-  if (existing) return true; // already there - nothing to do
+    if (existing) return true; // already there - nothing to do
 
-  const { error } = await client
-    .from('star_veg_hospital_patients')
-    .insert({
+    const { error } = await client.from("star_veg_hospital_patients").insert({
       tenant_id: tenantRow.id,
       name,
       phone,
-      address: patient.address || '',
+      address: patient.address || "",
       age_years:
         patient.age_years !== undefined && patient.age_years !== null
           ? Number(patient.age_years) || null
@@ -3448,23 +3464,26 @@ async upsertHospitalPatientByPhone(
       gender: patient.gender || null,
     });
 
-  if (error) {
-    console.warn('upsertHospitalPatientByPhone error:', error);
-    return false;
+    if (error) {
+      console.warn("upsertHospitalPatientByPhone error:", error);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
   async deleteHospitalPatient(id: string): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.from("star_veg_hospital_patients").delete().eq("id", id);
+    const { error } = await client
+      .from("star_veg_hospital_patients")
+      .delete()
+      .eq("id", id);
     return !error;
   }
-  
+
   // src/services/supabase.service.ts
 
-// ─────────────────────────────── HOSPITAL: DOCTORS ───────────────────────────────
+  // ─────────────────────────────── HOSPITAL: DOCTORS ───────────────────────────────
 
   async updateHospitalDoctor(id: string, updates: any): Promise<boolean> {
     const client = this.getClient();
@@ -3482,7 +3501,7 @@ async upsertHospitalPatientByPhone(
     return true;
   }
 
-// ─────────────────────────────── HOSPITAL: PATIENTS ───────────────────────────────
+  // ─────────────────────────────── HOSPITAL: PATIENTS ───────────────────────────────
 
   async updateHospitalPatient(id: string, updates: any): Promise<boolean> {
     const client = this.getClient();
@@ -3500,197 +3519,262 @@ async upsertHospitalPatientByPhone(
     return true;
   }
 
-    // ─────────────────────────────── HOSPITAL: PARTICULARS ───────────────────────────────
-  async getHospitalParticulars(tenantSlug: string): Promise<HospitalParticular[]> {
+  // ─────────────────────────────── HOSPITAL: PARTICULARS ───────────────────────────────
+  async getHospitalParticulars(
+    tenantSlug: string,
+  ): Promise<HospitalParticular[]> {
     const client = this.getClient();
     if (!client) return [];
-    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!t) return [];
-    const { data } = await client.from("star_veg_hospital_particulars").select("*").eq("tenant_id", t.id).order("name");
+    const { data } = await client
+      .from("star_veg_hospital_particulars")
+      .select("*")
+      .eq("tenant_id", t.id)
+      .order("name");
     return data || [];
   }
 
-  async addHospitalParticular(tenantSlug: string, p: Omit<HospitalParticular, 'id'>): Promise<boolean> {
+  async addHospitalParticular(
+    tenantSlug: string,
+    p: Omit<HospitalParticular, "id">,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!t) return false;
-    const { error } = await client.from("star_veg_hospital_particulars").insert({ ...p, tenant_id: t.id });
+    const { error } = await client
+      .from("star_veg_hospital_particulars")
+      .insert({ ...p, tenant_id: t.id });
     return !error;
   }
 
-  async updateHospitalParticular(id: string, p: Partial<HospitalParticular>): Promise<boolean> {
+  async updateHospitalParticular(
+    id: string,
+    p: Partial<HospitalParticular>,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.from("star_veg_hospital_particulars").update(p).eq("id", id);
+    const { error } = await client
+      .from("star_veg_hospital_particulars")
+      .update(p)
+      .eq("id", id);
     return !error;
   }
 
   async deleteHospitalParticular(id: string): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { error } = await client.from("star_veg_hospital_particulars").delete().eq("id", id);
+    const { error } = await client
+      .from("star_veg_hospital_particulars")
+      .delete()
+      .eq("id", id);
     return !error;
   }
 
   // ─────────────────────────────── HOSPITAL: IPD BILLS ───────────────────────────────
-  async saveIpdBill(tenantSlug: string, bill: Omit<IpdBill, 'id'|'created_at'>): Promise<boolean> {
+  async saveIpdBill(
+    tenantSlug: string,
+    bill: Omit<IpdBill, "id" | "created_at">,
+  ): Promise<boolean> {
     const client = this.getClient();
     if (!client) return false;
-    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!t) return false;
-    const { error } = await client.from("star_veg_hospital_ipd_bills").insert({ ...bill, tenant_id: t.id });
+    const { error } = await client
+      .from("star_veg_hospital_ipd_bills")
+      .insert({ ...bill, tenant_id: t.id });
     return !error;
   }
 
   async updateIpdBillDischargeType(
-  billId: string,
-  dischargeType: string | null,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { error } = await client
-    .from('star_veg_hospital_ipd_bills')
-    .update({ discharge_type: dischargeType })
-    .eq('id', billId);
-  return !error;
-}
+    billId: string,
+    dischargeType: string | null,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { error } = await client
+      .from("star_veg_hospital_ipd_bills")
+      .update({ discharge_type: dischargeType })
+      .eq("id", billId);
+    return !error;
+  }
 
+  // src/services/supabase.service.ts
   async getIpdBills(tenantSlug: string): Promise<IpdBill[]> {
     const client = this.getClient();
     if (!client) return [];
-    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!t) return [];
-    const { data } = await client.from("star_veg_hospital_ipd_bills").select("*").eq("tenant_id", t.id).order("created_at", { ascending: false });
+    const { data } = await client
+      .from("star_veg_hospital_ipd_bills")
+      .select("*") // ← includes created_at
+      .eq("tenant_id", t.id)
+      .order("created_at", { ascending: false });
     return data || [];
   }
 
   // ─────────────────────────────── HOSPITAL: OPD BILLS ───────────────────────────────
-async saveOpdBill(
-  tenantSlug: string,
-  bill: {
-    bill_no: string;
-    patient_name: string;
-    age?: string;
-    gender?: string;
-    address?: string;
-    doctor_name?: string;
-    bp?: string;
-    spo2?: string;
-    pulse?: string;
-    temp?: string;
-    weight?: string;
-  },
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-  const { data: t } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (!t) return false;
-  const { error } = await client
-    .from('star_veg_hospital_opd_bills')
-    .insert({ ...bill, tenant_id: t.id });
-  return !error;
-}
+  async saveOpdBill(
+    tenantSlug: string,
+    bill: {
+      bill_no: string;
+      patient_name: string;
+      phone?: string;
+      age?: string;
+      gender?: string;
+      address?: string;
+      doctor_name?: string;
+      department?: string; // ← new
+      service_name?: string; // ← new
+      price?: number;
+      bp?: string;
+      spo2?: string;
+      pulse?: string;
+      temp?: string;
+      weight?: string;
+    },
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!t) return false;
+    const { error } = await client
+      .from("star_veg_hospital_opd_bills")
+      .insert({ ...bill, tenant_id: t.id });
+    return !error;
+  }
 
   async getOpdBills(tenantSlug: string): Promise<OpdBill[]> {
     const client = this.getClient();
     if (!client) return [];
-    const { data: t } = await client.from("star_veg_tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
     if (!t) return [];
-    const { data } = await client.from("star_veg_hospital_opd_bills").select("*").eq("tenant_id", t.id).order("created_at", { ascending: false });
+    const { data } = await client
+      .from("star_veg_hospital_opd_bills")
+      .select("*")
+      .eq("tenant_id", t.id)
+      .order("created_at", { ascending: false });
     return data || [];
   }
 
   async updateIpdBillPaid(
-  id: string,
-  patch: { advance: number; remaining: number; is_paid: boolean },
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
+    id: string,
+    patch: { advance: number; remaining: number; is_paid: boolean },
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
 
-  const { error } = await client
-    .from('star_veg_hospital_ipd_bills')
-    .update({
-      advance: Number(patch.advance) || 0,
-      remaining: Number(patch.remaining) || 0,
-      is_paid: !!patch.is_paid,
-    })
-    .eq('id', id);
+    const { error } = await client
+      .from("star_veg_hospital_ipd_bills")
+      .update({
+        advance: Number(patch.advance) || 0,
+        remaining: Number(patch.remaining) || 0,
+        is_paid: !!patch.is_paid,
+      })
+      .eq("id", id);
 
-  if (error) {
-    console.error('updateIpdBillPaid error:', error);
-    return false;
+    if (error) {
+      console.error("updateIpdBillPaid error:", error);
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
-async getHospitalOpdSettings(tenantSlug: string): Promise<OpdDefaults> {
-  const client = this.getClient();
-  const defaults: OpdDefaults = {
-    facilities: [],
-    footerHeading: 'Best Wishes',
-    footerInfo: 'Take healthy diet and be sure to maintain hygine.',
-    disclaimer: 'Prepared under the observation.',
-    vitals: { bp: '', spo2: '', pulse: '', temp: '', weight: '' },
-  };
-  if (!client) return defaults;
+  async getHospitalOpdSettings(tenantSlug: string): Promise<OpdDefaults> {
+    const client = this.getClient();
+    const defaults: OpdDefaults = {
+      facilities: [],
+      footerHeading: "Best Wishes",
+      footerInfo: "Take healthy diet and be sure to maintain hygine.",
+      disclaimer: "Prepared under the observation.",
+      vitals: {
+        BP: "",
+        SpO2: "",
+        Pulse: "",
+        Temp: "",
+        Weight: "",
+      },
+    };
+    if (!client) return defaults;
 
-  const { data: t } = await client
-    .from('star_veg_tenants')
-    .select('id')
-    .eq('slug', tenantSlug)
-    .maybeSingle();
-  if (!t) return defaults;
+    const { data: t } = await client
+      .from("star_veg_tenants")
+      .select("id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    if (!t) return defaults;
 
-  const { data } = await client
-    .from('star_veg_hospital_opd_settings')
-    .select('facilities, footer_heading, footer_info, disclaimer, vitals')
-    .eq('tenant_id', t.id)
-    .maybeSingle();
+    const { data } = await client
+      .from("star_veg_hospital_opd_settings")
+      .select("facilities, footer_heading, footer_info, disclaimer, vitals")
+      .eq("tenant_id", t.id)
+      .maybeSingle();
 
-  if (!data) return defaults;
+    if (!data) return defaults;
 
-  const rawVitals = (data.vitals ?? {}) as Partial<OpdVitals>;
-  return {
-    facilities: Array.isArray(data.facilities) ? data.facilities : [],
-    footerHeading: data.footer_heading || defaults.footerHeading,
-    footerInfo: data.footer_info ?? defaults.footerInfo,
-    disclaimer: data.disclaimer ?? defaults.disclaimer,
-    vitals: {
-      bp: String(rawVitals.bp ?? ''),
-      spo2: String(rawVitals.spo2 ?? ''),
-      pulse: String(rawVitals.pulse ?? ''),
-      temp: String(rawVitals.temp ?? ''),
-      weight: String(rawVitals.weight ?? ''),
-    },
-  };
-}
+    // Preserve whatever keys the admin defined — including custom
+    // labels and removed rows. Do NOT normalize to the fixed five.
+    const rawVitals = (data.vitals ?? {}) as Record<string, unknown>;
+    const vitals: OpdVitals = {};
+    for (const [k, v] of Object.entries(rawVitals)) {
+      vitals[k] = String(v ?? "");
+    }
 
-async saveHospitalOpdSettings(
-  tenantSlug: string,
-  settings: OpdDefaults,
-): Promise<boolean> {
-  const client = this.getClient();
-  if (!client) return false;
-
-  const { error } = await client.rpc('upsert_hospital_opd_settings', {
-    tenant_slug_in: tenantSlug,
-    facilities_in: settings.facilities,
-    footer_heading_in: settings.footerHeading,
-    footer_info_in: settings.footerInfo,
-    disclaimer_in: settings.disclaimer,
-    vitals_in: settings.vitals,
-  });
-  if (error) {
-    console.error('upsert_hospital_opd_settings error:', error);
-    return false;
+    return {
+      facilities: Array.isArray(data.facilities) ? data.facilities : [],
+      footerHeading: data.footer_heading || defaults.footerHeading,
+      footerInfo: data.footer_info ?? defaults.footerInfo,
+      disclaimer: data.disclaimer ?? defaults.disclaimer,
+      vitals,
+    };
   }
-  return true;
-}
+
+  async saveHospitalOpdSettings(
+    tenantSlug: string,
+    settings: OpdDefaults,
+  ): Promise<boolean> {
+    const client = this.getClient();
+    if (!client) return false;
+
+    const { error } = await client.rpc("upsert_hospital_opd_settings", {
+      tenant_slug_in: tenantSlug,
+      facilities_in: settings.facilities,
+      footer_heading_in: settings.footerHeading,
+      footer_info_in: settings.footerInfo,
+      disclaimer_in: settings.disclaimer,
+      vitals_in: settings.vitals,
+    });
+    if (error) {
+      console.error("upsert_hospital_opd_settings error:", error);
+      return false;
+    }
+    return true;
+  }
 
   // ─────────────────────────────── MAPPERS ───────────────────────────────
 
@@ -3717,13 +3801,12 @@ async saveHospitalOpdSettings(
       desc: item.description ?? "",
       costPrice: positiveNum(item.cost_price),
       price: item.price,
+      packSize: item.pack_size || undefined,
       discount: nonNegativeNum(item.discount) ?? 0,
       img: item.image_url,
       gallery:
         Array.isArray(item.gallery) && item.gallery.length > 0
-          ? (item.gallery as string[]).filter(
-              (s) => typeof s === "string",
-            )
+          ? (item.gallery as string[]).filter((s) => typeof s === "string")
           : undefined,
       category: item.category || undefined,
       isVeg: item.is_veg ?? false,
@@ -3733,6 +3816,8 @@ async saveHospitalOpdSettings(
       calories: positiveNum(item.calories),
       rating: positiveNum(item.rating),
       reviewCount: positiveNum(item.review_count),
+      manageStock: item.manage_stock === true,
+      stockQty: Number(item.stock_qty) || 0,
       ingredients:
         safeArray<string>(item.ingredients)?.filter(
           (s) => typeof s === "string" && s.trim() !== "",
@@ -3768,33 +3853,31 @@ async saveHospitalOpdSettings(
 
   // Add inside SupabaseService
 
-/**
- * Delete rows older than the retention window from the pharmacy,
- * store, and dine-in history tables. Returns counts or null on error.
- * Safe to call on every history mount - the SQL is idempotent.
- */
-async pruneOldHistoryOnServer(months: number): Promise<{
-  pharmacy: number;
-  store: number;
-  dinein: number;
-} | null> {
-  const client = this.getClient();
-  if (!client) return null;
-  const { data, error } = await client.rpc('prune_old_history', {
-    months_in: Math.max(1, Math.floor(months)),
-  });
-  if (error) {
-    console.warn('[history-retention] prune RPC failed:', error.message);
-    return null;
+  /**
+   * Delete rows older than the retention window from the pharmacy,
+   * store, and dine-in history tables. Returns counts or null on error.
+   * Safe to call on every history mount - the SQL is idempotent.
+   */
+  async pruneOldHistoryOnServer(months: number): Promise<{
+    pharmacy: number;
+    store: number;
+    dinein: number;
+  } | null> {
+    const client = this.getClient();
+    if (!client) return null;
+    const { data, error } = await client.rpc("prune_old_history", {
+      months_in: Math.max(1, Math.floor(months)),
+    });
+    if (error) {
+      console.warn("[history-retention] prune RPC failed:", error.message);
+      return null;
+    }
+    return {
+      pharmacy: Number((data as any)?.pharmacy) || 0,
+      store: Number((data as any)?.store) || 0,
+      dinein: Number((data as any)?.dinein) || 0,
+    };
   }
-  return {
-    pharmacy: Number((data as any)?.pharmacy) || 0,
-    store: Number((data as any)?.store) || 0,
-    dinein: Number((data as any)?.dinein) || 0,
-  };
-}
-
-
 
   private mapDineinTable(row: any): DineinTable {
     return {
@@ -3844,12 +3927,10 @@ async pruneOldHistoryOnServer(months: number): Promise<{
       servedAt: row.served_at ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      settledOfflineAfterFailure:
-        row.settled_offline_after_failure === true,
+      settledOfflineAfterFailure: row.settled_offline_after_failure === true,
       staffTip: Number(row.staff_tip) || 0,
       customerPaidClaimed: row.customer_paid_claimed === true,
-      customerPaidClaimedAt:
-        row.customer_paid_claimed_at ?? undefined,
+      customerPaidClaimedAt: row.customer_paid_claimed_at ?? undefined,
     };
   }
 }

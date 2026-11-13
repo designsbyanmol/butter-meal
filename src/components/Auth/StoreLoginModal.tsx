@@ -1,6 +1,6 @@
 // src/components/Auth/StoreLoginModal.tsx
 import React, { useEffect, useState } from 'react';
-import { Modal, Input, Banner, EmptyState, Avatar } from '../ui';
+import { Modal, Input, Banner, EmptyState } from '../ui';
 import { SearchIcon, RightArrow } from '../../assets/svgs';
 import { supabaseService } from '../../services/supabase.service';
 import { Tenant } from '../../contexts/TenantContext';
@@ -130,12 +130,6 @@ const StoreLoginModal: React.FC<StoreLoginModalProps> = ({
                   className={local.storeItem}
                   onClick={() => handleSelectStore(t.slug)}
                 >
-                  <Avatar
-                    name={t.displayName}
-                    src={t.avatarUrl || undefined}
-                    role="admin"
-                    size="md"
-                  />
                   <strong className={local.storeName}>{t.displayName}</strong>
                   <span className={local.redirectIcon}>
                     <RightArrow width={18} height={18} fill="#b3b3b3" />
