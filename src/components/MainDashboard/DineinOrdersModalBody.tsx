@@ -1,5 +1,5 @@
 // components/MainDashboard/DineinOrdersModalBody.tsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   EmptyState,
   Badge,
@@ -9,80 +9,99 @@ import {
   Tabs,
   Accordion,
   IconButton,
-} from '../ui';
-import { supabaseService } from '../../services/supabase.service';
-import { useTenant } from '../../contexts/TenantContext';
-import { DineinOrder, DineinOrderItem } from '../../types';
-import { formatRupees } from '../../utils/subscription';
-import OrderDetail from './OrderDetail/OrderDetail';
-import OrderHistoryModal from './OrderHistoryModal';
-import { CheckIcon, ClockIcon, InfoIcon } from '../../assets/svgs';
-import { InlineSection } from '../Dashboard/inline';
-import local from './DineinOrdersModal.module.scss';
-import MarkPaidModal from './MarkPaidModal';
-import { printReceiptNode } from '../../utils/printReceipt';
-import Receipt from './OrderDetail/Receipt';
+} from "../ui";
+import { supabaseService } from "../../services/supabase.service";
+import { useTenant } from "../../contexts/TenantContext";
+import { DineinOrder, DineinOrderItem } from "../../types";
+import { formatRupees } from "../../utils/subscription";
+import OrderDetail from "./OrderDetail/OrderDetail";
+import OrderHistoryModal from "./OrderHistoryModal";
+import { CheckIcon, ClockIcon, InfoIcon } from "../../assets/svgs";
+import { InlineSection } from "../Dashboard/inline";
+import local from "./DineinOrdersModal.module.scss";
+import MarkPaidModal from "./MarkPaidModal";
+import { printReceiptNode } from "../../utils/printReceipt";
+import Receipt from "./OrderDetail/Receipt";
+import { useRefreshCooldown } from "../../hooks/useRefreshCooldown";
 
-type TabKey = 'new' | 'preparing' | 'served' | 'rejected';
+type TabKey = "new" | "preparing" | "served" | "rejected";
 
-const ACTIVE_STATUSES: DineinOrder['status'][] = [
-  'placed',
-  'accepted',
-  'preparing',
-  'served',
-  'bill_requested',
-  'paid',
-  'cancelled',
+const ACTIVE_STATUSES: DineinOrder["status"][] = [
+  "placed",
+  "accepted",
+  "preparing",
+  "served",
+  "bill_requested",
+  "paid",
+  "cancelled",
 ];
 
-const TAB_STATUSES: Record<TabKey, DineinOrder['status'][]> = {
-  new: ['placed'],
-  preparing: ['accepted', 'preparing'],
-  served: ['served', 'bill_requested', 'paid'],
-  rejected: ['cancelled'],
+const TAB_STATUSES: Record<TabKey, DineinOrder["status"][]> = {
+  new: ["placed"],
+  preparing: ["accepted", "preparing"],
+  served: ["served", "bill_requested", "paid"],
+  rejected: ["cancelled"],
 };
 
-const TAB_ORDER: TabKey[] = ['new', 'preparing', 'served', 'rejected'];
+const TAB_ORDER: TabKey[] = ["new", "preparing", "served", "rejected"];
 
-const statusLabel = (status: DineinOrder['status']): string => {
+const statusLabel = (status: DineinOrder["status"]): string => {
   switch (status) {
-    case 'placed': return 'New';
-    case 'accepted': return 'Accepted';
-    case 'preparing': return 'Preparing';
-    case 'served': return 'Served';
-    case 'bill_requested': return 'Bill requested';
-    case 'cancelled': return 'Rejected';
-    case 'paid': return 'Paid';
-    default: return status;
+    case "placed":
+      return "New";
+    case "accepted":
+      return "Accepted";
+    case "preparing":
+      return "Preparing";
+    case "served":
+      return "Served";
+    case "bill_requested":
+      return "Bill requested";
+    case "cancelled":
+      return "Rejected";
+    case "paid":
+      return "Paid";
+    default:
+      return status;
   }
 };
 
 const statusTone = (
-  status: DineinOrder['status'],
-): 'info' | 'warning' | 'success' | 'neutral' | 'danger' => {
+  status: DineinOrder["status"],
+): "info" | "warning" | "success" | "neutral" | "danger" => {
   switch (status) {
-    case 'placed': return 'danger';
-    case 'accepted': return 'info';
-    case 'preparing': return 'warning';
-    case 'served': return 'success';
-    case 'bill_requested': return 'neutral';
-    case 'cancelled': return 'danger';
-    default: return 'neutral';
+    case "placed":
+      return "danger";
+    case "accepted":
+      return "info";
+    case "preparing":
+      return "warning";
+    case "served":
+      return "success";
+    case "bill_requested":
+      return "neutral";
+    case "cancelled":
+      return "danger";
+    default:
+      return "neutral";
   }
 };
 
 const stageAction = (
-  status: DineinOrder['status'],
-): { label: string; target: 'accepted' | 'preparing' } | null => {
+  status: DineinOrder["status"],
+): { label: string; target: "accepted" | "preparing" } | null => {
   switch (status) {
-    case 'placed': return { label: 'Accept', target: 'accepted' };
-    case 'accepted': return { label: 'Preparing', target: 'preparing' };
-    default: return null;
+    case "placed":
+      return { label: "Accept", target: "accepted" };
+    case "accepted":
+      return { label: "Preparing", target: "preparing" };
+    default:
+      return null;
   }
 };
 
 const formatElapsed = (fromIso?: string): string => {
-  if (!fromIso) return '';
+  if (!fromIso) return "";
   const sec = Math.max(
     0,
     Math.floor((Date.now() - new Date(fromIso).getTime()) / 1000),
@@ -90,7 +109,7 @@ const formatElapsed = (fromIso?: string): string => {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, "0");
   if (h > 0) return `${h}h ${pad(m)}m ${pad(s)}s`;
   if (m > 0) return `${m}m ${pad(s)}s`;
   return `${s}s`;
@@ -98,15 +117,20 @@ const formatElapsed = (fromIso?: string): string => {
 
 const stageTimerBase = (o: DineinOrder): string | undefined => {
   switch (o.status) {
-    case 'placed': return o.createdAt;
-    case 'accepted': return o.acceptedAt;
-    case 'preparing': return o.preparingAt;
-    case 'served': return o.servedAt;
-    default: return undefined;
+    case "placed":
+      return o.createdAt;
+    case "accepted":
+      return o.acceptedAt;
+    case "preparing":
+      return o.preparingAt;
+    case "served":
+      return o.servedAt;
+    default:
+      return undefined;
   }
 };
 
-const tabForStatus = (status: DineinOrder['status']): TabKey | null => {
+const tabForStatus = (status: DineinOrder["status"]): TabKey | null => {
   for (const key of TAB_ORDER) {
     if (TAB_STATUSES[key].includes(status)) return key;
   }
@@ -120,48 +144,40 @@ const servedCount = (order: DineinOrder): number =>
   order.items.reduce((n, it) => (it.served ? n + 1 : n), 0);
 
 const tableHeading = (o: DineinOrder): string =>
-  o.tableLabelKind === 'number' ? `Table ${o.tableLabel}` : o.tableLabel;
+  o.tableLabelKind === "number" ? `Table ${o.tableLabel}` : o.tableLabel;
 
 const isOrderUnseen = (o: DineinOrder): boolean =>
-  o.status === 'bill_requested';
+  o.status === "bill_requested";
 
-type CardTone = 'failed' | 'info' | 'served';
+type CardTone = "failed" | "info" | "served";
 
 const cardTone = (o: DineinOrder): CardTone => {
-  if (o.status === 'paid') return 'served';
-  if (o.settledOfflineAfterFailure === true) return 'failed';
-  if (o.status === 'bill_requested') return 'info';
-  return 'served';
+  if (o.status === "paid") return "served";
+  if (o.settledOfflineAfterFailure === true) return "failed";
+  if (o.status === "bill_requested") return "info";
+  return "served";
 };
 
 const checkboxModeForAdmin = (
-  status: DineinOrder['status'],
-): 'disabled' | 'interactive' | 'readonly' | 'hidden' => {
-  if (status === 'placed' || status === 'accepted') return 'disabled';
-  if (status === 'preparing') return 'interactive';
-  if (
-    status === 'served' ||
-    status === 'bill_requested' ||
-    status === 'paid'
-  ) {
-    return 'readonly';
+  status: DineinOrder["status"],
+): "disabled" | "interactive" | "readonly" | "hidden" => {
+  if (status === "placed" || status === "accepted") return "disabled";
+  if (status === "preparing") return "interactive";
+  if (status === "served" || status === "bill_requested" || status === "paid") {
+    return "readonly";
   }
-  return 'hidden';
+  return "hidden";
 };
 
 const checkboxModeForStaff = (
-  status: DineinOrder['status'],
-): 'disabled' | 'interactive' | 'readonly' | 'hidden' => {
-  if (status === 'preparing') return 'interactive';
-  if (status === 'accepted') return 'disabled';
-  if (
-    status === 'served' ||
-    status === 'bill_requested' ||
-    status === 'paid'
-  ) {
-    return 'readonly';
+  status: DineinOrder["status"],
+): "disabled" | "interactive" | "readonly" | "hidden" => {
+  if (status === "preparing") return "interactive";
+  if (status === "accepted") return "disabled";
+  if (status === "served" || status === "bill_requested" || status === "paid") {
+    return "readonly";
   }
-  return 'hidden';
+  return "hidden";
 };
 
 interface CardHeaderProps {
@@ -170,11 +186,7 @@ interface CardHeaderProps {
   totalN: number;
 }
 
-const CardHeader: React.FC<CardHeaderProps> = ({
-  order,
-  servedN,
-  totalN,
-}) => {
+const CardHeader: React.FC<CardHeaderProps> = ({ order, servedN, totalN }) => {
   const timer = stageTimerBase(order);
   return (
     <span className={local.accordionHeader}>
@@ -199,33 +211,33 @@ const CardHeader: React.FC<CardHeaderProps> = ({
 
 interface DineinOrdersModalBodyProps {
   focusOrderId?: string | null;
-  mode?: 'admin' | 'staff';
+  mode?: "admin" | "staff";
   onClose?: () => void;
 }
 
 const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   focusOrderId = null,
-  mode = 'admin',
+  mode = "admin",
   onClose: _onClose,
 }) => {
   const { tenant } = useTenant();
-  const isStaff = mode === 'staff';
+  const isStaff = mode === "staff";
 
   const [orders, setOrders] = useState<DineinOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [selected, setSelected] = useState<DineinOrder | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [confirmReject, setConfirmReject] = useState<DineinOrder | null>(null);
   const [confirmServed, setConfirmServed] = useState<DineinOrder | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>(
-    isStaff ? 'preparing' : 'new',
+    isStaff ? "preparing" : "new",
   );
   const [, setTick] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [markPaidFor, setMarkPaidFor] = useState<DineinOrder | null>(null);
   const [markPaidBusy, setMarkPaidBusy] = useState(false);
-  const [markPaidError, setMarkPaidError] = useState('');
+  const [markPaidError, setMarkPaidError] = useState("");
   const [printOrder, setPrintOrder] = useState<DineinOrder | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -239,9 +251,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   // API calls for every admin action.
   // ---------------------------------------------------------
   const applyOrderUpdate = (updated: DineinOrder) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === updated.id ? updated : o)),
-    );
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
   };
 
   const removeOrder = (orderId: string) => {
@@ -255,7 +265,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   const load = async () => {
     if (!tenant) return;
     setIsLoading(true);
-    setError('');
+    setError("");
     try {
       const list = await supabaseService.getDineinOrders(
         tenant.slug,
@@ -263,14 +273,14 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       );
       setOrders(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isStaff) setActiveTab('preparing');
+    if (isStaff) setActiveTab("preparing");
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, isStaff]);
@@ -280,13 +290,13 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     let cancelled = false;
     let timer: number | null = null;
 
-    const REFRESH_MS = 30_000;
+    const REFRESH_MS = 120_000;
 
     const schedule = () => {
       if (cancelled) return;
       timer = window.setTimeout(async () => {
         if (cancelled) return;
-        if (!(typeof document !== 'undefined' && document.hidden)) {
+        if (!(typeof document !== "undefined" && document.hidden)) {
           await load();
         }
         schedule();
@@ -302,13 +312,13 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       if (timer !== null) window.clearTimeout(timer);
       load().finally(schedule);
     };
-    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
       if (timer !== null) window.clearTimeout(timer);
       window.clearInterval(ticker);
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug]);
@@ -330,7 +340,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       );
       if (!el) return;
       scrolledForRef.current = focusOrderId;
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add(local.focused);
       window.setTimeout(() => el.classList.remove(local.focused), 2200);
     }, 350);
@@ -352,14 +362,14 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       if (tab) bucket[tab].push(o);
     });
 
-    const rank = (status: DineinOrder['status']): number => {
-      if (status === 'placed') return 0;
-      if (status === 'bill_requested') return 1;
-      if (status === 'accepted') return 2;
-      if (status === 'preparing') return 3;
-      if (status === 'served') return 4;
-      if (status === 'paid') return 5;
-      if (status === 'cancelled') return 6;
+    const rank = (status: DineinOrder["status"]): number => {
+      if (status === "placed") return 0;
+      if (status === "bill_requested") return 1;
+      if (status === "accepted") return 2;
+      if (status === "preparing") return 3;
+      if (status === "served") return 4;
+      if (status === "paid") return 5;
+      if (status === "cancelled") return 6;
       return 7;
     };
     Object.keys(bucket).forEach((k) => {
@@ -381,7 +391,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   useEffect(() => {
     if (!printOrder) return;
     const ok = printReceiptNode(printRef.current);
-    if (!ok) setError('Allow pop-ups to print the bill.');
+    if (!ok) setError("Allow pop-ups to print the bill.");
     setPrintOrder(null);
   }, [printOrder]);
 
@@ -395,19 +405,19 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
   const handleAdvance = async (
     order: DineinOrder,
-    target: 'accepted' | 'preparing',
+    target: "accepted" | "preparing",
   ) => {
     setActingId(order.id);
-    setError('');
+    setError("");
     try {
       const updated = await supabaseService.setDineinOrderStatus(
         order.id,
         target,
       );
-      if (!updated) throw new Error('Failed to update status');
+      if (!updated) throw new Error("Failed to update status");
       applyOrderUpdate(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update');
+      setError(err instanceof Error ? err.message : "Failed to update");
     } finally {
       setActingId(null);
     }
@@ -416,18 +426,18 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   const handleSendPayLink = async (order: DineinOrder) => {
     if (!tenant?.upiId) {
       setError(
-        'Set your UPI ID in Business Information before sending a pay link.',
+        "Set your UPI ID in Business Information before sending a pay link.",
       );
       return;
     }
     setActingId(order.id);
-    setError('');
+    setError("");
     try {
       const updated = await supabaseService.setDineinPayOnline(order.id, true);
-      if (!updated) throw new Error('Failed to send pay link');
+      if (!updated) throw new Error("Failed to send pay link");
       applyOrderUpdate(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send pay link');
+      setError(err instanceof Error ? err.message : "Failed to send pay link");
     } finally {
       setActingId(null);
     }
@@ -435,17 +445,17 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
 
   const handleConfirmPaymentReceived = async (order: DineinOrder) => {
     setActingId(order.id);
-    setError('');
+    setError("");
     try {
       const updated = await supabaseService.confirmDineinPayment(
         order.id,
-        'online',
+        "online",
       );
-      if (!updated) throw new Error('Failed to confirm payment');
+      if (!updated) throw new Error("Failed to confirm payment");
       applyOrderUpdate(updated);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to confirm payment',
+        err instanceof Error ? err.message : "Failed to confirm payment",
       );
     } finally {
       setActingId(null);
@@ -474,7 +484,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       next,
     );
     if (!updated) {
-      setError('Failed to update item state');
+      setError("Failed to update item state");
       applyOrderUpdate(order);
       return;
     }
@@ -491,31 +501,28 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     const target = confirmServed;
     setConfirmServed(null);
     setActingId(target.id);
-    setError('');
+    setError("");
     try {
       const updated = await supabaseService.setDineinOrderStatus(
         target.id,
-        'served',
+        "served",
       );
-      if (!updated) throw new Error('Failed to mark served');
+      if (!updated) throw new Error("Failed to mark served");
       applyOrderUpdate(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark served');
+      setError(err instanceof Error ? err.message : "Failed to mark served");
     } finally {
       setActingId(null);
     }
   };
 
-  const handleMarkPaidConfirm = async (m: 'online' | 'cash') => {
+  const handleMarkPaidConfirm = async (m: "online" | "cash") => {
     if (!markPaidFor) return;
     setMarkPaidBusy(true);
-    setMarkPaidError('');
+    setMarkPaidError("");
     try {
-      const ok = await supabaseService.markDineinOrderPaid(
-        markPaidFor.id,
-        m,
-      );
-      if (!ok) throw new Error('Failed to mark paid');
+      const ok = await supabaseService.markDineinOrderPaid(markPaidFor.id, m);
+      if (!ok) throw new Error("Failed to mark paid");
 
       // `markDineinOrderPaid` returns a boolean, not the updated row,
       // so patch the local row with the fields we know changed.
@@ -524,7 +531,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
           o.id === markPaidFor.id
             ? {
                 ...o,
-                status: 'paid',
+                status: "paid",
                 paidAt: new Date().toISOString(),
                 paymentRef: m,
               }
@@ -534,7 +541,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
       setMarkPaidFor(null);
     } catch (err) {
       setMarkPaidError(
-        err instanceof Error ? err.message : 'Failed to mark paid',
+        err instanceof Error ? err.message : "Failed to mark paid",
       );
     } finally {
       setMarkPaidBusy(false);
@@ -546,20 +553,25 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
     const target = confirmReject;
     setConfirmReject(null);
     setActingId(target.id);
-    setError('');
+    setError("");
     try {
       const updated = await supabaseService.cancelDineinOrder(
         target.id,
-        'Rejected by store',
+        "Rejected by store",
       );
-      if (!updated) throw new Error('Failed to cancel');
+      if (!updated) throw new Error("Failed to cancel");
       applyOrderUpdate(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel');
+      setError(err instanceof Error ? err.message : "Failed to cancel");
     } finally {
       setActingId(null);
     }
   };
+
+  const { cooldownActive: cooling, trigger: triggerRefresh } =
+    useRefreshCooldown(tenant?.slug ? `${tenant.slug}:dinein-orders` : null);
+
+  const handleManualRefresh = () => triggerRefresh(load);
 
   // Tabs config
   const tabs = useMemo(
@@ -568,17 +580,17 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
         key,
         label: (
           <span className={local.tabLabel}>
-            {key === 'new'
-              ? 'New Orders'
-              : key === 'preparing'
-                ? 'Preparing'
-                : key === 'served'
-                  ? 'Served'
-                  : 'Rejected'}
+            {key === "new"
+              ? "New Orders"
+              : key === "preparing"
+                ? "Preparing"
+                : key === "served"
+                  ? "Served"
+                  : "Rejected"}
             {byTab[key].length > 0 && (
               <span
                 className={`${local.tabCount} ${
-                  key === activeTab ? local.tabCountActive : ''
+                  key === activeTab ? local.tabCountActive : ""
                 }`}
               >
                 {byTab[key].length}
@@ -591,35 +603,45 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
   );
 
   const emptyTitle = isStaff
-    ? 'No orders in preparation.'
-    : activeTab === 'new'
-      ? 'No new orders right now.'
-      : activeTab === 'preparing'
-        ? 'No orders in preparation.'
-        : activeTab === 'served'
-          ? 'No served orders waiting on payment.'
-          : 'No rejected orders.';
+    ? "No orders in preparation."
+    : activeTab === "new"
+      ? "No new orders right now."
+      : activeTab === "preparing"
+        ? "No orders in preparation."
+        : activeTab === "served"
+          ? "No served orders waiting on payment."
+          : "No rejected orders.";
 
   return (
     <>
       <InlineSection
-        title='Orders'
+        title="Orders"
         actions={
           !isStaff ? (
-            <IconButton
-              variant="soft"
-              size="sm"
-              aria-label="Order history"
-              tooltip="Order history"
-              onClick={() => setHistoryOpen(true)}
-            >
-              <ClockIcon width={18} height={18} fill="#1e1e1e" />
-            </IconButton>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualRefresh}
+                disabled={cooling}
+              >
+                {cooling ? "Wait 1 min…" : "Refresh"}
+              </Button>
+              <IconButton
+                variant="soft"
+                size="sm"
+                aria-label="Order history"
+                tooltip="Order history"
+                onClick={() => setHistoryOpen(true)}
+              >
+                <ClockIcon width={18} height={18} fill="#1e1e1e" />
+              </IconButton>
+            </>
           ) : undefined
         }
       >
         {error && (
-          <Banner variant="error" onDismiss={() => setError('')}>
+          <Banner variant="error" onDismiss={() => setError("")}>
             {error}
           </Banner>
         )}
@@ -644,13 +666,13 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
             {visibleOrders.map((o) => {
               const stage = stageAction(o.status);
               const isActing = actingId === o.id;
-              const showReject = !isStaff && o.status === 'placed';
+              const showReject = !isStaff && o.status === "placed";
               const mode0 = isStaff
                 ? checkboxModeForStaff(o.status)
                 : checkboxModeForAdmin(o.status);
               const servedN = servedCount(o);
               const totalN = o.items.length;
-              const canServe = mode0 === 'interactive' && allItemsServed(o);
+              const canServe = mode0 === "interactive" && allItemsServed(o);
               const tone = cardTone(o);
               const unseen = isOrderUnseen(o);
 
@@ -660,26 +682,22 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                   data-order-id={o.id}
                   className={[
                     local.cardWrap,
-                    tone === 'failed' ? local.cardPaymentFailed : '',
-                    tone === 'info' ? local.cardBillRequested : '',
-                    tone === 'served' ? local.cardServed : '',
-                    unseen ? local.cardUnseen : '',
+                    tone === "failed" ? local.cardPaymentFailed : "",
+                    tone === "info" ? local.cardBillRequested : "",
+                    tone === "served" ? local.cardServed : "",
+                    unseen ? local.cardUnseen : "",
                   ]
                     .filter(Boolean)
-                    .join(' ')}
+                    .join(" ")}
                 >
                   <Accordion
                     hideChevron
                     title={
-                      <CardHeader
-                        order={o}
-                        servedN={servedN}
-                        totalN={totalN}
-                      />
+                      <CardHeader order={o} servedN={servedN} totalN={totalN} />
                     }
                   >
                     <div className={local.items}>
-                      {mode0 !== 'hidden' && (
+                      {mode0 !== "hidden" && (
                         <div className={local.itemsHeader}>
                           <span className={local.itemsHeaderLabel}>Items</span>
                           <span className={local.itemsHeaderCount}>
@@ -693,8 +711,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           it.customizations &&
                           Object.keys(it.customizations).length > 0;
                         const hasNote =
-                          !!it.customMessage &&
-                          it.customMessage.trim() !== '';
+                          !!it.customMessage && it.customMessage.trim() !== "";
 
                         const rowContent = (
                           <span className={local.itemRowContent}>
@@ -706,7 +723,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                               <span className={local.itemCustom}>
                                 {Object.entries(it.customizations!)
                                   .map(([k, v]) => `${k}: ${v}`)
-                                  .join(' . ')}
+                                  .join(" . ")}
                               </span>
                             )}
 
@@ -718,7 +735,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           </span>
                         );
 
-                        if (mode0 === 'interactive') {
+                        if (mode0 === "interactive") {
                           return (
                             <div key={i} className={local.itemRow}>
                               <label className={local.itemRowLabel}>
@@ -744,7 +761,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           );
                         }
 
-                        if (mode0 === 'disabled') {
+                        if (mode0 === "disabled") {
                           return (
                             <div key={i} className={local.itemRow}>
                               <label className={local.itemRowLabel}>
@@ -765,7 +782,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           );
                         }
 
-                        if (mode0 === 'readonly') {
+                        if (mode0 === "readonly") {
                           return (
                             <div key={i} className={local.itemRow}>
                               <div className={local.itemRowLabel}>
@@ -792,20 +809,19 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                         return null;
                       })}
 
-                      {isStaff && o.status === 'preparing' && (
+                      {isStaff && o.status === "preparing" && (
                         <Banner variant="success" inline>
-                          Now start preparing - tick items as they're
-                          served.
+                          Now start preparing - tick items as they're served.
                         </Banner>
                       )}
 
-                      {mode0 === 'disabled' && (
+                      {mode0 === "disabled" && (
                         <div className={local.checkboxHint}>
-                          {o.status === 'placed'
-                            ? 'Accept the order to start marking items served.'
-                            : o.status === 'accepted'
+                          {o.status === "placed"
+                            ? "Accept the order to start marking items served."
+                            : o.status === "accepted"
                               ? isStaff
-                                ? 'Waiting for the kitchen to start preparing...'
+                                ? "Waiting for the kitchen to start preparing..."
                                 : 'Tap "Preparing" to start marking items served.'
                               : null}
                         </div>
@@ -827,24 +843,29 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                       </div>
                     )}
 
-                    {!isStaff && o.status === 'paid' && (
+                    {!isStaff && o.status === "paid" && (
                       <div className={local.billLine}>
-                        Paid via{' '}
+                        Paid via{" "}
                         {(() => {
-                          const ref = (o.paymentRef ?? '').toLowerCase();
-                          if (ref === 'online' || ref.startsWith('upi'))
-                            return 'Online (UPI)';
-                          if (ref === 'cash') return 'Cash';
-                          return o.paymentRef || '-';
+                          const ref = (o.paymentRef ?? "").toLowerCase();
+                          if (ref === "online" || ref.startsWith("upi"))
+                            return "Online (UPI)";
+                          if (ref === "cash") return "Cash";
+                          return o.paymentRef || "-";
                         })()}
                       </div>
                     )}
 
-                    {!isStaff && o.status === 'bill_requested' && (
+                    {!isStaff && o.status === "bill_requested" && (
                       <>
                         {o.settledOfflineAfterFailure && (
                           <div className={local.failureNotice}>
-                            <InfoIcon width={22} height={22} fill="currentColor" /> Online payment failed - please settle offline
+                            <InfoIcon
+                              width={22}
+                              height={22}
+                              fill="currentColor"
+                            />{" "}
+                            Online payment failed - please settle offline
                           </div>
                         )}
                         <div className={local.billLine}>
@@ -853,17 +874,17 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                                 o.totalAmount,
                               )} - please confirm`
                             : o.payOnline
-                              ? 'Online payment approved . waiting for customer'
+                              ? "Online payment approved . waiting for customer"
                               : o.payOnlineRequested
-                                ? 'Customer chose online . tap Send Pay Link'
+                                ? "Customer chose online . tap Send Pay Link"
                                 : o.settledOfflineAfterFailure
-                                  ? 'Customer will pay offline - collect at the table'
-                                  : 'Offline bill . customer will pay at the table'}
+                                  ? "Customer will pay offline - collect at the table"
+                                  : "Offline bill . customer will pay at the table"}
                         </div>
                       </>
                     )}
 
-                    {!isStaff && o.status === 'served' && !o.billRequested && (
+                    {!isStaff && o.status === "served" && !o.billRequested && (
                       <div className={local.servedActions}>
                         <Button
                           size="sm"
@@ -878,7 +899,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                           variant="success"
                           disabled={isActing}
                           onClick={() => {
-                            setMarkPaidError('');
+                            setMarkPaidError("");
                             setMarkPaidFor(o);
                           }}
                         >
@@ -890,8 +911,8 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                     {!isStaff &&
                       (stage ||
                         showReject ||
-                        mode0 === 'interactive' ||
-                        o.status === 'bill_requested') && (
+                        mode0 === "interactive" ||
+                        o.status === "bill_requested") && (
                         <div className={local.cardActions}>
                           {stage && (
                             <Button
@@ -904,7 +925,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                             </Button>
                           )}
 
-                          {mode0 === 'interactive' && (
+                          {mode0 === "interactive" && (
                             <Button
                               size="sm"
                               variant="success"
@@ -912,7 +933,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                               title={
                                 canServe
                                   ? undefined
-                                  : 'Mark every item as served first'
+                                  : "Mark every item as served first"
                               }
                               onClick={() => requestMarkServed(o)}
                             >
@@ -920,7 +941,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                             </Button>
                           )}
 
-                          {o.status === 'bill_requested' && (
+                          {o.status === "bill_requested" && (
                             <>
                               {o.payOnlineRequested === true &&
                                 !o.payOnline && (
@@ -931,7 +952,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                                     disabled={!tenant?.upiId}
                                     title={
                                       !tenant?.upiId
-                                        ? 'Set your UPI ID in Business Information first'
+                                        ? "Set your UPI ID in Business Information first"
                                         : undefined
                                     }
                                     onClick={() => handleSendPayLink(o)}
@@ -966,7 +987,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                                     variant="ghost"
                                     disabled={isActing}
                                     onClick={() => {
-                                      setMarkPaidError('');
+                                      setMarkPaidError("");
                                       setMarkPaidFor(o);
                                     }}
                                     title="Mark as paid when the customer pays cash"
@@ -981,7 +1002,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                                   variant="ghost"
                                   disabled={isActing}
                                   onClick={() => {
-                                    setMarkPaidError('');
+                                    setMarkPaidError("");
                                     setMarkPaidFor(o);
                                   }}
                                 >
@@ -1006,22 +1027,20 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
                             size="sm"
                             variant="ghost"
                             onClick={() => setSelected(o)}
-                            style={{ marginLeft: 'auto' }}
+                            style={{ marginLeft: "auto" }}
                           >
                             Open details
                           </Button>
                         </div>
                       )}
 
-                    {!isStaff &&
-                      mode0 === 'interactive' &&
-                      !canServe && (
-                        <div className={local.serveGate}>
-                          {totalN - servedN} item
-                          {totalN - servedN === 1 ? '' : 's'} pending before
-                          served
-                        </div>
-                      )}
+                    {!isStaff && mode0 === "interactive" && !canServe && (
+                      <div className={local.serveGate}>
+                        {totalN - servedN} item
+                        {totalN - servedN === 1 ? "" : "s"} pending before
+                        served
+                      </div>
+                    )}
                   </Accordion>
                 </div>
               );
@@ -1053,11 +1072,11 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
             message={
               confirmReject
                 ? `Reject the order #${confirmReject.orderNo} from ${
-                    confirmReject.tableLabelKind === 'number'
+                    confirmReject.tableLabelKind === "number"
                       ? `Table ${confirmReject.tableLabel}`
                       : confirmReject.tableLabel
                   }? The customer will be notified.`
-                : ''
+                : ""
             }
             confirmText="Yes, Reject"
             variant="danger"
@@ -1071,18 +1090,18 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
             message={
               confirmServed ? (
                 <>
-                  Are all items in order{' '}
-                  <strong>#{confirmServed.orderNo}</strong> at{' '}
+                  Are all items in order{" "}
+                  <strong>#{confirmServed.orderNo}</strong> at{" "}
                   <strong>
-                    {confirmServed.tableLabelKind === 'number'
+                    {confirmServed.tableLabelKind === "number"
                       ? `Table ${confirmServed.tableLabel}`
                       : confirmServed.tableLabel}
-                  </strong>{' '}
+                  </strong>{" "}
                   served to the table? This will move the order to the Served
                   tab and free the table for new orders.
                 </>
               ) : (
-                ''
+                ""
               )
             }
             confirmText="Yes, all served"
@@ -1101,7 +1120,7 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
             onCancel={() => {
               if (markPaidBusy) return;
               setMarkPaidFor(null);
-              setMarkPaidError('');
+              setMarkPaidError("");
             }}
           />
 
@@ -1114,12 +1133,12 @@ const DineinOrdersModalBody: React.FC<DineinOrdersModalBodyProps> = ({
             ref={printRef}
             aria-hidden
             style={{
-              position: 'absolute',
-              left: '-9999px',
+              position: "absolute",
+              left: "-9999px",
               top: 0,
-              width: '80mm',
-              visibility: 'hidden',
-              pointerEvents: 'none',
+              width: "80mm",
+              visibility: "hidden",
+              pointerEvents: "none",
             }}
           >
             {printOrder && <Receipt order={printOrder} />}

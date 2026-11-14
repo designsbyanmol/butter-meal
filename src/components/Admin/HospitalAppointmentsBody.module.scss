@@ -1,0 +1,89 @@
+// src/components/Admin/HospitalAppointmentBody.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+// ── Category Filter ──────────────────────────────────────
+.categoryFilter {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+scrollbar-width: none;
+}
+
+// ── List ─────────────────────────────────────────────────
+.list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+// ── Appointment Card ─────────────────────────────────────
+.card {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+
+  &.done {
+    opacity: 0.7;
+  }
+}
+
+.cardInner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+// ── Card: Left Column (info) ─────────────────────────────
+.info {
+  // container for the left side
+}
+
+.badgeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.patientName {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.metaText {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.demographics {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.address {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+// ── Card: Right Column (actions) ─────────────────────────
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-direction: column;
+  margin: 10px 0 0;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 8px;
+}

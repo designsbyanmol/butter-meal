@@ -31,7 +31,7 @@ import {
   PlusIcon,
 } from "../assets/svgs";
 import { useNavigationPreloader } from "../hooks/useNavigationPreloader";
-import { useBackendOnline } from '../hooks/useBackendOnline';
+import { useBackendOnline } from "../hooks/useBackendOnline";
 
 const LOGO_URL =
   "https://cdn.jsdelivr.net/gh/designsbyanmol/images@main/brand/logo-icon.png";
@@ -109,50 +109,55 @@ interface Props {
   }
 })();
 
-const TenantAdminSectionAppInner: React.FC<Props> = ({ sectionKey, children }) => {
+const TenantAdminSectionAppInner: React.FC<Props> = ({
+  sectionKey,
+  children,
+}) => {
   const isMobile = useIsMobile(900);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { tenant, isLoading: tenantLoading, tenantNotFound } = useTenant();
   const plan = usePlan();
   const slug = React.useMemo(() => readSlugFromUrl(), []);
 
- const sectionTitleFor = (key: string) =>
-      (
-        ({
-          menu: "Loading Products...",
-          billing: "Loading Billing...",
-          hospital_billing: "Loading Hospital Billing...",
-          store: "Loading Business...",
-          users: "Loading Users...",
-          orders: "Loading Orders...",
-          reviews: "Loading Reviews...",
-          info: "Loading Business Info...",
-          appointments: "Loading Appointments...",
-        }) as Record<string, string>
-      )[key] ?? "Loading...";
+  const sectionTitleFor = (key: string) =>
+    (
+      ({
+        menu: "Loading Products...",
+        billing: "Loading Billing...",
+        hospital_billing: "Loading Hospital Billing...",
+        store: "Loading Business...",
+        users: "Loading Users...",
+        orders: "Loading Orders...",
+        reviews: "Loading Reviews...",
+        info: "Loading Business Info...",
+        appointments: "Loading Appointments...",
+      }) as Record<string, string>
+    )[key] ?? "Loading...";
 
-      const online = useBackendOnline();
+  const online = useBackendOnline();
 
-  const nav = useNavigationPreloader({ title: 'Loading...' });
+  const nav = useNavigationPreloader({ title: "Loading..." });
 
   const handleActiveKeyChange = React.useCallback(
     (key: string) => {
       if (!key || !slug) return;
-      const isHospital = tenant?.storeCategory === 'hospital-pharmacy';
+      const isHospital = tenant?.storeCategory === "hospital-pharmacy";
       const url = sectionUrl(slug, key, isHospital);
-      nav.show(() => { window.location.href = url; }, sectionTitleFor(key));
+      nav.show(() => {
+        window.location.href = url;
+      }, sectionTitleFor(key));
     },
     [slug, tenant?.storeCategory, nav],
   );
 
-const handleLogout = React.useCallback(() => {
-  if (!slug) return;                         // narrow to string
-  if (!window.confirm('Log out?')) return;
-  authService.logout();
-  nav.show(() => {
-    window.location.href = homeUrl(slug);    // slug: string ✅
-  }, 'Signing out...');
-}, [nav, slug]);
+  const handleLogout = React.useCallback(() => {
+    if (!slug) return; // narrow to string
+    if (!window.confirm("Log out?")) return;
+    authService.logout();
+    nav.show(() => {
+      window.location.href = homeUrl(slug); // slug: string ✅
+    }, "Signing out...");
+  }, [nav, slug]);
 
   if (!slug) {
     return (
@@ -193,15 +198,17 @@ const handleLogout = React.useCallback(() => {
     );
   }
 
-if (tenantLoading) {
-  return online
-    ? <DashboardSkeleton count={6} hideHeader hideBrand hidePill />
-    : <TenantNotFound reason="connection" />;
-}
+  if (tenantLoading) {
+    return online ? (
+      <DashboardSkeleton count={6} hideHeader hideBrand hidePill />
+    ) : (
+      <TenantNotFound reason="connection" />
+    );
+  }
 
-if (tenantNotFound || !tenant) {
-  return <TenantNotFound reason={online ? 'not-found' : 'connection'} />;
-}
+  if (tenantNotFound || !tenant) {
+    return <TenantNotFound reason={online ? "not-found" : "connection"} />;
+  }
 
   if (!user?.isPlatformAdmin && user?.tenantSlug && user.tenantSlug !== slug) {
     return (
@@ -244,9 +251,11 @@ if (tenantNotFound || !tenant) {
     },
     {
       key: "menu",
-      label: isHospital ? 'Stock' : 'Products',
+      label: isHospital ? "Stock" : "Products",
       icon: <MenuIcon width={20} height={20} fill="currentColor" />,
-      visible: (isAdmin && plan.canEditFields === true) || (isAdmin && plan.canManageStore === true),
+      visible:
+        (isAdmin && plan.canEditFields === true) ||
+        (isAdmin && plan.canManageStore === true),
       render: sectionKey === "menu" ? () => children : () => null,
     },
     {
@@ -257,15 +266,15 @@ if (tenantNotFound || !tenant) {
       render: sectionKey === "appointments" ? () => children : () => null,
     },
     {
-  key: "hospital_billing",
-  label: "OPD/IPD",
-  icon: <PlusIcon width={20} height={20} fill="currentColor" />,
-  visible: isAdmin && isHospital,
-  render: sectionKey === "hospital_billing" ? () => children : () => null,
-},
+      key: "hospital_billing",
+      label: "OPD/IPD",
+      icon: <PlusIcon width={20} height={20} fill="currentColor" />,
+      visible: isAdmin && isHospital,
+      render: sectionKey === "hospital_billing" ? () => children : () => null,
+    },
     {
       key: "store",
-      label: isHospital ? 'Info' : 'Info',
+      label: isHospital ? "Manage" : "Manage",
       icon: <StoreIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageStore,
       render: sectionKey === "store" ? () => children : () => null,
@@ -274,7 +283,7 @@ if (tenantNotFound || !tenant) {
       key: "users",
       label: "Staff",
       icon: <UsersIcon width={20} height={20} fill="currentColor" />,
-      visible: isAdmin && plan.canManageUsers,
+      visible: false,
       render: sectionKey === "users" ? () => children : () => null,
     },
     {
@@ -320,20 +329,38 @@ if (tenantNotFound || !tenant) {
           },
         ]
       : []),
-      ...(isAdmin && isHospital
+      ...(isAdmin && plan.canManageUsers
       ? [
           {
-            kind: 'action' as const,
-            key: 'hospital_billing',
-            label: 'Hospital Billing',
-            icon: <RecieptIcon width={18} height={18} fill="#1e7e34" />,
+            kind: "action" as const,
+            key: "users",
+            label: "Staff",
+            icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
             onClick: () => {
-              nav.show(() => { window.location.href = sectionUrl(slug, 'hospital_billing', isHospital); }, 'Loading Hospital Billing...');
+              window.location.href = sectionUrl(slug, "users", isHospital);
             },
           },
         ]
       : []),
-    { kind: "divider" as const },
+    ...(isAdmin && isHospital
+      ? [
+          {
+            kind: "action" as const,
+            key: "hospital_billing",
+            label: "Hospital Billing",
+            icon: <RecieptIcon width={18} height={18} fill="#1e7e34" />,
+            onClick: () => {
+              nav.show(() => {
+                window.location.href = sectionUrl(
+                  slug,
+                  "hospital_billing",
+                  isHospital,
+                );
+              }, "Loading Hospital Billing...");
+            },
+          },
+        ]
+      : []),
     {
       kind: "action",
       key: "logout",
@@ -361,7 +388,6 @@ if (tenantNotFound || !tenant) {
       )}
     </>
   );
-  
 
   if (isMobile) {
     const mobileNavItems: MobileNavItem[] = navItems.map((i) => ({

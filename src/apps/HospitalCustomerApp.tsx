@@ -1,8 +1,14 @@
 // src/apps/HospitalCustomerApp.tsx
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useTenant } from '../contexts/TenantContext';
-import { supabaseService } from '../services/supabase.service';
-import { supabase } from '../services/supabase.client';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
+import { useTenant } from "../contexts/TenantContext";
+import { supabaseService } from "../services/supabase.service";
+import { supabase } from "../services/supabase.client";
 import {
   Button,
   Input,
@@ -16,34 +22,36 @@ import {
   Spinner,
   EmptyState,
   Chip,
-} from '../components/ui';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { formatRupees } from '../utils/subscription';
-import { DownloadIcon, CloseIcon } from '../assets/svgs';
-import menuLocal from '../components/Menu/Menu.module.scss';
-import detailLocal from '../components/MenuDetail/MenuDetail.module.scss';
-import pageLocal from './HospitalCustomerApp.module.scss';
-import BrandInfo from '../components/BrandInfo/BrandInfo';
-import StoreBanner from '../components/Store/StoreBanner';
-import { useStore } from '../contexts/StoreContext';
-import { ShopInfo } from '../config/credentials';
+} from "../components/ui";
+import { useIsMobile } from "../hooks/useIsMobile";
+import { formatRupees } from "../utils/subscription";
+import { DownloadIcon, CloseIcon, CheckIcon } from "../assets/svgs";
+import menuLocal from "../components/Menu/Menu.module.scss";
+import detailLocal from "../components/MenuDetail/MenuDetail.module.scss";
+import pageLocal from "./HospitalCustomerApp.module.scss";
+import BrandInfo from "../components/BrandInfo/BrandInfo";
+import StoreBanner from "../components/Store/StoreBanner";
+import { downloadTokenPdf } from "../utils/billPdf";
+import { useStore } from "../contexts/StoreContext";
+import { ShopInfo } from "../config/credentials";
+import { useRefreshCooldown } from "../hooks/useRefreshCooldown";
 
-const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-const ACTIVE_TOKEN_KEY = 'hospital_active_token';
+const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const ACTIVE_TOKEN_KEY = "hospital_active_token";
 
 // ── Cache config ─────────────────────────────────────────
 // sessionStorage cache is per-tab, per-origin. Closing the tab
 // clears it - that's fine, the next visit refetches once.
 const CATALOG_CACHE_TTL_MS = 15 * 60_000; // 15 min
-const CATALOG_CACHE_PREFIX = 'hosp_customer_catalog_v1:';
+const CATALOG_CACHE_PREFIX = "hosp_customer_catalog_v1:";
 // Fallback poll only fires if Realtime is unavailable.
 const TOKEN_FALLBACK_POLL_MS = 90_000;
 
 const GENDER_OPTIONS = [
-  { value: '', label: 'Select...' },
-  { value: 'Male', label: 'Male' },
-  { value: 'Female', label: 'Female' },
-  { value: 'Other', label: 'Other' },
+  { value: "", label: "Select..." },
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+  { value: "Other", label: "Other" },
 ];
 
 // ── Cached catalog helpers ───────────────────────────────
@@ -61,11 +69,11 @@ function readCatalogCache(slug: string): CachedCatalog | null {
     const parsed = JSON.parse(raw);
     if (
       !parsed ||
-      typeof parsed !== 'object' ||
+      typeof parsed !== "object" ||
       !Array.isArray(parsed.services) ||
       !Array.isArray(parsed.doctors) ||
       !Array.isArray(parsed.categories) ||
-      typeof parsed.at !== 'number'
+      typeof parsed.at !== "number"
     ) {
       return null;
     }
@@ -103,30 +111,28 @@ export default function HospitalCustomerApp() {
 
   // ── Booking flow ────────────────────────────────────────
   const [selectedService, setSelectedService] = useState<any>(null);
-  const [bookingStep, setBookingStep] = useState<'form' | 'payment' | 'waiting'>(
-    'form',
-  );
+  const [bookingStep, setBookingStep] = useState<
+    "form" | "payment" | "waiting"
+  >("form");
   const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    address: '',
-    doctor: '',
-    age: '',
-    gender: '',
+    name: "",
+    phone: "",
+    address: "",
+    doctor: "",
+    age: "",
+    gender: "",
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // ── Live token ──────────────────────────────────────────
   const [myToken, setMyToken] = useState<any>(null);
   const [currentToken, setCurrentToken] = useState(0);
+  const [activeToken, setActiveToken] = useState<number | null>(null);
 
   // Derived set of hidden categories
   const removedCategories = useMemo(
-    () =>
-      new Set(
-        dbCategories.filter((c) => c.hidden).map((c) => c.name),
-      ),
+    () => new Set(dbCategories.filter((c) => c.hidden).map((c) => c.name)),
     [dbCategories],
   );
 
@@ -138,9 +144,7 @@ export default function HospitalCustomerApp() {
       if (!tenant) return;
 
       const cached = readCatalogCache(tenant.slug);
-      const isFresh =
-        cached &&
-        Date.now() - cached.at < CATALOG_CACHE_TTL_MS;
+      const isFresh = cached && Date.now() - cached.at < CATALOG_CACHE_TTL_MS;
 
       if (isFresh && !opts.force) {
         setServices(cached!.services);
@@ -201,9 +205,8 @@ export default function HospitalCustomerApp() {
       fetchCatalog(); // will hit cache if fresh
     };
 
-    document.addEventListener('visibilitychange', onVisibility);
-    return () =>
-      document.removeEventListener('visibilitychange', onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [tenant?.slug, fetchCatalog]);
 
   // ── Restore active token ───────────────────────────────
@@ -215,15 +218,15 @@ export default function HospitalCustomerApp() {
 
     (async () => {
       const { data } = await supabase
-        .from('star_veg_hospital_appointments')
-        .select('*')
-        .eq('id', savedId)
+        .from("star_veg_hospital_appointments")
+        .select("*")
+        .eq("id", savedId)
         .maybeSingle();
 
       if (data) {
         setMyToken(data);
-        if (!['resolved', 'failed'].includes(data.status)) {
-          setBookingStep('waiting');
+        if (!["resolved", "failed"].includes(data.status)) {
+          setBookingStep("waiting");
         }
       } else {
         sessionStorage.removeItem(ACTIVE_TOKEN_KEY);
@@ -236,93 +239,122 @@ export default function HospitalCustomerApp() {
   // counter once at subscribe time, then update on any row change
   // for this tenant's today appointments.
   useEffect(() => {
-  if (bookingStep !== 'waiting' || !tenant || !myToken || !supabase) return;
-  const client = supabase;         // now typed as SupabaseClient
-  const tenantId = tenant.id;
-  const myTokenId = myToken.id;
+    if (bookingStep !== "waiting" || !tenant || !myToken || !supabase) return;
+    const client = supabase; // now typed as SupabaseClient
+    const tenantId = tenant.id;
+    const myTokenId = myToken.id;
 
-  let isMounted = true;
-  let fallbackTimer: number | null = null;
+    let isMounted = true;
+    let fallbackTimer: number | null = null;
 
-  const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
-  const fetchCurrentToken = async () => {
-    const { data: resolved } = await client
-      .from('star_veg_hospital_appointments')
-      .select('token_no')
-      .eq('tenant_id', tenantId)
-      .eq('booking_date', today)
-      .eq('status', 'resolved')
-      .order('token_no', { ascending: false })
-      .limit(1);
+    const fetchCurrentToken = async () => {
+      const category = (myToken?.category ?? "").trim();
 
-    if (isMounted && resolved && resolved.length > 0) {
-      setCurrentToken(resolved[0].token_no);
-    }
-  };
+      let q = client
+        .from("star_veg_hospital_appointments")
+        .select("token_no")
+        .eq("tenant_id", tenantId)
+        .eq("booking_date", today)
+        .eq("status", "resolved");
 
-  const fetchMyToken = async () => {
-    const { data: myLatest } = await client
-      .from('star_veg_hospital_appointments')
-      .select('*')
-      .eq('id', myTokenId)
-      .single();
-    if (isMounted && myLatest) setMyToken(myLatest);
-  };
+      if (category) {
+        q = q.eq("category", category);
+      }
 
-  fetchCurrentToken();
-  fetchMyToken();
+      const { data: resolved } = await q
+        .order("token_no", { ascending: false })
+        .limit(1);
 
-  const channel = client
-    .channel(`customer-token:${tenantId}:${myTokenId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'star_veg_hospital_appointments',
-        filter: `tenant_id=eq.${tenantId}`,
-      },
-      (payload) => {
-        const newRow = payload.new as any;
-        const oldRow = payload.old as any;
+      if (isMounted && resolved && resolved.length > 0) {
+        setCurrentToken(resolved[0].token_no);
+      }
+    };
 
-        const changedId = newRow?.id ?? oldRow?.id;
-        if (changedId === myTokenId) {
-          if (newRow) setMyToken(newRow);
-          else fetchMyToken();
-        }
+    const fetchMyToken = async () => {
+      const { data: myLatest } = await client
+        .from("star_veg_hospital_appointments")
+        .select("*")
+        .eq("id", myTokenId)
+        .single();
+      if (isMounted && myLatest) setMyToken(myLatest);
+    };
 
-        const becameResolved =
-          newRow &&
-          newRow.status === 'resolved' &&
-          newRow.booking_date === today;
-        const stoppedResolved =
-          oldRow &&
-          oldRow.status === 'resolved' &&
-          oldRow.booking_date === today;
+    const fetchServingToken = async () => {
+      const category = (myToken?.category ?? "").trim();
 
-        if (becameResolved || stoppedResolved) {
-          fetchCurrentToken();
-        }
-      },
-    )
-    .subscribe();
+      let q = client
+        .from("star_veg_hospital_appointments")
+        .select("token_no")
+        .eq("tenant_id", tenantId)
+        .eq("booking_date", today)
+        .in("status", ["new", "confirmed", "hold", "called"]);
 
-  fallbackTimer = window.setInterval(() => {
-    if (!document.hidden) {
-      fetchCurrentToken();
-      fetchMyToken();
-    }
-  }, TOKEN_FALLBACK_POLL_MS);
+      if (category) {
+        q = q.eq("category", category);
+      }
 
-  return () => {
-    isMounted = false;
-    if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
-    client.removeChannel(channel);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [bookingStep, tenant?.id, myToken?.id]);
+      const { data } = await q.order("token_no", { ascending: true }).limit(1);
+
+      if (!isMounted) return;
+      setActiveToken(data && data.length > 0 ? data[0].token_no : null);
+    };
+    fetchCurrentToken();
+    fetchServingToken();
+    fetchMyToken();
+
+    const channel = client
+      .channel(`customer-token:${tenantId}:${myTokenId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "star_veg_hospital_appointments",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload) => {
+          const newRow = payload.new as any;
+          const oldRow = payload.old as any;
+
+          const changedId = newRow?.id ?? oldRow?.id;
+          if (changedId === myTokenId) {
+            if (newRow) setMyToken(newRow);
+            else fetchMyToken();
+          }
+
+          const becameResolved =
+            newRow &&
+            newRow.status === "resolved" &&
+            newRow.booking_date === today;
+          const stoppedResolved =
+            oldRow &&
+            oldRow.status === "resolved" &&
+            oldRow.booking_date === today;
+
+          if (becameResolved || stoppedResolved) {
+            fetchCurrentToken();
+            fetchServingToken();
+          }
+        },
+      )
+      .subscribe();
+
+    fallbackTimer = window.setInterval(() => {
+      if (!document.hidden) {
+        fetchCurrentToken();
+        fetchMyToken();
+      }
+    }, TOKEN_FALLBACK_POLL_MS);
+
+    return () => {
+      isMounted = false;
+      if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
+      client.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingStep, tenant?.id, myToken?.id, myToken?.category]);
 
   // ── Derived data ────────────────────────────────────────
   const filteredDoctors = useMemo(() => {
@@ -355,149 +387,202 @@ export default function HospitalCustomerApp() {
   }, [activeServices, removedCategories]);
 
   // ── Handlers ────────────────────────────────────────────
-const openDetails = (service: any) => {
-  if (!isStoreOpen) return;
-  setViewingService(service);
-  setIsDetailOpen(true);
-};
+  const openDetails = (service: any) => {
+    if (!isStoreOpen) return;
+    setViewingService(service);
+    setIsDetailOpen(true);
+  };
 
   const handleStartBooking = () => {
     setSelectedService(viewingService);
     setIsDetailOpen(false);
-    setBookingStep('form');
-    setError('');
-    setFormData((prev) => ({ ...prev, doctor: '' }));
+    setBookingStep("form");
+    setError("");
+    setFormData((prev) => ({ ...prev, doctor: "" }));
   };
 
   const handleBook = () => {
     if (!formData.name || !formData.phone) {
-      setError('Name and Phone number are required.');
+      setError("Name and Phone number are required.");
       return;
     }
-    setError('');
-    setBookingStep('payment');
+    setError("");
+    setBookingStep("payment");
   };
 
   // src/apps/HospitalCustomerApp.tsx - handlePay()
 
-const handlePay = async () => {
-  if (!tenant || !selectedService || !supabase) return;
-  setIsProcessing(true);
-  setError('');
+  const handlePay = async () => {
+    if (!tenant || !selectedService || !supabase) return;
+    setIsProcessing(true);
+    setError("");
 
-  const client = supabase;        // ← non-null narrow for TS
-  const ageYears =
-    formData.age !== '' ? Number(formData.age) || null : null;
+    const client = supabase; // ← non-null narrow for TS
+    const ageYears = formData.age !== "" ? Number(formData.age) || null : null;
 
-  try {
-    const tokenNo = await supabaseService.getNextHospitalToken(tenant.slug);
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const tokenNo = await supabaseService.getNextHospitalToken(
+        tenant.slug,
+        selectedService.category,
+      );
+      const today = new Date().toISOString().split("T")[0];
 
-    const { data, error: insertErr } = await client
-      .from('star_veg_hospital_appointments')
-      .insert({
-        tenant_id: tenant.id,
-        service_id: selectedService.id,
-        category: selectedService.category,
-        token_no: tokenNo,
-        patient_name: formData.name,
+      const { data, error: insertErr } = await client
+        .from("star_veg_hospital_appointments")
+        .insert({
+          tenant_id: tenant.id,
+          service_id: selectedService.id,
+          category: selectedService.category,
+          token_no: tokenNo,
+          patient_name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          doctor_name: formData.doctor,
+          age: ageYears,
+          gender: formData.gender || null,
+          payment_status: "pending",
+          status: "new",
+          booking_date: today,
+          price: selectedService.price,
+        })
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
+        name: formData.name,
         phone: formData.phone,
         address: formData.address,
-        doctor_name: formData.doctor,
-        age: ageYears,
+        age_years: ageYears,
+        age_months: null,
         gender: formData.gender || null,
-        payment_status: 'pending',
-        status: 'new',
-        booking_date: today,
-        price: selectedService.price,
-      })
-      .select()
-      .single();
+      });
 
-    if (insertErr) throw insertErr;
-
-    await supabaseService.upsertHospitalPatientByPhone(tenant.slug, {
-      name: formData.name,
-      phone: formData.phone,
-      address: formData.address,
-      age_years: ageYears,
-      age_months: null,
-      gender: formData.gender || null,
-    });
-
-    sessionStorage.setItem(ACTIVE_TOKEN_KEY, data.id);
-    setMyToken(data);
-    setBookingStep('waiting');
-  } catch (err) {
-    console.error(err);
-    setError('Failed to book appointment. Please try again.');
-    setBookingStep('form');
-  } finally {
-    setIsProcessing(false);
-  }
-};
+      sessionStorage.setItem(ACTIVE_TOKEN_KEY, data.id);
+      setMyToken(data);
+      setBookingStep("waiting");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to book appointment. Please try again.");
+      setBookingStep("form");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleCloseSuccess = () => {
     sessionStorage.removeItem(ACTIVE_TOKEN_KEY);
-    setBookingStep('form');
+    setBookingStep("form");
     setMyToken(null);
     setSelectedService(null);
     setFormData({
-      name: '',
-      phone: '',
-      address: '',
-      doctor: '',
-      age: '',
-      gender: '',
+      name: "",
+      phone: "",
+      address: "",
+      doctor: "",
+      age: "",
+      gender: "",
     });
     setCurrentToken(0);
   };
 
   const handleDownloadToken = () => {
-    if (!myToken) return;
-    const text = `Token No: ${myToken.token_no}\nPatient: ${myToken.patient_name}\nDate: ${new Date().toLocaleString()}\nDoctor: ${myToken.doctor_name || 'N/A'}`;
-    const blob = new Blob([text], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `Token-${myToken.token_no}.txt`;
-    a.click();
+    if (!myToken || !tenant) return;
+
+    // Look up the service name + department (category) from the loaded
+    // catalogue so the slip shows the same department/service the
+    // patient booked. Falls back to just the category if the service
+    // row was removed after the booking was placed.
+    const svc = services.find((s: any) => s.id === myToken.service_id);
+    const serviceName = svc?.name ?? null;
+    const category = svc?.category ?? myToken.category ?? null;
+
+    downloadTokenPdf(
+      {
+        token_no: myToken.token_no,
+        patient_name: myToken.patient_name,
+        phone: myToken.phone,
+        age: myToken.age,
+        gender: myToken.gender,
+        address: myToken.address,
+        doctor_name: myToken.doctor_name,
+        service_name: serviceName,
+        category,
+        price: myToken.price,
+        payment_status: myToken.payment_status,
+        booking_date: myToken.booking_date,
+        created_at: myToken.created_at,
+      },
+      {
+        displayName: tenant.displayName,
+        storeTagline: tenant.storeTagline,
+        storeAddress: tenant.storeAddress,
+        whatsappPhone: tenant.whatsappPhone,
+        ownerPhone: tenant.ownerPhone,
+        gstNo: tenant.gstNo,
+      },
+    );
   };
 
-  // Manual refresh button for the waiting screen (no cost except
-  // when the customer actually asks).
-  const handleManualRefresh = async () => {
-  if (!tenant || !myToken || !supabase) return;
-  const client = supabase;         // ← non-null narrow
-  const today = new Date().toISOString().split('T')[0];
+  const {
+    cooldownActive: refreshCooling,
+    cooldownSeconds,
+    trigger: triggerRefresh,
+  } = useRefreshCooldown(tenant?.slug ?? null);
 
-  const { data: resolved } = await client
-    .from('star_veg_hospital_appointments')
-    .select('token_no')
-    .eq('tenant_id', tenant.id)
-    .eq('booking_date', today)
-    .eq('status', 'resolved')
-    .order('token_no', { ascending: false })
-    .limit(1);
-  if (resolved && resolved.length > 0) {
-    setCurrentToken(resolved[0].token_no);
-  }
+  const handleManualRefresh = () => {
+  triggerRefresh(async () => {
+    if (!tenant || !myToken || !supabase) return;
+    const client = supabase;
+    const today = new Date().toISOString().split("T")[0];
+    const category = (myToken.category ?? "").trim();
 
-  const { data: myLatest } = await client
-    .from('star_veg_hospital_appointments')
-    .select('*')
-    .eq('id', myToken.id)
-    .single();
-  if (myLatest) setMyToken(myLatest);
+    let resolvedQ = client
+      .from("star_veg_hospital_appointments")
+      .select("token_no")
+      .eq("tenant_id", tenant.id)
+      .eq("booking_date", today)
+      .eq("status", "resolved");
+    if (category) resolvedQ = resolvedQ.eq("category", category);
+
+    const { data: resolved } = await resolvedQ
+      .order("token_no", { ascending: false })
+      .limit(1);
+    setCurrentToken(resolved && resolved.length > 0 ? resolved[0].token_no : 0);
+
+    let nextUpQ = client
+      .from("star_veg_hospital_appointments")
+      .select("token_no")
+      .eq("tenant_id", tenant.id)
+      .eq("booking_date", today)
+      .not("status", "in", '("resolved","failed")');
+    if (category) nextUpQ = nextUpQ.eq("category", category);
+
+    const { data: nextUp } = await nextUpQ
+      .order("token_no", { ascending: true })
+      .limit(1);
+    setActiveToken(nextUp && nextUp.length > 0 ? nextUp[0].token_no : null);
+
+    const { data: myLatest } = await client
+      .from("star_veg_hospital_appointments")
+      .select("*")
+      .eq("id", myToken.id)
+      .single();
+    if (myLatest) setMyToken(myLatest);
+  });
 };
 
   // ================================================================
   // RENDER: live token screen
   // ================================================================
-  if (bookingStep === 'waiting' && myToken) {
-    if (myToken.status === 'resolved') {
+  if (bookingStep === "waiting" && myToken) {
+    if (myToken.status === "resolved") {
       return (
         <div className={`${pageLocal.waitingScreen} ${pageLocal.successBg}`}>
-          <div className={pageLocal.emoji}>✅</div>
+          <div className={pageLocal.emoji}>
+            <CheckIcon width={44} height={44} fill="#1e7e34" />
+          </div>
           <h1 className={pageLocal.statusHeading}>Appointment Successful!</h1>
           <p className={pageLocal.statusSubtext}>
             Thank you for visiting {tenant?.displayName}.
@@ -509,10 +594,12 @@ const handlePay = async () => {
       );
     }
 
-    if (myToken.status === 'failed') {
+    if (myToken.status === "failed") {
       return (
         <div className={`${pageLocal.waitingScreen} ${pageLocal.failedBg}`}>
-          <div className={pageLocal.emoji}>❌</div>
+          <div className={pageLocal.emoji}>
+            <CloseIcon width={44} height={44} fill="#dc3545" />
+          </div>
           <h1
             className={`${pageLocal.statusHeading} ${pageLocal.statusFailed}`}
           >
@@ -528,107 +615,145 @@ const handlePay = async () => {
       );
     }
 
-    const isMyTurn = currentToken === myToken.token_no;
-const peopleAhead = Math.max(0, myToken.token_no - currentToken);
-const isClose = peopleAhead > 0 && peopleAhead <= 3;
-const expectedTime = new Date(
-  Date.now() + peopleAhead * 60_000,
-).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // If staff has explicitly called this token in, we don't need to
+    // infer "your turn" from the queue — they've told us directly.
+    const isCalledIn = myToken.called_in === true;
 
-// One-line status replaces the two separate banners.
-const statusText = isMyTurn
-  ? "It's your turn - please proceed to the doctor."
-  : isClose
-    ? `Almost there - ${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead.`
-    : peopleAhead > 0
-      ? `~${peopleAhead} min wait - ${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead`
-      : 'Waiting for staff to call your token.';
+    const isMyTurn =
+      isCalledIn ||
+      (activeToken !== null
+        ? myToken.token_no <= activeToken
+        : myToken.token_no === currentToken);
 
-const statusTone = isMyTurn ? 'success' : isClose ? 'warning' : 'neutral';
+    const peopleAhead = isCalledIn
+      ? 0
+      : activeToken !== null
+        ? Math.max(0, myToken.token_no - activeToken)
+        : 0;
 
-return (
-  <div className={pageLocal.waitingScreen}>
-    <div className={pageLocal.tokenHeader}>
-      <Badge tone="info" size="md">
-        Token #{myToken.token_no}
-      </Badge>
-    </div>
+    const isClose = peopleAhead > 0 && peopleAhead <= 3;
+    const expectedTime = new Date(
+      Date.now() + peopleAhead * 60_000,
+    ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-    <div className={pageLocal.nowServingCard}>
-      <p className={pageLocal.nowServingLabel}>Now Serving</p>
-      <div className={pageLocal.nowServingNumber}>
-        {currentToken ? currentToken : '-'}
-      </div>
-      <p
-        className={[
-          pageLocal.statusLine,
-          statusTone === 'success' ? pageLocal.statusLineSuccess : '',
-          statusTone === 'warning' ? pageLocal.statusLineWarning : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {statusText}
-      </p>
-    </div>
+    const statusText = isCalledIn
+      ? "It's your turn - please proceed to the doctor."
+      : isMyTurn
+        ? "It's your turn - please proceed to the doctor."
+        : isClose
+          ? `Almost there - ${peopleAhead} ${peopleAhead === 1 ? "person" : "people"} ahead.`
+          : peopleAhead > 0
+            ? `~${peopleAhead} min wait - ${peopleAhead} ${peopleAhead === 1 ? "person" : "people"} ahead`
+            : "Waiting for staff to call your token.";
 
-    <Card className={pageLocal.appointmentCard}>
-      <h3 className={pageLocal.appointmentTitle}>Your Appointment</h3>
+    const statusTone =
+      isCalledIn || isMyTurn ? "success" : isClose ? "warning" : "neutral";
 
-      <div className={pageLocal.row}>
-        <span className={pageLocal.rowKey}>Patient</span>
-        <strong>{myToken.patient_name}</strong>
-      </div>
-
-      {myToken.doctor_name && (
-        <div className={pageLocal.row}>
-          <span className={pageLocal.rowKey}>Doctor</span>
-          <strong>{myToken.doctor_name}</strong>
+    return (
+      <div className={pageLocal.waitingScreen}>
+        <div className={pageLocal.tokenHeader}>
+          <Badge tone="primary" size="lg">
+            Token No. #{myToken.token_no}
+          </Badge>
         </div>
-      )}
+        {myToken.category && (
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontSize: 12,
+              color: "#64748b",
+              textAlign: "center",
+            }}
+          >
+            {myToken.category}
+          </p>
+        )}
 
-      <div className={pageLocal.row}>
-        <span className={pageLocal.rowKey}>Expected</span>
-        <strong className={pageLocal.rowValue}>
-          {isMyTurn ? 'Now' : expectedTime}
-        </strong>
+        <div className={pageLocal.nowServingCard}>
+          <p className={pageLocal.nowServingLabel}>Now Serving</p>
+          <div className={pageLocal.nowServingNumber}>
+            {isCalledIn
+              ? myToken.token_no
+              : activeToken !== null
+                ? activeToken
+                : currentToken || "-"}
+          </div>
+          <p
+            className={[
+              pageLocal.statusLine,
+              statusTone === "success" ? pageLocal.statusLineSuccess : "",
+              statusTone === "warning" ? pageLocal.statusLineWarning : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {statusText}
+          </p>
+        </div>
+
+        <Card className={pageLocal.appointmentCard}>
+          <h3 className={pageLocal.appointmentTitle}>Your Appointment</h3>
+
+          <div className={pageLocal.row}>
+            <span className={pageLocal.rowKey}>Patient</span>
+            <strong>{myToken.patient_name}</strong>
+          </div>
+
+          {myToken.doctor_name && (
+            <div className={pageLocal.row}>
+              <span className={pageLocal.rowKey}>Doctor</span>
+              <strong>{myToken.doctor_name}</strong>
+            </div>
+          )}
+
+          <div className={pageLocal.row}>
+            <span className={pageLocal.rowKey}>Expected</span>
+            <strong className={pageLocal.rowValue}>
+              {isCalledIn || isMyTurn ? "Now" : expectedTime}
+            </strong>
+          </div>
+
+          <div className={pageLocal.row}>
+            <span className={pageLocal.rowKey}>Payment</span>
+            <Badge
+              tone={
+                myToken.payment_status === "confirmed"
+                  ? "success"
+                  : myToken.payment_status === "rejected"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              {(myToken.payment_status || "pending").toUpperCase()}
+            </Badge>
+          </div>
+        </Card>
+
+        <div className={pageLocal.waitingActions}>
+          <Button
+            variant="ghost"
+            className={pageLocal.refreshBtn}
+            onClick={handleManualRefresh}
+            disabled={refreshCooling}
+            title={
+              refreshCooling
+                ? `Please wait ${cooldownSeconds}s before refreshing again`
+                : undefined
+            }
+          >
+            {refreshCooling ? `Wait ${cooldownSeconds}s` : "Refresh"}
+          </Button>
+          <Button
+            variant="secondary"
+            className={pageLocal.downloadBtn}
+            leftIcon={<DownloadIcon width={16} height={16} fill="#0f172a" />}
+            onClick={handleDownloadToken}
+          >
+            Download slip
+          </Button>
+        </div>
       </div>
-
-      <div className={pageLocal.row}>
-        <span className={pageLocal.rowKey}>Payment</span>
-        <Badge
-          tone={
-            myToken.payment_status === 'confirmed'
-              ? 'success'
-              : myToken.payment_status === 'rejected'
-                ? 'danger'
-                : 'warning'
-          }
-        >
-          {(myToken.payment_status || 'pending').toUpperCase()}
-        </Badge>
-      </div>
-    </Card>
-
-    <div className={pageLocal.waitingActions}>
-      <Button
-        variant="ghost"
-        className={pageLocal.refreshBtn}
-        onClick={handleManualRefresh}
-      >
-        Refresh
-      </Button>
-      <Button
-        variant="secondary"
-        className={pageLocal.downloadBtn}
-        leftIcon={<DownloadIcon width={16} height={16} fill="#0f172a" />}
-        onClick={handleDownloadToken}
-      >
-        Download slip
-      </Button>
-    </div>
-  </div>
-);
+    );
   }
 
   // ================================================================
@@ -641,7 +766,7 @@ return (
           className={pageLocal.detailImage}
           src={
             viewingService.image ||
-            'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80'
+            "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80"
           }
           alt={viewingService.name}
         />
@@ -657,7 +782,6 @@ return (
         <div className={pageLocal.detailPrice}>
           {formatRupees(viewingService.price)}
         </div>
-
 
         <div className={`${detailLocal.tags} ${pageLocal.tags}`}>
           <Chip as="span" tone="primary" shape="soft">
@@ -687,113 +811,106 @@ return (
   return (
     <div className={pageLocal.pageWrap}>
       {/* Brand block - same as AppContent for other stores */}
-<BrandInfo
-  brandName={tenant?.displayName ?? ShopInfo.Shop_name}
-  brandDesc={tenant?.storeTagline ?? "Book appointments online"}
-  hideBanner={!isStoreOpen}
-/>
+      <BrandInfo
+        brandName={tenant?.displayName ?? ShopInfo.Shop_name}
+        brandDesc={tenant?.storeTagline ?? "Book appointments online"}
+        hideBanner={!isStoreOpen}
+      />
 
-{/* Closed-store banner - same component AppContent uses */}
-{!isStoreOpen && <StoreBanner />}
+      {/* Closed-store banner - same component AppContent uses */}
+      {!isStoreOpen && <StoreBanner />}
 
-{/* Existing hospital-specific heading stays below the brand block */}
-{isStoreOpen && (
-  <div className={pageLocal.header}>
-    <h1 className={pageLocal.pageTitle}>Book Appointment</h1>
-    <p className={pageLocal.pageSubtitle}>
-      Select a problem to consult a doctor at {tenant?.displayName}.
-    </p>
-  </div>
-)}
+      {/* Existing hospital-specific heading stays below the brand block */}
+      {isStoreOpen && <div className={pageLocal.header}></div>}
 
       {isLoading ? (
-  <div className={pageLocal.loaderWrap}>
-    <Spinner size="md" />
-  </div>
-) : activeServices.length === 0 ? (
-  <EmptyState
-    title="No services available today"
-    description="No services are available for booking today. Please check back tomorrow."
-  />
-) : isStoreOpen ? (
-  uniqueCategories.map((cat) => {
-    const catServices = activeServices.filter((s) => s.category === cat);
-    if (catServices.length === 0) return null;
-
-    return (
-      <section key={cat} className={pageLocal.categorySection}>
-        <h3 className={pageLocal.categoryHeading}>{cat}</h3>
-
-        <div className={menuLocal.menuGrid}>
-          {catServices.map((s) => (
-            <div key={s.id} className={menuLocal.itemCard}>
-              <div
-                className={menuLocal.imageWrapper}
-                onClick={() => openDetails(s)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    openDetails(s);
-                  }
-                }}
-              >
-                <div className={menuLocal.itemImg}>
-                  <img
-                    src={
-                      s.image ||
-                      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80'
-                    }
-                    alt={s.name}
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-
-              <div
-                className={menuLocal.itemInfo}
-                onClick={() => openDetails(s)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    openDetails(s);
-                  }
-                }}
-              >
-                <div className={menuLocal.itemNameWrap}>
-                  <div className={menuLocal.itemName}>{s.name}</div>
-                </div>
-                <p className={menuLocal.itemDesc}>
-                  {s.description || 'Consultation with a doctor.'}
-                </p>
-              </div>
-
-              <div
-                className={`${menuLocal.itemFooter} ${pageLocal.itemFooterHospital}`}
-              >
-                <span className={menuLocal.price}>
-                  <span>{formatRupees(s.price)}</span>
-                </span>
-                <div className={menuLocal.actions}>
-                  <button
-                    type="button"
-                    className={`${menuLocal.btnCustomize} ${pageLocal.hospitalBookBtn}`}
-                    onClick={() => openDetails(s)}
-                  >
-                    Book
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className={pageLocal.loaderWrap}>
+          <Spinner size="md" />
         </div>
-      </section>
-    );
-  })
-) : null}
+      ) : activeServices.length === 0 ? (
+        <EmptyState
+          title="No services available today"
+          description="No services are available for booking today. Please check back tomorrow."
+        />
+      ) : isStoreOpen ? (
+        uniqueCategories.map((cat) => {
+          const catServices = activeServices.filter((s) => s.category === cat);
+          if (catServices.length === 0) return null;
+
+          return (
+            <section key={cat} className={pageLocal.categorySection}>
+              <h3 className={pageLocal.categoryHeading}>{cat}</h3>
+
+              <div className={menuLocal.menuGrid}>
+                {catServices.map((s) => (
+                  <div key={s.id} className={menuLocal.itemCard}>
+                    <div
+                      className={menuLocal.imageWrapper}
+                      onClick={() => openDetails(s)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openDetails(s);
+                        }
+                      }}
+                    >
+                      <div className={menuLocal.itemImg}>
+                        <img
+                          src={
+                            s.image ||
+                            "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80"
+                          }
+                          alt={s.name}
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={menuLocal.itemInfo}
+                      onClick={() => openDetails(s)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openDetails(s);
+                        }
+                      }}
+                    >
+                      <div className={menuLocal.itemNameWrap}>
+                        <div className={menuLocal.itemName}>{s.name}</div>
+                      </div>
+                      <p className={menuLocal.itemDesc}>
+                        {s.description || "Consultation with a doctor."}
+                      </p>
+                    </div>
+
+                    <div
+                      className={`${menuLocal.itemFooter} ${pageLocal.itemFooterHospital}`}
+                    >
+                      <span className={menuLocal.price}>
+                        <span>{formatRupees(s.price)}</span>
+                      </span>
+                      <div className={menuLocal.actions}>
+                        <button
+                          type="button"
+                          className={`${menuLocal.btnCustomize} ${pageLocal.hospitalBookBtn}`}
+                          onClick={() => openDetails(s)}
+                        >
+                          Book
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })
+      ) : null}
 
       {/* ───── Detail modal ───── */}
       {isMobile ? (
@@ -829,7 +946,7 @@ return (
         title={`Book: ${selectedService?.name}`}
         disableBackdropClose
         footer={
-          bookingStep === 'form' ? (
+          bookingStep === "form" ? (
             <Button block onClick={handleBook}>
               Proceed to Pay {formatRupees(selectedService?.price || 0)}
             </Button>
@@ -840,18 +957,18 @@ return (
               onClick={handlePay}
               loading={isProcessing}
             >
-              {isProcessing ? 'Processing...' : 'Pay Now & Confirm'}
+              {isProcessing ? "Processing..." : "Pay Now & Confirm"}
             </Button>
           )
         }
       >
         {error && (
-          <Banner variant="error" onDismiss={() => setError('')}>
+          <Banner variant="error" onDismiss={() => setError("")}>
             {error}
           </Banner>
         )}
 
-        {bookingStep === 'form' ? (
+        {bookingStep === "form" ? (
           <div className={pageLocal.formStack}>
             <FormField label="Patient Name *">
               <Input
@@ -922,8 +1039,8 @@ return (
                 list="customer-doctor-list"
                 placeholder={
                   filteredDoctors.length > 0
-                    ? 'Select or type doctor name...'
-                    : 'No doctors available for this category'
+                    ? "Select or type doctor name..."
+                    : "No doctors available for this category"
                 }
               />
               <datalist id="customer-doctor-list">

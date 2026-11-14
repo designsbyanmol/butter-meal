@@ -247,7 +247,7 @@ const TenantAdminShell: React.FC = () => {
     },
     {
       key: "store",
-      label: isHospital ? "Info" : "Info",
+      label: isHospital ? "Manage" : "Manage",
       icon: <StoreIcon width={20} height={20} fill="currentColor" />,
       visible: isAdmin && plan.canManageStore,
       render: () => null,
@@ -317,7 +317,7 @@ const TenantAdminShell: React.FC = () => {
       label: isHospital ? "Pharmacy Stock" : "Manage Products",
       description: "Items, prices & availability",
       icon: <MenuIcon width={20} height={20} fill="#ffffff" />,
-      accent: "blue",
+      accent: "purple",
       visible:
         (isAdmin && plan.canEditFields === true) ||
         (isAdmin && plan.canManageStore === true),

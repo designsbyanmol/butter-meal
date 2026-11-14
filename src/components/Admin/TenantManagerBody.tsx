@@ -39,6 +39,7 @@ import tokens from "../../styles/_tokens.module.scss";
 import { InlineSection } from "../Dashboard/inline";
 import { downloadPublicQrPdf } from "../../utils/qrPdf";
 import local from "./TenantManager.module.scss";
+import { useRefreshCooldown } from "../../hooks/useRefreshCooldown";
 
 // =========================================================
 // Filter types & constants
@@ -656,6 +657,12 @@ const TenantManagerBody: React.FC = () => {
     setShowCredentialsPassword(true);
   };
 
+  const { cooldownActive: cooling, trigger: triggerRefresh } =
+    useRefreshCooldown("platform:tenants");
+
+  // existing loadAll is fine, just wire it through the hook
+  const handleRefresh = () => triggerRefresh(loadAll);
+
   const copyCredentialsToClipboard = async () => {
     if (!credentialsModal) return;
     const text =
@@ -809,17 +816,17 @@ const TenantManagerBody: React.FC = () => {
     // Newest first. `_createdAt` is an ISO timestamp; fall back to 0
     // when it's missing (legacy rows without created_at).
     return [...filtered].sort((a, b) => {
-  // `main` (the platform tenant) is always pinned to the top.
-  const aIsMain = a.slug === "main";
-  const bIsMain = b.slug === "main";
-  if (aIsMain && !bIsMain) return -1;
-  if (!aIsMain && bIsMain) return 1;
+      // `main` (the platform tenant) is always pinned to the top.
+      const aIsMain = a.slug === "main";
+      const bIsMain = b.slug === "main";
+      if (aIsMain && !bIsMain) return -1;
+      if (!aIsMain && bIsMain) return 1;
 
-  // Everything else sorted newest-first by `_createdAt`.
-  const aT = new Date(a._createdAt).getTime() || 0;
-  const bT = new Date(b._createdAt).getTime() || 0;
-  return bT - aT;
-});
+      // Everything else sorted newest-first by `_createdAt`.
+      const aT = new Date(a._createdAt).getTime() || 0;
+      const bT = new Date(b._createdAt).getTime() || 0;
+      return bT - aT;
+    });
   }, [tenants, planFilter, filters]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
@@ -843,10 +850,11 @@ const TenantManagerBody: React.FC = () => {
             <Button
               size="sm"
               variant="ghost"
-              onClick={loadAll}
+              onClick={handleRefresh}
+              disabled={cooling || loading}
               loading={loading}
             >
-              Refresh
+              {cooling ? "Wait 1 min…" : "Refresh"}
             </Button>
             <Button
               size="sm"

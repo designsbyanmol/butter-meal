@@ -101,8 +101,8 @@ function parsePackString(pack: string): { packOf: number; unit: string } {
   const lower = pack.toLowerCase();
 
   const match = lower.match(
-  /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|ml|mg|gm|g|strips?|bottles?|tubes?|sachets?|drops?|inhalers?|patches?|injections?)/,
-);
+    /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|ml|mg|gm|g|strips?|bottles?|tubes?|sachets?|drops?|inhalers?|patches?|injections?)/,
+  );
   if (!match) return { packOf: 1, unit: "" };
 
   const packOf = Number(match[1]) || 1;
@@ -204,6 +204,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
+  const [medNameInput, setMedNameInput] = useState("");
   const [filters, setFilters] = useState<StockFilters>(EMPTY_FILTERS);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -238,7 +239,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
   }, [searchQuery, filters]);
 
   const handleSearch = async (q: string) => {
-    setSearchQuery(q);
+    setMedNameInput(q); // ← writes to the modal field only
     setForm({ ...form, name: q });
 
     if (q.length < 2) {
@@ -263,14 +264,14 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
       packOf: parsed.packOf || form.packOf || 1,
       unit: parsed.unit || form.unit,
     });
-    setSearchQuery(s.name);
+    setMedNameInput(s.name); // ← was setSearchQuery(s.name)
     setSuggestions([]);
   };
 
   const handleAddNew = () => {
     setEditingId(null);
     setForm({ ...emptyMed });
-    setSearchQuery("");
+    setMedNameInput(""); // ← was setSearchQuery("")
     setSuggestions([]);
     setIsModalOpen(true);
   };
@@ -283,11 +284,6 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
     const stockQty = Math.max(0, Number(item.stock_qty) || 0);
     const countable = isCountable(unit);
 
-    // Split stock_qty into packs + loose units.
-    // - If packOf === 1, everything is "packs" (1 unit = 1 pack).
-    // - If countable, packs = floor(total / packOf), loose = total % packOf.
-    // - If non-countable (ml/mg/gm), we don't split - treat as one big
-    //   "pack" that equals the whole amount so the UI stays simple.
     let stockPacks = stockQty;
     let stockLoose = 0;
 
@@ -313,7 +309,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
       stockLoose,
       stockQty,
     });
-    setSearchQuery(item.name);
+    setMedNameInput(item.name); // ← was setSearchQuery(item.name)
     setSuggestions([]);
     setIsModalOpen(true);
   };
@@ -384,7 +380,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
     if (success) {
       setIsModalOpen(false);
       setForm({ ...emptyMed });
-      setSearchQuery("");
+      setMedNameInput(""); // ← clear the modal name
       setSuggestions([]);
       setEditingId(null);
     } else {
@@ -823,6 +819,24 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         </div>
 
         <div className={local.quickFiltersRow}>
+          {/* "All" — clears BOTH status and expiry in one click.
+      Deliberately does NOT touch type / packOf / MRP / date so a user
+      who set those deep in the sheet doesn't lose them by tapping All. */}
+          <Chip
+            tone="primary"
+            active={filters.status === "all" && filters.expiry === "all"}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                status: "all",
+                expiry: "all",
+              }))
+            }
+          >
+            All
+          </Chip>
+
+          {/* Status chips — mutually exclusive within `status`. */}
           <Chip
             tone="primary"
             active={filters.status === "inStock"}
@@ -870,42 +884,6 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
             }
           >
             Expired
-          </Chip>
-          <Chip
-            tone="primary"
-            active={filters.expiry === "in3d"}
-            onClick={() =>
-              setFilters((f) => ({
-                ...f,
-                expiry: f.expiry === "in3d" ? "all" : "in3d",
-              }))
-            }
-          >
-            In 3 days
-          </Chip>
-          <Chip
-            tone="primary"
-            active={filters.expiry === "in7d"}
-            onClick={() =>
-              setFilters((f) => ({
-                ...f,
-                expiry: f.expiry === "in7d" ? "all" : "in7d",
-              }))
-            }
-          >
-            In 7 days
-          </Chip>
-          <Chip
-            tone="primary"
-            active={filters.expiry === "in30d"}
-            onClick={() =>
-              setFilters((f) => ({
-                ...f,
-                expiry: f.expiry === "in30d" ? "all" : "in30d",
-              }))
-            }
-          >
-            In 1 month
           </Chip>
 
           <Button
@@ -989,13 +967,15 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
                         >
                           {s.expiry_date || "-"}
                         </td>
-                        <td className={
-          qtyDanger
-            ? local.cellDangerQty
-            : qtyWarning
-              ? local.cellWarningQty
-              : undefined
-        }>
+                        <td
+                          className={
+                            qtyDanger
+                              ? local.cellDangerQty
+                              : qtyWarning
+                                ? local.cellWarningQty
+                                : undefined
+                          }
+                        >
                           <span
                             className={low ? local.lowStock : ""}
                             style={{ fontWeight: 600 }}
@@ -1094,6 +1074,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         onClose={() => {
           if (isSaving) return;
           setIsModalOpen(false);
+          setMedNameInput("");
         }}
         title={editingId ? "Edit Medicine" : "Add Medicine to Stock"}
         size="lg"
@@ -1101,7 +1082,10 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
           <>
             <Button
               variant="ghost"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setMedNameInput("");
+              }}
               disabled={isSaving}
             >
               Cancel
@@ -1116,7 +1100,7 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
           <div className={local.medNameWrap}>
             <FormField label="Medicine Name *">
               <Input
-                value={searchQuery}
+                value={medNameInput}
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder="e.g., Paracetamol or Calpol"
                 autoFocus
@@ -1404,6 +1388,98 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         }
       >
         <section className={local.filterSection}>
+          <h4 className={local.filterSectionHeading}>Stock status</h4>
+          <div className={local.chipRow}>
+            <Chip
+              tone="primary"
+              active={draftFilters.status === "all"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, status: "all" })
+              }
+            >
+              All
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.status === "inStock"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, status: "inStock" })
+              }
+            >
+              In stock
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.status === "outOfStock"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, status: "outOfStock" })
+              }
+            >
+              Out of stock
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.status === "lowStock"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, status: "lowStock" })
+              }
+            >
+              Low stock
+            </Chip>
+          </div>
+        </section>
+
+        <section className={local.filterSection}>
+          <h4 className={local.filterSectionHeading}>Expiry</h4>
+          <div className={local.chipRow}>
+            <Chip
+              tone="primary"
+              active={draftFilters.expiry === "all"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, expiry: "all" })
+              }
+            >
+              All
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.expiry === "expired"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, expiry: "expired" })
+              }
+            >
+              Expired
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.expiry === "in3d"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, expiry: "in3d" })
+              }
+            >
+              In 3 days
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.expiry === "in7d"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, expiry: "in7d" })
+              }
+            >
+              In 7 days
+            </Chip>
+            <Chip
+              tone="primary"
+              active={draftFilters.expiry === "in30d"}
+              onClick={() =>
+                setDraftFilters({ ...draftFilters, expiry: "in30d" })
+              }
+            >
+              In 1 month
+            </Chip>
+          </div>
+        </section>
+        <section className={local.filterSection}>
           <h4 className={local.filterSectionHeading}>MRP Range (Rs)</h4>
           <div className={local.dateRangeGrid}>
             <FormField label="Min MRP">
@@ -1428,43 +1504,39 @@ const PharmacyStockBody: React.FC<PharmacyStockBodyProps> = ({
         </section>
 
         <section className={local.filterSection}>
-  <h4 className={local.filterSectionHeading}>Medicine type</h4>
-  <div className={local.chipRow}>
-    <Chip
-      tone="primary"
-      active={draftFilters.type === "all"}
-      onClick={() =>
-        setDraftFilters({ ...draftFilters, type: "all" })
-      }
-    >
-      All
-    </Chip>
+          <h4 className={local.filterSectionHeading}>Medicine type</h4>
+          <div className={local.chipRow}>
+            <Chip
+              tone="primary"
+              active={draftFilters.type === "all"}
+              onClick={() => setDraftFilters({ ...draftFilters, type: "all" })}
+            >
+              All
+            </Chip>
 
-    {Array.from(
-      new Set(
-        stock
-          .map((s) => normUnit(s.unit))
-          .filter((u) => u.length > 0),
-      ),
-    )
-      .sort()
-      .map((u) => (
-        <Chip
-          key={u}
-          tone="primary"
-          active={draftFilters.type === u}
-          onClick={() =>
-            setDraftFilters({
-              ...draftFilters,
-              type: draftFilters.type === u ? "all" : u,
-            })
-          }
-        >
-          {u.charAt(0).toUpperCase() + u.slice(1)}
-        </Chip>
-      ))}
-  </div>
-</section>
+            {Array.from(
+              new Set(
+                stock.map((s) => normUnit(s.unit)).filter((u) => u.length > 0),
+              ),
+            )
+              .sort()
+              .map((u) => (
+                <Chip
+                  key={u}
+                  tone="primary"
+                  active={draftFilters.type === u}
+                  onClick={() =>
+                    setDraftFilters({
+                      ...draftFilters,
+                      type: draftFilters.type === u ? "all" : u,
+                    })
+                  }
+                >
+                  {u.charAt(0) + u.slice(1)}
+                </Chip>
+              ))}
+          </div>
+        </section>
 
         <section className={local.filterSection}>
           <h4 className={local.filterSectionHeading}>Pack of</h4>

@@ -7,7 +7,7 @@ import {
   IpdDischargeType,
   IPD_DISCHARGE_LABELS,
 } from "../../types";
-import local from "./HospitalBilling.module.scss"; // We'll create this scss next
+import local from "./HospitalBilling.module.scss";
 
 interface IpdPrintLayoutProps {
   tenant: Tenant | null;
@@ -25,7 +25,6 @@ interface IpdPrintLayoutProps {
   dischargeType?: IpdDischargeType | null;
 }
 
-// Helper to convert number to words
 const numberToWords = (num: number): string => {
   const a = [
     "",
@@ -124,149 +123,116 @@ const HospitalIpdPrintLayout = forwardRef<HTMLDivElement, IpdPrintLayoutProps>(
           style={{ backgroundImage: `url(${avatar})` }}
         />
 
-        {/* Top Header Row */}
-        <div className={local.ipdHeaderRow}>
+        {/* ───── Top Header Row (matches OPD) ───── */}
+        <div className={local.opdHeaderRow}>
           <div className={local.dateBox}>
-            <span className={local.headerLabel}>Date of IPD</span>
-            <div>{new Date().toLocaleDateString("en-IN")}</div>
+            <span className={local.headerLabel}>Date of IPD - </span>
+            <span>{new Date().toLocaleDateString("en-IN")}</span>
           </div>
+          <p className={local.billNoBox}>Bill No. {billNo}</p>
           <div className={local.regNoBox}>
             <span className={local.headerLabel}>
-              Reg No. {tenant?.registrationNo || "-"}
+              Reg No. - {tenant?.registrationNo || "-"}
             </span>
           </div>
         </div>
 
-        {/* Main Hospital Info & Title */}
-        <div className={local.ipdMainHeader}>
+        {/* ───── Main Hospital Info & Title (matches OPD) ───── */}
+        <div className={local.opdMainHeader}>
           <div className={local.avatarBox}>
             <img src={avatar} alt="Hospital Avatar" />
           </div>
           <div className={local.hospitalInfoBox}>
             <h1>{tenant?.displayName || "Hospital Name"}</h1>
             <p>{tenant?.storeAddress || "Hospital Address"}</p>
-            <p>Contact no. {tenant?.whatsappPhone || "-"}</p>
+            <p>
+              Contact no. {tenant?.whatsappPhone || "-"},{" "}
+              {tenant?.ownerPhone || "-"}
+            </p>
           </div>
-          <div className={local.titleBox}>
-            {dischargeType && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "22mm",
-                  right: "15mm",
-                  background: "#dcfce7",
-                  border: "1px solid #16a34a",
-                  color: "#166534",
-                  padding: "2mm 4mm",
-                  borderRadius: "999px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  zIndex: 2,
-                }}
-              >
-                {IPD_DISCHARGE_LABELS[dischargeType]}
+        </div>
+
+        {/* ───── Body Split (matches OPD) ───── */}
+        <div className={local.opdBodyContainer}>
+          {/* Right Main Area */}
+          <div className={local.opdMainContent}>
+            {/* Patient row 1 */}
+            <div className={local.patientRow}>
+              <span>
+                <strong>Patient name:</strong> {patient.name}
+              </span>
+              <span>
+                <strong>Age:</strong> {patient.age}
+              </span>
+              <span>
+                <strong>Gender:</strong> {patient.gender}
+              </span>
+              <span className={local.addressCell}>
+                <strong>Address:</strong> {patient.address}
+              </span>
+            </div>
+
+            {/* Items table (IPD-specific body) */}
+            <table className={local.ipdTable}>
+              <thead>
+                <tr>
+                  <th style={{ width: "45%" }}>Particulars</th>
+                  <th style={{ width: "20%" }}>Charge/Day</th>
+                  <th style={{ width: "15%" }}>Days</th>
+                  <th style={{ width: "20%" }}>Total Charge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it, i) => (
+                  <tr key={i}>
+                    <td>{it.name}</td>
+                    <td>{formatRupees(it.chargePerDay)}</td>
+                    <td>{it.type === "per-day" ? it.days : "-"}</td>
+                    <td>{formatRupees(it.total)}</td>
+                  </tr>
+                ))}
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className={local.emptyTable}>
+                      No items added
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Totals row (kept from IPD, styled like OPD vitals row) */}
+            <div className={local.ipdTotalsRow}>
+              <div className={local.wordsBox}>
+                <strong>Total Amount in words</strong>
+                <p className={local.italic}>{numberToWords(total)}</p>
               </div>
-            )}
-            <p>Bill No. {billNo}</p>
-          </div>
-        </div>
-
-        {/* Patient Bar */}
-        <div className={local.ipdPatientBar}>
-          <div className={local.patientRow}>
-            <span>
-              <strong>Patient name:</strong> {patient.name}
-            </span>
-            <span>
-              <strong>Age(years & months):</strong> {patient.age}
-            </span>
-            <span>
-              <strong>Gender:</strong> {patient.gender}
-            </span>
-          </div>
-          <div className={local.patientRow}>
-            <span>
-              <strong>Address:</strong> {patient.address}
-            </span>
-            <span>
-              <strong>From:</strong>{" "}
-              {dates.from
-                ? new Date(dates.from).toLocaleDateString("en-IN")
-                : "-"}
-            </span>
-            <span>
-              <strong>to:</strong>{" "}
-              {dates.to ? new Date(dates.to).toLocaleDateString("en-IN") : "-"}
-            </span>
-          </div>
-        </div>
-
-        {/* Items Table */}
-        <div className={local.ipdTableWrap}>
-        <table className={local.ipdTable}>
-          <thead>
-            <tr>
-              <th style={{ width: "45%" }}>Particulars</th>
-              <th style={{ width: "20%" }}>Charge/day</th>
-              <th style={{ width: "15%" }}>Days</th>
-              <th style={{ width: "20%" }}>Total Charge</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i}>
-                <td>{it.name}</td>
-                <td>{formatRupees(it.chargePerDay)}</td>
-                <td>{it.type === "per-day" ? it.days : "-"}</td>
-                <td>{formatRupees(it.total)}</td>
-              </tr>
-            ))}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan={4} className={local.emptyTable}>
-                  No items added
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        </div>
-
-        {/* Totals & Words */}
-        <div className={local.ipdTotalsRow}>
-          <div className={local.wordsBox}>
-            <strong>Total Amount in words</strong>
-            <p className={local.italic}>{numberToWords(total)}</p>
-          </div>
-          <div className={local.mathBox}>
-            <div className={local.mathRow}>
-              <span>Total Amount</span>
-              <span>{formatRupees(total)}</span>
-            </div>
-
-            <div className={local.mathRow}>
-              <span>{isPaid ? "Amount Paid (Advance)" : "Advance Paid"}</span>
-              <span>{formatRupees(advance)}</span>
-            </div>
-
-            {!isPaid && (
-              <div className={local.mathRow}>
-                <span>Remaining</span>
-                <span>{formatRupees(remaining)}</span>
+              <div className={local.mathBox}>
+                <div className={local.mathRow}>
+                  <span>Total Amount</span>
+                  <span>{formatRupees(total)}</span>
+                </div>
+                <div className={local.mathRow}>
+                  <span>{isPaid ? "Amount Paid (Advance)" : "Advance Paid"}</span>
+                  <span>{formatRupees(advance)}</span>
+                </div>
+                {!isPaid && (
+                  <div className={local.mathRow}>
+                    <span>Remaining</span>
+                    <span>{formatRupees(remaining)}</span>
+                  </div>
+                )}
+                <div className={local.mathRow}>
+                  <span>Paid</span>
+                  <span>{isPaid ? "Yes" : "No"}</span>
+                </div>
               </div>
-            )}
-
-            <div className={local.mathRow}>
-              <span>Paid</span>
-              <span>{isPaid ? "Yes" : "No"}</span>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className={local.ipdFooter}>
+        {/* ───── Footer (matches OPD) ───── */}
+        <div className={local.opdFooter}>
           <div className={local.footerBox}>
             <strong>{footerHeading}</strong>
             <p>{footerInfo}</p>

@@ -156,7 +156,6 @@ const SuperAdminSectionApp: React.FC<Props> = ({
       icon: <UsersIcon width={18} height={18} fill="#1e7e34" />,
       onClick: () => navigateToSection('settings'),
     },
-    { kind: 'divider' },
     {
       kind: 'action',
       key: 'logout',

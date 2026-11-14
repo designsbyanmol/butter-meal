@@ -7,6 +7,7 @@ import { Button, Tabs, Badge, EmptyState, Chip, IconButton } from "../ui";
 import { InlineSection } from "../Dashboard/inline";
 import { ClockIcon } from "../../assets/svgs";
 import HospitalAppointmentHistory from "./HospitalAppointmentHistory";
+import local from "./HospitalAppointmentsBody.module.scss";
 
 export default function HospitalAppointmentsBody() {
   const { tenant } = useTenant();
@@ -77,7 +78,9 @@ export default function HospitalAppointmentsBody() {
       return true;
     });
 
-    unique.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    unique.sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
     return unique;
   }, [dbCategories, appointments]);
 
@@ -107,6 +110,26 @@ export default function HospitalAppointmentsBody() {
     if (ok) loadAppointments();
   };
 
+const callInAppointment = async (id: string) => {
+  // Optimistic — flip the button to "Called In" immediately.
+  setAppointments((prev) =>
+    prev.map((a) =>
+      a.id === id ? { ...a, called_in: true } : a,
+    ),
+  );
+  const ok = await supabaseService.callInAppointment(id);
+  if (!ok) {
+    // Roll back on failure.
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === id ? { ...a, called_in: false } : a,
+      ),
+    );
+    return;
+  }
+  loadAppointments();
+};
+
   const handleCatChange = (c: string) => {
     setCatFilter(c);
     localStorage.setItem("hospital_admin_cat", c);
@@ -127,13 +150,12 @@ export default function HospitalAppointmentsBody() {
     { key: "failed", label: "Failed" },
   ];
 
-  const adminTabs = [
-    { key: "new", label: "Waitlist (New)" },
-    { key: "confirmed", label: "Active Queue" },
-    { key: "hold", label: "Hold" },
-    { key: "resolved", label: "Resolved" },
-  ];
-
+const adminTabs = [
+  { key: "new", label: "Waitlist (New)" },
+  { key: "confirmed", label: "Active Queue" },
+  { key: "hold", label: "Hold" },
+  { key: "resolved", label: "Resolved" },
+];
   const tabsToRender = isAdmin ? adminTabs : staffTabs;
 
   // ── Filtering ───────────────────────────────────────────
@@ -148,6 +170,7 @@ export default function HospitalAppointmentsBody() {
     if (tabKey === "confirmed") return a.status === "confirmed";
     if (tabKey === "hold") return a.status === "hold";
     if (tabKey === "resolved") return a.status === "resolved";
+    if (tabKey === "called") return a.status === "called";
     return false;
   };
 
@@ -181,15 +204,7 @@ export default function HospitalAppointmentsBody() {
       }
     >
       {/* Category Filter */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-          marginBottom: 16,
-          paddingBottom: 8,
-        }}
-      >
+      <div className={local.categoryFilter}>
         <Chip
           key="All"
           tone="primary"
@@ -203,8 +218,7 @@ export default function HospitalAppointmentsBody() {
             key={c}
             tone="primary"
             active={
-              catFilter !== "All" &&
-              catFilter.toLowerCase() === c.toLowerCase()
+              catFilter !== "All" && catFilter.toLowerCase() === c.toLowerCase()
             }
             onClick={() => handleCatChange(c)}
           >
@@ -227,7 +241,7 @@ export default function HospitalAppointmentsBody() {
       />
 
       {/* List */}
-      <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+      <div className={local.list}>
         {filtered.length === 0 ? (
           <EmptyState
             title={`No ${isAdmin ? "appointments" : "appointments to process"}`}
@@ -238,30 +252,16 @@ export default function HospitalAppointmentsBody() {
             return (
               <div
                 key={a.id}
-                style={{
-                  padding: 16,
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  background: "#fff",
-                  opacity: isDone && !isAdmin ? 0.7 : 1,
-                }}
+                className={`${local.card} ${isDone && !isAdmin ? local.done : ""}`}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        alignItems: "center",
-                        marginBottom: 8,
-                      }}
-                    >
+                <div className={local.cardInner}>
+                  <div className={local.info}>
+                    <div className={local.badgeRow}>
+                      {a.called_in && (
+  <Badge tone="success" size="sm">
+    CALLED IN
+  </Badge>
+)}
                       <Badge tone="info">Token #{a.token_no}</Badge>
                       <Badge tone="neutral">{a.category}</Badge>
                       {a.payment_status === "confirmed" && (
@@ -274,36 +274,18 @@ export default function HospitalAppointmentsBody() {
                         <Badge tone="danger">REJECTED</Badge>
                       )}
                     </div>
-                    <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>
-                      {a.patient_name}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                    <h3 className={local.patientName}>{a.patient_name}</h3>
+                    <p className={local.metaText}>
                       {a.phone} | {a.doctor_name || "No doctor assigned"}
                     </p>
                     {(a.age || a.gender) && (
-                      <p
-                        style={{
-                          margin: "4px 0 0",
-                          fontSize: 12,
-                          color: "#64748b",
-                        }}
-                      >
+                      <p className={local.demographics}>
                         {a.age ? `Age ${a.age}` : ""}
                         {a.age && a.gender ? " - " : ""}
                         {a.gender || ""}
                       </p>
                     )}
-                    {a.address && (
-                      <p
-                        style={{
-                          margin: "4px 0 0",
-                          fontSize: 12,
-                          color: "#94a3b8",
-                        }}
-                      >
-                        {a.address}
-                      </p>
-                    )}
+                    {a.address && <p className={local.address}>{a.address}</p>}
                     {a.status === "resolved" && (
                       <Badge tone="success" size="sm">
                         Completed
@@ -311,16 +293,9 @@ export default function HospitalAppointmentsBody() {
                     )}
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "flex-start",
-                      flexDirection: "column",
-                    }}
-                  >
+                  <div className={local.actions}>
                     {!isAdmin && tab === "new" && (
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className={local.actionGroup}>
                         <Button
                           size="sm"
                           variant="success"
@@ -343,13 +318,40 @@ export default function HospitalAppointmentsBody() {
                     )}
 
                     {isAdmin && tab === "confirmed" && (
-                      <div style={{ display: "flex", gap: 8 }}>
+  <div className={local.actionGroup}>
+    <Button
+      size="sm"
+      variant={a.called_in ? "success" : "primary"}
+      disabled={a.called_in === true}
+      onClick={() => callInAppointment(a.id)}
+    >
+      {a.called_in ? "Called In" : "Call In"}
+    </Button>
+    <Button
+      size="sm"
+      variant="warning"
+      onClick={() => updateStatus(a.id, "hold")}
+    >
+      Hold
+    </Button>
+    <Button
+      size="sm"
+      variant="success"
+      onClick={() => updateStatus(a.id, "resolved")}
+    >
+      Resolve
+    </Button>
+  </div>
+)}
+
+                    {isAdmin && tab === "hold" && (
+                      <div className={local.actionGroup}>
                         <Button
                           size="sm"
-                          variant="warning"
-                          onClick={() => updateStatus(a.id, "hold")}
+                          variant="primary"
+                          onClick={() => updateStatus(a.id, "called")}
                         >
-                          Hold
+                          Call In
                         </Button>
                         <Button
                           size="sm"
@@ -359,16 +361,6 @@ export default function HospitalAppointmentsBody() {
                           Resolve
                         </Button>
                       </div>
-                    )}
-
-                    {isAdmin && tab === "hold" && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => updateStatus(a.id, "resolved")}
-                      >
-                        Resolve
-                      </Button>
                     )}
                   </div>
                 </div>

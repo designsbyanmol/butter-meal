@@ -17,6 +17,7 @@ import {
 } from "../ui";
 import { SearchIcon, FilterIcon, CloseIcon } from "../../assets/svgs";
 import { formatRupees } from "../../utils/subscription";
+import local from "./HospitalAppointmentHistory.module.scss";
 
 const PAGE_SIZE = 12;
 const DEFAULT_CATEGORIES = [
@@ -158,13 +159,13 @@ export default function HospitalAppointmentHistory({ isOpen, onClose }: Props) {
   const categories = useMemo(() => ["All", ...getStoredCategories()], []);
 
   const load = async () => {
-  if (!tenant) return;
-  setIsLoading(true);
-  const data = await supabaseService.getAllAppointmentsHistory(tenant.slug);
-  // Only successful appointments in the history list
-  setAppointments(data.filter((a: any) => a.status === 'resolved'));
-  setIsLoading(false);
-};
+    if (!tenant) return;
+    setIsLoading(true);
+    const data = await supabaseService.getAllAppointmentsHistory(tenant.slug);
+    // Only successful appointments in the history list
+    setAppointments(data.filter((a: any) => a.status === "resolved"));
+    setIsLoading(false);
+  };
 
   useEffect(() => {
     if (isOpen) load();
@@ -232,69 +233,69 @@ export default function HospitalAppointmentHistory({ isOpen, onClose }: Props) {
   }, [appointments, search, filters]);
 
   // --- Calendar-scoped stats (Today / Month / Year) - NOT affected by filters ---
-const calendarStats = useMemo(() => {
-  const now = new Date();
-  const todayStart = startOfDay(now).getTime();
-  const todayEnd = endOfDay(now).getTime();
+  const calendarStats = useMemo(() => {
+    const now = new Date();
+    const todayStart = startOfDay(now).getTime();
+    const todayEnd = endOfDay(now).getTime();
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
 
-  let todayTotal = 0;
-  let todayCount = 0;
-  let monthTotal = 0;
-  let monthCount = 0;
-  let yearTotal = 0;
-  let yearCount = 0;
+    let todayTotal = 0;
+    let todayCount = 0;
+    let monthTotal = 0;
+    let monthCount = 0;
+    let yearTotal = 0;
+    let yearCount = 0;
 
-  appointments.forEach(a => {
-    const bookingTime = new Date(`${a.booking_date}T12:00:00`).getTime();
-    const amt = Number(a.price) || 0;
+    appointments.forEach((a) => {
+      const bookingTime = new Date(`${a.booking_date}T12:00:00`).getTime();
+      const amt = Number(a.price) || 0;
 
-    if (bookingTime >= todayStart && bookingTime <= todayEnd) {
-      todayTotal += amt;
-      todayCount += 1;
-    }
-    if (bookingTime >= monthStart && bookingTime <= todayEnd) {
-      monthTotal += amt;
-      monthCount += 1;
-    }
-    if (bookingTime >= yearStart && bookingTime <= todayEnd) {
-      yearTotal += amt;
-      yearCount += 1;
-    }
-  });
+      if (bookingTime >= todayStart && bookingTime <= todayEnd) {
+        todayTotal += amt;
+        todayCount += 1;
+      }
+      if (bookingTime >= monthStart && bookingTime <= todayEnd) {
+        monthTotal += amt;
+        monthCount += 1;
+      }
+      if (bookingTime >= yearStart && bookingTime <= todayEnd) {
+        yearTotal += amt;
+        yearCount += 1;
+      }
+    });
 
-  return {
-    todayTotal,
-    todayCount,
-    monthTotal,
-    monthCount,
-    yearTotal,
-    yearCount,
-  };
-}, [appointments]);
+    return {
+      todayTotal,
+      todayCount,
+      monthTotal,
+      monthCount,
+      yearTotal,
+      yearCount,
+    };
+  }, [appointments]);
 
-// --- "Total" stat - follows the current filters & search ---
-const filteredStats = useMemo(() => {
-  let total = 0;
-  let count = 0;
-  filtered.forEach(a => {
-    total += Number(a.price) || 0;
-    count += 1;
-  });
-  return { total, count };
-}, [filtered]);
+  // --- "Total" stat - follows the current filters & search ---
+  const filteredStats = useMemo(() => {
+    let total = 0;
+    let count = 0;
+    filtered.forEach((a) => {
+      total += Number(a.price) || 0;
+      count += 1;
+    });
+    return { total, count };
+  }, [filtered]);
 
-// --- "Total" stat - follows the current filters & search ---
-const totalRevenue = useMemo(() => {
-  let total = 0;
-  filtered.forEach(a => {
-    if (a.status !== 'resolved') return;
-    total += Number(a.price) || 0;
-  });
-  return total;
-}, [filtered]);
+  // --- "Total" stat - follows the current filters & search ---
+  const totalRevenue = useMemo(() => {
+    let total = 0;
+    filtered.forEach((a) => {
+      if (a.status !== "resolved") return;
+      total += Number(a.price) || 0;
+    });
+    return total;
+  }, [filtered]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -327,57 +328,60 @@ const totalRevenue = useMemo(() => {
         title="Appointment History"
         size="xl"
         mobileFullScreen
-        footer={
-          <Button variant="ghost" onClick={onClose} block>
-            Close
-          </Button>
-        }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-  <Card padding="sm" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Today</span>
-    <div style={{ fontSize: 16, fontWeight: 800, color: '#15803d', marginTop: 4 }}>
-      {formatRupees(calendarStats.todayTotal)}
-    </div>
-    <div style={{ fontSize: 11, fontWeight: 600, color: '#166534', marginTop: 2 }}>
-      {calendarStats.todayCount} success
-    </div>
-  </Card>
+        <div className={local.statsGrid}>
+          <Card padding="sm" className={local.statToday}>
+            <span className={`${local.statLabel} ${local.statLabelToday}`}>
+              Today
+            </span>
+            <div className={`${local.statValue} ${local.statValueToday}`}>
+              {formatRupees(calendarStats.todayTotal)}
+            </div>
+            <div className={`${local.statCount} ${local.statCountToday}`}>
+              {calendarStats.todayCount} success
+            </div>
+          </Card>
 
-  <Card padding="sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Total</span>
-    <div style={{ fontSize: 16, fontWeight: 800, color: '#334155', marginTop: 4 }}>
-      {formatRupees(filteredStats.total)}
-    </div>
-    <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginTop: 2 }}>
-      {filteredStats.count} success
-    </div>
-  </Card>
+          <Card padding="sm" className={local.statTotal}>
+            <span className={`${local.statLabel} ${local.statLabelTotal}`}>
+              Total
+            </span>
+            <div className={`${local.statValue} ${local.statValueTotal}`}>
+              {formatRupees(filteredStats.total)}
+            </div>
+            <div className={`${local.statCount} ${local.statCountTotal}`}>
+              {filteredStats.count} success
+            </div>
+          </Card>
 
-  <Card padding="sm" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>This Month</span>
-    <div style={{ fontSize: 16, fontWeight: 800, color: '#1d4ed8', marginTop: 4 }}>
-      {formatRupees(calendarStats.monthTotal)}
-    </div>
-    <div style={{ fontSize: 11, fontWeight: 600, color: '#1e40af', marginTop: 2 }}>
-      {calendarStats.monthCount} success
-    </div>
-  </Card>
+          <Card padding="sm" className={local.statMonth}>
+            <span className={`${local.statLabel} ${local.statLabelMonth}`}>
+              This Month
+            </span>
+            <div className={`${local.statValue} ${local.statValueMonth}`}>
+              {formatRupees(calendarStats.monthTotal)}
+            </div>
+            <div className={`${local.statCount} ${local.statCountMonth}`}>
+              {calendarStats.monthCount} success
+            </div>
+          </Card>
 
-  <Card padding="sm" style={{ background: '#faf5ff', border: '1px solid #e9d5ff' }}>
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase' }}>This Year</span>
-    <div style={{ fontSize: 16, fontWeight: 800, color: '#7e22ce', marginTop: 4 }}>
-      {formatRupees(calendarStats.yearTotal)}
-    </div>
-    <div style={{ fontSize: 11, fontWeight: 600, color: '#6b21a8', marginTop: 2 }}>
-      {calendarStats.yearCount} success
-    </div>
-  </Card>
-</div>
+          <Card padding="sm" className={local.statYear}>
+            <span className={`${local.statLabel} ${local.statLabelYear}`}>
+              This Year
+            </span>
+            <div className={`${local.statValue} ${local.statValueYear}`}>
+              {formatRupees(calendarStats.yearTotal)}
+            </div>
+            <div className={`${local.statCount} ${local.statCountYear}`}>
+              {calendarStats.yearCount} success
+            </div>
+          </Card>
+        </div>
 
         {/* 2. SEARCH & FILTER */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={local.searchRow}>
+          <div className={local.searchInputWrap}>
             <Input
               placeholder="Search by patient, phone, doctor, address..."
               value={search}
@@ -402,18 +406,7 @@ const totalRevenue = useMemo(() => {
             leftIcon={<FilterIcon width={14} height={14} fill="currentColor" />}
             rightIcon={
               activeFiltersCount > 0 ? (
-                <span
-                  style={{
-                    background: "#fff",
-                    padding: "0 6px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    color: "#1e7e34",
-                    fontWeight: 800,
-                  }}
-                >
-                  {activeFiltersCount}
-                </span>
+                <span className={local.filterBadge}>{activeFiltersCount}</span>
               ) : undefined
             }
           >
@@ -428,46 +421,42 @@ const totalRevenue = useMemo(() => {
           <EmptyState title="No appointments found" />
         ) : (
           <>
-            <div
-              style={{
-                overflowX: "auto",
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
-              >
+            <div className={local.tableWrap}>
+              <table className={local.table}>
                 <thead>
-  <tr style={{ background: '#f8fafc', textAlign: 'left' }}>
-    <th style={{ padding: 10 }}>Date</th>
-    <th style={{ padding: 10 }}>Token</th>
-    <th style={{ padding: 10 }}>Patient</th>
-    <th style={{ padding: 10 }}>Category</th>
-    <th style={{ padding: 10 }}>Doctor</th>
-    <th style={{ padding: 10 }}>Price</th>
-  </tr>
-</thead>
-<tbody>
-  {paginated.map(a => (
-    <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-      <td style={{ padding: 10 }}>{new Date(a.booking_date).toLocaleDateString('en-IN')}</td>
-      <td style={{ padding: 10 }}><strong>#{a.token_no}</strong></td>
-      <td style={{ padding: 10 }}>
-        {a.patient_name}<br />
-        <small style={{ color: '#666' }}>{a.phone}</small>
-      </td>
-      <td style={{ padding: 10 }}>{a.category}</td>
-      <td style={{ padding: 10 }}>{a.doctor_name || '-'}</td>
-      <td style={{ padding: 10 }}>{formatRupees(Number(a.price) || 0)}</td>
-    </tr>
-  ))}
-</tbody>
+                  <tr className={local.tableHeadRow}>
+                    <th className={local.tableHeadCell}>Date</th>
+                    <th className={local.tableHeadCell}>Token</th>
+                    <th className={local.tableHeadCell}>Patient</th>
+                    <th className={local.tableHeadCell}>Category</th>
+                    <th className={local.tableHeadCell}>Doctor</th>
+                    <th className={local.tableHeadCell}>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((a) => (
+                    <tr key={a.id} className={local.tableBodyRow}>
+                      <td className={local.tableCell}>
+                        {new Date(a.booking_date).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className={local.tableCell}>
+                        <strong>#{a.token_no}</strong>
+                      </td>
+                      <td className={local.tableCell}>
+                        {a.patient_name}
+                        <br />
+                        <small className={local.phoneSubtext}>{a.phone}</small>
+                      </td>
+                      <td className={local.tableCell}>{a.category}</td>
+                      <td className={local.tableCell}>
+                        {a.doctor_name || "-"}
+                      </td>
+                      <td className={local.tableCell}>
+                        {formatRupees(Number(a.price) || 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
             <Pagination
@@ -509,18 +498,9 @@ const totalRevenue = useMemo(() => {
           </>
         }
       >
-        <section style={{ marginBottom: 22 }}>
-          <h4
-            style={{
-              margin: "0 0 10px",
-              fontSize: 12,
-              textTransform: "uppercase",
-              color: "#666",
-            }}
-          >
-            Patient Info
-          </h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <section className={local.sheetSection}>
+          <h4 className={local.sheetSectionTitle}>Patient Info</h4>
+          <div className={local.fieldStack}>
             <FormField label="Patient Name">
               <Input
                 value={draftFilters.patient}
@@ -560,18 +540,9 @@ const totalRevenue = useMemo(() => {
           </div>
         </section>
 
-        <section style={{ marginBottom: 22 }}>
-          <h4
-            style={{
-              margin: "0 0 10px",
-              fontSize: 12,
-              textTransform: "uppercase",
-              color: "#666",
-            }}
-          >
-            Category
-          </h4>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <section className={local.sheetSection}>
+          <h4 className={local.sheetSectionTitle}>Category</h4>
+          <div className={local.chipRow}>
             {categories.map((c) => (
               <Chip
                 key={c}
@@ -587,18 +558,9 @@ const totalRevenue = useMemo(() => {
           </div>
         </section>
 
-        <section style={{ marginBottom: 22 }}>
-          <h4
-            style={{
-              margin: "0 0 10px",
-              fontSize: 12,
-              textTransform: "uppercase",
-              color: "#666",
-            }}
-          >
-            Date Range
-          </h4>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <section className={local.sheetSection}>
+          <h4 className={local.sheetSectionTitle}>Date Range</h4>
+          <div className={local.chipRow}>
             {DATE_OPTIONS.map((o) => (
               <Chip
                 key={o.key}
@@ -613,14 +575,7 @@ const totalRevenue = useMemo(() => {
             ))}
           </div>
           {draftFilters.datePreset === "custom" && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginTop: 12,
-              }}
-            >
+            <div className={local.customDateGrid}>
               <FormField label="From">
                 <Input
                   type="date"

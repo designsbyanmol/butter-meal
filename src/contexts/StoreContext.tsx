@@ -31,7 +31,7 @@ const defaultStoreSettings: StoreSettings = {
   lastUpdated: new Date().toISOString(),
 };
 
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 120_000;
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 

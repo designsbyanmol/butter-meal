@@ -81,6 +81,18 @@ const HospitalOpdPrintLayout = forwardRef<HTMLDivElement, OpdPrintLayoutProps>(
               Contact no. {tenant?.whatsappPhone || "-"},{" "}
               {tenant?.ownerPhone || "-"}
             </p>
+            <div className={local.hospitalDep}>
+              {department && (
+                <span>
+                  <strong>Department:</strong> {department}
+                </span>
+              )}
+              {serviceName && (
+                <span>
+                  <strong>Service:</strong> {serviceName}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -100,54 +112,28 @@ const HospitalOpdPrintLayout = forwardRef<HTMLDivElement, OpdPrintLayoutProps>(
           <div className={local.opdMainContent}>
             <div className={local.patientRow}>
               <span>
-                <strong>Patient name:</strong> {patient.name}
-              </span>
-              <span>
-                <strong>Age:</strong> {patient.age}
+                <strong>Name:</strong> {patient.name} ({patient.age})
               </span>
               <span>
                 <strong>Gender:</strong> {patient.gender}
               </span>
-              <span>
-                <strong>Phone:</strong> {patient.phone}
-              </span>
-            </div>
-            <div className={local.patientRow}>
+              {price !== undefined && price > 0 && (
+                <span>
+                  <strong>Fee:</strong> ₹
+                  {Number(price).toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              )}
               <span className={local.addressCell}>
                 <strong>Address:</strong> {patient.address}
               </span>
               {doctorName && (
-                <div className={local.doctorCell}>
+                <span className={local.doctorCell}>
                   <strong>Doctor:</strong> {doctorName}
-                </div>
+                </span>
               )}
             </div>
-
-            {/* NEW: visit context line */}
-            {(department ||
-              serviceName ||
-              (price !== undefined && price > 0)) && (
-              <div className={local.patientRow}>
-                {department && (
-                  <span>
-                    <strong>Department:</strong> {department}
-                  </span>
-                )}
-                {serviceName && (
-                  <span>
-                    <strong>Service:</strong> {serviceName}
-                  </span>
-                )}
-                {price !== undefined && price > 0 && (
-                  <span>
-                    <strong>Fee:</strong> ₹
-                    {Number(price).toLocaleString("en-IN", {
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
-                )}
-              </div>
-            )}
 
             <div className={local.opdVitalsRow}>
               {Object.entries(vitals)

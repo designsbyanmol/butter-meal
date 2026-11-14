@@ -767,7 +767,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     const onFocus = () => {
       if (document.hidden) return;
       const now = Date.now();
-      if (now - lastFocusRefreshRef.current < 15_000) return;
+      if (now - lastFocusRefreshRef.current < 60_000) return;
       lastFocusRefreshRef.current = now;
       const { slug: s } = resolveSlugFromUrl();
       if (s) {

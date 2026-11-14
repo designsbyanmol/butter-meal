@@ -1,5 +1,11 @@
 // src/components/Admin/HospitalIpdHistory.tsx
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { useTenant } from "../../contexts/TenantContext";
 import { supabaseService } from "../../services/supabase.service";
 import {
@@ -24,8 +30,14 @@ import {
 } from "../../assets/svgs";
 import { formatRupees } from "../../utils/subscription";
 import { printReceiptNode } from "../../utils/printReceipt";
-import { IPD_DISCHARGE_LABELS, IpdBill, IpdDischargeType } from "../../types";
+import {
+  IpdBill,
+  IpdDischargeType,
+  IPD_DISCHARGE_LABELS,
+  HospitalParticular,
+} from "../../types";
 import HospitalIpdPrintLayout from "./HospitalIpdPrintLayout";
+import HospitalIpdBilling from "./HospitalIpdBilling";
 import local from "./Pharmacy.module.scss";
 
 interface Props {
@@ -140,8 +152,19 @@ const EMPTY_FILTERS: FilterState = {
   discharge: "all",
 };
 
+type PrintFlow =
+  | { step: "closed" }
+  | { step: "pickDischarge"; bill: IpdBill }
+  | { step: "askPaid"; bill: IpdBill; discharge: IpdDischargeType | null }
+  | {
+      step: "confirmed";
+      bill: IpdBill;
+      discharge: IpdDischargeType | null;
+    };
+
 const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
   const { tenant } = useTenant();
+
   const [bills, setBills] = useState<IpdBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -154,61 +177,150 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
   const [selectedBill, setSelectedBill] = useState<IpdBill | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  const [printFlow, setPrintFlow] = useState<
-    | { step: "closed" }
-    | { step: "pickDischarge"; bill: IpdBill }
-    | { step: "askPaid"; bill: IpdBill; discharge: IpdDischargeType | null }
-    | { step: "confirmed"; bill: IpdBill; discharge: IpdDischargeType | null }
-  >({ step: "closed" });
-
+  const [printFlow, setPrintFlow] = useState<PrintFlow>({ step: "closed" });
   const [pendingDischarge, setPendingDischarge] =
     useState<IpdDischargeType | null>(null);
   const [isSavingDischarge, setIsSavingDischarge] = useState(false);
-
   const [dischargeForPrint, setDischargeForPrint] =
     useState<IpdDischargeType | null>(null);
 
-  useEffect(() => {
-    if (printFlow.step !== "confirmed") return;
-    const t = window.setTimeout(() => {
-      triggerPrint();
-      setPrintFlow({ step: "closed" });
-    }, 120);
-    return () => window.clearTimeout(t);
-  }, [printFlow.step]);
-
-  const triggerPrint = () => {
-    if (!printRef.current) return;
-    printReceiptNode(printRef.current, {
-      title: `ipd-${selectedBill?.bill_no ?? "history"}`,
-      pageSize: "A4 portrait",
-    });
-  };
+  const [editingBill, setEditingBill] = useState<IpdBill | null>(null);
+  const [particulars, setParticulars] = useState<HospitalParticular[]>([]);
 
   const printRef = useRef<HTMLDivElement>(null);
 
+  // ── Loader (used by mount effect AND by edit-save refresh) ──
+  const load = useCallback(async () => {
+    if (!tenant) return;
+    setIsLoading(true);
+    try {
+      const list = await supabaseService.getIpdBills(tenant.slug);
+      setBills(list);
+    } catch (err) {
+      console.warn("[ipd-history] load failed:", err);
+      setBills([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tenant?.slug]);
+
+  const BILL_QUERY_KEY = "bill";
+
+const readBillIdFromUrl = (): string | null => {
+  try {
+    const url = new URL(window.location.href);
+    const v = url.searchParams.get(BILL_QUERY_KEY);
+    return v && v.trim() ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeBillIdToUrl = (billId: string | null) => {
+  try {
+    const url = new URL(window.location.href);
+    if (billId) url.searchParams.set(BILL_QUERY_KEY, billId);
+    else url.searchParams.delete(BILL_QUERY_KEY);
+    window.history.replaceState({}, "", url.toString());
+  } catch {
+    /* ignore */
+  }
+};
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void load();
+  }, [isOpen, load]);
+
+
+  // Reopen the details modal if ?bill=<id> is in the URL and the
+// bill is present in the loaded list. Runs whenever `bills` changes,
+// so it works on the first load and on any subsequent reload/refetch.
+const didRestoreRef = useRef(false);
+useEffect(() => {
+  if (didRestoreRef.current) return;
+  if (isLoading) return;
+  if (!isOpen) return;
+
+  const id = readBillIdFromUrl();
+  if (!id) {
+    didRestoreRef.current = true;
+    return;
+  }
+
+  const bill = bills.find((b) => String(b.id) === id);
+  if (bill) {
+    setSelectedBill(bill);
+    setIsDetailsOpen(true);
+  } else {
+    // Bill no longer exists (deleted, or outside retention window).
+    // Drop the URL param so a further reload doesn't try again.
+    writeBillIdToUrl(null);
+  }
+  didRestoreRef.current = true;
+}, [bills, isLoading, isOpen]);
+
+  // Load particulars once per open so the edit form can render chips.
   useEffect(() => {
     if (!isOpen || !tenant) return;
     let cancelled = false;
-    setIsLoading(true);
     supabaseService
-      .getIpdBills(tenant.slug)
+      .getHospitalParticulars(tenant.slug)
       .then((list) => {
-        if (cancelled) return;
-        setBills(list);
+        if (!cancelled) setParticulars(list);
       })
-      .catch((err) => {
-        console.warn("[ipd-history] load failed:", err);
-        if (!cancelled) setBills([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+      .catch(() => {
+        if (!cancelled) setParticulars([]);
       });
     return () => {
       cancelled = true;
     };
   }, [isOpen, tenant?.slug]);
 
+  // ── Derived print bill + discharge ──
+  // When a print flow is in progress, prefer its bill (so we print the
+  // bill the user actually asked to print). Fall back to selectedBill
+  // for a plain reprint-from-details path.
+  const printBill =
+    (printFlow.step !== "closed" &&
+      printFlow.step !== "pickDischarge" &&
+      printFlow.bill) ||
+    selectedBill;
+
+  const printDischarge =
+    (printFlow.step === "askPaid" || printFlow.step === "confirmed"
+      ? printFlow.discharge
+      : null) ??
+    dischargeForPrint ??
+    printBill?.discharge_type ??
+    null;
+
+  // ── Trigger print on the correct DOM node ──
+  const triggerPrint = useCallback(() => {
+    if (!printRef.current) return;
+    const title = printBill?.bill_no
+      ? `ipd-${printBill.bill_no}`
+      : "ipd-history";
+    printReceiptNode(printRef.current, {
+      title,
+      pageSize: "A4 portrait",
+    });
+  }, [printBill?.bill_no]);
+
+  // Fire the actual print on the frame *after* the confirmed state
+  // commits, so the DOM has been updated with `printBill` + `printDischarge`.
+  useEffect(() => {
+    if (printFlow.step !== "confirmed") return;
+    const raf = requestAnimationFrame(() => {
+      triggerPrint();
+      setPrintFlow({ step: "closed" });
+      setDischargeForPrint(null);
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printFlow.step]);
+
+  // ── Suggestions ──
   const suggestions = useMemo(() => {
     const patients = new Set<string>();
     bills.forEach((b) => {
@@ -217,6 +329,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     return { patients: Array.from(patients).sort() };
   }, [bills]);
 
+  // ── Stats ──
   const stats = useMemo(() => {
     const now = new Date();
     const todayStart = startOfDay(now).getTime();
@@ -243,9 +356,6 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         return;
       }
 
-      // Normalize to local midnight so a `date`-only value like
-      // "2026-11-04" lands on the same calendar day the user sees,
-      // not 05:30 IST on that day.
       const dayStart = startOfDay(new Date(t)).getTime();
       const amt = Number(b.total_amount) || 0;
 
@@ -264,6 +374,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     return { todayTotal, yesterdayTotal, monthTotal };
   }, [bills]);
 
+  // ── Filtered list ──
   const filteredBills = useMemo(() => {
     let result = bills;
 
@@ -337,7 +448,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     if (filters.patient.trim()) c++;
     if (filters.billNo.trim()) c++;
     if (filters.datePreset !== "all") c++;
-    if (filters.discharge !== "all") c++; // ← new
+    if (filters.discharge !== "all") c++;
     return c;
   }, [filters]);
 
@@ -353,71 +464,92 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const resetFilters = () => setDraftFilters(EMPTY_FILTERS);
 
-  const openDetails = (bill: IpdBill) => {
-    setSelectedBill(bill);
-    setIsDetailsOpen(true);
-  };
+const openDetails = (bill: IpdBill) => {
+  setSelectedBill(bill);
+  setIsDetailsOpen(true);
+  writeBillIdToUrl(String(bill.id));
+};
 
-  const handlePrintClick = (bill: IpdBill) => {
-    // Already has a discharge type → go straight to the paid prompt.
+const closeDetails = () => {
+  setIsDetailsOpen(false);
+  setSelectedBill(null);
+  writeBillIdToUrl(null);
+};
+
+  // ── Print flow ──
+  const handlePrintClick = (bill: IpdBill | null) => {
+    if (!bill) return;
+
     if (bill.discharge_type) {
       if (!bill.is_paid) {
-        setPrintFlow({ step: "askPaid", bill, discharge: bill.discharge_type });
+        setPrintFlow({
+          step: "askPaid",
+          bill,
+          discharge: bill.discharge_type,
+        });
         return;
       }
-      setSelectedBill(bill);
-      setDischargeForPrint(bill.discharge_type);
-      window.setTimeout(() => triggerPrint(), 80);
+      setPrintFlow({
+        step: "confirmed",
+        bill,
+        discharge: bill.discharge_type,
+      });
       return;
     }
-    // No discharge type yet → pick it first.
+
     setPendingDischarge(null);
     setPrintFlow({ step: "pickDischarge", bill });
   };
 
   const confirmDischargeAndPrint = async () => {
-    if (printFlow.step !== "pickDischarge") return;
-    if (!pendingDischarge) return;
+    if (printFlow.step !== "pickDischarge" || !pendingDischarge) return;
 
     const bill = printFlow.bill;
     setIsSavingDischarge(true);
 
-    await supabaseService.updateIpdBillDischargeType(bill.id, pendingDischarge);
+    try {
+      const ok = await supabaseService.updateIpdBillDischargeType(
+        bill.id,
+        pendingDischarge,
+      );
+      if (!ok) {
+        alert("Could not save the discharge type. Please retry.");
+        return;
+      }
 
-    setBills((prev) =>
-      prev.map((b) =>
-        b.id === bill.id ? { ...b, discharge_type: pendingDischarge } : b,
-      ),
-    );
-    setSelectedBill((prev) =>
-      prev && prev.id === bill.id
-        ? { ...prev, discharge_type: pendingDischarge }
-        : prev,
-    );
+      setBills((prev) =>
+        prev.map((b) =>
+          b.id === bill.id ? { ...b, discharge_type: pendingDischarge } : b,
+        ),
+      );
+      setSelectedBill((prev) =>
+        prev && prev.id === bill.id
+          ? { ...prev, discharge_type: pendingDischarge }
+          : prev,
+      );
 
-    setIsSavingDischarge(false);
+      if (!bill.is_paid) {
+        setPrintFlow({
+          step: "askPaid",
+          bill,
+          discharge: pendingDischarge,
+        });
+        return;
+      }
 
-    if (!bill.is_paid) {
-      // Chain into the paid prompt.
+      setDischargeForPrint(pendingDischarge);
       setPrintFlow({
-        step: "askPaid",
+        step: "confirmed",
         bill,
         discharge: pendingDischarge,
       });
-      return;
+    } finally {
+      setIsSavingDischarge(false);
     }
-
-    setDischargeForPrint(pendingDischarge);
-    setPrintFlow({
-      step: "confirmed",
-      bill,
-      discharge: pendingDischarge,
-    });
   };
 
   const handleMarkPaidAndPrint = async () => {
     if (printFlow.step !== "askPaid") return;
-
     const bill = printFlow.bill;
     const discharge = printFlow.discharge;
 
@@ -439,7 +571,6 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
       discharge_type: discharge ?? bill.discharge_type,
     };
 
-    // Sync all three UI surfaces with the new values
     setBills((prev) => prev.map((b) => (b.id === bill.id ? patched : b)));
     setSelectedBill((prev) => (prev && prev.id === bill.id ? patched : prev));
 
@@ -454,9 +585,9 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     setPrintFlow({ step: "confirmed", bill, discharge });
   };
 
+  // ── CSV export ──
   const handleExportAll = () => {
     if (filteredBills.length === 0) return;
-    // Simple CSV export - avoids introducing another PDF lib
     const header = [
       "Bill No",
       "Date",
@@ -500,11 +631,17 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleCloseHistory = () => {
+  writeBillIdToUrl(null);
+  onClose();
+};
+
   return (
     <>
+      {/* ───── Main history modal ───── */}
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleCloseHistory}
         title="IPD Bill History"
         size="xl"
         mobileFullScreen
@@ -693,7 +830,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         )}
       </Modal>
 
-      {/* Filter Sheet */}
+      {/* ───── Filter sheet ───── */}
       <Sheet
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
@@ -723,7 +860,6 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
             >
               All
             </Chip>
-
             <Chip
               tone="primary"
               active={draftFilters.discharge === "none"}
@@ -733,7 +869,6 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
             >
               Not Discharged
             </Chip>
-
             {(Object.keys(IPD_DISCHARGE_LABELS) as IpdDischargeType[]).map(
               (key) => (
                 <Chip
@@ -838,24 +973,37 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         </section>
       </Sheet>
 
-      {/* Details Modal */}
+      {/* ───── Details modal ───── */}
       <Modal
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        title={`IPD Bill - ${selectedBill?.bill_no}`}
-        size="lg"
-        mobileFullScreen
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setIsDetailsOpen(false)}>
-              Close
-            </Button>
-            <Button onClick={() => handlePrintClick(selectedBill!)}>
-              Print Bill
-            </Button>
-          </>
-        }
+  isOpen={isDetailsOpen}
+  onClose={closeDetails}
+  title={`IPD Bill - ${selectedBill?.bill_no}`}
+  size="lg"
+  mobileFullScreen
+  footer={
+    <>
+      <Button variant="ghost" onClick={closeDetails}>
+        Close
+      </Button>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          if (!selectedBill) return;
+          setEditingBill(selectedBill);
+          setIsDetailsOpen(false);
+          writeBillIdToUrl(null);
+        }}
+        disabled={!selectedBill}
+        style={{ marginRight: "auto" }}
       >
+        Edit
+      </Button>
+      <Button onClick={() => handlePrintClick(selectedBill)}>
+        Print &amp; Close
+      </Button>
+    </>
+  }
+>
         {selectedBill && (
           <div>
             <div className={local.billHeader}>
@@ -940,12 +1088,15 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         )}
       </Modal>
 
+      {/* ───── Pick discharge type ───── */}
       <Modal
         isOpen={printFlow.step === "pickDischarge"}
         onClose={() => setPrintFlow({ step: "closed" })}
-        title={`Print bill - ${printFlow.step === "pickDischarge" ? printFlow.bill.bill_no : ""}`}
+        title={`Print bill - ${
+          printFlow.step === "pickDischarge" ? printFlow.bill.bill_no : ""
+        }`}
         size="sm"
-        disableBackdropClose={true}
+        disableBackdropClose
         footer={
           <>
             <Button
@@ -985,6 +1136,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
       </Modal>
 
+      {/* ───── Ask paid / unpaid ───── */}
       <Modal
         isOpen={printFlow.step === "askPaid"}
         onClose={() => setPrintFlow({ step: "closed" })}
@@ -992,7 +1144,7 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
           printFlow.step === "askPaid" ? printFlow.bill.bill_no : ""
         }`}
         size="sm"
-        disableBackdropClose={true}
+        disableBackdropClose
         footer={
           <>
             <Button variant="ghost" onClick={handlePrintWithoutPaying}>
@@ -1019,37 +1171,59 @@ const HospitalIpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
         )}
       </Modal>
 
-      {/* Hidden A4 print for reprint */}
+      {/* ───── Hidden A4 print for the correct bill ───── */}
       <div className={local.printHiddenContainer}>
-        {selectedBill && (
+        {printBill && (
           <HospitalIpdPrintLayout
             ref={printRef}
             tenant={tenant}
-            billNo={selectedBill.bill_no}
+            billNo={printBill.bill_no}
             patient={{
-              name: selectedBill.patient_name,
-              age: selectedBill.age || "",
-              gender: selectedBill.gender || "",
-              address: selectedBill.address || "",
+              name: printBill.patient_name,
+              age: printBill.age || "",
+              gender: printBill.gender || "",
+              address: printBill.address || "",
             }}
             dates={{
-              from: selectedBill.date_from || "",
-              to: selectedBill.date_to || "",
+              from: printBill.date_from || "",
+              to: printBill.date_to || "",
             }}
-            items={selectedBill.items || []}
-            total={selectedBill.total_amount}
-            advance={selectedBill.advance}
-            remaining={selectedBill.remaining}
-            isPaid={selectedBill.is_paid}
-            footerHeading={selectedBill.footer_heading}
-            footerInfo={selectedBill.footer_info}
-            disclaimer={selectedBill.disclaimer}
-            dischargeType={
-              dischargeForPrint ?? selectedBill.discharge_type ?? null
-            }
+            items={printBill.items || []}
+            total={printBill.total_amount}
+            advance={printBill.advance}
+            remaining={printBill.remaining}
+            isPaid={printBill.is_paid}
+            footerHeading={printBill.footer_heading}
+            footerInfo={printBill.footer_info}
+            disclaimer={printBill.disclaimer}
+            dischargeType={printDischarge}
           />
         )}
       </div>
+
+      {/* ───── Edit modal — OUTSIDE printHiddenContainer ───── */}
+      {editingBill && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEditingBill(null)}
+          title={`Edit IPD Bill — ${editingBill.bill_no}`}
+          size="xl"
+          mobileFullScreen
+          disableBackdropClose
+          footer={null}
+        >
+          <HospitalIpdBilling
+            particulars={particulars}
+            editingBill={editingBill}
+            onEditCancel={() => setEditingBill(null)}
+            onEditSaved={() => {
+              setEditingBill(null);
+              void load();
+            }}
+            hideToolbarActions
+          />
+        </Modal>
+      )}
     </>
   );
 };

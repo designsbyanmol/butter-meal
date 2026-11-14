@@ -23,7 +23,12 @@ import {
   SearchIcon,
   FilterIcon,
   CloseIcon,
+  PhoneIcon,
+  EmailIcon,
+  LocationIcon,
 } from "../../assets/svgs";
+import local from "./HospitalPatientsBody.module.scss";
+
 const patientsKey = (slug: string) => `pharmacy_patients_cache::${slug}`;
 const writeCache = (key: string, list: any[]) => {
   try {
@@ -202,8 +207,8 @@ export default function HospitalPatientsBody({
           </Button>
         }
       >
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
+        <div className={local.searchRow}>
+          <div className={local.searchInputWrap}>
             <Input
               placeholder="Search patient name, phone, email..."
               value={search}
@@ -228,18 +233,7 @@ export default function HospitalPatientsBody({
             leftIcon={<FilterIcon width={14} height={14} fill="currentColor" />}
             rightIcon={
               filterGender !== "All" ? (
-                <span
-                  style={{
-                    background: "#fff",
-                    padding: "0 6px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    color: "#1e7e34",
-                    fontWeight: 800,
-                  }}
-                >
-                  1
-                </span>
+                <span className={local.filterBadge}>1</span>
               ) : undefined
             }
           >
@@ -256,34 +250,12 @@ export default function HospitalPatientsBody({
           />
         ) : (
           <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                gap: 12,
-              }}
-            >
+            <div className={local.grid}>
               {paginatedPatients.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    padding: 16,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>
-                        {p.name}
-                      </h3>
+                <div key={p.id} className={local.card}>
+                  <div className={local.cardInner}>
+                    <div className={local.cardInfo}>
+                      <h3 className={local.patientName}>{p.name}</h3>
                       <Badge tone="neutral" size="sm">
                         {p.gender}
                         {(() => {
@@ -297,40 +269,19 @@ export default function HospitalPatientsBody({
                         })()}
                       </Badge>
                       {p.phone && (
-                        <p
-                          style={{
-                            margin: "8px 0 0",
-                            fontSize: 13,
-                            color: "#64748b",
-                          }}
-                        >
-                          📞 {p.phone}
+                        <p className={local.contactText}>
+                          <PhoneIcon width={14} height={14} fill="#4d4d4d" />{" "}
+                          {p.phone}
                         </p>
                       )}
                       {p.email && (
-                        <p
-                          style={{
-                            margin: "2px 0 0",
-                            fontSize: 12,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          ✉️ {p.email}
-                        </p>
+                        <p className={local.subText}><EmailIcon width={14} height={14} fill="#4d4d4d" /> {p.email}</p>
                       )}
                       {p.address && (
-                        <p
-                          style={{
-                            margin: "2px 0 0",
-                            fontSize: 12,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          📍 {p.address}
-                        </p>
+                        <p className={local.subText}><LocationIcon width={14} height={14} fill="#4d4d4d" /> {p.address}</p>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    <div className={local.cardActions}>
                       <IconButton
                         variant="ghost"
                         size="sm"
@@ -380,7 +331,7 @@ export default function HospitalPatientsBody({
           </>
         }
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className={local.modalForm}>
           <FormField label="Patient Name *">
             <Input
               value={form.name}
@@ -388,16 +339,8 @@ export default function HospitalPatientsBody({
             />
           </FormField>
 
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
+          <div className={local.formGrid}>
+            <div className={local.ageGrid}>
               <FormField label="Age (years)">
                 <Input
                   type="number"
@@ -465,6 +408,7 @@ export default function HospitalPatientsBody({
       {/* DELETE CONFIRM */}
       <Modal
         isOpen={!!deleteTarget}
+        size="sm"
         onClose={() => setDeleteTarget(null)}
         title="Delete Patient"
         footer={
@@ -478,8 +422,8 @@ export default function HospitalPatientsBody({
           </>
         }
       >
-        <p>
-          Delete <strong>{deleteTarget?.name}</strong>?
+        <p className={local.confirmDel}>
+          Are you sure you want to remove <strong>{deleteTarget?.name}</strong>?
         </p>
       </Modal>
 
@@ -505,17 +449,8 @@ export default function HospitalPatientsBody({
           </>
         }
       >
-        <h4
-          style={{
-            margin: "0 0 10px",
-            fontSize: 12,
-            textTransform: "uppercase",
-            color: "#666",
-          }}
-        >
-          Gender
-        </h4>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <h4 className={local.filterTitle}>Gender</h4>
+        <div className={local.chipRow}>
           {["All", ...GENDERS].map((g) => (
             <Chip
               key={g}

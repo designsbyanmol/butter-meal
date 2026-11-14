@@ -761,6 +761,7 @@ export interface IpdBill {
   id: string;
   bill_no: string;
   patient_name: string;
+  phone?: string;
   age: string;
   gender: string;
   address: string;
@@ -777,6 +778,7 @@ export interface IpdBill {
   /** NEW */
   discharge_type?: IpdDischargeType | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface OpdVitals {
@@ -789,6 +791,12 @@ export interface OpdDefaults {
   footerInfo: string;
   disclaimer: string;
   vitals: OpdVitals;
+}
+
+export interface IpdDefaults {
+  footerHeading: string;
+  footerInfo: string;
+  disclaimer: string;
 }
 
 export interface OpdBill {

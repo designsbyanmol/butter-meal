@@ -1,0 +1,162 @@
+// src/components/Admin/HospitalAppointmentHistory.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+// ── Stats Grid ───────────────────────────────────────────
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @include mobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// ── Stats Cards ──────────────────────────────────────────
+.statCard {
+  // base card (Card component handles padding/border)
+}
+
+.statToday {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.statTotal {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.statMonth {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.statYear {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+
+// ── Stat text colors per variant ─────────────────────────
+.statLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.statCount {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.statLabelToday { color: #166534; }
+.statValueToday { color: #15803d; }
+.statCountToday { color: #166534; }
+
+.statLabelTotal { color: #475569; }
+.statValueTotal { color: #334155; }
+.statCountTotal { color: #475569; }
+
+.statLabelMonth { color: #1e40af; }
+.statValueMonth { color: #1d4ed8; }
+.statCountMonth { color: #1e40af; }
+
+.statLabelYear { color: #6b21a8; }
+.statValueYear { color: #7e22ce; }
+.statCountYear { color: #6b21a8; }
+
+// ── Search & Filter ──────────────────────────────────────
+.searchRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.searchInputWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.filterBadge {
+  background: #fff;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #1e7e34;
+  font-weight: 800;
+}
+
+// ── Table ────────────────────────────────────────────────
+.tableWrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tableHeadRow {
+  background: #f8fafc;
+  text-align: left;
+}
+
+.tableHeadCell {
+  padding: 10px;
+}
+
+.tableBodyRow {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tableCell {
+  padding: 10px;
+}
+
+.phoneSubtext {
+  color: #666;
+}
+
+// ── Filter Sheet sections ────────────────────────────────
+.sheetSection {
+  margin-bottom: 22px;
+}
+
+.sheetSectionTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.fieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.customDateGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}

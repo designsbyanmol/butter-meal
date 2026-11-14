@@ -13,7 +13,7 @@ export type BadgeTone =
 
 export interface BadgeProps {
   tone?: BadgeTone;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
   className?: string;
 }

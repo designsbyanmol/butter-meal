@@ -16,6 +16,7 @@ import { startPharmacyBillSync } from "../../services/billSync";
 import { supabaseService } from "../../services/supabase.service";
 import PharmacyBillingHistory from "./PharmacyBillingHistory";
 import local from "./Pharmacy.module.scss";
+import { useRefreshCooldown } from "../../hooks/useRefreshCooldown";
 
 const TERMS_STORAGE_KEY = "hospital_bill_terms";
 
@@ -682,6 +683,19 @@ const PharmacyBillingBody: React.FC = () => {
     setShowPrintConfirm(true);
   };
 
+// top of component
+const { cooldownActive: stockCooling, trigger: triggerStockRefresh } =
+  useRefreshCooldown(tenant?.slug ? `${tenant.slug}:stock` : null);
+
+const handleRefreshStock = () => {
+  triggerStockRefresh(async () => {
+    if (!tenant) return;
+    const fresh = await supabaseService.getMedicineStock(tenant.slug);
+    setStock(fresh || []);
+    writeCache(stockKey(tenant.slug), fresh || []);
+  });
+};
+
   const confirmPrintSuccess = async () => {
     setShowPrintConfirm(false);
     if (!tenant) return;
@@ -826,18 +840,12 @@ const PharmacyBillingBody: React.FC = () => {
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <Button
-              variant="ghost"
-              onClick={async () => {
-                if (!tenant) return;
-                const fresh = await supabaseService.getMedicineStock(
-                  tenant.slug,
-                );
-                setStock(fresh || []);
-                writeCache(stockKey(tenant.slug), fresh || []);
-              }}
-            >
-              Refresh stock
-            </Button>
+  variant="ghost"
+  onClick={handleRefreshStock}
+  disabled={stockCooling}
+>
+  {stockCooling ? "Wait 1 min…" : "Refresh stock"}
+</Button>
             <Button onClick={() => setIsHistoryOpen(true)} variant="secondary">
               Bill History
             </Button>

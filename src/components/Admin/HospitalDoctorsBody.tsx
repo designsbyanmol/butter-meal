@@ -24,7 +24,10 @@ import {
   SearchIcon,
   FilterIcon,
   CloseIcon,
+  PhoneIcon,
+  EmailIcon,
 } from "../../assets/svgs";
+import local from "./HospitalDoctorsBody.module.scss";
 
 const doctorsKey = (slug: string) => `pharmacy_doctors_cache::${slug}`;
 const writeCache = (key: string, list: any[]) => {
@@ -128,14 +131,14 @@ export default function HospitalDoctorsBody({
     };
   }, []);
 
-const load = async () => {
-  if (!tenant) return;
-  setIsLoading(true);
-  const data = await supabaseService.getHospitalDoctors(tenant.slug);
-  setDoctors(data);
-  writeCache(doctorsKey(tenant.slug), data); // ← new
-  setIsLoading(false);
-};
+  const load = async () => {
+    if (!tenant) return;
+    setIsLoading(true);
+    const data = await supabaseService.getHospitalDoctors(tenant.slug);
+    setDoctors(data);
+    writeCache(doctorsKey(tenant.slug), data); // ← new
+    setIsLoading(false);
+  };
 
   useEffect(() => {
     load();
@@ -242,8 +245,8 @@ const load = async () => {
           </Button>
         }
       >
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
+        <div className={local.searchRow}>
+          <div className={local.searchInputWrap}>
             <Input
               placeholder="Search doctor name, phone, specialty..."
               value={search}
@@ -268,18 +271,7 @@ const load = async () => {
             leftIcon={<FilterIcon width={14} height={14} fill="currentColor" />}
             rightIcon={
               filterCat !== "All" ? (
-                <span
-                  style={{
-                    background: "#fff",
-                    padding: "0 6px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    color: "#1e7e34",
-                    fontWeight: 800,
-                  }}
-                >
-                  1
-                </span>
+                <span className={local.filterBadge}>1</span>
               ) : undefined
             }
           >
@@ -296,72 +288,34 @@ const load = async () => {
           />
         ) : (
           <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 12,
-              }}
-            >
+            <div className={local.grid}>
               {paginatedDoctors.map((d) => (
-                <div
-                  key={d.id}
-                  style={{
-                    padding: 16,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>
-                        Dr. {d.name}
-                      </h3>
+                <div key={d.id} className={local.card}>
+                  <div className={local.cardInner}>
+                    <div className={local.cardInfo}>
+                      <h3 className={local.doctorName}>Dr. {d.name}</h3>
                       <Badge tone="info" size="sm">
                         {d.category || "No category"}
                       </Badge>
-                      <p
-                        style={{
-                          margin: "8px 0 0",
-                          fontSize: 13,
-                          color: "#64748b",
-                        }}
-                      >
+                      <p className={local.metaText}>
                         {d.experience ? `${d.experience} yrs exp . ` : ""}
                         {d.gender}
                         {d.age ? ` . Age ${d.age}` : ""}
                       </p>
                       {d.phone && (
-                        <p
-                          style={{
-                            margin: "2px 0 0",
-                            fontSize: 12,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          📞 {d.phone}
+                        <p className={local.contactText}>
+                          <PhoneIcon width={14} height={14} fill="#4d4d4d" />{" "}
+                          {d.phone}
                         </p>
                       )}
                       {d.email && (
-                        <p
-                          style={{
-                            margin: "2px 0 0",
-                            fontSize: 12,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          ✉️ {d.email}
+                        <p className={local.contactText}>
+                          <EmailIcon width={14} height={14} fill="#4d4d4d" />{" "}
+                          {d.email}
                         </p>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    <div className={local.cardActions}>
                       <IconButton
                         variant="ghost"
                         size="sm"
@@ -411,7 +365,7 @@ const load = async () => {
           </>
         }
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className={local.modalForm}>
           <FormField label="Doctor Name *">
             <Input
               value={form.name}
@@ -420,9 +374,7 @@ const load = async () => {
             />
           </FormField>
 
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
+          <div className={local.formGrid}>
             <FormField label="Age">
               <Input
                 type="number"
@@ -431,20 +383,11 @@ const load = async () => {
               />
             </FormField>
             <FormField label="Gender">
-              <select
+              <Select
                 value={form.gender}
                 onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  borderRadius: 6,
-                  border: "1px solid #ccc",
-                }}
-              >
-                {GENDERS.map((g) => (
-                  <option key={g}>{g}</option>
-                ))}
-              </select>
+                options={GENDERS.map((g) => ({ value: g, label: g }))}
+              />
             </FormField>
           </div>
 
@@ -512,8 +455,9 @@ const load = async () => {
           </>
         }
       >
-        <p>
-          Delete <strong>Dr. {deleteTarget?.name}</strong>?
+        <p className={local.confirmDel}>
+          Are you sure you want to remove{" "}
+          <strong>Dr. {deleteTarget?.name}</strong>?
         </p>
       </Modal>
 
@@ -535,17 +479,8 @@ const load = async () => {
           </>
         }
       >
-        <h4
-          style={{
-            margin: "0 0 10px",
-            fontSize: 12,
-            textTransform: "uppercase",
-            color: "#666",
-          }}
-        >
-          Specialty
-        </h4>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <h4 className={local.filterTitle}>Specialty</h4>
+        <div className={local.chipRow}>
           {filterCategories.map((c) => (
             <Chip
               key={c}

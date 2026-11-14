@@ -19,9 +19,9 @@ import {
 import local from "./CustomerOrderStatus.module.scss";
 import { formatRupees } from "../../utils/subscription";
 
-const POLL_MS_ACTIVE = 30_000;
+const POLL_MS_ACTIVE = 90_000;
 const POLL_MS_BILL = 30_000;
-const POLL_MS_TERMINAL = 30_000;
+const POLL_MS_TERMINAL = 120_000;
 
 const ACTIVE_ORDER_KEY_PREFIX = "dinein-active-order::";
 

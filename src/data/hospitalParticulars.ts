@@ -22,3 +22,10 @@ export const DEFAULT_HOSPITAL_PARTICULARS: Array<
   { name: 'Oxygen Charges',           type: 'per-day',  charge: 600  },
   { name: 'Physiotherapy Session',    type: 'one-time', charge: 700  },
 ];
+
+export const DEFAULT_IPD_ROWS: Array<Omit<HospitalParticular, "id">> = [
+  { name: "Registration Fee",    type: "one-time", charge: 200 },
+  { name: "Doctor Consultation", type: "one-time", charge: 500 },
+  { name: "Room Rent (General)", type: "per-day",  charge: 1500 },
+  { name: "Nursing Charges",     type: "per-day",  charge: 800 },
+];

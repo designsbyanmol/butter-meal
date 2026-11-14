@@ -136,7 +136,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   background: #f8fafc;
 }
 
@@ -192,13 +192,13 @@
 /* One-liner status below the number - replaces the old banners */
 .statusLine {
   margin: 4px 0 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: #64748b;
   text-align: center;
   line-height: 1.5;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #f1f5f9;
 }
 
@@ -208,8 +208,8 @@
 }
 
 .statusLineWarning {
-  background: #fef3c7;
-  color: #92400e;
+  background: $amber-100;
+  color: $amber-800;
 }
 
 /* Appointment details card */
@@ -255,6 +255,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin: 20px 0 0;
 }
 
 .refreshBtn {
@@ -280,22 +281,12 @@
    states so they look like siblings
    ========================================================= */
 
-.emoji {
-  font-size: 56px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
 .statusHeading {
   margin: 0;
   font-size: 24px;
   font-weight: 800;
-  color: #16a34a;
+  color: $gray-700;
   text-align: center;
-}
-
-.statusFailed {
-  color: #dc2626;
 }
 
 .statusSubtext {

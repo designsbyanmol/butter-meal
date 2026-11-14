@@ -1,0 +1,113 @@
+// src/components/Admin/HospitalPatientsBody.module.scss
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+svg {
+    display: inline-block;
+}
+// ── Search & Filter Row ──────────────────────────────────
+.searchRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.searchInputWrap {
+  flex: 1;
+}
+
+.filterBadge {
+  background: #fff;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #1e7e34;
+  font-weight: 800;
+}
+
+// ── Patients Grid ────────────────────────────────────────
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+// ── Patient Card ─────────────────────────────────────────
+.card {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.cardInner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.patientName {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.contactText {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.subText {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.confirmDel {
+    padding: 20px 0;
+    text-align: center;
+}
+
+.cardActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+// ── Modal form ───────────────────────────────────────────
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ageGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+// ── Filter Sheet ─────────────────────────────────────────
+.filterTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

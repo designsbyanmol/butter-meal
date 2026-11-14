@@ -9,6 +9,7 @@ import {
   User,
   OpdVitals,
   OpdDefaults,
+  IpdDefaults
 } from "../types";
 import { TABLES } from "../config/tables";
 import type { Tenant } from "../contexts/TenantContext";
@@ -3278,42 +3279,78 @@ class SupabaseService {
   }
 
   async updateAppointmentStatus(
-    appointmentId: string,
-    status: string,
-    payment_status?: string,
-  ): Promise<boolean> {
-    const client = this.getClient();
-    if (!client) return false;
+  appointmentId: string,
+  status: string,
+  payment_status?: string,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
 
-    const updates: any = { status, updated_at: new Date().toISOString() };
-    if (payment_status) updates.payment_status = payment_status;
+  const updates: any = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+  if (payment_status) updates.payment_status = payment_status;
 
-    const { error } = await client
-      .from("star_veg_hospital_appointments")
-      .update(updates)
-      .eq("id", appointmentId);
-
-    if (error) {
-      console.error("updateAppointmentStatus error:", error);
-      return false;
-    }
-    return true;
+  // Any transition out of "confirmed" clears the call-in flag.
+  // If staff later un-holds the row back to "confirmed", the button
+  // starts fresh at "Call In" rather than "Called In".
+  if (status !== "confirmed") {
+    updates.called_in = false;
+    updates.called_in_at = null;
   }
 
-  async getNextHospitalToken(tenantSlug: string): Promise<number> {
-    const client = this.getClient();
-    if (!client) return 1;
+  const { error } = await client
+    .from("star_veg_hospital_appointments")
+    .update(updates)
+    .eq("id", appointmentId);
 
-    const { data, error } = await client.rpc("get_next_hospital_token", {
-      tenant_slug_in: tenantSlug,
-    });
-
-    if (error) {
-      console.error("getNextHospitalToken error:", error);
-      return 1;
-    }
-    return Number(data) || 1;
+  if (error) {
+    console.error("updateAppointmentStatus error:", error);
+    return false;
   }
+  return true;
+}
+
+  async callInAppointment(appointmentId: string): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const { error } = await client
+    .from("star_veg_hospital_appointments")
+    .update({
+      called_in: true,
+      called_in_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", appointmentId)
+    .eq("status", "confirmed");   // only call in rows that are still "confirmed"
+
+  if (error) {
+    console.error("callInAppointment error:", error);
+    return false;
+  }
+  return true;
+}
+
+  async getNextHospitalToken(
+  tenantSlug: string,
+  category: string,
+): Promise<number> {
+  const client = this.getClient();
+  if (!client) return 1;
+
+  const { data, error } = await client.rpc("get_next_hospital_token", {
+    tenant_slug_in: tenantSlug,
+    category_in: category,
+  });
+
+  if (error) {
+    console.error("getNextHospitalToken error:", error);
+    return 1;
+  }
+  return Number(data) || 1;
+}
 
   async getHospitalDoctors(tenantSlug: string): Promise<any[]> {
     const client = this.getClient();
@@ -3582,22 +3619,60 @@ class SupabaseService {
 
   // ─────────────────────────────── HOSPITAL: IPD BILLS ───────────────────────────────
   async saveIpdBill(
-    tenantSlug: string,
-    bill: Omit<IpdBill, "id" | "created_at">,
-  ): Promise<boolean> {
-    const client = this.getClient();
-    if (!client) return false;
-    const { data: t } = await client
-      .from("star_veg_tenants")
-      .select("id")
-      .eq("slug", tenantSlug)
-      .maybeSingle();
-    if (!t) return false;
-    const { error } = await client
-      .from("star_veg_hospital_ipd_bills")
-      .insert({ ...bill, tenant_id: t.id });
-    return !error;
+  tenantSlug: string,
+  bill: Omit<IpdBill, "id" | "created_at">,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+  const { data: t } = await client
+    .from("star_veg_tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .maybeSingle();
+  if (!t) return false;
+  const { error } = await client
+    .from("star_veg_hospital_ipd_bills")
+    .insert({ ...bill, tenant_id: t.id });
+  return !error;
+}
+
+
+  async updateIpdBill(
+  id: string,
+  patch: {
+    patient_name?: string;
+    phone?: string;           // ← new
+    age?: string;
+    gender?: string;
+    address?: string;
+    date_from?: string;
+    date_to?: string;
+    items?: any[];
+    total_amount?: number;
+    advance?: number;
+    remaining?: number;
+    is_paid?: boolean;
+    footer_heading?: string;
+    footer_info?: string;
+    disclaimer?: string;
+  },
+): Promise<IpdBill | null> {
+  const client = this.getClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from("star_veg_hospital_ipd_bills")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("updateIpdBill error:", error);
+    return null;
   }
+  return data as IpdBill;
+}
 
   async updateIpdBillDischargeType(
     billId: string,
@@ -3775,6 +3850,57 @@ class SupabaseService {
     }
     return true;
   }
+
+  async getHospitalIpdSettings(tenantSlug: string): Promise<IpdDefaults> {
+  const client = this.getClient();
+  const defaults: IpdDefaults = {
+    footerHeading: 'Best Wishes',
+    footerInfo: 'Take healthy diet and be sure to maintain hygine.',
+    disclaimer: 'Prepared under the observation.',
+  };
+  if (!client) return defaults;
+
+  const { data: t } = await client
+    .from('star_veg_tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+  if (!t) return defaults;
+
+  const { data } = await client
+    .from('star_veg_hospital_ipd_settings')
+    .select('footer_heading, footer_info, disclaimer')
+    .eq('tenant_id', t.id)
+    .maybeSingle();
+
+  if (!data) return defaults;
+
+  return {
+    footerHeading: data.footer_heading || defaults.footerHeading,
+    footerInfo: data.footer_info ?? defaults.footerInfo,
+    disclaimer: data.disclaimer ?? defaults.disclaimer,
+  };
+}
+
+async saveHospitalIpdSettings(
+  tenantSlug: string,
+  settings: IpdDefaults,
+): Promise<boolean> {
+  const client = this.getClient();
+  if (!client) return false;
+
+  const { error } = await client.rpc('upsert_hospital_ipd_settings', {
+    tenant_slug_in: tenantSlug,
+    footer_heading_in: settings.footerHeading,
+    footer_info_in: settings.footerInfo,
+    disclaimer_in: settings.disclaimer,
+  });
+  if (error) {
+    console.error('upsert_hospital_ipd_settings error:', error);
+    return false;
+  }
+  return true;
+}
 
   // ─────────────────────────────── MAPPERS ───────────────────────────────
 

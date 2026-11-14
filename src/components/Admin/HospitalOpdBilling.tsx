@@ -32,14 +32,14 @@ const emptyVitals = (): OpdVitals => ({ ...DEFAULT_VITALS });
 interface OpdDraft {
   patient: PatientValue;
   doctorName: string;
-  department: string;   // ← new: category of the selected service
-  serviceName: string;  // ← new: the service (problem / consultation)
-  price: number;        // ← new: read-only mirror of the service's price
+  department: string; // ← new: category of the selected service
+  serviceName: string; // ← new: the service (problem / consultation)
+  price: number; // ← new: read-only mirror of the service's price
   billNo: string;
 }
 
 interface VitalRow {
-  id: string;          // stable React key, never changes
+  id: string; // stable React key, never changes
   label: string;
   value: string;
 }
@@ -48,9 +48,9 @@ const freshBillNo = (): string => `OPD-${Date.now().toString().slice(-6)}`;
 
 const buildInitialDraft = (): OpdDraft => ({
   patient: emptyPatient(),
-  doctorName: '',
-  department: '',
-  serviceName: '',
+  doctorName: "",
+  department: "",
+  serviceName: "",
   price: 0,
   billNo: freshBillNo(),
 });
@@ -80,9 +80,9 @@ export const isOpdDraftNonEmpty = (d: OpdDraft): boolean => {
   if (d.patient.ageYears.trim()) return true;
   if (d.patient.ageMonths.trim()) return true;
   if (d.doctorName.trim()) return true;
-  if (d.department.trim()) return true;      // ← new
-  if (d.serviceName.trim()) return true;     // ← new
-  if (d.price > 0) return true;              // ← new
+  if (d.department.trim()) return true; // ← new
+  if (d.serviceName.trim()) return true; // ← new
+  if (d.price > 0) return true; // ← new
   return false;
 };
 
@@ -112,46 +112,45 @@ export default function HospitalOpdBilling() {
   const [draftDefaults, setDraftDefaults] = useState<OpdDefaults>(DEFAULT_OPD);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [isSavingBill, setIsSavingBill] = useState(false);
-const [vitalRows, setVitalRows] = useState<VitalRow[]>([]);
+  const [vitalRows, setVitalRows] = useState<VitalRow[]>([]);
   const [opdServices, setOpdServices] = useState<
-  { id: string; name: string; category: string; price: number }[]
->([]);
-const [doctors, setDoctors] = useState<
-  { id: string; name: string; category?: string }[]
->([]);
+    { id: string; name: string; category: string; price: number }[]
+  >([]);
+  const [doctors, setDoctors] = useState<
+    { id: string; name: string; category?: string }[]
+  >([]);
 
-// Unique categories from the service catalogue — the department list.
-const departments = useMemo(() => {
-  const set = new Set<string>();
-  opdServices.forEach((s) => {
-    if (s.category) set.add(s.category);
-  });
-  return Array.from(set).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: 'base' }),
-  );
-}, [opdServices]);
+  // Unique categories from the service catalogue — the department list.
+  const departments = useMemo(() => {
+    const set = new Set<string>();
+    opdServices.forEach((s) => {
+      if (s.category) set.add(s.category);
+    });
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+  }, [opdServices]);
 
-// Services in the chosen department.
-const servicesInDept = useMemo(() => {
-  if (!draft.department) return opdServices;
-  return opdServices.filter(
-    (s) =>
-      s.category.toLowerCase() === draft.department.toLowerCase(),
-  );
-}, [opdServices, draft.department]);
+  // Services in the chosen department.
+  const servicesInDept = useMemo(() => {
+    if (!draft.department) return opdServices;
+    return opdServices.filter(
+      (s) => s.category.toLowerCase() === draft.department.toLowerCase(),
+    );
+  }, [opdServices, draft.department]);
 
-// Doctors whose `category` matches the department (fall back to all if
-// none is tagged — the field stays a free-text input with a datalist).
-const doctorsInDept = useMemo(() => {
-  if (!draft.department) return doctors;
-  const filtered = doctors.filter(
-    (d: any) =>
-      (d as any).category &&
-      String((d as any).category).toLowerCase() ===
-        draft.department.toLowerCase(),
-  );
-  return filtered.length > 0 ? filtered : doctors;
-}, [doctors, draft.department]);
+  // Doctors whose `category` matches the department (fall back to all if
+  // none is tagged — the field stays a free-text input with a datalist).
+  const doctorsInDept = useMemo(() => {
+    if (!draft.department) return doctors;
+    const filtered = doctors.filter(
+      (d: any) =>
+        (d as any).category &&
+        String((d as any).category).toLowerCase() ===
+          draft.department.toLowerCase(),
+    );
+    return filtered.length > 0 ? filtered : doctors;
+  }, [doctors, draft.department]);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -169,45 +168,45 @@ const doctorsInDept = useMemo(() => {
     }
   }, [tenant?.slug, draft]);
 
-useEffect(() => {
-  if (!tenant) return;
-  let cancelled = false;
+  useEffect(() => {
+    if (!tenant) return;
+    let cancelled = false;
 
-  (async () => {
-    const [svc, docs, settings, services] = await Promise.all([
-      supabaseService.getHospitalServices(tenant.slug),
-      supabaseService.getHospitalDoctors(tenant.slug),
-      supabaseService.getHospitalOpdSettings(tenant.slug),
-      supabaseService.getHospitalServices(tenant.slug),
-    ]);
-    if (cancelled) return;
+    (async () => {
+      const [svc, docs, settings, services] = await Promise.all([
+        supabaseService.getHospitalServices(tenant.slug),
+        supabaseService.getHospitalDoctors(tenant.slug),
+        supabaseService.getHospitalOpdSettings(tenant.slug),
+        supabaseService.getHospitalServices(tenant.slug),
+      ]);
+      if (cancelled) return;
 
-    setFacilities((svc || []).map((d: any) => ({ id: d.id, name: d.name })));
-    setDoctors(
-  (docs || []).map((d: any) => ({
-    id: d.id,
-    name: d.name,
-    category: d.category ?? "",
-  })),
-);
-    setOpdDefaults(settings);
-    setDraftDefaults(settings);
+      setFacilities((svc || []).map((d: any) => ({ id: d.id, name: d.name })));
+      setDoctors(
+        (docs || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          category: d.category ?? "",
+        })),
+      );
+      setOpdDefaults(settings);
+      setDraftDefaults(settings);
 
-    setOpdServices(
-      (services || []).map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        category: s.category,
-        price: Number(s.price) || 0,
-      })),
-    );
-  })();
+      setOpdServices(
+        (services || []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          category: s.category,
+          price: Number(s.price) || 0,
+        })),
+      );
+    })();
 
-  return () => {
-    cancelled = true;
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [tenant?.slug]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.slug]);
 
   const updatePatient = (p: PatientValue) =>
     setDraft((prev) => ({ ...prev, patient: p }));
@@ -252,17 +251,17 @@ useEffect(() => {
       });
 
       const ok = await supabaseService.saveOpdBill(tenant.slug, {
-  bill_no: draft.billNo,
-  patient_name: draft.patient.name,
-  phone: draft.patient.phone,
-  age: combineAge(draft.patient.ageYears, draft.patient.ageMonths),
-  gender: draft.patient.gender,
-  address: draft.patient.address,
-  doctor_name: draft.doctorName,
-  department: draft.department,        // ← new
-  service_name: draft.serviceName,     // ← new
-  price: draft.price,                  // ← new
-});
+        bill_no: draft.billNo,
+        patient_name: draft.patient.name,
+        phone: draft.patient.phone,
+        age: combineAge(draft.patient.ageYears, draft.patient.ageMonths),
+        gender: draft.patient.gender,
+        address: draft.patient.address,
+        doctor_name: draft.doctorName,
+        department: draft.department, // ← new
+        service_name: draft.serviceName, // ← new
+        price: draft.price, // ← new
+      });
 
       // Close the dialog BEFORE alerting, so the alert is not stacked
       // on top of a still-open modal on some mobile browsers.
@@ -285,16 +284,16 @@ useEffect(() => {
   };
 
   const confirmDefaultsEdit = () => {
-  setShowDefaultsUnlockConfirm(false);
-  setVitalRows(
-    Object.entries(opdDefaults.vitals).map(([label, value], i) => ({
-      id: `v_${i}_${Math.random().toString(36).slice(2, 7)}`,
-      label,
-      value,
-    })),
-  );
-  setIsDefaultsEditorOpen(true);
-};
+    setShowDefaultsUnlockConfirm(false);
+    setVitalRows(
+      Object.entries(opdDefaults.vitals).map(([label, value], i) => ({
+        id: `v_${i}_${Math.random().toString(36).slice(2, 7)}`,
+        label,
+        value,
+      })),
+    );
+    setIsDefaultsEditorOpen(true);
+  };
 
   const toggleDraftFacility = (name: string) => {
     setDraftDefaults((prev) => {
@@ -309,39 +308,41 @@ useEffect(() => {
   };
 
   const saveDefaults = async () => {
-  if (!tenant || isSavingDefaults) return;
+    if (!tenant || isSavingDefaults) return;
 
-  // Drop empty labels; trim; later entries win on duplicate labels.
-  const vitals: OpdVitals = {};
-  const seen = new Set<string>();
-for (const row of vitalRows) {
-  const label = row.label.trim();
-  if (!label) continue;
-  if (seen.has(label)) {
-    alert(`Duplicate vital label: "${label}". Please rename one of them.`);
-    return;
-  }
-  seen.add(label);
-  vitals[label] = row.value;
-}
+    // Drop empty labels; trim; later entries win on duplicate labels.
+    const vitals: OpdVitals = {};
+    const seen = new Set<string>();
+    for (const row of vitalRows) {
+      const label = row.label.trim();
+      if (!label) continue;
+      if (seen.has(label)) {
+        alert(`Duplicate vital label: "${label}". Please rename one of them.`);
+        return;
+      }
+      seen.add(label);
+      vitals[label] = row.value;
+    }
 
-  const payload: OpdDefaults = {
-    ...draftDefaults,
-    vitals,
+    const payload: OpdDefaults = {
+      ...draftDefaults,
+      vitals,
+    };
+
+    setIsSavingDefaults(true);
+    const ok = await supabaseService.saveHospitalOpdSettings(
+      tenant.slug,
+      payload,
+    );
+    setIsSavingDefaults(false);
+
+    if (ok) {
+      setOpdDefaults(payload);
+      setIsDefaultsEditorOpen(false);
+    } else {
+      alert("Failed to save OPD defaults");
+    }
   };
-
-  setIsSavingDefaults(true);
-  const ok = await supabaseService.saveHospitalOpdSettings(tenant.slug, payload);
-  setIsSavingDefaults(false);
-
-  if (ok) {
-    setOpdDefaults(payload);
-    setIsDefaultsEditorOpen(false);
-  } else {
-    alert('Failed to save OPD defaults');
-  }
-};
-
 
   const printLayoutProps = {
     tenant,
@@ -354,17 +355,15 @@ for (const row of vitalRows) {
       address: draft.patient.address,
     },
     doctorName: draft.doctorName,
-    department: draft.department,        // ← new
-  serviceName: draft.serviceName,      // ← new
-  price: draft.price, 
+    department: draft.department, // ← new
+    serviceName: draft.serviceName, // ← new
+    price: draft.price,
     vitals: opdDefaults.vitals,
     facilities: opdDefaults.facilities,
     footerHeading: opdDefaults.footerHeading,
     footerInfo: opdDefaults.footerInfo,
     disclaimer: opdDefaults.disclaimer,
   } as const;
-
-  
 
   return (
     <>
@@ -380,89 +379,93 @@ for (const row of vitalRows) {
         <PatientPicker value={draft.patient} onChange={updatePatient} />
 
         <div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-    gap: 12,
-  }}
->
-  <FormField label="Department *">
-    <Select
-      value={draft.department}
-      onChange={(e) => {
-        const nextDept = e.target.value;
-        setDraft((prev) => ({
-          ...prev,
-          department: nextDept,
-          // Reset the service when department changes so a stale
-          // service from another department doesn't linger.
-          serviceName: '',
-          price: 0,
-        }));
-      }}
-      options={[
-        { value: '', label: 'Select department…' },
-        ...departments.map((d) => ({ value: d, label: d })),
-      ]}
-    />
-  </FormField>
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 12,
+          }}
+        >
+          <FormField label="Department *">
+            <Select
+              value={draft.department}
+              onChange={(e) => {
+                const nextDept = e.target.value;
+                setDraft((prev) => ({
+                  ...prev,
+                  department: nextDept,
+                  // Reset the service when department changes so a stale
+                  // service from another department doesn't linger.
+                  serviceName: "",
+                  price: 0,
+                }));
+              }}
+              options={[
+                { value: "", label: "Select department…" },
+                ...departments.map((d) => ({ value: d, label: d })),
+              ]}
+            />
+          </FormField>
 
-  <FormField label="Service *">
-    <Select
-      value={draft.serviceName}
-      onChange={(e) => {
-        const nextName = e.target.value;
-        const svc = opdServices.find(
-          (s) =>
-            s.name === nextName &&
-            (!draft.department ||
-              s.category.toLowerCase() === draft.department.toLowerCase()),
-        );
-        setDraft((prev) => ({
-          ...prev,
-          serviceName: nextName,
-          price: svc ? svc.price : 0,
-        }));
-      }}
-      options={[
-        { value: '', label: 'Select service…' },
-        ...servicesInDept.map((s) => ({ value: s.name, label: s.name })),
-      ]}
-      disabled={!draft.department}
-    />
-  </FormField>
+          <FormField label="Service *">
+            <Select
+              value={draft.serviceName}
+              onChange={(e) => {
+                const nextName = e.target.value;
+                const svc = opdServices.find(
+                  (s) =>
+                    s.name === nextName &&
+                    (!draft.department ||
+                      s.category.toLowerCase() ===
+                        draft.department.toLowerCase()),
+                );
+                setDraft((prev) => ({
+                  ...prev,
+                  serviceName: nextName,
+                  price: svc ? svc.price : 0,
+                }));
+              }}
+              options={[
+                { value: "", label: "Select service…" },
+                ...servicesInDept.map((s) => ({
+                  value: s.name,
+                  label: s.name,
+                })),
+              ]}
+              disabled={!draft.department}
+            />
+          </FormField>
 
-  <FormField
-  label="Doctor Name"
-  hint={
-    draft.department && doctorsInDept.length === 0
-      ? `No doctors tagged for ${draft.department}. You can still type a name.`
-      : undefined
-  }
->
-  <Input
-    list="opd-doctor-list"
-    value={draft.doctorName}
-    onChange={(e) =>
-      setDraft((prev) => ({ ...prev, doctorName: e.target.value }))
-    }
-    placeholder="Select or type doctor name..."
-  />
-  <datalist id="opd-doctor-list">
-    {doctorsInDept.map((d) => (
-      <option key={d.id} value={d.name} />
-    ))}
-  </datalist>
-</FormField>
+          <FormField
+            label="Doctor Name"
+            hint={
+              draft.department && doctorsInDept.length === 0
+                ? `No doctors tagged for ${draft.department}. You can still type a name.`
+                : undefined
+            }
+          >
+            <Input
+              list="opd-doctor-list"
+              value={draft.doctorName}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, doctorName: e.target.value }))
+              }
+              placeholder="Select or type doctor name..."
+            />
+            <datalist id="opd-doctor-list">
+              {doctorsInDept.map((d) => (
+                <option key={d.id} value={d.name} />
+              ))}
+            </datalist>
+          </FormField>
 
-  <FormField label="Price (₹)">
-    <Input
-      readOnly
-      value={draft.price ? String(draft.price) : ''}
-      placeholder="Auto-filled from service"
-    />
-  </FormField>
-</div>
+          <FormField label="Price (₹)">
+            <Input
+              readOnly
+              value={draft.price ? String(draft.price) : ""}
+              placeholder="Auto-filled from service"
+            />
+          </FormField>
+        </div>
       </div>
 
       {/* Info banner */}
@@ -633,66 +636,74 @@ for (const row of vitalRows) {
               >
                 <h4 style={{ margin: 0 }}>Vitals</h4>
                 <Button
-  size="sm"
-  variant="secondary"
-  onClick={() =>
-    setVitalRows((prev) => [
-      ...prev,
-      {
-        id: `v_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        label: `Vital ${prev.length + 1}`,
-        value: '',
-      },
-    ])
-  }
->
-  + Add vital
-</Button>
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    setVitalRows((prev) => [
+                      ...prev,
+                      {
+                        id: `v_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                        label: `Vital ${prev.length + 1}`,
+                        value: "",
+                      },
+                    ])
+                  }
+                >
+                  + Add vital
+                </Button>
               </div>
 
               {vitalRows.map((row, i) => (
-  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-    <FormField label="Label">
-      <Input
-        value={row.label}
-        onChange={(e) => {
-          const next = e.target.value;
-          setVitalRows((prev) =>
-            prev.map((r, idx) =>
-              idx === i ? { ...r, label: next } : r,
-            ),
-          );
-        }}
-        placeholder="e.g. Blood Pressure"
-      />
-    </FormField>
+                <div
+                  key={row.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr auto",
+                    gap: 8,
+                    alignItems: "end",
+                  }}
+                >
+                  <FormField label="Label">
+                    <Input
+                      value={row.label}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setVitalRows((prev) =>
+                          prev.map((r, idx) =>
+                            idx === i ? { ...r, label: next } : r,
+                          ),
+                        );
+                      }}
+                      placeholder="e.g. Blood Pressure"
+                    />
+                  </FormField>
 
-    <FormField label="Default value (optional)">
-      <Input
-        value={row.value}
-        onChange={(e) => {
-          const next = e.target.value;
-          setVitalRows((prev) =>
-            prev.map((r, idx) =>
-              idx === i ? { ...r, value: next } : r,
-            ),
-          );
-        }}
-        placeholder="e.g. 120/80"
-      />
-    </FormField>
+                  <FormField label="Default value (optional)">
+                    <Input
+                      value={row.value}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setVitalRows((prev) =>
+                          prev.map((r, idx) =>
+                            idx === i ? { ...r, value: next } : r,
+                          ),
+                        );
+                      }}
+                      placeholder="e.g. 120/80"
+                    />
+                  </FormField>
 
-    <Button
-      size="sm"
-      variant="danger"
-      onClick={() =>
-        setVitalRows((prev) => prev.filter((_, idx) => idx !== i))
-      }
-    >
-      Remove
-    </Button>
-  </div>
-))}
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() =>
+                      setVitalRows((prev) => prev.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
 

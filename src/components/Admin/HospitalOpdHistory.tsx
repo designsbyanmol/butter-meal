@@ -119,6 +119,7 @@ interface FilterState {
   patient: string;
   billNo: string;
   phone: string;
+  doctor: string;
   datePreset: DatePreset;
   customFrom: string;
   customTo: string;
@@ -128,6 +129,7 @@ const EMPTY_FILTERS: FilterState = {
   patient: "",
   billNo: "",
   phone: "",
+  doctor: "",
   datePreset: "all",
   customFrom: "",
   customTo: "",
@@ -199,54 +201,61 @@ const HospitalOpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const suggestions = useMemo(() => {
     const patients = new Set<string>();
+    const doctors = new Set<string>();
     bills.forEach((b) => {
       if (b.patient_name) patients.add(b.patient_name);
+      if (b.doctor_name && b.doctor_name.trim()) {
+        doctors.add(b.doctor_name.trim()); // ← new
+      }
     });
-    return { patients: Array.from(patients).sort() };
+    return {
+      patients: Array.from(patients).sort(),
+      doctors: Array.from(doctors).sort(),
+    };
   }, [bills]);
 
   const stats = useMemo(() => {
-  const now = new Date();
-  const todayStart = startOfDay(now).getTime();
-  const todayEnd   = endOfDay(now).getTime();
+    const now = new Date();
+    const todayStart = startOfDay(now).getTime();
+    const todayEnd = endOfDay(now).getTime();
 
-  const y = new Date(now);
-  y.setDate(y.getDate() - 1);
-  const yesterdayStart = startOfDay(y).getTime();
-  const yesterdayEnd   = endOfDay(y).getTime();
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    const yesterdayStart = startOfDay(y).getTime();
+    const yesterdayEnd = endOfDay(y).getTime();
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-  let todayCount = 0;
-  let yesterdayCount = 0;
-  let monthCount = 0;
-  let invalid = 0;
+    let todayCount = 0;
+    let yesterdayCount = 0;
+    let monthCount = 0;
+    let invalid = 0;
 
-  bills.forEach((b) => {
-    const raw = b.created_at;
-    const t = raw ? new Date(raw).getTime() : NaN;
+    bills.forEach((b) => {
+      const raw = b.created_at;
+      const t = raw ? new Date(raw).getTime() : NaN;
 
-    if (!Number.isFinite(t)) {
-      invalid += 1;
-      return;
+      if (!Number.isFinite(t)) {
+        invalid += 1;
+        return;
+      }
+
+      const dayStart = startOfDay(new Date(t)).getTime();
+
+      if (dayStart === todayStart) todayCount += 1;
+      if (dayStart === yesterdayStart) yesterdayCount += 1;
+      if (t >= monthStart && t <= todayEnd) monthCount += 1;
+    });
+
+    if (invalid > 0) {
+      console.warn(
+        `[opd-history] ${invalid} bill(s) had missing/invalid created_at ` +
+          `- they will not contribute to today/yesterday counts.`,
+      );
     }
 
-    const dayStart = startOfDay(new Date(t)).getTime();
-
-    if (dayStart === todayStart)     todayCount += 1;
-    if (dayStart === yesterdayStart) yesterdayCount += 1;
-    if (t >= monthStart && t <= todayEnd) monthCount += 1;
-  });
-
-  if (invalid > 0) {
-    console.warn(
-      `[opd-history] ${invalid} bill(s) had missing/invalid created_at ` +
-      `- they will not contribute to today/yesterday counts.`,
-    );
-  }
-
-  return { todayCount, yesterdayCount, monthCount };
-}, [bills]);
+    return { todayCount, yesterdayCount, monthCount };
+  }, [bills]);
 
   const filteredBills = useMemo(() => {
     let result = bills;
@@ -277,13 +286,24 @@ const HospitalOpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     }
 
     if (filters.phone.trim()) {
-  const q = filters.phone.replace(/\D/g, "");
-  if (q) {
-    result = result.filter((b) =>
-      String(b.phone || "").replace(/\D/g, "").includes(q),
-    );
-  }
-}
+      const q = filters.phone.replace(/\D/g, "");
+      if (q) {
+        result = result.filter((b) =>
+          String(b.phone || "")
+            .replace(/\D/g, "")
+            .includes(q),
+        );
+      }
+    }
+
+    if (filters.doctor.trim()) {
+      const q = filters.doctor.trim().toLowerCase();
+      result = result.filter((b) =>
+        String(b.doctor_name || "")
+          .toLowerCase()
+          .includes(q),
+      );
+    }
 
     const { from, to } = computeRange(
       filters.datePreset,
@@ -315,14 +335,15 @@ const HospitalOpdHistory: React.FC<Props> = ({ isOpen, onClose }) => {
     setPage(1);
   }, [search, filters]);
 
-const activeFilters = useMemo(() => {
-  let c = 0;
-  if (filters.patient.trim()) c++;
-  if (filters.billNo.trim()) c++;
-  if (filters.phone.trim()) c++;   // ← new
-  if (filters.datePreset !== "all") c++;
-  return c;
-}, [filters]);
+  const activeFilters = useMemo(() => {
+    let c = 0;
+    if (filters.patient.trim()) c++;
+    if (filters.billNo.trim()) c++;
+    if (filters.phone.trim()) c++; // ← new
+    if (filters.doctor.trim()) c++;
+    if (filters.datePreset !== "all") c++;
+    return c;
+  }, [filters]);
 
   const openFilterSheet = () => {
     setDraftFilters(filters);
@@ -352,29 +373,29 @@ const activeFilters = useMemo(() => {
   const handleExportAll = () => {
     if (filteredBills.length === 0) return;
     const header = [
-  "Bill No",
-  "Date",
-  "Patient",
-  "Phone",
-  "Age",
-  "Gender",
-  "Address",
-  "Doctor",
-].join(",");
-const rows = filteredBills.map((b) =>
-  [
-    b.bill_no,
-    new Date(b.created_at).toLocaleDateString("en-IN"),
-    b.patient_name,
-    b.phone || "",
-    b.age || "",
-    b.gender || "",
-    b.address || "",
-    b.doctor_name || "",
-  ]
-    .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-    .join(","),
-);
+      "Bill No",
+      "Date",
+      "Patient",
+      "Phone",
+      "Age",
+      "Gender",
+      "Address",
+      "Doctor",
+    ].join(",");
+    const rows = filteredBills.map((b) =>
+      [
+        b.bill_no,
+        new Date(b.created_at).toLocaleDateString("en-IN"),
+        b.patient_name,
+        b.phone || "",
+        b.age || "",
+        b.gender || "",
+        b.address || "",
+        b.doctor_name || "",
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(","),
+    );
     const blob = new Blob([[header, ...rows].join("\n")], {
       type: "text/csv;charset=utf-8",
     });
@@ -399,6 +420,9 @@ const rows = filteredBills.map((b) =>
             address: selectedBill.address || "",
           },
           doctorName: selectedBill.doctor_name || "",
+          department: selectedBill.department || "", // ← add
+          serviceName: selectedBill.service_name || "", // ← add
+          price: Number(selectedBill.price) || 0, // ← add
           vitals: opdDefaults.vitals,
           facilities: opdDefaults.facilities,
           footerHeading: opdDefaults.footerHeading,
@@ -542,7 +566,7 @@ const rows = filteredBills.map((b) =>
                         <strong>{bill.bill_no}</strong>
                       </td>
                       <td>{bill.patient_name}</td>
-                      <td>{bill.phone || '-'}</td>
+                      <td>{bill.phone || "-"}</td>
                       <td>{bill.doctor_name || "-"}</td>
                       <td>
                         <Button
@@ -620,19 +644,37 @@ const rows = filteredBills.map((b) =>
               />
             </FormField>
             <FormField label="Phone">
-  <Input
-    type="tel"
-    inputMode="numeric"
-    value={draftFilters.phone}
-    onChange={(e) =>
-      setDraftFilters({
-        ...draftFilters,
-        phone: e.target.value.replace(/\D/g, '').slice(0, 10),
-      })
-    }
-    placeholder="Search by phone..."
-  />
-</FormField>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                value={draftFilters.phone}
+                onChange={(e) =>
+                  setDraftFilters({
+                    ...draftFilters,
+                    phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  })
+                }
+                placeholder="Search by phone..."
+              />
+            </FormField>
+            <FormField label="Doctor">
+              <Input
+                value={draftFilters.doctor}
+                onChange={(e) =>
+                  setDraftFilters({
+                    ...draftFilters,
+                    doctor: e.target.value,
+                  })
+                }
+                placeholder="Search by doctor name..."
+                list="opd-suggest-doctors"
+              />
+              <datalist id="opd-suggest-doctors">
+                {suggestions.doctors.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </FormField>
           </div>
         </section>
 
@@ -706,19 +748,19 @@ const rows = filteredBills.map((b) =>
           <div>
             <div className={local.billHeader}>
               <div className={local.billHeaderItem}>
-  <span className={local.billHeaderLabel}>Patient</span>
-  <span className={local.billHeaderValue}>
-    {selectedBill.patient_name}
-    {selectedBill.age && ` · Age ${selectedBill.age}`}
-    {selectedBill.gender && ` · ${selectedBill.gender}`}
-    {selectedBill.phone && ` · ${selectedBill.phone}`}
-    {selectedBill.address && (
-      <span className={local.billHeaderSub}>
-        {selectedBill.address}
-      </span>
-    )}
-  </span>
-</div>
+                <span className={local.billHeaderLabel}>Patient</span>
+                <span className={local.billHeaderValue}>
+                  {selectedBill.patient_name}
+                  {selectedBill.age && ` · Age ${selectedBill.age}`}
+                  {selectedBill.gender && ` · ${selectedBill.gender}`}
+                  {selectedBill.phone && ` · ${selectedBill.phone}`}
+                  {selectedBill.address && (
+                    <span className={local.billHeaderSub}>
+                      {selectedBill.address}
+                    </span>
+                  )}
+                </span>
+              </div>
               <div className={local.billHeaderItem}>
                 <span className={local.billHeaderLabel}>Doctor</span>
                 <span className={local.billHeaderValue}>

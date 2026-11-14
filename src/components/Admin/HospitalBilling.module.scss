@@ -129,6 +129,15 @@
   }
 }
 
+.hospitalDep {
+  display: flex;
+  gap: 2mm;
+  margin: 1mm 0;
+  span {
+    font-size: 12px;
+  }
+}
+
 .titleBox {
   width: 45mm;
   padding: 5mm;
@@ -160,12 +169,15 @@
 
 .patientRow {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 3mm;
+  grid-template-columns: 3fr 2fr 2fr;
+  gap: 2mm;
+  margin: 0 0 1mm;
 
-  .addressCell {
-    grid-column-start: 1;
-    grid-column-end: 3;
+  span {
+    font-size: 12px;
+    strong {
+    font-size: 12px;
+    }
   }
 }
 
@@ -175,7 +187,7 @@
 .ipdTable {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 10mm;
+  margin: 4mm 0 6mm;
 
   th,
   td {
